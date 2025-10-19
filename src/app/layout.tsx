@@ -238,7 +238,7 @@ export default function RootLayout({
           ${gochiHand.variable} ${mali.variable} ${elsie.variable} ${indieFlower.variable} ${kaushan.variable}
         `}
       >
-        <body className={`${manrope.className} font-sans`}>{children}</body>
+        <body suppressHydrationWarning className={`${manrope.className} font-sans`}>{children}</body>
       </html>
     </ClerkProvider>
   );

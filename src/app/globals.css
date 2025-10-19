@@ -1,7 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-
 /* =========================
    Global Theme Variables
    ========================= */
@@ -19,164 +18,351 @@
   --font-alt: var(--font-space-grotesk), sans-serif;
   --font-race: var(--font-caress);
   --font-jewel: var(--font-vensfolk);
-  
 
+  /* Grayscale palette (universal) */
+  --gray-50: #fafafa;
+  --gray-100: #f5f5f5;
+  --gray-200: #e5e5e5;
+  --gray-300: #d4d4d4;
+  --gray-400: #a3a3a3;
+  --gray-500: #737373;
+  --gray-600: #525252;
+  --gray-700: #404040;
+  --gray-800: #262626;
+  --gray-900: #171717;
+
+  /* Semantic colors */
+  --success: #16a34a;
+  --warning: #eab308;
+  --error: #dc2626;
+  --info: #2563eb;
+
+  /* Overlay helpers */
+  --overlay-light: rgba(255, 255, 255, 0.82);
+  --overlay-dark: rgba(0, 0, 0, 0.6);
 }
 
 /* =========================
-     Neutral Theme
-     ========================= */
+       Neutral Theme
+       ========================= */
 [data-theme="neutral"] {
-  --color-background: #ffffff;
-  --color-foreground: #2E2A3F;
-  --color-primary: #6F5DD2;
-  --color-secondary: #B8C0FF;
-  --color-surface-base: #ECEFFF;
-  --color-surface-raised: #F8F6FF;
-  --color-surface-overlay: #FFFFFF;
-  --color-surface-card: #FDFCFE;
-  --color-ink: #50456E;
-  --color-ink-strong: #2E2A3F;
-  --color-ink-soft: #636363;
-  --color-ink-muted: #b0b0b0;
-  --color-ink-disabled: #d0d0d0;
-  --color-border-subtle: #CBD0F5;
-  --color-border-emphasis: #998AD6;
-  --color-halo-soft: #AC91EB;
-  --color-halo-glow: #6F5DD2;
-  --color-highlight-star: #EB9D00;
-  --color-iconbutton: #EAEEED;
+  --color-background: var(--gray-50);
+  --color-foreground: var(--gray-900);
+
+  --color-primary: var(--gray-900);
+  --color-secondary: var(--gray-600);
+
+  --color-surface-base: var(--gray-100);
+  --color-surface-raised: var(--gray-50);
+  --color-surface-overlay: var(--overlay-light);
+  --color-surface-card: #ffffff;
+
+  --color-ink: var(--gray-700);
+  --color-ink-strong: var(--gray-900);
+  --color-ink-soft: var(--gray-500);
+  --color-ink-muted: var(--gray-400);
+  --color-ink-disabled: var(--gray-300);
+
+  --color-border-subtle: var(--gray-300);
+  --color-border-emphasis: var(--gray-700);
+
+  --color-halo-soft: var(--gray-400);
+  --color-halo-glow: var(--gray-900);
+
+  --color-highlight-star: #ffd700;
+
+  --color-iconbutton: var(--gray-200);
   --color-iconborder-border: transparent;
-  --color-iconbutton-hover: #D5DDDB;
-  --color-icon: #191F1E;
+  --color-iconbutton-hover: var(--gray-300);
+  --color-icon: var(--gray-900);
+  --toolbar-button-border: 1px solid var(--color-border-subtle);   /* default visible */
+  --toolbar-button-border-selected: 1px solid var(--color-border-emphasis); /* on select */
 
-  /* Prefixed */
-  --color-theme-neutral-base: #F5F6FF;
-  --color-theme-neutral-card: #FDFCFE;
-  --color-theme-neutral-overlay: rgba(242, 243, 255, 0.82);
-  --color-theme-neutral-accent: #B8C0FF;
-  --color-theme-neutral-accent-soft: #DDE1FF;
-  --color-theme-neutral-border: #CBD0F5;
-  --color-theme-neutral-text: #2E2A3F;
+  
+  --radius-card: 0.5rem;
+  --radius-button: 0.375rem;
+  --radius-popup: 0.75rem;
 
+  --popup-border: none;
+  --popup-bg: rgba(255, 255, 255, 1);
+  --popup-shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
 
+  /* Prefixed neutrals */
+  --color-theme-neutral-base: var(--gray-50);
+  --color-theme-neutral-card: #ffffff;
+  --color-theme-neutral-overlay: var(--overlay-light);
+  --color-theme-neutral-accent: var(--gray-700);
+  --color-theme-neutral-accent-soft: var(--gray-300);
+  --color-theme-neutral-border: var(--gray-300);
+  --color-theme-neutral-text: var(--gray-900);
+
+  --color-sticker-bg: #fffdfb;
+  --color-toolbar-bg: #f9f9f9;
+  --color-focus-ring: #000000;
+  --color-gradient-primary: linear-gradient(135deg, #ffffff 0%, #f5f5f5 100%);
+
+  --font-body: var(--font-inter), sans-serif;
+  --font-heading: var(--font-space-grotesk), sans-serif;
+  --font-accent: var(--font-patrick-hand), cursive;
+  
 }
 
-/* =========================
-     Kawaii Theme
-     ========================= */
 [data-theme="kawaii"] {
-  --color-background: #FFF5FA;
-  --color-foreground: #60324C;
-  --color-primary: #FFB8D2;
-  --color-secondary: #FFE4EE;
-  --color-surface-base: #FFF0F8;
-  --color-surface-raised: #FFF8FC;
+  /* Core */
+  --color-background: #fff5fa;
+  --color-foreground: #60324c;
+
+  /* Brand / Accents */
+  --color-primary: #ff69b4; /* bubblegum pink */
+  --color-secondary: #ffe4ee; /* soft blush */
+  --color-accent-alt: #aee6d8; /* mint accent */
+  --color-accent-alt-soft: #e0f8f4; /* soft mint */
+
+  /* Surfaces */
+  --color-surface-base: #fff0f8;
+  --color-surface-raised: #fff8fc;
   --color-surface-overlay: rgba(255, 238, 247, 0.9);
   --color-surface-card: rgba(255, 240, 248, 0.8);
-  --color-ink: #60324C;
-  --color-ink-strong: #A05185;
-  --color-ink-soft: #D49CB5;
-  --color-ink-muted: #eebfd8;
-  --color-ink-disabled: #f6dbe7;
-  --color-border-subtle: #F9C9DD;
-  --color-border-emphasis: #FFB8D2;
-  --color-halo-soft: #FFD6EC;
-  --color-halo-glow: #FFB8D2;
-  --color-highlight-star: #FFD700;
-  --color-iconbutton: #FFB8D2;
-  --color-iconborder-border: #34413E;
-  --color-iconbutton-hover: #EAEEED;
-  --color-icon: #60324C;
+  --color-surface-frost: rgba(
+    255,
+    255,
+    255,
+    0.7
+  ); /* frosting for light cards */
 
-  /* Prefixed */
-  --color-theme-kawaii-base: #FFF5FA;
+  /* Text / Ink */
+  --color-ink: #60324c;
+  --color-ink-strong: #a05185; /* stronger berry tone */
+  --color-ink-soft: #d49cb5; /* pastel lavender */
+  --color-ink-muted: #eebfd8; /* subtle hint */
+  --color-ink-disabled: #f6dbe7;
+
+  /* Borders */
+  --color-border-subtle: #f9c9dd; /* light pastel divider */
+  --color-border-emphasis: #5d4037; /* chocolate brown for outlines */
+  --color-border-dashed: 2px dashed #5d4037; /* optional playful border */
+
+  /* Halos / Focus */
+  --color-halo-soft: #ffd6ec;
+  --color-halo-glow: #ffb8d2;
+  --color-focus-ring: #ffb8d2;
+  --color-focus-ring-alt: #5d4037; /* alt focus outline */
+
+  /* Highlights */
+  --color-highlight-star: #ffd700;
+
+  /* Iconography */
+  --color-iconbutton: #ffb8d2;
+  --color-iconborder-border: #5d4037; /* dark outline for icons */
+  --color-iconbutton-hover: #fddceb;
+  --color-icon: #60324c;
+  --toolbar-button-border: 1px solid var(--color-border-subtle);   /* default visible */
+  --toolbar-button-border-selected: 1px solid var(--color-border-emphasis); /* on select */
+
+  /* Popups */
+  --popup-border: 1px solid var(--color-border-emphasis);
+  --popup-bg: rgba(255, 238, 247, 0.95);
+  --popup-shadow:0 2px 6px rgba(226, 153, 169, 0.35),   /* darker pink glow */
+  0 6px 14px rgba(93, 64, 55, 0.25);     /* soft brown depth */
+
+  /* Prefixed Kawaii */
+  --color-theme-kawaii-base: #fff5fa;
   --color-theme-kawaii-card: rgba(255, 240, 248, 0.8);
   --color-theme-kawaii-overlay: rgba(255, 238, 247, 0.9);
-  --color-theme-kawaii-accent: #FFB8D2;
-  --color-theme-kawaii-accent-soft: #FFE4EE;
-  --color-theme-kawaii-border: #F9C9DD;
-  --color-theme-kawaii-text: #60324C;
+  --color-theme-kawaii-accent: #ffb8d2;
+  --color-theme-kawaii-accent-soft: #ffe4ee;
+  --color-theme-kawaii-border: #5d4037;
+  --color-theme-kawaii-text: #60324c;
 
+  /* Tools / Extras */
+  --color-sticker-bg: #fff0f8;
+  --color-toolbar-bg: #fff8fc;
+  --color-gradient-primary: linear-gradient(135deg, #ffb8d2 0%, #ffd6ec 100%);
+
+  /* Typography */
+  --font-body: var(--font-nunito), sans-serif; /* rounded, bubbly */
+  --font-heading: var(--font-quicksand), sans-serif; /* soft playful headings */
+  --font-accent: var(--font-caveat), cursive;
+  --font-mono: var(--font-space-mono), monospace; /* rounded mono for metadata */
+  --radius-card: 1rem;
+  --radius-button: 999px;
+  --radius-popup: 1.25rem;
 }
 
-/* =========================
-     Retro Theme
-     ========================= */
 [data-theme="retro"] {
-  --color-background: #FFF4E6;
-  --color-foreground: #4A321F;
-  --color-primary: #FFB86C;
-  --color-secondary: #FFE3B5;
-  --color-surface-base: #F5E3C9;
-  --color-surface-raised: #FFF6E3;
-  --color-surface-overlay: rgba(255, 226, 195, 0.88);
-  --color-surface-card: rgba(255, 231, 204, 0.82);
-  --color-ink: #4A321F;
-  --color-ink-strong: #2C1A0E;
-  --color-ink-soft: #A57B5B;
-  --color-ink-muted: #E3C29B;
-  --color-ink-disabled: #F3E1C7;
-  --color-border-subtle: #E3C29B;
-  --color-border-emphasis: #FFB86C;
-  --color-halo-soft: #FFE3B5;
-  --color-halo-glow: #FFB86C;
-  --color-highlight-star: #FFD700;
-  --color-iconbutton: #FFB86C;
-  --color-iconborder-border: #34413E;
-  --color-iconbutton-hover: #EAEEED;
---color-icon: #4A321F;
-  /* Prefixed */
-  --color-theme-retro-base: #FFF4E6;
-  --color-theme-retro-card: rgba(255, 231, 204, 0.82);
-  --color-theme-retro-overlay: rgba(255, 226, 195, 0.88);
-  --color-theme-retro-accent: #FFB86C;
-  --color-theme-retro-accent-soft: #FFE3B5;
-  --color-theme-retro-border: #E3C29B;
-  --color-theme-retro-text: #4A321F;
+  /* =========================
+     Core Canvas
+     ========================= */
+  --color-background: #FDFDF5;       /* canvas cream */
+  --color-foreground: #212121;       /* deep charcoal text */
 
+  /* =========================
+     Popup Accent Palette
+     ========================= */
+  --color-primary: #007BFF;          /* electric blue */
+  --color-secondary: #FF33A8;        /* hot pink */
+  --color-accent-yellow: #FFD600;    /* sunshine yellow */
+  --color-accent-teal: #00C49A;      /* vibrant teal */
+  --color-accent-orange: #FF7043;    /* punchy orange */
 
+  /* =========================
+     Surfaces
+     ========================= */
+  --color-surface-base: #F9F9F9;
+  --color-surface-raised: #FFFFFF;
+  --color-surface-overlay: rgba(255, 255, 255, 0.9);
+  --color-surface-card: #FFFFFF;
+
+  /* =========================
+     Ink / Text
+     ========================= */
+  --color-ink: #212121;
+  --color-ink-strong: #000000;
+  --color-ink-soft: #757575;
+  --color-ink-muted: #BDBDBD;
+  --color-ink-disabled: #E0E0E0;
+
+  /* =========================
+     Borders
+     ========================= */
+  --color-border-subtle: #E0E0E0;    /* neutral divider */
+  --color-border-emphasis: #212121;  /* bold outlines */
+
+  /* =========================
+     Halos & Focus
+     ========================= */
+  --color-halo-soft: #FFD600;        /* yellow glow */
+  --color-halo-glow: #FF33A8;        /* pink glow */
+  --color-focus-ring: #007BFF;       /* electric blue ring */
+
+  /* =========================
+     Highlights
+     ========================= */
+  --color-highlight-star: #FFD700;   /* golden stars */
+
+  /* =========================
+     Iconography
+     ========================= */
+  --color-iconbutton: #FF33A8;       /* hot pink button bg */
+  --color-iconborder-border: #212121;
+  --color-iconbutton-hover: #FFD600; /* yellow hover */
+  --color-icon: #212121;
+  --toolbar-button-border: 2px solid var(--color-border-subtle);   /* default visible */
+  --toolbar-button-border-selected: 2px solid var(--color-border-emphasis); /* on select */
+
+  /* =========================
+     Popups (Notebook Windows)
+     ========================= */
+  --popup-border: 2px solid #212121;        /* bold sticker outline */
+  --popup-bg: #FFFFFF;                      /* crisp white window */
+  --popup-shadow: 4px 4px 0px #212121;      /* hard comic drop shadow */
+
+  /* =========================
+     Prefixed Retro Tokens
+     ========================= */
+  --color-theme-retro-base: #FDFDF5;
+  --color-theme-retro-card: #FFFFFF;
+  --color-theme-retro-overlay: rgba(255, 255, 255, 0.9);
+  --color-theme-retro-accent: #FF33A8;
+  --color-theme-retro-accent-soft: #FFD600;
+  --color-theme-retro-border: #212121;
+  --color-theme-retro-text: #212121;
+
+  /* =========================
+     Tools & Extras
+     ========================= */
+  --color-sticker-bg: #FFFDF5; /* sticker canvas base */
+  --color-toolbar-bg: #FFFFFF; /* clean toolbar */
+  --color-gradient-primary: linear-gradient(135deg, #FF33A8 0%, #FFD600 100%);
+
+  /* =========================
+     Typography
+     ========================= */
+  --font-body: var(--font-inter), sans-serif;      /* clean readable */
+  --font-heading: var(--font-poppins), sans-serif; /* bold geometric */
+  --font-accent: var(--font-bangers), cursive;     /* comic pop-art */
+  --font-alt: var(--font-nunito), sans-serif;      /* friendly rounded (fallback) */
+
+  /* =========================
+     Radii (Retro is square!)
+     ========================= */
+  --radius-card: 0px;
+  --radius-button: 0px;
+  --radius-popup: 0px;
 }
 
-/* =========================
-     Anime Theme
-     ========================= */
 [data-theme="anime"] {
-  --color-background: #0D0D0D;
-  --color-foreground: #FFFFFF;
-  --color-primary: #FF3B30;
-  --color-secondary: #FF9A8F;
+  /* Core */
+  --color-background: #0d0d0d;
+  --color-foreground: #ffffff;
+
+  /* Brand / Accents */
+  --color-primary: #ff3b30; /* vivid red — anime energy */
+  --color-secondary: #ff9a8f; /* softer red/pink accent */
+
+  /* Surfaces */
   --color-surface-base: #181820;
   --color-surface-raised: #232333;
   --color-surface-overlay: rgba(13, 13, 18, 0.92);
   --color-surface-card: rgba(16, 16, 20, 0.88);
-  --color-ink: #FFFFFF;
-  --color-ink-strong: #FF3B30;
-  --color-ink-soft: #FF9A8F;
-  --color-ink-muted: #B5B3C6;
-  --color-ink-disabled: #4B495C;
-  --color-border-subtle: #2A2A2A;
-  --color-border-emphasis: #FF3B30;
-  --color-halo-soft: #FF9A8F;
-  --color-halo-glow: #FF3B30;
-  --color-highlight-star: #FFD700;
-  --color-iconbutton: #FFB86C;
-  --color-iconborder-border: #34413E;
-  --color-iconbutton-hover: #EAEEED;
---color-icon: #4A321F;
 
-  /* Prefixed */
-  --color-theme-anime-base: #0D0D0D;
+  /* Text / Ink */
+  --color-ink: #ffffff;
+  --color-ink-strong: #ff3b30; /* primary highlight text */
+  --color-ink-soft: #ff9a8f; /* subtle accent text */
+  --color-ink-muted: #b5b3c6; /* secondary text */
+  --color-ink-disabled: #4b495c; /* disabled / inactive */
+
+  /* Borders */
+  --color-border-subtle: #2a2a2a;
+  --color-border-emphasis: #ff3b30;
+
+  /* Halos / Focus */
+  --color-halo-soft: #ff9a8f;
+  --color-halo-glow: #ff3b30;
+
+  /* Highlights */
+  --color-highlight-star: #ffd700;
+
+  /* Iconography */
+  --color-iconbutton: #2a2a2a;
+  --color-iconborder-border: #444;
+  --color-iconbutton-hover: #333333;
+  --color-icon: #ffffff;
+  --toolbar-button-border: 1px solid var(--color-border-subtle);   /* default visible */
+  --toolbar-button-border-selected: 1px solid var(--color-border-emphasis); /* on select */
+
+  /* Popups */
+  --popup-border: 1px solid var(--color-border-subtle);
+  --popup-bg: rgba(13, 13, 18, 0.95);
+  --popup-shadow: 0 6px 24px rgba(255, 59, 48, 0.3);
+
+  /* Prefixed Anime */
+  --color-theme-anime-base: #0d0d0d;
   --color-theme-anime-card: rgba(16, 16, 20, 0.88);
   --color-theme-anime-overlay: rgba(13, 13, 18, 0.92);
-  --color-theme-anime-accent: #FF3B30;
-  --color-theme-anime-accent-soft: #FF9A8F;
-  --color-theme-anime-border: #2A2A2A;
-  --color-theme-anime-text: #FFFFFF;
-  --color-theme-anime-tool: #FF3B30;
---color-theme-anime-icon: #FFFFFF;
-}
+  --color-theme-anime-accent: #ff3b30;
+  --color-theme-anime-accent-soft: #ff9a8f;
+  --color-theme-anime-border: #2a2a2a;
+  --color-theme-anime-text: #ffffff;
 
+  /* Tools / Extras */
+  --color-theme-anime-tool: #ff3b30;
+  --color-theme-anime-icon: #ffffff;
+
+  /* New (optional extras for parity with kawaii/retro) */
+  --color-sticker-bg: #232333; /* sticker canvas base */
+  --color-toolbar-bg: #181820; /* floating toolbar background */
+  --color-focus-ring: #ff3b30; /* focus outlines */
+  --color-gradient-primary: linear-gradient(135deg, #ff3b30 0%, #ff9a8f 100%);
+
+  --font-body: var(--font-manrope), sans-serif; /* clean modern sans */
+  --font-heading: var(--font-oswald), sans-serif; /* bold manga-like headings */
+  --font-accent: var(--font-patrick-hand), cursive;
+  --radius-card: 0.25rem;
+  --radius-button: 0.5rem;
+  --radius-popup: 0.5rem;
+}
 
 /* .bg-neutral-base { background-color: var(--color-theme-neutral-base); }
 .bg-neutral-card { background-color: var(--color-theme-neutral-card); }
@@ -210,7 +396,7 @@
   --color-halo-glow: var(--color-halo-glow);
   --color-highlight-star: var(--color-highlight-star);
   --color-iconbutton: var(--color-iconbutton);
-  --color-iconborder-border:var(--color-iconborder-border);
+  --color-iconborder-border: var(--color-iconborder-border);
   --color-iconbutton-hover: var(--color-iconbutton-hover);
   --color-icon: var(--color-icon);
 }
@@ -228,7 +414,7 @@
   --color-border: var(--color-theme-kawaii-border);
   --color-text: var(--color-theme-kawaii-text);
   --color-iconbutton: var(--color-iconbutton);
-  --color-iconborder-border:var(--color-iconborder-border);
+  --color-iconborder-border: var(--color-iconborder-border);
   --color-iconbutton-hover: var(--color-iconbutton-hover);
   --color-icon: var(--color-icon);
 
@@ -243,7 +429,6 @@
   --color-halo-soft: var(--color-halo-soft);
   --color-halo-glow: var(--color-halo-glow);
   --color-highlight-star: var(--color-highlight-star);
-
 }
 
 /* Retro Theme */
@@ -259,7 +444,7 @@
   --color-border: var(--color-theme-retro-border);
   --color-text: var(--color-theme-retro-text);
   --color-iconbutton: var(--color-iconbutton);
-  --color-iconborder-border:var(--color-iconborder-border);
+  --color-iconborder-border: var(--color-iconborder-border);
   --color-iconbutton-hover: var(--color-iconbutton-hover);
   --color-icon: var(--color-icon);
 
@@ -274,7 +459,6 @@
   --color-halo-soft: var(--color-halo-soft);
   --color-halo-glow: var(--color-halo-glow);
   --color-highlight-star: var(--color-highlight-star);
-
 }
 
 /* Anime Theme */
@@ -290,7 +474,7 @@
   --color-border: var(--color-theme-anime-border);
   --color-text: var(--color-theme-anime-text);
   --color-iconbutton: var(--color-iconbutton);
-  --color-iconborder-border:var(--color-iconborder-border);
+  --color-iconborder-border: var(--color-iconborder-border);
   --color-iconbutton-hover: var(--color-iconbutton-hover);
   --color-icon: var(--color-icon);
 
@@ -305,19 +489,18 @@
   --color-halo-soft: var(--color-halo-soft);
   --color-halo-glow: var(--color-halo-glow);
   --color-highlight-star: var(--color-highlight-star);
-
 }
-
-
 
 @layer base {
   .landing-body {
     background-color: #ecedff !important;
-    background-image: linear-gradient(rgba(249, 247, 255, 0.6),
-        rgb(255, 255, 247)),
+    background-image: linear-gradient(
+        rgba(249, 247, 255, 0.6),
+        rgb(255, 255, 247)
+      ),
       /* url("https://www.transparenttextures.com/patterns/batthern.png") !important; */
-      /* url("https://www.transparenttextures.com/patterns/grid-me.png") !important; */
-      url("https://www.transparenttextures.com/patterns/worn-dots.png") !important;
+        /* url("https://www.transparenttextures.com/patterns/grid-me.png") !important; */
+        url("https://www.transparenttextures.com/patterns/worn-dots.png") !important;
     /* url("https://www.transparenttextures.com/patterns/asfalt-dark.png"); */
     /* url("https://www.transparenttextures.com/patterns/bright-squares.png"); */
     /* url("https://www.transparenttextures.com/patterns/cartographer.png"); */
@@ -335,18 +518,19 @@
   }
 }
 
+body {
+  font-family: var(--font-body), sans-serif !important;
+}
 h1,
 h2,
 h3,
 h4,
 h5,
 h6 {
-  font-family: var(--font-manrope);
+  font-family: var(--font-heading), sans-serif;
 }
-
-body {
-  font-family: var(--font-manrope), sans-serif !important;
-  /* font-family: var(--font-lato), sans-serif !important; */
+.accent-font {
+  font-family: var(--font-accent), cursive;
 }
 
 .logo-font {
@@ -354,7 +538,6 @@ body {
   /* -webkit-text-stroke: 3px !important; */
   /* letter-spacing: 3px; */
   /* font-family: var(--font-plaster), sans-serif; */
-
 }
 
 .grotesk-font {
@@ -363,10 +546,6 @@ body {
 
 .pixel-font {
   font-family: var(--font-minecraftia), sans-serif;
-}
-
-.accent-font {
-  font-family: var(--font-patrik-hand), cursive;
 }
 
 .alt-font {
@@ -388,7 +567,8 @@ body {
   border-radius: 16px;
   box-shadow: 0 10px 22px -18px rgba(27, 18, 46, 0.45);
   transform: translateY(0) rotate(0deg);
-  transition: transform 200ms ease, box-shadow 220ms ease, background-color 200ms ease;
+  transition: transform 200ms ease, box-shadow 220ms ease,
+    background-color 200ms ease;
 }
 
 .button-primary::after {
@@ -431,7 +611,8 @@ body {
   border-radius: 16px;
   box-shadow: 0 10px 22px -18px rgba(31, 24, 46, 0.35);
   transform: translateY(0) rotate(0deg);
-  transition: transform 200ms ease, box-shadow 220ms ease, background-color 200ms ease;
+  transition: transform 200ms ease, box-shadow 220ms ease,
+    background-color 200ms ease;
 }
 
 .button-secondary::after {
@@ -476,11 +657,13 @@ button:hover {
 }
 
 .cl-internal-1k7jtru {
-  background: repeating-linear-gradient(-45deg,
-      color-mix(in srgb, transparent, #97a2ff 7%),
-      color-mix(in srgb, transparent, #97a2ff 7%) 6px,
-      color-mix(in srgb, transparent, #97a2ff 11%) 6px,
-      color-mix(in srgb, transparent, #97a2ff 11%) 16px) !important;
+  background: repeating-linear-gradient(
+    -45deg,
+    color-mix(in srgb, transparent, #97a2ff 7%),
+    color-mix(in srgb, transparent, #97a2ff 7%) 6px,
+    color-mix(in srgb, transparent, #97a2ff 11%) 6px,
+    color-mix(in srgb, transparent, #97a2ff 11%) 16px
+  ) !important;
 }
 
 /* .cl-formButtonPrimary:hover,
@@ -498,8 +681,6 @@ button:hover {
 .cl-cardBox div {
   font-family: var(--font-manrope), sans-serif !important;
 }
-
-
 
 .book-cover-stack {
   position: relative;
@@ -530,8 +711,11 @@ button:hover {
   bottom: -18px;
   height: 18px;
   border-radius: 999px;
-  background:
-    radial-gradient(60% 60% at 50% 10%, rgba(35, 29, 52, 0.18) 0%, rgba(35, 29, 52, 0) 100%),
+  background: radial-gradient(
+      60% 60% at 50% 10%,
+      rgba(35, 29, 52, 0.18) 0%,
+      rgba(35, 29, 52, 0) 100%
+    ),
     linear-gradient(180deg, rgba(35, 28, 54, 0.14) 0%, rgba(35, 28, 54, 0) 80%);
   filter: blur(1.5px);
   opacity: 0.9;
@@ -565,7 +749,11 @@ button:hover {
   position: absolute;
   inset: 0;
   border-radius: inherit;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(0, 0, 0, 0.06) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.12),
+    rgba(0, 0, 0, 0.06) 100%
+  );
   pointer-events: none;
   mix-blend-mode: soft-light;
 }
@@ -605,13 +793,22 @@ button:hover {
 
 .book-cover[data-variant="grid"] {
   background-color: #f8f7fb;
-  background-image: linear-gradient(#e6e4f1 1px, transparent 1px), linear-gradient(90deg, #e6e4f1 1px, transparent 1px);
+  background-image: linear-gradient(#e6e4f1 1px, transparent 1px),
+    linear-gradient(90deg, #e6e4f1 1px, transparent 1px);
   background-size: 18px 18px;
 }
 
 .book-cover[data-variant="abstract"] {
-  background: radial-gradient(circle at 18% 24%, rgba(202, 199, 255, 0.45) 0%, transparent 44%),
-    radial-gradient(circle at 78% 72%, rgba(184, 179, 255, 0.35) 0%, transparent 46%),
+  background: radial-gradient(
+      circle at 18% 24%,
+      rgba(202, 199, 255, 0.45) 0%,
+      transparent 44%
+    ),
+    radial-gradient(
+      circle at 78% 72%,
+      rgba(184, 179, 255, 0.35) 0%,
+      transparent 46%
+    ),
     linear-gradient(140deg, #f8f7ff 0%, #e5e4ff 100%);
 }
 
@@ -666,7 +863,6 @@ button:hover {
   /* 🚀 show … */
 }
 
-
 .book-cover__tag {
   margin-top: auto;
   align-self: flex-start;
@@ -687,8 +883,8 @@ button:hover {
   justify-content: center;
   height: 100%;
   border-radius: 0.5rem;
-  border: 1px dashed #CBD0F5 !important;
-  background: #FDFCFE !important;
+  border: 1px dashed #cbd0f5 !important;
+  background: #fdfcfe !important;
   color: #b0b0b0 !important;
   font-weight: 600;
   letter-spacing: 0.18em;
@@ -702,7 +898,6 @@ button:hover {
   color: #2e2a3f;
 }
 
-
 .trapezoid-bar {
   width: 102%;
   height: 6px;
@@ -710,13 +905,11 @@ button:hover {
   clip-path: polygon(0% 3%, 98% 0, 96% 100%, 4% 100%);
   border-bottom: 1px solid #efefef;
   /* border-radius: 0.2rem; */
-
 }
 
 .book-shadow-div {
   box-shadow: 2px 6px 10px rgba(43, 43, 43, 0.09);
   /* border-radius: 0.2rem; */
-
 }
 
 .book-shadow-div {
@@ -755,7 +948,12 @@ div.recent-group {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.25) 0%, rgba(223, 218, 255, 0.15) 35%, rgba(223, 218, 255, 0) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.25) 0%,
+    rgba(223, 218, 255, 0.15) 35%,
+    rgba(223, 218, 255, 0) 100%
+  );
   filter: blur(14px);
   opacity: 0.8;
 }
@@ -813,7 +1011,8 @@ div.recent-group {
   letter-spacing: 0.05em;
   /* text-transform: uppercase; */
   color: var(--color-ink);
-  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+  transition: transform 180ms ease, border-color 180ms ease,
+    box-shadow 180ms ease;
 }
 
 .starter-actions__button:hover {
@@ -875,18 +1074,19 @@ div.recent-group {
 .bg-popup-content {
   position: fixed !important;
   left: 50% !important;
-  bottom: 12% !important; /* adjust this to match your toolbar height */
+  bottom: 12% !important;
   transform: translateX(-50%) !important; /* only center on X */
   width: fit-content !important;
   z-index: 9999 !important;
+  /* padding: 0 !important; */
 }
 
 /* Target the draggable dot */
 .color-picker .react-colorful__pointer {
-  width: 18px !important;   /* smaller size */
+  width: 18px !important; /* smaller size */
   height: 18px !important;
-  border: 2px solid #fff;   /* clean border */
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  border: 2px solid #fff; /* clean border */
+  box-shadow: none !important; /* remove shadow */
 }
 
 .react-colorful__saturation,
@@ -896,3 +1096,24 @@ div.recent-group {
   overflow: hidden;
   margin-bottom: 0.75rem;
 }
+
+.no-fill-icon {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: white;
+  border: 1px solid var(--color-border-subtle);
+}
+
+.no-fill-icon::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 2px;
+  background: red;
+  transform: rotate(45deg);
+}
+

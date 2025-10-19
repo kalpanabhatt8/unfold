@@ -1,4 +1,4 @@
-/** @type {import('tailwindcss').Config} */
+/ ** @type {import('tailwindcss').Config} */
 exports = {
     content: [
       "./src/**/*.{js,ts,jsx,tsx}", // adjust if you have different paths
@@ -23,6 +23,14 @@ exports = {
           manrope: ["Manrope", "sans-serif"],
           poppins: ["Poppins", "sans-serif"],
           grotesk: ["Space Grotesk", "sans-serif"],
+        },
+        borderWidth: {
+          toolbar: "var(--border-width-toolbar)",
+          "toolbar-selected": "var(--border-width-toolbar-selected)",
+        },
+        borderColor: {
+          toolbar: "var(--border-color-toolbar)",
+          "toolbar-selected": "var(--border-color-toolbar-selected)",
         },
       },
     },

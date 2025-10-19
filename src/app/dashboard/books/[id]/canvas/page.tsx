@@ -15,7 +15,8 @@ import {
   Sparkle,
 } from "lucide-react";
 import { BookCover } from "@/components/book-cover";
-import Popup from "reactjs-popup";
+import dynamic from "next/dynamic";
+const Popup = dynamic(() => import("reactjs-popup"), { ssr: false });
 import {
   DRAFTS_STORAGE_KEY,
   syncDraftsAndRecents,
@@ -93,7 +94,7 @@ const CanvasPage = () => {
       title: template?.title ?? blankDefaults.title,
       subtitle: template?.subtitle ?? blankDefaults.subtitle,
       coverImage: template?.coverImage ?? null,
-      background: templateBackgroundStyle,
+      background: templateBackgroundStyle as string,
       variant: template?.variant ?? blankDefaults.variant,
       titleColor: template?.titleColor ?? null,
       subtitleColor: template?.subtitleColor ?? null,
@@ -176,6 +177,7 @@ const CanvasPage = () => {
         id: bookId,
         sourceTemplateId: resolvedTemplateId,
         updatedAt,
+        background: updates.background as string ?? current.background,
       };
       draftRef.current = nextDraft;
       setDraft(nextDraft);
@@ -233,7 +235,7 @@ const CanvasPage = () => {
         snapshotBackground: snapshot.background,
         derivedBackground: backgroundStyle,
       });
-      persistDraft({ background: backgroundStyle }, snapshot.updatedAt);
+      persistDraft({ background: backgroundStyle as string }, snapshot.updatedAt);
     },
     [baseDraft.background, persistDraft]
   );
