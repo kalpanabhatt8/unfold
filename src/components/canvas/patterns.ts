@@ -3,7 +3,7 @@ import type { Theme } from "./canvas-board";
 
 export type Pattern = {
   name: string;
-  style: (theme: Theme) => string;  // always a function
+  style: (theme: Theme, backgroundColor?: string) => string;  // always a function
   color?: string;
   blend?: string;
   size?: string;
@@ -12,14 +12,60 @@ export type Pattern = {
 
 
 /** Theme aware ink */
-function pickGridColor(theme: Theme): string {
-  const colors: Record<Theme, string> = {
-    neutral: "rgba(0,0,0,0.15)",
-    kawaii: "rgba(255,182,193,0.25)",
-    retro:  "rgba(74,50,31,0.25)",
-    anime:  "rgba(245, 245, 245,0.15)",
+function isDarkColor(color: string): boolean {
+  // Handle hex colors (#rrggbb or #rgb)
+  if (color.startsWith("#")) {
+    let hex = color.replace("#", "");
+    if (hex.length === 3) {
+      hex = hex.split("").map(c => c + c).join("");
+    }
+    const bigint = parseInt(hex, 16);
+    const r = (bigint >> 16) & 255;
+    const g = (bigint >> 8) & 255;
+    const b = bigint & 255;
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+    return brightness < 128;
+  }
+
+  // Handle rgb() and rgba()
+  const rgbaMatch = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+  if (rgbaMatch) {
+    const r = parseInt(rgbaMatch[1], 10);
+    const g = parseInt(rgbaMatch[2], 10);
+    const b = parseInt(rgbaMatch[3], 10);
+    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+    return brightness < 128;
+  }
+
+  // Fallback: not dark
+  return false;
+}
+
+function pickGridColor(theme: Theme, background?: string): string {
+  // Define palettes for each theme and background lightness
+  const lightBackgroundColors: Record<Theme, string> = {
+    // subtle gray for neutral, pastel pink for kawaii, earthy brown for retro, deep black/gray for anime
+    neutral: "rgba(0,0,0,0.1)",      // faint gray
+    kawaii: "rgba(255,182,193,0.4)", // very soft pink
+    retro:  "rgba(74,50,31,0.2)",     // subtle brown
+    anime:  "rgba(20,20,20,0.6)", 
   };
-  return colors[theme];
+  const darkBackgroundColors: Record<Theme, string> = {
+    // pure white for neutral, candy pink for kawaii, off-white/beige for retro, neon/bright for anime
+    neutral: "rgba(255,255,255,0.15)", // faint white
+  kawaii: "rgba(255,128,170,0.5)",  // slightly stronger candy pink
+  retro:  "rgba(245,235,210,0.25)",  // light beige
+  anime:  "rgba(200,255,255,0.18)",  // pale cyan accent
+  };
+  let useDark = false;
+  if (background) {
+    useDark = isDarkColor(background);
+    // console.log("pickGridColor background check", { theme, background, useDark });
+  }
+  if (useDark) {
+    return darkBackgroundColors[theme];
+  }
+  return lightBackgroundColors[theme];
 }
 
 /** Dot grid */
@@ -27,14 +73,16 @@ export function generateDotGridTexture(
   theme: Theme,
   spacing = 20,
   radius = 1,
-  color?: string
+  color?: string,
+  backgroundColor?: string
 ): string {
   if (typeof document === "undefined") {
     // SSR fallback: transparent or empty
     return "none";
   }
 
-  const dotColor = color ?? pickGridColor(theme);
+  const dotColor = color ?? pickGridColor(theme, backgroundColor ?? "#ffffff");
+  console.log("generateDotGridTexture → dotColor", dotColor);
   const dpr = (typeof window !== "undefined" && window.devicePixelRatio) || 1;
 
   const canvas = document.createElement("canvas");
@@ -57,13 +105,15 @@ export function generateLineGridTexture(
   theme: Theme,
   spacing = 20,
   lineWidth = 1,
-  color?: string
+  color?: string,
+  backgroundColor?: string
 ): string {
   if (typeof document === "undefined") {
     return "none"; // SSR safe fallback
   }
 
-  const ink = color ?? pickGridColor(theme);
+  const ink = color ?? pickGridColor(theme, backgroundColor ?? "#ffffff");
+  console.log("generateLineGridTexture → ink", ink);
   const dpr = (typeof window !== "undefined" && window.devicePixelRatio) || 1;
 
   const canvas = document.createElement("canvas");
@@ -97,14 +147,14 @@ export function getUniversalPatterns(theme: Theme): Pattern[] {
   return [
     {
       name: "Line Grid",
-      style: (t: Theme) => generateLineGridTexture(t, 30, 1),
+      style: (t: Theme, bg?: string) => generateLineGridTexture(t, 30, 1, undefined, bg),
       color: "transparent",
       blend: "multiply",
       size: "30px 30px",
     },
     {
       name: "Dot Grid",
-      style: (t: Theme) => generateDotGridTexture(t, 30, 2),
+      style: (t: Theme, bg?: string) => generateDotGridTexture(t, 30, 2, undefined, bg),
       color: "transparent",
       blend: "overlay",
       size: "30px 30px",
@@ -112,23 +162,18 @@ export function getUniversalPatterns(theme: Theme): Pattern[] {
     {
       name: "Paper",
       style: () =>
-        "url('https://www.transparenttextures.com/patterns/light-paper-fibers.png')",
+        "url('https://www.transparenttextures.com/patterns/handmade-paper.png')",
       color: "transparent",
       blend: "normal",
-    },
-    {
-      name: "Tiny Grid",
-      style: () =>
-        "url('https://www.transparenttextures.com/patterns/tiny-grid.png')",
-      color: "transparent",
-      blend: "multiply",
     },
     {
       name: "Neutral",
       style: () =>
         "url('https://www.transparenttextures.com/patterns/ps-neutral.png')",
+
       color: "transparent",
-      blend: "overlay",
+      size: "40px",
+      blend: "soft-light",
     },
     {
       name: "Neutral Grid",
@@ -136,6 +181,20 @@ export function getUniversalPatterns(theme: Theme): Pattern[] {
         "url('https://www.transparenttextures.com/patterns/grid.png')",
       color: "transparent",
       blend: "normal",
+    },
+    {
+      name: "Asfalt Dark",
+      style: () =>
+        "url('https://www.transparenttextures.com/patterns/asfalt-dark.png')",
+      color: "transparent",
+      blend: "overlay",
+    },
+    {
+      name: "Asfalt Light",
+      style: () =>
+        "url('https://www.transparenttextures.com/patterns/asfalt-light.png')",
+      color: "transparent",
+      blend: "overlay",
     },
   ];
 }
@@ -154,33 +213,19 @@ export function getThemeTexturePresets(theme: Theme): Pattern[] {
         color: "transparent",
         blend: "multiply",
       },
-      {
-        name: "Light Paper Fibers",
-        style: () =>
-          "url('https://www.transparenttextures.com/patterns/light-paper-fibers.png')",
-        color: "transparent",
-        blend: "multiply",
-      },
-      {
-        name: "Concrete Wall",
-        style: () =>
-          "url('https://www.transparenttextures.com/patterns/concrete-wall.png')",
-        color: "transparent",
-        blend: "overlay",
-      },
+      // {
+      //   name: "Concrete Wall",
+      //   style: () =>
+      //     "url('https://www.transparenttextures.com/patterns/concrete-wall.png')",
+      //   color: "transparent",
+      //   blend: "overlay",
+      // },
       {
         name: "Beige Paper",
         style: () =>
           "url('https://www.transparenttextures.com/patterns/beige-paper.png')",
         color: "transparent",
         blend: "multiply",
-      },
-      {
-        name: "Fresh Snow",
-        style: () =>
-          "url('https://www.transparenttextures.com/patterns/fresh-snow.png')",
-        color: "transparent",
-        blend: "normal",
       },
       {
         name: "Low Contrast Linen",
@@ -190,13 +235,6 @@ export function getThemeTexturePresets(theme: Theme): Pattern[] {
         blend: "overlay",
       },
       {
-        name: "Graphy (Light)",
-        style: () =>
-          "url('https://www.transparenttextures.com/patterns/graphy-light.png')",
-        color: "transparent",
-        blend: "multiply",
-      },
-      {
         name: "Scribble Light",
         style: () =>
           "url('https://www.transparenttextures.com/patterns/scribble-light.png')",
@@ -204,25 +242,11 @@ export function getThemeTexturePresets(theme: Theme): Pattern[] {
         blend: "multiply",
       },
       {
-        name: "Washi",
-        style: () =>
-          "url('https://www.transparenttextures.com/patterns/washi.png')",
-        color: "transparent",
-        blend: "overlay",
-      },
-      {
         name: "Brushed Alum",
         style: () =>
           "url('https://www.transparenttextures.com/patterns/brushed-alum.png')",
         color: "transparent",
         blend: "overlay",
-      },
-      {
-        name: "Clean Gray Paper",
-        style: () =>
-          "url('https://www.transparenttextures.com/patterns/clean-gray-paper.png')",
-        color: "transparent",
-        blend: "multiply",
       },
     ];
   }

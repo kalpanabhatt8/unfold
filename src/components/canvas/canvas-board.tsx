@@ -642,21 +642,22 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const coerceBackgroundState = (value: unknown): CanvasBackgroundState => {
   if (!isRecord(value)) return {};
   // Pattern.style is now (theme: Theme) => string
-  const coercePattern = (input: unknown): Pattern | undefined => {
+  // Deserialize to { name } only; we rehydrate the full Pattern later via getThemeTexturePresets(theme).
+  const coercePattern = (input: unknown): any => {
     if (typeof input === "string") {
-      // Back-compat from earlier snapshots (string URL)
-      return { name: "custom", style: () => input };
+      // Old snapshots that stored a literal style URL
+      return { name: "custom" };
     }
-    if (isRecord(input) && typeof input.style === "string") {
-      return {
-        name:
-          typeof input.name === "string" ? (input.name as string) : "custom",
-        style: () => input.style as string,
-        color:
-          typeof input.color === "string" ? (input.color as string) : undefined,
-        blend:
-          typeof input.blend === "string" ? (input.blend as string) : undefined,
-      };
+    if (isRecord(input)) {
+      if (typeof input.name === "string") return { name: input.name as string };
+      if (typeof (input as any).style === "string") {
+        return {
+          name:
+            typeof (input as any).name === "string"
+              ? (input as any).name
+              : "custom",
+        };
+      }
     }
     return undefined;
   };
@@ -920,53 +921,50 @@ const BackgroundPopup: React.FC<
 
   const themePresetColors: Record<Theme, string[]> = {
     neutral: [
-      "#ffffff", // pure white
-      "#f9fafb", // light gray (backgrounds)
-      "#f3f4f6", // neutral soft gray
-      "#e5e7eb", // subtle border gray
+      "#ffffff", // white
+      "#f3f4f6", // very light gray
+      "#e5e7eb", // light gray
       "#d1d5db", // medium gray
-      "#9ca3af", // neutral gray
-      "#6b7280", // slate gray
-      "#4b5563", // darker slate
+      "#9ca3af", // mid gray
+      "#6b7280", // dark mid gray
       "#374151", // dark gray
-      "#1f2937", // near-black gray
-      "#111827", // almost black
+      "#111827", // near-black
     ],
     kawaii: [
-      "#FFE4EE", // blush pink
-      "#FFD6EC", // soft rose
-      "#FFF0F8", // lavender blush
-      "#E3F2FD", // baby blue
-      "#F0FFF0", // mint cream
-      "#FFF9E6", // light peach/vanilla
-      "#F3E8FF", // pastel lavender
-      "#E6F9F0", // aqua mint
-      "#FFFDE7", // pale lemon
-      "#FFEBCD", // peach puff light
+      "#fff0f8", // lavender blush (very light)
+      "#ffe4ee", // blush pink (light)
+      "#ffd6ec", // soft rose
+      "#f3e8ff", // pastel lavender
+      "#e3f2fd", // baby blue
+      "#e6f9f0", // aqua mint
+      "#f0fff0", // mint cream
+      "#fffde7", // pale lemon
+      "#fff9e6", // light vanilla
+      "#ffe9c7", // soft peach
     ],
     retro: [
-      "#FFF4E6", // warm cream base
-      "#FFD39A", // faded orange highlight
-      "#FFB86C", // vintage orange
-      "#E3C29B", // muted beige
-      "#C19A6B", // classic brown-tan
-      "#A57B5B", // muted cocoa
-      "#8B5E3C", // retro deep brown
-      "#6E4B3A", // earthy shadow
-      "#4A321F", // ink brown
-      "#2C1A0E", // darkest retro
+      "#fff8e1", // cream
+      "#ffe4b5", // beige
+      "#ffd39a", // faded orange
+      "#ffb86c", // vintage orange
+      "#e3c29b", // muted beige
+      "#c19a6b", // brown-tan
+      "#a57b5b", // muted cocoa
+      "#8b5e3c", // deep brown
+      "#4a321f", // ink brown
+      "#2c1a0e", // darkest retro
     ],
     anime: [
-      "#0D0D0D", // base black
-      "#181820", // deep gray
-      "#232333", // overlay card
-      "#FF3B30", // anime red
-      "#FF9A8F", // peach-pink accent
-      "#FFD700", // star yellow
-      "#4ADE80", // neon green highlight
-      "#38BDF8", // bright sky blue
-      "#C084FC", // violet accent
-      "#FFFFFF", // white ink
+      "#0d0d0d", // black
+      "#232333", // very dark gray
+      "#444654", // mid gray
+      "#ff3b30", // bright red
+      "#ffd700", // yellow
+      "#4ade80", // neon green
+      "#38bdf8", // bright blue
+      "#c084fc", // violet
+      "#ff9a8f", // accent pink
+      "#ffffff", // white
     ],
   };
 
@@ -1030,7 +1028,11 @@ const BackgroundPopup: React.FC<
   // };
 
   const onColorChange = (color: string) => {
-    setBackground((prev) => ({ ...prev, color }));
+    setBackground((prev) => ({
+      ...prev,
+      color,
+      texture: prev.texture, // ✅ always keep existing texture
+    }));
   };
 
   const onImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1065,7 +1067,84 @@ const BackgroundPopup: React.FC<
   const triggerFileInput = () => {
     fileInputRef.current?.click();
   };
+
+  // 👇 state for color format
   const [showColorPicker, setShowColorPicker] = React.useState(false);
+  const [colorFormat, setColorFormat] = React.useState<"hex" | "rgb" | "hsl">(
+    "hex"
+  );
+
+  // 👇 helper functions for conversion
+  const hexToRgb = (hex: string) => {
+    let r = 0,
+      g = 0,
+      b = 0;
+    if (hex.length === 4) {
+      r = parseInt(hex[1] + hex[1], 16);
+      g = parseInt(hex[2] + hex[2], 16);
+      b = parseInt(hex[3] + hex[3], 16);
+    } else if (hex.length === 7) {
+      r = parseInt(hex[1] + hex[2], 16);
+      g = parseInt(hex[3] + hex[4], 16);
+      b = parseInt(hex[5] + hex[6], 16);
+    }
+    return `rgb(${r}, ${g}, ${b})`;
+  };
+
+  const hexToHsl = (hex: string) => {
+    let r = 0,
+      g = 0,
+      b = 0;
+    if (hex.length === 4) {
+      r = parseInt(hex[1] + hex[1], 16);
+      g = parseInt(hex[2] + hex[2], 16);
+      b = parseInt(hex[3] + hex[3], 16);
+    } else if (hex.length === 7) {
+      r = parseInt(hex[1] + hex[2], 16);
+      g = parseInt(hex[3] + hex[4], 16);
+      b = parseInt(hex[5] + hex[6], 16);
+    }
+    r /= 255;
+    g /= 255;
+    b /= 255;
+    const max = Math.max(r, g, b),
+      min = Math.min(r, g, b);
+    let h = 0,
+      s = 0,
+      l = (max + min) / 2;
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      switch (max) {
+        case r:
+          h = (g - b) / d + (g < b ? 6 : 0);
+          break;
+        case g:
+          h = (b - r) / d + 2;
+          break;
+        case b:
+          h = (r - g) / d + 4;
+          break;
+      }
+      h /= 6;
+    }
+    return `hsl(${Math.round(h * 360)}, ${Math.round(s * 100)}%, ${Math.round(
+      l * 100
+    )}%)`;
+  };
+
+  const formatColor = (hex: string, format: "hex" | "rgb" | "hsl") => {
+    if (!hex) return "#ffffff";
+    switch (format) {
+      case "rgb":
+        return hexToRgb(hex);
+      case "hsl":
+        return hexToHsl(hex);
+      default:
+        return hex;
+    }
+  };
+
   return (
     // <Popup
     //   trigger={
@@ -1253,8 +1332,8 @@ const BackgroundPopup: React.FC<
       closeOnDocumentClick
       arrow={false}
       contentStyle={{
-        padding: "1.2rem 1.25rem",
-        borderRadius: "var(--radius-popup)", // 👈 uses theme token
+        padding: "1.2rem",
+        borderRadius: "var(--radius-popup) !important", // 👈 uses theme token
         background: "var(--popup-bg)",
         backdropFilter: "blur(18px)",
         boxShadow: "var(--popup-shadow)",
@@ -1281,32 +1360,34 @@ const BackgroundPopup: React.FC<
             <LucideImage size={18} />
           </button> */}
           {/* Always show upload image button */}
-          <button
-            type="button"
-            onClick={triggerFileInput}
-            className={clsx(
-              "p-2 flex items-center justify-center rounded-full border border-[var(--color-border-subtle)] text-[var(--color-ink-soft)] bg-transparent hover:bg-[var(--color-surface-base)] transition"
-            )}
-            title="Upload Background Image"
-          >
-            <LucideImage size={18} />
-          </button>
-          {/* Conditionally show remove button if image exists */}
-          {background.image && (
+          <div className="flex flex-row gap-2">
             <button
-              onClick={() =>
-                setBackground((prev) => ({ ...prev, image: undefined }))
-              }
-              className={clsx(
-                "relative w-9 h-9 rounded-full cursor-pointer transition-all mx-0.5 flex items-center justify-center bg-white overflow-hidden",
-                "border border-[var(--color-border-subtle)] hover:border-[var(--color-primary)]"
-              )}
-              title="Remove Background Image"
               type="button"
+              onClick={triggerFileInput}
+              className={clsx(
+                "p-2 flex items-center justify-center rounded-full border border-[var(--color-border-subtle)] text-[var(--color-ink-soft)] bg-transparent hover:bg-[var(--color-surface-base)] transition"
+              )}
+              title="Upload Background Image"
             >
-              <span className="absolute w-[140%] h-[2px] bg-red-500 rotate-45"></span>
+              <LucideImage size={18} />
             </button>
-          )}
+            {/* Conditionally show remove button if image exists */}
+            {background.image && (
+              <button
+                onClick={() =>
+                  setBackground((prev) => ({ ...prev, image: undefined }))
+                }
+                className={clsx(
+                  "relative w-9 h-9 rounded-full cursor-pointer transition-all mx-0.5 flex items-center justify-center bg-white overflow-hidden",
+                  "border border-[var(--color-border-subtle)] hover:border-[var(--color-primary)]"
+                )}
+                title="Remove Background Image"
+                type="button"
+              >
+                <span className="absolute w-[140%] h-[2px] bg-red-500 rotate-45"></span>
+              </button>
+            )}
+          </div>
           <div className="flex items-center gap-1">
             <input
               type="file"
@@ -1337,23 +1418,90 @@ const BackgroundPopup: React.FC<
               );
             })}
             {/* Color picker trigger */}
-            <button
-              type="button"
-              onClick={() => setShowColorPicker((v) => !v)}
-              className={clsx(
-                "w-9 h-9 rounded-full flex items-center justify-center transition-all mx-0.5 border-2 border-[var(--color-border-subtle)] bg-gradient-to-br from-pink-400 via-yellow-400 to-blue-400",
-                showColorPicker
-                  ? "ring-1 ring-[var(--color-primary)] shadow"
-                  : "hover:ring-1 hover:ring-[var(--color-border-emphasis)]"
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowColorPicker((v) => !v)}
+                className={clsx(
+                  "w-9 h-9 rounded-full flex items-center justify-center transition-all mx-0.5 border-2 border-[var(--color-border-subtle)]",
+                  showColorPicker
+                    ? "ring-1 ring-[var(--color-primary)] shadow"
+                    : "hover:ring-1 hover:ring-[var(--color-border-emphasis)]"
+                )}
+                style={{
+                  background:
+                    "conic-gradient(red, orange, yellow, lime, cyan, blue, violet, red)",
+                }}
+                title="Pick a custom color"
+              />
+              {showColorPicker && (
+                <div className="absolute popup-content bottom-full mb-6 right-0 z-50" 
+                style={{        
+                  padding: "0.75rem",
+                  borderRadius: "var(--radius-popup) !important", // 👈 uses theme token
+                  background: "var(--popup-bg)",
+                  backdropFilter: "blur(18px)",
+                  boxShadow: "var(--popup-shadow)",
+                  border: "var(--popup-border)",}}>
+                  <HexAlphaColorPicker
+                    color={background.color || "#ffffff"}
+                    onChange={onColorChange}
+                    style={{ width: 220, height: 260 }}
+                  />
+
+                  {/* Dropdown for format and color input */}
+                  <div className="flex items-center justify-between mt-1">
+                    <select
+                      className="text-xs rounded-md border border-[var(--color-border-subtle)] bg-[var(--color-surface-base)] px-2 py-1"
+                      value={colorFormat}
+                      onChange={(e) =>
+                        setColorFormat(e.target.value as "hex" | "rgb" | "hsl")
+                      }
+                    >
+                      <option value="hex">Hex</option>
+                      <option value="rgb">RGB</option>
+                      <option value="hsl">HSL</option>
+                    </select>
+                    <input
+                      type="text"
+                      value={formatColor(
+                        background.color || "#ffffff",
+                        colorFormat
+                      )}
+                      onChange={(e) => onColorChange(e.target.value)}
+                      className="w-[100%] h-[100%] py-1.5 rounded-md border border-[var(--color-border-subtle)] text-center text-xs ml-2"
+                      spellCheck={false}
+                      autoComplete="off"
+                      title="Color value"
+                    />
+                  </div>
+
+                  {/* Saved colors row */}
+                  {/* <div className="flex flex-wrap gap-2 mt-3">
+                    {[
+                      "#FF3B30",
+                      "#FF9500",
+                      "#FFCC00",
+                      "#34C759",
+                      "#007AFF",
+                      "#5856D6",
+                      "#AF52DE",
+                      "#FF2D55",
+                      "#5AC8FA",
+                      "#8E8E93",
+                    ].map((col) => (
+                      <button
+                        key={col}
+                        onClick={() => onColorChange(col)}
+                        className="w-6 h-6 rounded-full border border-[var(--color-border-subtle)]"
+                        style={{ backgroundColor: col }}
+                        title={col}
+                      />
+                    ))}
+                  </div> */}
+                </div>
               )}
-              style={{
-                background:
-                  "conic-gradient(red, orange, yellow, lime, cyan, blue, violet, red)",
-              }}
-              title="Pick a custom color"
-            >
-              {/* <LucideRainbow size={16} /> */}
-            </button>
+            </div>
           </div>
           {/* Reset button at end */}
           <button
@@ -1368,7 +1516,7 @@ const BackgroundPopup: React.FC<
           </button>
         </div>
         {/* Color picker popover (appear below row if triggered) */}
-        {showColorPicker && (
+        {/* {showColorPicker && (
           <div className="flex flex-row items-center gap-2 mb-1">
             <HexAlphaColorPicker
               color={background.color || "#ffffff"}
@@ -1386,7 +1534,7 @@ const BackgroundPopup: React.FC<
               title="Hex color"
             />
           </div>
-        )}
+        )} */}
         {/* Second row: texture thumbnails */}
         <div className="flex items-center gap-2 mt-1">
           {/* No Texture option */}
@@ -1419,8 +1567,7 @@ const BackgroundPopup: React.FC<
           })} */}
           {getThemeTexturePresets(theme).map((tex) => {
             const selected = background.texture?.name === tex.name;
-            const bgStyle = tex.style(theme);
-
+            const bgStyle = tex.style(theme, background.color);
             return (
               <button
                 key={tex.name}
@@ -2253,29 +2400,72 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
     }
   }, [theme]);
 
-useEffect(() => {
-  const themePresetColors: Record<Theme, string[]> = {
-    neutral: ["#ffffff","#f9fafb","#f3f4f6","#e5e7eb","#d1d5db","#9ca3af","#6b7280","#4b5563","#374151","#1f2937","#111827"],
-    kawaii: ["#FFE4EE","#FFD6EC","#FFF0F8","#E3F2FD","#F0FFF0","#FFF9E6","#F3E8FF","#E6F9F0","#FFFDE7","#FFEBCD"],
-    retro: ["#FFF4E6","#FFD39A","#FFB86C","#E3C29B","#C19A6B","#A57B5B","#8B5E3C","#6E4B3A","#4A321F","#2C1A0E"],
-    anime: ["#0D0D0D","#181820","#232333","#FF3B30","#FF9A8F","#FFD700","#4ADE80","#38BDF8","#C084FC","#FFFFFF"],
-  };
+  useEffect(() => {
+    const themePresetColors: Record<Theme, string[]> = {
+      neutral: [
+        "#ffffff", // white
+        "#f3f4f6", // very light gray
+        "#e5e7eb", // light gray
+        "#d1d5db", // medium gray
+        "#9ca3af", // mid gray
+        "#6b7280", // dark mid gray
+        "#374151", // dark gray
+        "#111827", // near-black
+      ],
+      kawaii: [
+        "#fff0f8", // lavender blush (very light)
+        "#ffe4ee", // blush pink (light)
+        "#ffd6ec", // soft rose
+        "#f3e8ff", // pastel lavender
+        "#e3f2fd", // baby blue
+        "#e6f9f0", // aqua mint
+        "#f0fff0", // mint cream
+        "#fffde7", // pale lemon
+        "#fff9e6", // light vanilla
+        "#ffe9c7", // soft peach
+      ],
+      retro: [
+        "#fff8e1", // cream
+        "#ffe4b5", // beige
+        "#ffd39a", // faded orange
+        "#ffb86c", // vintage orange
+        "#e3c29b", // muted beige
+        "#c19a6b", // brown-tan
+        "#a57b5b", // muted cocoa
+        "#8b5e3c", // deep brown
+        "#4a321f", // ink brown
+        "#2c1a0e", // darkest retro
+      ],
+      anime: [
+        "#0d0d0d", // black
+        "#232333", // very dark gray
+        "#444654", // mid gray
+        "#ff3b30", // bright red
+        "#ffd700", // yellow
+        "#4ade80", // neon green
+        "#38bdf8", // bright blue
+        "#c084fc", // violet
+        "#ff9a8f", // accent pink
+        "#ffffff", // white
+      ],
+    };
 
-  const defaultColor = themePresetColors[theme]?.[0] || "#ffffff";
-  const presets = getThemeTexturePresets(theme);
-  const defaultTexture = presets[0] ?? undefined;
+    const defaultColor = themePresetColors[theme]?.[0] || "#ffffff";
+    const presets = getThemeTexturePresets(theme);
+    const defaultTexture = presets[0] ?? undefined;
 
-  console.log("[CanvasBoard] Theme switched → resetting background", {
-    theme,
-    defaultColor,
-    defaultTexture,
-  });
+    console.log("[CanvasBoard] Theme switched → resetting background", {
+      theme,
+      defaultColor,
+      defaultTexture,
+    });
 
-  setBackground({
-    color: defaultColor,
-    texture: defaultTexture,
-  });
-}, [theme]);
+    setBackground((prev) => ({
+      ...prev,
+      color: defaultColor,
+      texture: prev.texture || defaultTexture, // ✅ keep existing if available
+    }));
+  }, [theme]);
   // Handler to update properties of the selected text element
   const updateSelectedText = (updates: Partial<TextElement>) => {
     setTextElements((prev) =>
@@ -2336,10 +2526,10 @@ useEffect(() => {
         if (parsed) {
           setTheme(parsed.theme);
           // Preserve any existing texture if parsed.background.texture is missing
-          setBackground(prev => ({
+          setBackground((prev) => ({
             ...prev,
             ...parsed.background,
-            texture: parsed.background.texture ?? prev.texture,
+            texture: parsed.background.texture || prev.texture, // ✅ preserve if missing
           }));
           setTextElements(parsed.textElements);
           setStickyNotes(parsed.stickyNotes);
@@ -2385,10 +2575,10 @@ useEffect(() => {
         if (snapshotClone) {
           setTheme(snapshotClone.theme);
           // Preserve any existing texture if snapshotClone.background.texture is missing
-          setBackground(prev => ({
+          setBackground((prev) => ({
             ...prev,
             ...snapshotClone.background,
-            texture: snapshotClone.background.texture ?? prev.texture,
+            texture: snapshotClone.background.texture || prev.texture, // ✅ preserve if missing
           }));
           setTextElements(snapshotClone.textElements);
           setStickyNotes(snapshotClone.stickyNotes);
@@ -2568,7 +2758,10 @@ useEffect(() => {
         <div
           className="absolute inset-0 z-0 pointer-events-none"
           style={{
-            backgroundImage: background.texture.style(theme),
+            backgroundImage:
+              typeof background.texture?.style === "function"
+                ? background.texture.style(theme, background.color) // call it if it’s a function
+                : background.texture?.style || "none", // else just use the string
             backgroundColor: background.texture.color || "transparent",
             backgroundBlendMode: background.texture.blend || "normal",
             backgroundRepeat: "repeat",
