@@ -290,10 +290,7 @@ const CanvasPage = () => {
   const boardStorageKey = useMemo(() => `keeps-board-${bookId}`, [bookId]);
 
   return (
-    <main
-      data-theme={draft.variant}
-      className="relative h-screen w-screen overflow-hidden bg-[var(--color-background)] transition-colors duration-300"
-    >
+    <main className="relative h-screen w-screen overflow-hidden bg-[var(--color-background)] transition-colors duration-300">
       <CanvasBoard
         storageKey={boardStorageKey}
         initialBackground={draft.background}
@@ -301,7 +298,7 @@ const CanvasPage = () => {
         initialSnapshot={templateSnapshot}
       />
 
-      <div className="pointer-events-none absolute left-4 top-4 z-40 flex items-center gap-3 bg-[var(---color-iconbutton)] text-[var(--color-icon)] p-1 rounded-lg">
+      <div className="pointer-events-none absolute left-4 top-4 z-40 flex items-center gap-3 bg-[var(--color-iconbutton)] text-[var(--color-icon)] p-1 rounded-lg">
         <div className="flex flex-row gap-2 relative items-center">
           {/* <Popup
             trigger={
@@ -361,7 +358,7 @@ const CanvasPage = () => {
                 type="button"
                 aria-haspopup="menu"
                 aria-expanded={open}
-                className={`pointer-events-auto flex items-center gap-0.5 p-[0.75rem] text-sm transition rounded-md bg-[var(--color-iconbutton)] text-[var(--color-icon)] border-1 border-[var(--color-iconborder-border)] hover:bg-[var(--color-iconbutton-hover))] ${
+                className={`pointer-events-auto flex items-center gap-0.5 p-[0.75rem] text-sm transition rounded-md bg-[var(--color-iconbutton)] text-[var(--color-icon)] border border-[var(--color-iconborder-border)] hover:bg-[var(--color-iconbutton-hover)] ${
                   open ? "bg-surface-base text-ink" : "text-ink-soft"
                 }`}
               >
@@ -385,10 +382,10 @@ const CanvasPage = () => {
             arrow={false}
             contentStyle={{
               padding: 0,
-              border: "none",
+              border: "var(--popup-border)",
               borderRadius: "0.75rem",
-              boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.10)",
-              background: "white",
+              boxShadow: "var(--popup-shadow)",
+              background: "var(--popup-bg)",
               // minWidth: "14rem",
               zIndex: 50,
             }}
@@ -396,14 +393,14 @@ const CanvasPage = () => {
           >
             {
               ((close: () => void) => (
-                <div className="pointer-events-auto w-56 rounded-xl bg-white shadow-xl ring-1 ring-black/5 backdrop-blur-md p-2">
+                <div className="pointer-events-auto w-56 rounded-xl bg-surface-base shadow-xl ring-1 ring-border-subtle backdrop-blur-md p-2">
                   <button
                     type="button"
                     onClick={() => {
                       router.push("/dashboard");
                       close();
                     }}
-                    className="w-full flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-ink-soft transition hover:bg-primary hover:text-white"
+                    className="w-full flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-ink-soft transition hover:bg-primary hover:text-[var(--color-background)]"
                   >
                     <ChevronLeft strokeWidth={1.5} size={18} />
                     Back to Dashboard
@@ -414,7 +411,7 @@ const CanvasPage = () => {
                       editCover();
                       close();
                     }}
-                    className="w-full flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-ink-soft transition hover:bg-primary hover:text-white"
+                    className="w-full flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm text-ink-soft transition hover:bg-primary hover:text-[var(--color-background)]"
                   >
                     <FilePenLine strokeWidth={1.5} size={16} />
                     Edit Cover Page

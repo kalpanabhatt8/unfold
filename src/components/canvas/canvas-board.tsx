@@ -634,7 +634,10 @@ type CanvasSnapshotComparable = Omit<CanvasSnapshot, "updatedAt">;
 
 const SNAPSHOT_VERSION = 1;
 
-const allowedThemes: Theme[] = ["neutral", "kawaii", "retro", "anime"];
+// Moodboard now only exposes Light/Dark modes.
+// We keep the legacy Theme union for backwards-compatible snapshots,
+// but normalize anything non-(neutral|anime) to neutral.
+const allowedThemes: Theme[] = ["neutral", "anime"];
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
@@ -816,15 +819,13 @@ const ThemeSelector: React.FC<ThemeSelectorProps> = ({ theme, setTheme }) => {
   const [open, setOpen] = React.useState(false);
 
   // ✅ Labels for themes (for nicer display text)
-  const themeLabels: Record<Theme, string> = {
-    neutral: "Neutral",
-    kawaii: "Kawaii",
-    retro: "Retro",
-    anime: "Anime",
+  const themeLabels: Partial<Record<Theme, string>> = {
+    neutral: "Light",
+    anime: "Dark",
   };
 
-  // ✅ Array of all themes to loop over
-  const themes: Theme[] = ["neutral", "kawaii", "retro", "anime"];
+  // Only two modes now (Light/Dark)
+  const themes: Theme[] = ["neutral", "anime"];
 
   // ✅ Current theme’s icon
   const CurrentIcon = themeConfig[theme].backgroundIcon;
@@ -878,7 +879,7 @@ const ThemeSelector: React.FC<ThemeSelectorProps> = ({ theme, setTheme }) => {
               )}
             >
               <OptionIcon size={16} />
-              {themeLabels[t]} {/* 👈 Display nice label */}
+              {themeLabels[t] ?? t}
             </button>
           );
         })}
@@ -1378,7 +1379,7 @@ const BackgroundPopup: React.FC<
                   setBackground((prev) => ({ ...prev, image: undefined }))
                 }
                 className={clsx(
-                  "relative w-9 h-9 rounded-full cursor-pointer transition-all mx-0.5 flex items-center justify-center bg-white overflow-hidden",
+                  "relative w-9 h-9 rounded-full cursor-pointer transition-all mx-0.5 flex items-center justify-center bg-[var(--color-surface-base)] overflow-hidden",
                   "border border-[var(--color-border-subtle)] hover:border-[var(--color-primary)]"
                 )}
                 title="Remove Background Image"
@@ -1444,7 +1445,7 @@ const BackgroundPopup: React.FC<
                   boxShadow: "var(--popup-shadow)",
                   border: "var(--popup-border)",}}>
                   <HexAlphaColorPicker
-                    color={background.color || "#ffffff"}
+                    color={background.color || "#FAFAFA"}
                     onChange={onColorChange}
                     style={{ width: 220, height: 260 }}
                   />
@@ -1465,7 +1466,7 @@ const BackgroundPopup: React.FC<
                     <input
                       type="text"
                       value={formatColor(
-                        background.color || "#ffffff",
+                        background.color || "#FAFAFA",
                         colorFormat
                       )}
                       onChange={(e) => onColorChange(e.target.value)}
@@ -1598,7 +1599,7 @@ const BackgroundPopup: React.FC<
               setBackground((prev) => ({ ...prev, texture: undefined }));
             }}
             className={clsx(
-              "relative w-9 h-9 cursor-pointer transition-all mx-0.5 flex items-center justify-center bg-white overflow-hidden",
+              "relative w-9 h-9 cursor-pointer transition-all mx-0.5 flex items-center justify-center bg-[var(--color-surface-base)] overflow-hidden",
               !background.texture
                 ? "ring-1 ring-[var(--color-primary)] shadow border border-[var(--color-primary)]"
                 : "border border-[var(--color-border-subtle)] hover:border-[var(--color-primary)]"
@@ -1681,9 +1682,10 @@ const AudioPopup: React.FC<AudioPopupProps> = ({ theme, onAddAudio }) => {
       contentStyle={{
         padding: "1.25rem",
         borderRadius: "0.75rem",
-        background: "rgba(255,255,255,0.82)",
-        backdropFilter: "blur(18px)", // 👈 glassy Apple look
-        boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+        background: "var(--popup-bg)",
+        backdropFilter: "blur(18px)",
+        boxShadow: "var(--popup-shadow)",
+        border: "var(--popup-border)",
         maxWidth: "320px",
       }}
       open={open}
@@ -2393,13 +2395,6 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
       count: defaults.length,
     });
   }, [audioElements.length, isHydrated, setAudioElements, storageKey]);
-  useEffect(() => {
-    if (typeof document !== "undefined") {
-      document.documentElement.setAttribute("data-theme", theme);
-      console.log("Theme applied:", theme);
-    }
-  }, [theme]);
-
   useEffect(() => {
     const themePresetColors: Record<Theme, string[]> = {
       neutral: [

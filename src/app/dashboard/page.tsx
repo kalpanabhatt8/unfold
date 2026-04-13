@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BookCover } from "@/components/book-cover";
 import { neutralBookTemplates } from "@/data/book-templates";
@@ -13,8 +13,6 @@ import {
 const Dashboard = () => {
   const router = useRouter();
   const [recentBooks, setRecentBooks] = useState<RecentBook[]>([]);
-  const [showAllTemplates, setShowAllTemplates] = useState(false);
-  const userToggledTemplates = useRef(false);
 
   const createDraftId = (prefix: string) =>
     `${prefix}-${Date.now().toString(36)}${Math.random()
@@ -32,9 +30,6 @@ const Dashboard = () => {
           ids: parsed.map((book) => book.id),
         });
         setRecentBooks(parsed);
-        if (!userToggledTemplates.current) {
-          setShowAllTemplates(parsed.length === 0);
-        }
       } catch (error) {
         console.error("Failed to read recents", error);
       }
@@ -82,22 +77,8 @@ const Dashboard = () => {
     router.push(`/dashboard/books/${draftId}/canvas?template=${templateId}`);
   };
 
-  const carouselPreviewCount = 6;
-
-  const remainingTemplates = useMemo(
-    () => neutralBookTemplates.slice(carouselPreviewCount),
-    []
-  );
-
-  const hasRemainingTemplates = remainingTemplates.length > 0;
-
-  const handleToggleTemplates = () => {
-    userToggledTemplates.current = true;
-    setShowAllTemplates((prev) => !prev);
-  };
-
   return (
-    <main className="min-h-screen w-full pb-24 bg-[#c2c1d3]">
+    <main className="min-h-screen w-full pb-24">
       <section className="mx-auto w-full max-w-6xl px-6 pt-16 md:px-10">
         <section className="flex flex-col gap-16">
           <div className="flex flex-col gap-4 text-ink">
@@ -111,101 +92,49 @@ const Dashboard = () => {
                     Scroll through the launch set or open the full gallery to pick your vibe.
                   </p> */}
                 </div>
-
-                {hasRemainingTemplates ? (
-                  <button
-                    type="button"
-                    onClick={handleToggleTemplates}
-                    className="starter-actions__button"
-                  >
-                    {showAllTemplates
-                      ? "Hide"
-                      : `Show more`}
-                      {/* : `Show ${remainingTemplates.length} more`} */}
-                  </button>
-                ) : null}
-              </div>
-            </div>
-
-            {!showAllTemplates && (
-              <div className="starter-carousel">
-                <div className="starter-carousel__glow" aria-hidden />
-                <div className="starter-carousel__track">
-                  <button
-                    type="button"
-                    onClick={handleCreateNewBook}
-                    className="starter-card group !p-0"
-                    aria-label="Create blank notebook"
-                  >
-                    <div className="aspect-[128/186] w-full">
-                      <div className="empty-template-card h-full w-full">
-                        <div>➕</div>
-                      </div>
-                    </div>
-                    {/* <span className="starter-card__label">Blank</span> */}
-                  </button>
-
-                  {neutralBookTemplates.map((book) => (
-                    <button
-                      key={book.id}
-                      type="button"
-                      onClick={() => handleTemplateSelect(book.id)}
-                      className="starter-card group !p-0"
-                    >
-                      <div className="aspect-[128/186] w-full book-shadow-div">
-                        <BookCover
-                          variant={book.variant}
-                          title={book.title}
-                          subtitle={book.subtitle}
-                          coverImageUrl={book.coverImage ?? undefined}
-                          className="h-full w-full"
-                        />
-                        <div className="trapezoid-bar"></div>
-                      </div>
-                      {/* <span className="starter-card__label">{book.title}</span> */}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {showAllTemplates && (
-              <div className="starter-grid">
                 <button
                   type="button"
-                  onClick={handleCreateNewBook}
-                  className="starter-grid__card group !p-0"
-                    aria-label="Create blank notebook"
+                  onClick={() => router.push("/settings")}
+                  className="rounded-full border border-border-subtle px-4 py-2 text-[0.62rem] font-semibold uppercase tracking-[0.2em] text-ink-soft transition hover:border-border-emphasis hover:text-ink"
                 >
-                  <div className="aspect-[128/186] w-full">
-                    <div className="empty-template-card h-full w-full">
-                      <div>➕</div>
-                    </div>
-                  </div>
-                  {/* <span className="starter-card__label">Blank</span> */}
+                  Settings
                 </button>
-                {neutralBookTemplates.map((book) => (
-                  <button
-                    key={`${book.id}-grid`}
-                    type="button"
-                    onClick={() => handleTemplateSelect(book.id)}
-                    className="starter-grid__card group"
-                  >
-                    <div className="aspect-[128/186] w-full book-shadow-div">
-                      <BookCover
-                        variant={book.variant}
-                        title={book.title}
-                        subtitle={book.subtitle}
-                        coverImageUrl={book.coverImage ?? undefined}
-                        className="h-full w-full"
-                      />
-                      <div className="trapezoid-bar"></div>
-                    </div>
-                    {/* <span className="starter-card__label">{book.title}</span> */}
-                  </button>
-                ))}
               </div>
-            )}
+            </div>
+            <div className="starter-grid">
+              <button
+                type="button"
+                onClick={handleCreateNewBook}
+                className="starter-grid__card group !p-0"
+                aria-label="Create blank notebook"
+              >
+                <div className="aspect-[128/186] w-full">
+                  <div className="empty-template-card h-full w-full">
+                    <div>➕</div>
+                  </div>
+                </div>
+              </button>
+
+              {neutralBookTemplates.map((book) => (
+                <button
+                  key={`${book.id}-grid`}
+                  type="button"
+                  onClick={() => handleTemplateSelect(book.id)}
+                  className="starter-grid__card group"
+                >
+                  <div className="aspect-[128/186] w-full book-shadow-div">
+                    <BookCover
+                      variant={book.coverImage ? "image" : "solid"}
+                      title={book.title}
+                      subtitle={book.subtitle}
+                      coverImageUrl={book.coverImage ?? undefined}
+                      className="h-full w-full"
+                    />
+                    <div className="trapezoid-bar"></div>
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
 
           {recentBooks.length > 0 && (
@@ -230,7 +159,7 @@ const Dashboard = () => {
                     >
                       <div className="aspect-[128/186] w-full book-shadow-div">
                         <BookCover
-                          variant={book.variant}
+                          variant={book.coverImage ? "image" : "solid"}
                           title={book.title}
                           subtitle={book.subtitle || undefined}
                           coverImageUrl={book.coverImage ?? undefined}
