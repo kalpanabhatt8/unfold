@@ -172,6 +172,8 @@ const BookBuilderPage = () => {
 
   const activeBackground = customBackground.trim() ? customBackground : background;
 
+  const coverVariant: BookCoverVariant = coverImage ? "image" : "solid";
+
   const persistCurrentDraft = useCallback(
     (updatedAt: number) => {
       if (typeof window === "undefined") return;
@@ -187,7 +189,7 @@ const BookBuilderPage = () => {
           subtitle: subtitle || undefined,
           coverImage: coverImage ?? null,
           background: activeBackground,
-          variant: template?.variant ?? "solid",
+          variant: coverVariant,
           titleColor: titleColor || null,
           subtitleColor: subtitleColor || null,
           sourceTemplateId: sourceTemplateId ?? templateParam ?? (template ? template.id : "blank"),
@@ -285,7 +287,7 @@ const BookBuilderPage = () => {
         <div className="grid gap-8 lg:grid-cols-[minmax(0,0.75fr)_minmax(0,1fr)]">
           <div className="flex flex-col items-center gap-3">
             <BookCover
-              variant={template?.variant ?? "solid"}
+              variant={coverVariant}
               title={title}
               subtitle={subtitle || undefined}
               coverImageUrl={coverImage}
@@ -304,7 +306,7 @@ const BookBuilderPage = () => {
           </div>
 
           <div className="flex flex-col gap-5">
-            <section className="rounded-2xl border border-border-subtle bg-white/80 p-5 shadow-sm">
+            <section className="rounded-2xl border border-border-subtle bg-surface-base/80 p-5 shadow-sm">
               <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-ink-soft">
                 Cover Photo
               </h2>
@@ -343,7 +345,7 @@ const BookBuilderPage = () => {
               </div>
             </section>
 
-            <section className="rounded-2xl border border-border-subtle bg-white/80 p-5 shadow-sm">
+            <section className="rounded-2xl border border-border-subtle bg-surface-base/80 p-5 shadow-sm">
               <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-ink-soft">
                 Background
               </h2>
@@ -368,12 +370,12 @@ const BookBuilderPage = () => {
                   value={customBackground}
                   onChange={(event) => setCustomBackground(event.target.value)}
                   placeholder="Custom CSS background"
-                  className="w-full rounded-lg border border-border-subtle bg-white px-3 py-2 text-xs text-ink focus:border-border-emphasis focus:outline-none"
+                  className="w-full rounded-lg border border-border-subtle bg-surface-base px-3 py-2 text-xs text-ink focus:border-border-emphasis focus:outline-none"
                 />
               </div>
             </section>
 
-            <section className="rounded-2xl border border-border-subtle bg-white/80 p-5 shadow-sm">
+            <section className="rounded-2xl border border-border-subtle bg-surface-base/80 p-5 shadow-sm">
               <h2 className="text-xs font-semibold uppercase tracking-[0.2em] text-ink-soft">
                 Details
               </h2>
@@ -384,7 +386,7 @@ const BookBuilderPage = () => {
                     type="text"
                     value={title}
                     onChange={(event) => setTitle(event.target.value)}
-                    className="rounded-lg border border-border-subtle bg-white px-3 py-2 text-sm text-ink focus:border-border-emphasis focus:outline-none"
+                    className="rounded-lg border border-border-subtle bg-surface-base px-3 py-2 text-sm text-ink focus:border-border-emphasis focus:outline-none"
                     placeholder="Name this notebook"
                   />
                 </label>
@@ -394,7 +396,7 @@ const BookBuilderPage = () => {
                     type="text"
                     value={subtitle}
                     onChange={(event) => setSubtitle(event.target.value)}
-                    className="rounded-lg border border-border-subtle bg-white px-3 py-2 text-sm text-ink focus:border-border-emphasis focus:outline-none"
+                    className="rounded-lg border border-border-subtle bg-surface-base px-3 py-2 text-sm text-ink focus:border-border-emphasis focus:outline-none"
                     placeholder="Small description (optional)"
                   />
                 </label>
@@ -412,7 +414,7 @@ const BookBuilderPage = () => {
                           className={clsx(
                             "h-7 w-7 rounded-full border transition",
                             titleColor === option.value
-                              ? "border-border-emphasis shadow-[0_0_0_2px_rgba(159,151,232,0.45)]"
+                              ? "border-border-emphasis shadow-[0_0_0_2px_var(--color-border-emphasis)]"
                               : "border-border-subtle hover:border-border-emphasis"
                           )}
                           style={{ backgroundColor: option.value }}
@@ -451,7 +453,7 @@ const BookBuilderPage = () => {
                           className={clsx(
                             "h-7 w-7 rounded-full border transition",
                             subtitleColor === option.value
-                              ? "border-border-emphasis shadow-[0_0_0_2px_rgba(159,151,232,0.45)]"
+                              ? "border-border-emphasis shadow-[0_0_0_2px_var(--color-border-emphasis)]"
                               : "border-border-subtle hover:border-border-emphasis"
                           )}
                           style={{ backgroundColor: option.value }}
@@ -485,7 +487,7 @@ const BookBuilderPage = () => {
               <button
                 type="button"
                 onClick={handleNext}
-                className="rounded-full border border-border-emphasis bg-ink text-white px-6 py-2 text-xs font-semibold uppercase tracking-[0.2em] transition hover:opacity-90"
+                className="rounded-full border border-border-emphasis bg-ink text-[var(--color-background)] px-6 py-2 text-xs font-semibold uppercase tracking-[0.2em] transition hover:opacity-90"
               >
                 Next →
               </button>

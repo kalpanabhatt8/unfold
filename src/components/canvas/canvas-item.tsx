@@ -33,11 +33,11 @@ const handleStyle = (visible: boolean): React.CSSProperties => ({
   width: "14px",
   height: "14px",
   borderRadius: "9999px",
-  border: "1px solid rgba(15, 23, 42, 0.25)",
+  border: "1px solid var(--color-border-emphasis)",
   background: visible
-    ? "rgba(255,255,255,0.95) url('/Images/resize.svg') center/70% no-repeat"
-    : "rgba(255,255,255,0.95)",
-  boxShadow: "0 2px 6px rgba(15,23,42,0.18)",
+    ? "var(--color-surface-base) url('/Images/resize.svg') center/70% no-repeat"
+    : "var(--color-surface-base)",
+  boxShadow: "none",
   opacity: visible ? 1 : 0,
   transition: "opacity 0.12s ease",
 });
@@ -49,19 +49,19 @@ const FRAME_STYLE_MAP: Record<
   none: { outer: "flex h-full w-full items-center justify-center", inner: "relative h-full w-full", image: "" },
   polaroid: {
     outer:
-      "flex h-full w-full flex-col items-center justify-start rounded-[22px] bg-[var(--k-surface)] px-4 pt-4 pb-12 shadow-[0_16px_28px_rgba(15,23,42,0.18)]",
+      "flex h-full w-full flex-col items-center justify-start rounded-[22px] bg-[var(--k-surface)] px-4 pt-4 pb-12 shadow-none",
     inner: "relative h-full w-full overflow-hidden rounded-[14px] bg-[var(--k-surface)]",
     image: "object-cover",
   },
   rounded: {
     outer:
-      "flex h-full w-full items-center justify-center rounded-3xl bg-[var(--k-surface)] p-4 shadow-[0_10px_20px_rgba(15,23,42,0.15)]",
+      "flex h-full w-full items-center justify-center rounded-3xl bg-[var(--k-surface)] p-4 shadow-none",
     inner: "relative h-full w-full overflow-hidden rounded-2xl bg-[var(--k-surface)]",
     image: "object-cover",
   },
   taped: {
     outer:
-      "relative flex h-full w-full items-center justify-center rounded-2xl bg-[var(--k-surface)] p-4 shadow-[0_16px_26px_rgba(15,23,42,0.18)]",
+      "relative flex h-full w-full items-center justify-center rounded-2xl bg-[var(--k-surface)] p-4 shadow-none",
     inner: "relative h-full w-full overflow-hidden rounded-xl bg-[var(--k-surface)]",
     image: "object-cover",
   },

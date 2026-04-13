@@ -1,0 +1,721 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* Keeps — Minimal calm journal foundation
+   Only Light / Dark modes, minimal tokens, minimal component CSS.
+*/
+:root {
+  /* Grayscale palette (single source of truth) */
+  --gray-25: #FAFAFA;
+  --gray-50: #F5F5F5;
+  --gray-100: #f0f0f0;
+  --gray-200: #EBEBEB;
+  --gray-300: #E0E0E0;
+  --gray-400: #CCCCCC;
+  --gray-500: #A3A3A3;
+  --gray-600: #7A7A7A;
+  --gray-700: #525252;
+  --gray-800: #292929;
+  --gray-900: #121212;
+
+  /* Type scale */
+  --text-xs: 0.8125rem;
+  --text-sm: 0.9375rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+
+  /* Value scale (px) */
+  --value-0: 0px;
+  --value-2: 2px;
+  --value-4: 4px;
+  --value-6: 6px;
+  --value-8: 8px;
+  --value-10: 10px;
+  --value-12: 12px;
+  --value-14: 14px;
+  --value-16: 16px;
+  --value-18: 18px;
+  --value-20: 20px;
+  --value-22: 22px;
+  --value-24: 24px;
+  --value-26: 26px;
+  --value-28: 28px;
+  --value-30: 30px;
+  --value-32: 32px;
+  --value-34: 34px;
+  --value-36: 36px;
+  --value-38: 38px;
+  --value-40: 40px;
+  --value-42: 42px;
+  --value-44: 44px;
+  --value-46: 46px;
+  --value-48: 48px;
+  --value-50: 50px;
+  --value-52: 52px;
+  --value-54: 54px;
+  --value-56: 56px;
+  --value-58: 58px;
+  --value-60: 60px;
+  --value-62: 62px;
+  --value-64: 64px;
+  --value-66: 66px;
+  --value-68: 68px;
+  --value-70: 70px;
+  --value-72: 72px;
+  --value-74: 74px;
+  --value-76: 76px;
+  --value-78: 78px;
+  --value-80: 80px;
+  --value-82: 82px;
+  --value-84: 84px;
+  --value-86: 86px;
+  --value-88: 88px;
+  --value-90: 90px;
+  --value-92: 92px;
+  --value-94: 94px;
+  --value-96: 96px;
+  --value-98: 98px;
+  --value-100: 100px;
+
+  /* Radii */
+  --radius-sm: var(--value-8);
+  --radius-md: var(--value-12);
+  --radius-lg: var(--value-16);
+  --radius-pill: 999px;
+
+  /* Color semantics - foundation */
+  --bg: var(--gray-25);
+  --fg: var(--gray-900);
+  --muted: var(--gray-700);
+  --muted-2: var(--gray-600);
+  --border: var(--gray-300);
+  --primary: var(--gray-900);
+  --primary-soft: var(--gray-300);
+
+  /* Color semantics - surfaces */
+  --surface-0: var(--gray-25); /* page background */
+  --surface-1: var(--gray-50); /* raised panels */
+  --surface-2: var(--gray-100); /* cards + controls */
+  --surface: var(--surface-2);
+  --surface-solid: var(--surface-1);
+  --shadow: none;
+
+  /* Color semantics - text + foreground */
+  --color-background: var(--surface-0);
+  --color-foreground: var(--fg);
+  --color-surface-base: var(--surface-0);
+  --color-surface-raised: var(--surface-1);
+  --color-surface-card: var(--surface-2);
+  --color-surface-overlay: var(--surface-2);
+  --color-primary: var(--primary);
+  --color-secondary: var(--primary-soft);
+  --color-ink: var(--fg);
+  --color-ink-strong: var(--fg);
+  --color-ink-soft: var(--muted);
+  --color-ink-muted: var(--muted-2);
+
+
+  /* Color semantics - borders + controls */
+  --color-border-subtle: var(--border);
+  --color-border-emphasis: var(--gray-400);
+  --color-iconbutton: var(--gray-200);
+  --color-iconborder-border: var(--gray-300);
+  --color-iconbutton-hover: var(--gray-300);
+  --color-icon: var(--fg);
+  --toolbar-button-border: 1px solid var(--color-border-subtle);
+  --toolbar-button-border-selected: 1px solid var(--color-border-emphasis);
+
+  
+  /* Color semantics - overlays + focus */
+  --popup-border: 1px solid var(--color-border-subtle);
+  --popup-bg: var(--surface-2);
+  --popup-shadow: var(--shadow);
+  --color-focus-ring: var(--gray-900);
+}
+
+/* Dark mode (soft charcoal, low-contrast) */
+[data-theme="dark"],
+.dark {
+  /* Reverse palette in dark mode */
+  --gray-25: #0d0d0d;
+  --gray-50: #121212;
+  --gray-100: #292929;
+  --gray-200: #525252;
+  --gray-300: #7A7A7A;
+  --gray-400: #A3A3A3;
+  --gray-500: #CCCCCC;
+  --gray-600: #E0E0E0;
+  --gray-700: #EBEBEB;
+  --gray-800: #EBEBEB;
+  --gray-900: #F5F5F5;
+
+  /* Color semantics - foundation */
+  --bg: var(--gray-50);
+  --fg: var(--gray-900);
+  --muted: var(--gray-700);
+  --muted-2: var(--gray-600);
+  --border: var(--gray-300);
+  --primary: var(--gray-900);
+  --primary-soft: var(--gray-300);
+
+  /* Color semantics - surfaces */
+  --surface-0: var(--gray-50);
+  --surface-1: #1b1b1b; /* raised panels */
+  --surface-2: var(--gray-100);
+  --surface: var(--surface-2);
+  --surface-solid: var(--surface-1);
+  --shadow: none;
+
+  /* Color semantics - text + foreground */
+  --color-background: var(--surface-0);
+  --color-foreground: var(--fg);
+  --color-surface-base: var(--surface-0);
+  --color-surface-raised: var(--surface-1);
+  --color-surface-card: var(--surface-2);
+  --color-surface-overlay: var(--surface-2);
+  --color-primary: var(--primary);
+  --color-secondary: var(--primary-soft);
+  --color-ink: var(--fg);
+  --color-ink-strong: var(--fg);
+  --color-ink-soft: var(--muted);
+  --color-ink-muted: var(--muted-2);
+
+  /* Color semantics - borders + controls */
+  --color-border-subtle: var(--border);
+  --color-border-emphasis: var(--gray-400);
+  --color-iconbutton: var(--gray-200);
+  --color-iconborder-border: var(--gray-300);
+  --color-iconbutton-hover: var(--gray-300);
+  --color-icon: var(--fg);
+  --toolbar-button-border: 1px solid var(--color-border-subtle);
+  --toolbar-button-border-selected: 1px solid var(--color-border-emphasis);
+
+  /* Color semantics - overlays + focus */
+  --popup-border: 1px solid var(--color-border-subtle);
+  --popup-bg: var(--surface-2);
+  --popup-shadow: var(--shadow);
+  --color-focus-ring: var(--gray-900);
+}
+
+/* Base element styling */
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--surface-0);
+  color: var(--fg);
+  font-family: var(--font-manrope), system-ui, -apple-system, Segoe UI, Roboto,
+    Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  font-size: var(--text-base);
+  line-height: 1.6;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-bricolage), var(--font-manrope), system-ui, sans-serif;
+  letter-spacing: -0.01em;
+}
+
+/* Small helpers used in existing pages */
+.accent-font {
+  font-family: var(--font-caveat), var(--font-manrope), system-ui, sans-serif;
+}
+
+.logo-font {
+  font-family: var(--font-bricolage), var(--font-manrope), system-ui, sans-serif;
+}
+
+
+/* Buttons (kept minimal, calm) */
+.button-primary,
+.button-secondary {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--value-6);
+  padding: var(--value-10) var(--value-18);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface-solid);
+  color: var(--fg);
+  box-shadow: none;
+  transition: transform 180ms ease, box-shadow 200ms ease,
+    background-color 200ms ease, border-color 200ms ease;
+}
+
+.button-primary {
+  background: var(--surface-solid);
+  border-color: var(--border);
+}
+
+.button-primary:hover,
+.button-secondary:hover {
+  transform: translateY(-1px);
+  box-shadow: none;
+}
+
+.button-primary:active,
+.button-secondary:active {
+  transform: translateY(0px);
+}
+
+/* Clerk pieces should inherit our font */
+.cl-cardBox,
+.cl-cardBox div,
+.cl-formButtonPrimary,
+.cl-headerTitle {
+  font-family: var(--font-manrope), system-ui, sans-serif !important;
+}
+
+/* Starter carousel: remove glow, keep scrolling behavior */
+.starter-carousel__glow {
+  display: none;
+}
+
+.starter-carousel__track {
+  scrollbar-width: none;
+}
+
+.starter-carousel__track::-webkit-scrollbar {
+  display: none;
+}
+
+/* Misc: remove novelty cursor */
+button:hover {
+  cursor: pointer;
+}
+/* Keeps — Minimal calm journal foundation
+   Only Light / Dark modes, minimal tokens, minimal component CSS.
+*/
+
+/* Dark mode (soft charcoal, low-contrast) */
+[data-theme="dark"],
+.dark {
+  /* Color semantics - foundation */
+  --bg: var(--gray-50);
+  --fg: var(--gray-900);
+  --muted: var(--gray-700);
+  --muted-2: var(--gray-600);
+  --border: var(--gray-300);
+  --primary: var(--gray-900);
+  --primary-soft: var(--gray-300);
+
+  /* Color semantics - surfaces */
+  --surface-0: var(--gray-50);
+  --surface-1: #1b1b1b; /* raised panels */
+  --surface-2: var(--gray-100);
+  --surface: var(--surface-2);
+  --surface-solid: var(--surface-1);
+  --shadow: none;
+
+  /* Color semantics - text + foreground */
+  --color-background: var(--surface-0);
+  --color-foreground: var(--fg);
+  --color-surface-base: var(--surface-0);
+  --color-surface-raised: var(--surface-1);
+  --color-surface-card: var(--surface-2);
+  --color-surface-overlay: var(--surface-2);
+  --color-primary: var(--primary);
+  --color-secondary: var(--primary-soft);
+  --color-ink: var(--fg);
+  --color-ink-strong: var(--fg);
+  --color-ink-soft: var(--muted);
+  --color-ink-muted: var(--muted-2);
+
+  /* Color semantics - borders + controls */
+  --color-border-subtle: var(--border);
+  --color-border-emphasis: var(--gray-400);
+  --color-iconbutton: var(--gray-200);
+  --color-iconborder-border: var(--gray-300);
+  --color-iconbutton-hover: var(--gray-300);
+  --color-icon: var(--fg);
+  --toolbar-button-border: 1px solid var(--color-border-subtle);
+  --toolbar-button-border-selected: 1px solid var(--color-border-emphasis);
+
+  /* Color semantics - overlays + focus */
+  --popup-border: 1px solid var(--color-border-subtle);
+  --popup-bg: var(--surface-2);
+  --popup-shadow: var(--shadow);
+  --color-focus-ring: var(--gray-900);
+}
+
+/* Base element styling */
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--surface-0);
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: 1.6;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-heading);
+  letter-spacing: -0.01em;
+}
+
+/* Small helpers used in existing pages */
+.accent-font {
+  font-family: var(--font-accent);
+}
+
+.logo-font {
+  font-family: var(--font-heading);
+}
+
+
+/* Buttons (kept minimal, calm) */
+.button-primary,
+.button-secondary {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--value-6);
+  padding: var(--value-10) var(--value-18);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface-solid);
+  color: var(--fg);
+  box-shadow: none;
+  transition: transform 180ms ease, box-shadow 200ms ease,
+    background-color 200ms ease, border-color 200ms ease;
+}
+
+.button-primary {
+  background: var(--surface-solid);
+  border-color: var(--border);
+}
+
+.button-primary:hover,
+.button-secondary:hover {
+  transform: translateY(-1px);
+  box-shadow: none;
+}
+
+.button-primary:active,
+.button-secondary:active {
+  transform: translateY(0px);
+}
+
+/* Clerk pieces should inherit our font */
+.cl-cardBox,
+.cl-cardBox div,
+.cl-formButtonPrimary,
+.cl-headerTitle {
+  font-family: var(--font-body) !important;
+}
+
+/* Starter carousel: remove glow, keep spacing */
+.starter-carousel__glow {
+  display: none;
+}
+
+.starter-carousel__track {
+  scrollbar-width: none;
+}
+
+.starter-carousel__track::-webkit-scrollbar {
+  display: none;
+}
+
+.button-primary {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--value-6);
+  padding: var(--value-8) var(--value-28);
+  background-color: var(--surface-solid);
+  padding: var(--value-10) var(--value-32);
+  cursor: pointer;
+  color: var(--fg);
+  border-radius: var(--radius-16);
+  box-shadow: none;
+  transform: translateY(0) rotate(0deg);
+  transition: transform 200ms ease, box-shadow 220ms ease,
+    background-color 200ms ease;
+}
+
+.button-primary::after {
+  content: "";
+  position: absolute;
+  inset: -3.5px;
+  border-radius: var(--radius-18);
+  border: 1.5px solid var(--border);
+  pointer-events: none;
+  opacity: 0.85;
+  transition: opacity 200ms ease;
+}
+
+.button-primary:hover {
+  transform: translateY(-4px) rotate(-2deg);
+  box-shadow: none;
+}
+
+.button-primary:hover::after {
+  opacity: 1;
+}
+
+.button-primary:active {
+  transform: translateY(-1px) rotate(-1deg);
+  box-shadow: none;
+}
+
+.button-secondary {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--value-6);
+  padding: var(--value-8) var(--value-28);
+  background-color: var(--surface);
+  padding: var(--value-10) var(--value-32);
+  cursor: pointer;
+  color: var(--fg);
+  border-radius: var(--radius-16);
+  box-shadow: none;
+  transform: translateY(0) rotate(0deg);
+  transition: transform 200ms ease, box-shadow 220ms ease,
+    background-color 200ms ease;
+}
+
+.button-secondary::after {
+  content: "";
+  position: absolute;
+  inset: -3.5px;
+  border-radius: var(--radius-18);
+  border: 1.5px solid var(--border);
+  pointer-events: none;
+  opacity: 0.9;
+  transition: opacity 200ms ease;
+}
+
+.button-secondary:hover {
+  transform: translateY(-4px) rotate(1.5deg);
+  box-shadow: none;
+}
+
+.button-secondary:hover::after {
+  opacity: 1;
+}
+
+.button-secondary:active {
+  transform: translateY(-1px) rotate(0.75deg);
+  box-shadow: none;
+}
+
+button {
+  font-size: 1rem;
+  /* padding: 0.75rem; */
+}
+
+button:hover {
+  cursor: pointer;
+}
+
+.cl-formButtonPrimary {
+  cursor: pointer;
+  background-color: var(--gray-900);
+  border: none !important;
+  font-family: var(--font-manrope), sans-serif !important;
+}
+
+.cl-internal-1k7jtru {
+  background: var(--surface) !important;
+}
+
+.cl-internal-fcx671 {
+  color: var(--muted);
+}
+
+.cl-cardBox,
+.cl-cardBox div {
+  font-family: var(--font-manrope), sans-serif !important;
+}
+
+/* BookCover + dashboard book grid styles moved to `book.css` */
+
+.starter-carousel {
+  position: relative;
+  /* padding: 0 1.5rem; */
+}
+
+.starter-carousel__glow {
+  display: none;
+}
+
+.starter-carousel__track {
+  display: flex;
+  gap: var(--value-32);
+  overflow-x: auto;
+  padding: var(--value-16) var(--value-22) var(--value-64) var(--value-0);
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.starter-carousel__track::-webkit-scrollbar {
+  display: none;
+}
+
+.starter-card {
+  flex: 0 0 auto;
+  width: calc(var(--value-100) + var(--value-20));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--value-8);
+  scroll-snap-align: center;
+  transition: transform 200ms ease;
+}
+
+.starter-card:hover {
+  transform: translateY(-6px);
+}
+
+.starter-card__label {
+  font-size: 0.62rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--color-ink-muted);
+}
+
+.starter-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.starter-actions__button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--value-6);
+  padding: var(--value-6) var(--value-12);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--surface-solid);
+  font-size: 0.65rem;
+  letter-spacing: 0.05em;
+  /* text-transform: uppercase; */
+  color: var(--color-ink);
+  transition: transform 180ms ease, border-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.starter-actions__button:hover {
+  transform: translateY(-2px);
+  border-color: var(--color-border-emphasis);
+  box-shadow: none;
+}
+
+/* BookCover + dashboard book grid styles moved to `book.css` */
+
+@media (max-width: 768px) {
+  .starter-carousel__track {
+    gap: var(--value-16);
+  }
+
+  .starter-card {
+    width: calc(var(--value-100) + var(--value-10));
+  }
+}
+
+/* .bg-popup-content {
+  position: fixed !important;
+  left: 50% !important;
+  top: 50% !important;
+  transform: translate(-50%, -50%) !important; 
+  width: fit-content !important;
+  max-width: min(92vw, 960px) !important; 
+  z-index: 9999 !important;
+} */
+
+.bg-popup-content {
+  position: fixed !important;
+  left: 50% !important;
+  bottom: 12% !important;
+  transform: translateX(-50%) !important;
+  /* only center on X */
+  width: fit-content !important;
+  z-index: 9999 !important;
+  /* padding: 0 !important; */
+}
+
+/* Target the draggable dot */
+.color-picker .react-colorful__pointer {
+  width: 18px !important;
+  /* smaller size */
+  height: 18px !important;
+  border: 2px solid var(--gray-50);
+  /* clean border */
+  box-shadow: none !important;
+  /* remove shadow */
+}
+
+.react-colorful__saturation,
+.react-colorful__hue,
+.react-colorful__alpha {
+  border-radius: var(--radius-8);
+  overflow: hidden;
+  margin-bottom: var(--value-12);
+}
+
+.no-fill-icon {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--gray-50);
+  border: 1px solid var(--color-border-subtle);
+}
+
+.no-fill-icon::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 2px;
+  background: var(--gray-900);
+  transform: rotate(45deg);
+}
+
+.react-colorful__saturation {
+  border-radius: var(--radius-8) !important;
+}
+
+.react-colorful__hue {
+  height: 12px !important;
+  margin-bottom: var(--value-8) !important;
+}
+
+.react-colorful__pointer {
+  width: 14px !important;
+  height: 14px !important;
+  z-index: 40 !important;
+}
+
+.react-colorful__alpha {
+  height: 12px !important;
+  border-radius: var(--radius-pill) !important;
+  margin-bottom: var(--value-8) !important;
+}

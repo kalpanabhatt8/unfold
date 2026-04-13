@@ -6,18 +6,15 @@ export default function Signin() {
       appearance={{
         theme: "simple",
         variables: {
-          colorPrimary: "#6370e3",
-          // You might also find a 'colorTextSecondary' variable that influences this,
-          // but targeting the element directly is more precise for this specific link.
+          colorPrimary: "var(--color-primary)",
         },
         elements: {
           componentContainer: {
-            border: "1px solid #e5e5e5",
+            border: "var(--popup-border)",
           },
           developmentOrTestModeBox: {
-            // Create a new striped gradient with your purple color
-            background: `repeating-linear-gradient(-45deg, transparent, transparent 6px, #7c8bff20 6px, #7c8bff20 12px)`,
-            border: "1px solid #7c8bff",
+            background: "var(--color-surface-raised)",
+            border: "var(--popup-border)",
           },
           headerTitle: {},
         },
