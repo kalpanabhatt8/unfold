@@ -9,7 +9,7 @@ export type RecentBook = {
   subtitle?: string;
   coverImage?: string | null;
   background: string;
-  variant: "solid" | "grid" | "abstract" | "strap" | "gradient";
+  variant: "solid" | "image";
   titleColor?: string | null;
   subtitleColor?: string | null;
   sourceTemplateId?: string | null;
@@ -18,8 +18,10 @@ export type RecentBook = {
 
 type DraftLike = RecentBook & Record<string, unknown>;
 
-const allowedVariants: Set<RecentBook["variant"]> = new Set([
+const allowedVariants = new Set<string>([
   "solid",
+  "image",
+  // legacy values (migrated to image)
   "grid",
   "abstract",
   "strap",
@@ -38,7 +40,7 @@ const normalizeRecentBook = (value: unknown): RecentBook | null => {
     typeof title !== "string" ||
     typeof background !== "string" ||
     typeof variant !== "string" ||
-    !allowedVariants.has(variant as RecentBook["variant"])
+    !allowedVariants.has(variant)
   ) {
     return null;
   }
@@ -53,7 +55,7 @@ const normalizeRecentBook = (value: unknown): RecentBook | null => {
     id,
     title,
     background,
-    variant: variant as RecentBook["variant"],
+    variant: variant === "solid" ? "solid" : "image",
     updatedAt,
   };
 
@@ -141,9 +143,10 @@ export const syncDraftsAndRecents = <T extends DraftLike>(
           : normalized?.updatedAt) ?? 0;
       const raw = value as Record<string, unknown>;
       const variantValue =
-        typeof raw.variant === "string" &&
-        allowedVariants.has(raw.variant as RecentBook["variant"])
-          ? (raw.variant as RecentBook["variant"])
+        typeof raw.variant === "string" && allowedVariants.has(raw.variant)
+          ? raw.variant === "solid"
+            ? "solid"
+            : "image"
           : "solid";
 
       const fallback: RecentBook = {

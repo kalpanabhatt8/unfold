@@ -2,7 +2,7 @@ import React from "react";
 import Image from "next/image";
 import clsx from "clsx";
 
-type BookCoverVariant = "solid" | "grid" | "abstract" | "strap" | "gradient";
+type BookCoverVariant = "solid" | "image";
 
 type BookCoverBaseProps = {
   variant?: BookCoverVariant;
@@ -14,7 +14,8 @@ type BookCoverBaseProps = {
   className?: string;
 };
 
-type BookCoverProps = BookCoverBaseProps & React.ComponentPropsWithoutRef<"div">;
+type BookCoverProps = BookCoverBaseProps &
+  React.ComponentPropsWithoutRef<"div">;
 
 export function BookCover({
   variant = "solid",
@@ -28,9 +29,11 @@ export function BookCover({
   ...rest
 }: BookCoverProps) {
   return (
+   <>
     <div className={clsx("book-cover-stack", className)} {...rest}>
-      {/* <div className="book-cover-backplate" aria-hidden /> */}
-      {/* <div className="book-cover-shadow" aria-hidden /> */}
+      <div className="book-cover-backplate" aria-hidden />
+      <div className="book-cover-shadow" aria-hidden />
+
       <div className="book-cover" data-variant={variant} style={style}>
         {coverImageUrl ? (
           <Image
@@ -41,8 +44,12 @@ export function BookCover({
             unoptimized
           />
         ) : null}
+
         <div className="book-cover__content">
-          <h3 className="book-cover__title" style={titleColor ? { color: titleColor } : undefined}>
+          <h3
+            className="book-cover__title"
+            style={titleColor ? { color: titleColor } : undefined}
+          >
             {title}
           </h3>
           {subtitle ? (
@@ -55,7 +62,24 @@ export function BookCover({
           ) : null}
         </div>
       </div>
+      {/* <div className="trapezoid-bar" aria-hidden /> */}
+      {/* <svg width="0" height="0" style={{ position: "absolute" }}>
+        <defs>
+          <clipPath id="bookPageClip" clipPathUnits="objectBoundingBox">
+            <path
+              d="
+              M0,0.2
+              L0.9,0.2
+              Q1,-0.05 1,0.5
+              Q1,1.05 0.94,1
+              L0.04,1
+              Z"
+            />
+          </clipPath>
+        </defs>
+      </svg> */}
     </div>
+   </>
   );
 }
 

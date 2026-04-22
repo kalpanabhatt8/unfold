@@ -37,10 +37,7 @@ const Dashboard = () => {
 
     loadRecents();
     const handleStorage = (event: StorageEvent) => {
-      if (
-        event.key === null ||
-        event.key === RECENT_BOOKS_STORAGE_KEY
-      ) {
+      if (event.key === null || event.key === RECENT_BOOKS_STORAGE_KEY) {
         loadRecents();
       }
     };
@@ -81,62 +78,6 @@ const Dashboard = () => {
     <main className="min-h-screen w-full pb-24">
       <section className="mx-auto w-full max-w-6xl px-6 pt-16 md:px-10">
         <section className="flex flex-col gap-16">
-          <div className="flex flex-col gap-4 text-ink">
-            <div className="flex flex-col gap-2">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex flex-col gap-1">
-                  <span className="text-[0.7rem] uppercase tracking-[0.3em] text-ink-soft">
-                    Starter Library
-                  </span>
-                  {/* <p className="text-sm text-ink-soft">
-                    Scroll through the launch set or open the full gallery to pick your vibe.
-                  </p> */}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => router.push("/settings")}
-                  className="rounded-full border border-border-subtle px-4 py-2 text-[0.62rem] font-semibold uppercase tracking-[0.2em] text-ink-soft transition hover:border-border-emphasis hover:text-ink"
-                >
-                  Settings
-                </button>
-              </div>
-            </div>
-            <div className="starter-grid">
-              <button
-                type="button"
-                onClick={handleCreateNewBook}
-                className="starter-grid__card group !p-0"
-                aria-label="Create blank notebook"
-              >
-                <div className="aspect-[128/186] w-full">
-                  <div className="empty-template-card h-full w-full">
-                    <div>➕</div>
-                  </div>
-                </div>
-              </button>
-
-              {neutralBookTemplates.map((book) => (
-                <button
-                  key={`${book.id}-grid`}
-                  type="button"
-                  onClick={() => handleTemplateSelect(book.id)}
-                  className="starter-grid__card group"
-                >
-                  <div className="aspect-[128/186] w-full book-shadow-div">
-                    <BookCover
-                      variant={book.coverImage ? "image" : "solid"}
-                      title={book.title}
-                      subtitle={book.subtitle}
-                      coverImageUrl={book.coverImage ?? undefined}
-                      className="h-full w-full"
-                    />
-                    <div className="trapezoid-bar"></div>
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-
           {recentBooks.length > 0 && (
             <section className="flex flex-col gap-4">
               <div className="flex flex-col gap-1">
@@ -150,14 +91,14 @@ const Dashboard = () => {
 
               <div className="flex flex-wrap justify-center gap-10 md:justify-start">
                 {recentBooks.map((book) => (
-                  <div key={book.id} className="flex flex-col">
+                  <div key={book.id} className="flex flex-col flex-1">
                     <div
                       onClick={() =>
                         router.push(`/dashboard/books/${book.id}/canvas`)
                       }
-                      className="group flex w-full max-w-[120px] flex-col items-center gap-8 mb-3"
+                      className="group flex flex-col items-center gap-8 mb-3"
                     >
-                      <div className="aspect-[128/186] w-full book-shadow-div">
+                      <div className="aspect-[128/186] h-[100%] w-[100%] book-shadow-div ">
                         <BookCover
                           variant={book.coverImage ? "image" : "solid"}
                           title={book.title}
@@ -168,7 +109,7 @@ const Dashboard = () => {
                           className="h-full w-full"
                           style={{ background: book.background }}
                         />
-                        <div className="trapezoid-bar"></div>
+                        {/* <div className="trapezoid-bar"></div> */}
                       </div>
                     </div>
                     <div className="text-xs text-ink-soft ml-2">
@@ -179,6 +120,63 @@ const Dashboard = () => {
               </div>
             </section>
           )}
+          <div className="flex flex-col gap-4 text-ink">
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-row justify-between w-[100%]">
+                  <span className="text-[0.7rem] uppercase tracking-[0.3em] text-ink-soft">
+                    Starter Library
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={handleCreateNewBook}
+                    className="starter-grid__card group !p-0"
+                    aria-label="Create blank notebook"
+                  >
+                    Create new notebook
+                  </button>
+                  {/* <p className="text-sm text-ink-soft">
+                    Scroll through the launch set or open the full gallery to pick your vibe.
+                  </p> */}
+                </div>
+              </div>
+            </div>
+            <div className="starter-grid">
+              {/* <button
+                type="button"
+                onClick={handleCreateNewBook}
+                className="starter-grid__card group !p-0"
+                aria-label="Create blank notebook"
+              >
+                <div className="aspect-[128/186] w-full">
+                  <div className="empty-template-card h-full w-full">
+                    <div>➕</div>
+                  </div>
+                </div>
+              </button> */}
+
+              {neutralBookTemplates.map((book) => (
+                <button
+                  key={`${book.id}-grid`}
+                  type="button"
+                  onClick={() => handleTemplateSelect(book.id)}
+                  className="starter-grid__card group"
+                >
+                  <div className="aspect-[256/372] w-full book-shadow-div">
+                    <BookCover
+                      variant={book.coverImage ? "image" : "solid"}
+                      title={book.title}
+                      subtitle={book.subtitle}
+                      coverImageUrl={book.coverImage ?? undefined}
+                      className="h-full w-full"
+                    />
+                    {/* <div className="trapezoid-bar"></div> */}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
         </section>
       </section>
     </main>

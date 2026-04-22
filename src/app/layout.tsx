@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import "./global.css";
 import "./book.css";
-import { ThemeProvider, THEME_STORAGE_KEY } from "@/components/theme/theme-provider";
 
 // Google Fonts
 import { Bricolage_Grotesque, Manrope, Caveat } from "next/font/google";
@@ -36,20 +35,6 @@ export const metadata: Metadata = {
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const setInitialThemeScript = `
-    (function() {
-      try {
-        var stored = localStorage.getItem("${THEME_STORAGE_KEY}");
-        var theme = (stored === "light" || stored === "dark")
-          ? stored
-          : (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-        document.documentElement.setAttribute("data-theme", theme);
-        document.documentElement.classList.toggle("dark", theme === "dark");
-        document.documentElement.style.colorScheme = theme;
-      } catch (e) {}
-    })();
-  `;
-
   return (
     <ClerkProvider
       appearance={{
@@ -79,11 +64,8 @@ export default function RootLayout({
           ${bricolageGrotesque.variable} ${manrope.variable} ${caveat.variable}
         `}
       >
-        <head>
-          <script dangerouslySetInnerHTML={{ __html: setInitialThemeScript }} />
-        </head>
         <body suppressHydrationWarning className={`${manrope.className} font-sans`}>
-          <ThemeProvider>{children}</ThemeProvider>
+          {children}
         </body>
       </html>
     </ClerkProvider>
