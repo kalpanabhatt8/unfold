@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { getTemplateById } from "@/data/book-templates";
+import { coverBackgroundVar } from "@/data/cover-gradients";
 import CanvasBoard, {
   type CanvasSnapshot,
 } from "@/components/canvas/canvas-board";
@@ -94,7 +95,9 @@ const CanvasPage = () => {
       title: template?.title ?? blankDefaults.title,
       subtitle: template?.subtitle ?? blankDefaults.subtitle,
       coverImage: template?.coverImage ?? null,
-      background: templateBackgroundStyle as string,
+      background: template
+        ? coverBackgroundVar(template.coverGradientId)
+        : (templateBackgroundStyle as string),
       variant: template?.variant ?? blankDefaults.variant,
       titleColor: template?.titleColor ?? null,
       subtitleColor: template?.subtitleColor ?? null,
@@ -290,7 +293,7 @@ const CanvasPage = () => {
   const boardStorageKey = useMemo(() => `keeps-board-${bookId}`, [bookId]);
 
   return (
-    <main className="relative h-screen w-screen overflow-hidden bg-[var(--color-background)] transition-colors duration-300">
+    <main className="fixed inset-0 h-screen w-screen overflow-hidden bg-[var(--color-background)] transition-colors duration-300">
       <CanvasBoard
         storageKey={boardStorageKey}
         initialBackground={draft.background}

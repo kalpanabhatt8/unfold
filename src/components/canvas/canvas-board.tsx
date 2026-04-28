@@ -2,7 +2,7 @@
 // Font family options by theme (all themes use the full font list)
 // Font family options by theme (all themes use the full font list)
 const fontsByTheme: Record<Theme, string[]> = {
-  neutral: [
+  tone1: [
     "var(--font-gochi)",
     "var(--font-mali)",
     "var(--font-elsie)",
@@ -30,7 +30,7 @@ const fontsByTheme: Record<Theme, string[]> = {
     "var(--font-caress)",
     "var(--font-vensfolk)",
   ],
-  kawaii: [
+  tone2: [
     "var(--font-gochi)",
     "var(--font-mali)",
     "var(--font-elsie)",
@@ -58,7 +58,7 @@ const fontsByTheme: Record<Theme, string[]> = {
     "var(--font-caress)",
     "var(--font-vensfolk)",
   ],
-  retro: [
+  tone3: [
     "var(--font-gochi)",
     "var(--font-mali)",
     "var(--font-elsie)",
@@ -86,7 +86,7 @@ const fontsByTheme: Record<Theme, string[]> = {
     "var(--font-caress)",
     "var(--font-vensfolk)",
   ],
-  anime: [
+  tone4: [
     "var(--font-gochi)",
     "var(--font-mali)",
     "var(--font-elsie)",
@@ -190,13 +190,14 @@ const stickerIconByTheme: Record<
   Theme,
   React.ComponentType<{ size?: number }>
 > = {
-  neutral: LucideSmile,
-  kawaii: LucideHeart,
-  retro: LucideDisc,
-  anime: LucideGhost,
+  tone1: LucideSmile,
+  tone2: LucideHeart,
+  tone3: LucideDisc,
+  tone4: LucideGhost,
 };
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useLayoutEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { themeConfig } from "@/theme/themeConfig";
 import { LucideSearch, Zap } from "lucide-react";
 
@@ -454,7 +455,7 @@ const MusicSearchPopup: React.FC<MusicSearchPopupProps> = ({
                       {defaultSongs.map((item) => (
                         <li
                           key={item.videoId}
-                          className={clsx(listItemClass, "min-h-[54px]")}
+                          className={clsx(listItemClass, "min-h-[3.375rem]")}
                         >
                           <img
                             src={item.thumbnail}
@@ -518,7 +519,7 @@ const MusicSearchPopup: React.FC<MusicSearchPopupProps> = ({
                 {results.map((item) => (
                   <li
                     key={item.videoId}
-                    className={clsx(listItemClass, "min-h-[54px]")}
+                    className={clsx(listItemClass, "min-h-[3.375rem]")}
                   >
                     <img
                       src={item.thumbnail}
@@ -602,7 +603,7 @@ const Popup = dynamic(() => import("reactjs-popup"), { ssr: false });
 // import { LucideType } from "";
 // (The duplicate MusicSearchPopup definition is removed below.)
 
-export type Theme = "neutral" | "kawaii" | "retro" | "anime";
+export type Theme = "tone1" | "tone2" | "tone3" | "tone4";
 
 type CanvasBackgroundState = {
   color?: string;
@@ -636,8 +637,8 @@ const SNAPSHOT_VERSION = 1;
 
 // Moodboard now only exposes Light/Dark modes.
 // We keep the legacy Theme union for backwards-compatible snapshots,
-// but normalize anything non-(neutral|anime) to neutral.
-const allowedThemes: Theme[] = ["neutral", "anime"];
+// but normalize anything non-(tone1|tone4) to tone1.
+const allowedThemes: Theme[] = ["tone1", "tone4"];
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
@@ -724,7 +725,7 @@ const normalizeSnapshot = (value: unknown): CanvasSnapshot | null => {
     typeof value.theme === "string" &&
     allowedThemes.includes(value.theme as Theme)
       ? (value.theme as Theme)
-      : "neutral";
+      : "tone1";
   const background = coerceBackgroundState(value.background);
   const textElements = arrayOrEmpty<TextElement>(value.textElements);
   const stickyNotes = arrayOrEmpty<StickyNoteElement>(value.stickyNotes);
@@ -777,22 +778,22 @@ type CanvasBoardProps = {
 // Only unique, non-background, non-text icons for each theme:
 // Ensure LucideImage is always the first tool in each array and no duplicates.
 const iconSets = {
-  neutral: [
+  tone1: [
     LucideImage, // image/photo
     LucideStars, // stars
     LucideSmile, // smile/emoji
     LucideMusic, // music/note
     LucidePen, // pen/drawing
   ],
-  kawaii: [
+  tone2: [
     LucideImage, // image/photo
     LucideHeart, // heart
     LucideSun, // sun
-    LucideMusic4, // music/note (different from neutral)
+    LucideMusic4, // music/note (different from tone1)
     LucideCake, // cake
     LucideRainbow, // rainbow
   ],
-  retro: [
+  tone3: [
     LucideImage, // image/photo
     LucideCamera, // camera
     LucideDisc, // disc/vinyl
@@ -800,7 +801,7 @@ const iconSets = {
     LucideClock, // clock
     LucideBrush, // brush
   ],
-  anime: [
+  tone4: [
     LucideImage, // image/photo
     LucideSword, // sword
     LucideCloud, // cloud
@@ -820,12 +821,12 @@ const ThemeSelector: React.FC<ThemeSelectorProps> = ({ theme, setTheme }) => {
 
   // ✅ Labels for themes (for nicer display text)
   const themeLabels: Partial<Record<Theme, string>> = {
-    neutral: "Light",
-    anime: "Dark",
+    tone1: "Light",
+    tone4: "Dark",
   };
 
   // Only two modes now (Light/Dark)
-  const themes: Theme[] = ["neutral", "anime"];
+  const themes: Theme[] = ["tone1", "tone4"];
 
   // ✅ Current theme’s icon
   const CurrentIcon = themeConfig[theme].backgroundIcon;
@@ -909,7 +910,7 @@ const BackgroundPopup: React.FC<
     themeConfig[theme].button,
     themeConfig[theme].hover
   );
-  const neutralActionClass = clsx(
+  const baseActionClass = clsx(
     "rounded px-3 py-1 transition border border-[var(--color-border-subtle)]",
     themeConfig[theme].panel,
     themeConfig[theme].hover
@@ -921,7 +922,7 @@ const BackgroundPopup: React.FC<
   );
 
   const themePresetColors: Record<Theme, string[]> = {
-    neutral: [
+    tone1: [
       "#ffffff", // white
       "#f3f4f6", // very light gray
       "#e5e7eb", // light gray
@@ -931,7 +932,7 @@ const BackgroundPopup: React.FC<
       "#374151", // dark gray
       "#111827", // near-black
     ],
-    kawaii: [
+    tone2: [
       "#fff0f8", // lavender blush (very light)
       "#ffe4ee", // blush pink (light)
       "#ffd6ec", // soft rose
@@ -943,7 +944,7 @@ const BackgroundPopup: React.FC<
       "#fff9e6", // light vanilla
       "#ffe9c7", // soft peach
     ],
-    retro: [
+    tone3: [
       "#fff8e1", // cream
       "#ffe4b5", // beige
       "#ffd39a", // faded orange
@@ -953,9 +954,9 @@ const BackgroundPopup: React.FC<
       "#a57b5b", // muted cocoa
       "#8b5e3c", // deep brown
       "#4a321f", // ink brown
-      "#2c1a0e", // darkest retro
+      "#2c1a0e", // darkest tone3
     ],
-    anime: [
+    tone4: [
       "#0d0d0d", // black
       "#232333", // very dark gray
       "#444654", // mid gray
@@ -970,7 +971,7 @@ const BackgroundPopup: React.FC<
   };
 
   // const themePatternPresets: Record<Theme, Texture[]> = {
-  //   neutral: [
+  //   tone1: [
   //     {
   //       name: "Paper Grid",
   //       style: "url('https://www.transparenttextures.com/patterns/grid-me.png')",
@@ -993,7 +994,7 @@ const BackgroundPopup: React.FC<
   //     },
 
   //   ],
-  //   kawaii: [
+  //   tone2: [
   //     {
   //       name: "Paint",
   //       style: "url('https://www.transparenttextures.com/patterns/paint.png')",
@@ -1003,7 +1004,7 @@ const BackgroundPopup: React.FC<
   //       style: "url('https://www.transparenttextures.com/patterns/brush.png')",
   //     },
   //   ],
-  //   retro: [
+  //   tone3: [
   //     {
   //       name: "Dark Grid",
   //       style:
@@ -1015,7 +1016,7 @@ const BackgroundPopup: React.FC<
   //         "url('https://www.transparenttextures.com/patterns/asfalt-dark.png')",
   //     },
   //   ],
-  //   anime: [
+  //   tone4: [
   //     {
   //       name: "Polka Dots",
   //       style:
@@ -1160,7 +1161,7 @@ const BackgroundPopup: React.FC<
     //     padding: "1rem",
     //     borderRadius: "0.5rem",
     //     boxShadow: "0 2px 10px rgba(0,0,0,0.1)",
-    //     maxWidth: "280px",
+    //     maxWidth: "17.5rem",
     //   }}
     //   open={open}
     //   onOpen={() => setOpen(true)}
@@ -1257,7 +1258,7 @@ const BackgroundPopup: React.FC<
     //           onClick={() =>
     //             setBackground((prev) => ({ ...prev, image: undefined }))
     //           }
-    //           className={neutralActionClass}
+    //           className={baseActionClass}
     //           title="Remove Image"
     //         >
     //           ❌
@@ -1279,7 +1280,7 @@ const BackgroundPopup: React.FC<
     //         <button
     //           onClick={() => onTextureChange(undefined)}
     //           className={clsx(
-    //             neutralActionClass,
+    //             baseActionClass,
     //             "text-xs font-bold",
     //             background.texture === undefined
     //               ? "border-[var(--color-border-emphasis)]"
@@ -1295,7 +1296,7 @@ const BackgroundPopup: React.FC<
     //             key={name}
     //             onClick={() => onTextureChange(style)}
     //             className={clsx(
-    //               neutralActionClass,
+    //               baseActionClass,
     //               "text-xs",
     //               background.texture === style
     //                 ? "border-[var(--color-border-emphasis)]"
@@ -1385,7 +1386,7 @@ const BackgroundPopup: React.FC<
                 title="Remove Background Image"
                 type="button"
               >
-                <span className="absolute w-[140%] h-[2px] bg-red-500 rotate-45"></span>
+                <span className="absolute w-[140%] h-[0.125rem] bg-red-500 rotate-45"></span>
               </button>
             )}
           </div>
@@ -1608,7 +1609,7 @@ const BackgroundPopup: React.FC<
             type="button"
           >
             {/* Full diagonal slash */}
-            <span className="absolute w-[140%] h-[2px] bg-red-500 rotate-45"></span>
+            <span className="absolute w-[140%] h-[0.125rem] bg-red-500 rotate-45"></span>
           </button>
         </div>
       </div>
@@ -1686,7 +1687,7 @@ const AudioPopup: React.FC<AudioPopupProps> = ({ theme, onAddAudio }) => {
         backdropFilter: "blur(18px)",
         boxShadow: "var(--popup-shadow)",
         border: "var(--popup-border)",
-        maxWidth: "320px",
+        maxWidth: "20rem",
       }}
       open={open}
       onOpen={() => setOpen(true)}
@@ -1718,12 +1719,36 @@ const AudioPopup: React.FC<AudioPopupProps> = ({ theme, onAddAudio }) => {
   );
 };
 
+/** Normalize wheel `deltaY` to ~pixel scale so trackpad, mouse, and line/page mode zoom at similar rates. */
+function wheelDeltaYNormPixels(
+  e: Pick<React.WheelEvent<HTMLDivElement>, "deltaY" | "deltaMode">
+): number {
+  if (e.deltaMode === 1) return e.deltaY * 32; // DOM_DELTA_LINE
+  if (e.deltaMode === 2) return e.deltaY * 800; // DOM_DELTA_PAGE
+  return e.deltaY; // DOM_DELTA_PIXEL
+}
+
 const CanvasBoard: React.FC<CanvasBoardProps> = ({
   storageKey,
   initialBackground,
   onSnapshotChange,
   initialSnapshot,
 }) => {
+  const onSnapshotChangeRef = React.useRef(onSnapshotChange);
+  onSnapshotChangeRef.current = onSnapshotChange;
+  const initialBackgroundRef = React.useRef(initialBackground);
+  initialBackgroundRef.current = initialBackground;
+  const storageKeyRef = React.useRef(storageKey);
+  storageKeyRef.current = storageKey;
+  /** Sensible floor — world stays legible, no micro-map */
+  const MIN_CANVAS_ZOOM = 0.2;
+  /** Sensible cap — no loss of interactive affordance */
+  const MAX_CANVAS_ZOOM = 2.5;
+  /** `scale = exp(-dy * LAMBDA)`; higher = faster (was ~0.001 before /1.5) */
+  const WHEEL_ZOOM_LAMBDA = 0.0024;
+  /** Large world extent for panning; background texture is painted in viewport space (not here). */
+  const CANVAS_WORLD_W = 500_000;
+  const CANVAS_WORLD_H = 500_000;
   // --- Global floating audio player state ---
   const [globalAudio, setGlobalAudio] = React.useState<{
     videoId: string;
@@ -1732,9 +1757,16 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
     channelTitle?: string;
     artist?: string;
   } | null>(null);
-  const [theme, setTheme] = React.useState<Theme>("neutral");
+  const [theme, setTheme] = React.useState<Theme>("tone1");
   const [background, setBackground] = React.useState<CanvasBackgroundState>({});
+  const [canvasZoom, setCanvasZoom] = React.useState(1);
+  const [viewPanX, setViewPanX] = React.useState(0);
+  const [viewPanY, setViewPanY] = React.useState(0);
+  const [isViewPanning, setIsViewPanning] = React.useState(false);
+  const [canvasChromeMounted, setCanvasChromeMounted] = React.useState(false);
   const [isHydrated, setIsHydrated] = React.useState(false);
+  const isHydratedForPersistRef = React.useRef(false);
+  isHydratedForPersistRef.current = isHydrated;
   const snapshotComparableRef = React.useRef<string | null>(null);
   const hydratedFromTemplateRef = React.useRef(false);
 
@@ -1782,8 +1814,8 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
     const origX = el.x;
     const origY = el.y;
     const onMove = (moveEvent: MouseEvent) => {
-      const dx = moveEvent.clientX - startX;
-      const dy = moveEvent.clientY - startY;
+      const dx = (moveEvent.clientX - startX) / dragScale;
+      const dy = (moveEvent.clientY - startY) / dragScale;
       setStickyNotes((prev) =>
         prev.map((elem) =>
           elem.id === id ? { ...elem, x: origX + dx, y: origY + dy } : elem
@@ -1870,8 +1902,8 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
     const origX = el.x;
     const origY = el.y;
     const onMove = (moveEvent: MouseEvent) => {
-      const dx = moveEvent.clientX - startX;
-      const dy = moveEvent.clientY - startY;
+      const dx = (moveEvent.clientX - startX) / dragScale;
+      const dy = (moveEvent.clientY - startY) / dragScale;
       setImageElements((prev) =>
         prev.map((elem) =>
           elem.id === id ? { ...elem, x: origX + dx, y: origY + dy } : elem
@@ -1902,8 +1934,8 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
     const origX = el.x;
     const origY = el.y;
     const onMove = (moveEvent: MouseEvent) => {
-      const dx = moveEvent.clientX - startX;
-      const dy = moveEvent.clientY - startY;
+      const dx = (moveEvent.clientX - startX) / dragScale;
+      const dy = (moveEvent.clientY - startY) / dragScale;
       let newWidth = origWidth - dx;
       let newHeight = origHeight + dy;
       let newX = origX + dx;
@@ -2056,8 +2088,8 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
     const origX = el.x;
     const origY = el.y;
     const onMove = (moveEvent: MouseEvent) => {
-      const dx = moveEvent.clientX - startX;
-      const dy = moveEvent.clientY - startY;
+      const dx = (moveEvent.clientX - startX) / dragScale;
+      const dy = (moveEvent.clientY - startY) / dragScale;
       setStickerElements((prev) =>
         prev.map((elem) =>
           elem.id === id ? { ...elem, x: origX + dx, y: origY + dy } : elem
@@ -2091,8 +2123,8 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
     const origX = el.x;
     const origY = el.y;
     const onMove = (moveEvent: MouseEvent) => {
-      const dx = moveEvent.clientX - startX;
-      const dy = moveEvent.clientY - startY;
+      const dx = (moveEvent.clientX - startX) / dragScale;
+      const dy = (moveEvent.clientY - startY) / dragScale;
       let newWidth = origWidth - dx;
       let newHeight = origHeight + dy;
       let newX = origX + dx;
@@ -2225,8 +2257,8 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
     const origX = el.x;
     const origY = el.y;
     const onMove = (moveEvent: MouseEvent) => {
-      const dx = moveEvent.clientX - startX;
-      const dy = moveEvent.clientY - startY;
+      const dx = (moveEvent.clientX - startX) / dragScale;
+      const dy = (moveEvent.clientY - startY) / dragScale;
       setAudioElements((prev) =>
         prev.map((elem) =>
           elem.id === id ? { ...elem, x: origX + dx, y: origY + dy } : elem
@@ -2316,8 +2348,8 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
     const origX = el.x;
     const origY = el.y;
     const onMove = (moveEvent: MouseEvent) => {
-      const dx = moveEvent.clientX - startX;
-      const dy = moveEvent.clientY - startY;
+      const dx = (moveEvent.clientX - startX) / dragScale;
+      const dy = (moveEvent.clientY - startY) / dragScale;
       setTextElements((prev) =>
         prev.map((elem) =>
           elem.id === id ? { ...elem, x: origX + dx, y: origY + dy } : elem
@@ -2362,6 +2394,94 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
   const [selectedTextId, setSelectedTextId] = React.useState<string | null>(
     null
   );
+  const viewportRef = React.useRef<HTMLDivElement | null>(null);
+  const viewTransformRef = React.useRef({ x: 0, y: 0, s: 1 });
+  const spaceDownRef = React.useRef(false);
+  const viewPanningRef = React.useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    origX: number;
+    origY: number;
+  } | null>(null);
+
+  const clampZoom = React.useCallback(
+    (value: number) => Math.min(MAX_CANVAS_ZOOM, Math.max(MIN_CANVAS_ZOOM, value)),
+    []
+  );
+
+  React.useEffect(() => {
+    viewTransformRef.current = { x: viewPanX, y: viewPanY, s: canvasZoom };
+  }, [viewPanX, viewPanY, canvasZoom]);
+
+  useLayoutEffect(() => {
+    setCanvasChromeMounted(true);
+  }, []);
+
+  /** Prevent browser page zoom (Ctrl/Meta+wheel) so only the canvas world scales. */
+  React.useEffect(() => {
+    const blockBrowserZoom = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) e.preventDefault();
+    };
+    document.addEventListener("wheel", blockBrowserZoom, { capture: true, passive: false });
+    return () =>
+      document.removeEventListener("wheel", blockBrowserZoom, { capture: true });
+  }, []);
+
+  React.useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code !== "Space") return;
+      const t = e.target as Node | null;
+      if (t) {
+        if (
+          t instanceof HTMLInputElement ||
+          t instanceof HTMLTextAreaElement
+        ) {
+          return;
+        }
+        if (t instanceof HTMLElement && t.isContentEditable) return;
+      }
+      e.preventDefault();
+      spaceDownRef.current = true;
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.code === "Space") {
+        spaceDownRef.current = false;
+      }
+    };
+    window.addEventListener("keydown", onKeyDown, { capture: true });
+    window.addEventListener("keyup", onKeyUp, { capture: true });
+    return () => {
+      window.removeEventListener("keydown", onKeyDown, { capture: true });
+      window.removeEventListener("keyup", onKeyUp, { capture: true });
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (!isViewPanning) return;
+    const onPointerMove = (e: PointerEvent) => {
+      const p = viewPanningRef.current;
+      if (!p || e.pointerId !== p.pointerId) return;
+      const dx = e.clientX - p.startX;
+      const dy = e.clientY - p.startY;
+      setViewPanX(p.origX + dx);
+      setViewPanY(p.origY + dy);
+    };
+    const onPointerUp = (e: PointerEvent) => {
+      const p = viewPanningRef.current;
+      if (!p || e.pointerId !== p.pointerId) return;
+      viewPanningRef.current = null;
+      setIsViewPanning(false);
+    };
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointercancel", onPointerUp);
+    return () => {
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerUp);
+    };
+  }, [isViewPanning]);
 
   const injectedDefaultsRef = React.useRef(false);
   // Preload default YouTube tracks if canvas has none after hydration
@@ -2397,7 +2517,7 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
   }, [audioElements.length, isHydrated, setAudioElements, storageKey]);
   useEffect(() => {
     const themePresetColors: Record<Theme, string[]> = {
-      neutral: [
+      tone1: [
         "#ffffff", // white
         "#f3f4f6", // very light gray
         "#e5e7eb", // light gray
@@ -2407,7 +2527,7 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
         "#374151", // dark gray
         "#111827", // near-black
       ],
-      kawaii: [
+      tone2: [
         "#fff0f8", // lavender blush (very light)
         "#ffe4ee", // blush pink (light)
         "#ffd6ec", // soft rose
@@ -2419,7 +2539,7 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
         "#fff9e6", // light vanilla
         "#ffe9c7", // soft peach
       ],
-      retro: [
+      tone3: [
         "#fff8e1", // cream
         "#ffe4b5", // beige
         "#ffd39a", // faded orange
@@ -2429,9 +2549,9 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
         "#a57b5b", // muted cocoa
         "#8b5e3c", // deep brown
         "#4a321f", // ink brown
-        "#2c1a0e", // darkest retro
+        "#2c1a0e", // darkest tone3
       ],
-      anime: [
+      tone4: [
         "#0d0d0d", // black
         "#232333", // very dark gray
         "#444654", // mid gray
@@ -2503,6 +2623,26 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
     (Icon) => Icon !== backgroundIconComponent && Icon !== textIconComponent
   );
 
+  const latestPersistStateRef = React.useRef({
+    theme: "tone1" as Theme,
+    background: {} as CanvasBackgroundState,
+    textElements: [] as TextElement[],
+    stickyNotes: [] as StickyNoteElement[],
+    imageElements: [] as ImageElement[],
+    stickerElements: [] as StickerElement[],
+    audioElements: [] as AudioElement[],
+    globalAudio: null as CanvasSnapshot["globalAudio"],
+  });
+  latestPersistStateRef.current = {
+    theme,
+    background,
+    textElements,
+    stickyNotes,
+    imageElements,
+    stickerElements,
+    audioElements,
+    globalAudio,
+  };
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -2605,12 +2745,14 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
     }
 
     if (!snapshotToEmit) {
-      const fallbackBackground = parseInitialBackground(initialBackground);
+      const fallbackBackground = parseInitialBackground(
+        initialBackgroundRef.current
+      );
       if (Object.keys(fallbackBackground).length > 0) {
         setBackground(fallbackBackground);
       }
       const comparable = buildComparablePayload({
-        theme: "neutral",
+        theme: "tone1",
         background: fallbackBackground,
         textElements: [],
         stickyNotes: [],
@@ -2632,57 +2774,73 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
 
     hydratedFromTemplateRef.current = hydratedFromTemplate;
     setIsHydrated(true);
-    if (snapshotToEmit && onSnapshotChange) {
-      onSnapshotChange(snapshotToEmit);
+    if (snapshotToEmit) {
+      onSnapshotChangeRef.current?.(snapshotToEmit);
     }
-  }, [initialBackground, initialSnapshot, onSnapshotChange, storageKey]);
+    // Re-run only when storage or template source changes, not when draft
+    // cover background (initialBackground) or parent callbacks are refreshed.
+  }, [initialSnapshot, storageKey]);
 
-  useEffect(() => {
-    if (!isHydrated || typeof window === "undefined") return;
-
-    const comparable = buildComparablePayload({
-      theme,
-      background,
-      textElements,
-      stickyNotes,
-      imageElements,
-      stickerElements,
-      audioElements,
-      globalAudio,
-    });
-
-    const serializedComparable = serializeComparable(comparable);
-    if (snapshotComparableRef.current === serializedComparable) return;
-
-    const timeout = window.setTimeout(() => {
+  const persistSnapshotNow = React.useCallback(
+    (source: "debounced" | "pagehide" | "unmount") => {
+      if (typeof window === "undefined" || !isHydratedForPersistRef.current) {
+        return;
+      }
+      const key = storageKeyRef.current;
+      const s = latestPersistStateRef.current;
+      const comparable = buildComparablePayload(s);
+      const serializedComparable = serializeComparable(comparable);
+      if (snapshotComparableRef.current === serializedComparable) return;
+      snapshotComparableRef.current = serializedComparable;
       const snapshot: CanvasSnapshot = {
         ...comparable,
         updatedAt: Date.now(),
       };
-      snapshotComparableRef.current = serializedComparable;
       try {
-        window.localStorage.setItem(storageKey, JSON.stringify(snapshot));
+        window.localStorage.setItem(key, JSON.stringify(snapshot));
       } catch (error) {
         console.error("Failed to persist canvas snapshot", error);
       }
-      onSnapshotChange?.(snapshot);
+      onSnapshotChangeRef.current?.(snapshot);
       console.debug("[CanvasBoard] Persisted snapshot", {
-        storageKey,
+        source,
+        storageKey: key,
         updatedAt: snapshot.updatedAt,
         textCount: snapshot.textElements.length,
         stickyCount: snapshot.stickyNotes.length,
         imageCount: snapshot.imageElements.length,
       });
+    },
+    []
+  );
+
+  useEffect(() => {
+    return () => {
+      persistSnapshotNow("unmount");
+    };
+  }, [persistSnapshotNow]);
+
+  useEffect(() => {
+    if (!isHydrated || typeof window === "undefined") return;
+
+    const comparable = buildComparablePayload(latestPersistStateRef.current);
+    const serializedComparable = serializeComparable(comparable);
+    if (snapshotComparableRef.current === serializedComparable) return;
+
+    const timeout = window.setTimeout(() => {
+      persistSnapshotNow("debounced");
     }, 300);
 
-    return () => window.clearTimeout(timeout);
+    return () => {
+      window.clearTimeout(timeout);
+    };
   }, [
     audioElements,
     background,
     globalAudio,
     imageElements,
     isHydrated,
-    onSnapshotChange,
+    persistSnapshotNow,
     stickerElements,
     storageKey,
     stickyNotes,
@@ -2690,10 +2848,22 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
     theme,
   ]);
 
+  useEffect(() => {
+    if (!isHydrated || typeof window === "undefined") return;
+    const onPageHide = () => {
+      persistSnapshotNow("pagehide");
+    };
+    window.addEventListener("pagehide", onPageHide);
+    return () => {
+      window.removeEventListener("pagehide", onPageHide);
+    };
+  }, [isHydrated, persistSnapshotNow]);
+
   // Find the selected text element
   const selectedText = textElements.find((el) => el.id === selectedTextId);
   // Find the selected image element
   const selectedImage = imageElements.find((el) => el.id === selectedImageId);
+  const dragScale = canvasZoom || 1;
 
   // Toolbar buttons
   // Build toolbar buttons, inserting Music tool before Delete/Trash
@@ -2703,35 +2873,286 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
   ];
   // Duplicate definition of MusicSearchPopup removed.
 
+  const clearSelection = () => {
+    setSelectedTextId(null);
+    setSelectedImageId(null);
+    setSelectedStickyId(null);
+    setSelectedStickerId(null);
+    setSelectedAudioId(null);
+  };
+
+  const startViewPan = (e: React.PointerEvent) => {
+    if (viewPanningRef.current) return;
+    viewPanningRef.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      origX: viewTransformRef.current.x,
+      origY: viewTransformRef.current.y,
+    };
+    setIsViewPanning(true);
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const handleViewportWheel = (e: React.WheelEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const v = viewportRef.current;
+    if (!v) return;
+    if (e.ctrlKey || e.metaKey) {
+      const r = v.getBoundingClientRect();
+      const mx = e.clientX - r.left;
+      const my = e.clientY - r.top;
+      const { x: tx, y: ty, s } = viewTransformRef.current;
+      const dy = wheelDeltaYNormPixels(e);
+      const scaleFactor = Math.exp(-dy * WHEEL_ZOOM_LAMBDA);
+      const s2 = clampZoom(s * scaleFactor);
+      if (s2 === s) return;
+      const wx = (mx - tx) / s;
+      const wy = (my - ty) / s;
+      setViewPanX(mx - s2 * wx);
+      setViewPanY(my - s2 * wy);
+      setCanvasZoom(s2);
+      return;
+    }
+    setViewPanX((x) => x - e.deltaX);
+    setViewPanY((y) => y - e.deltaY);
+  };
+
+  const handleCanvasBasePointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0) return;
+    if (spaceDownRef.current) return;
+    if (e.target !== e.currentTarget) return;
+    startViewPan(e);
+  };
+
+  const handleViewportPointerDownCapture = (
+    e: React.PointerEvent<HTMLDivElement>
+  ) => {
+    if (e.button === 1) {
+      e.preventDefault();
+      e.stopPropagation();
+      startViewPan(e);
+      return;
+    }
+    if (e.button === 0 && spaceDownRef.current) {
+      const t = e.target as Node | null;
+      if (t) {
+        if (t instanceof HTMLTextAreaElement || t instanceof HTMLInputElement)
+          return;
+        if (t instanceof HTMLElement && t.isContentEditable) return;
+      }
+      e.preventDefault();
+      e.stopPropagation();
+      startViewPan(e);
+    }
+  };
+
+  const canvasBaseColor = background.color ?? "var(--color-background)";
+
   return (
     <div
-      className={clsx(
-        "relative flex h-full w-full flex-col items-center justify-center gap-4 p-8 text-center ",
-        themeConfig[theme].panel
-      )}
-      style={{ backgroundColor: "var(--color-background)" }}
-      onClick={() => {
-        setSelectedTextId(null);
-        setSelectedImageId(null);
-        setSelectedStickyId(null);
-        setSelectedStickerId(null);
-        setSelectedAudioId(null);
+      className="fixed inset-0 z-0 flex flex-col overflow-hidden"
+      style={{ backgroundColor: canvasBaseColor }}
+      onClick={(ev) => {
+        if (ev.target === ev.currentTarget) clearSelection();
       }}
     >
-      {/* Toolbar group removed */}
-      {/* Background layers */}
-      {background.color && (
+      {/* Fixed UI: render into document.body so it never lives under a transformed ancestor (avoids `fixed` + scale). */}
+      {canvasChromeMounted &&
+        createPortal(
+          <>
+            {background.texture?.tintable && (
+              <div className="pointer-events-auto fixed bottom-16 right-4 z-[500] flex items-center gap-2 rounded-sm bg-[var(--color-surface-card)] p-2 shadow">
+                <input
+                  type="color"
+                  value={background.texture.color || "#000000"}
+                  onChange={(e) =>
+                    setBackground((prev) => ({
+                      ...prev,
+                      texture: { ...prev.texture!, color: e.target.value },
+                    }))
+                  }
+                  className="h-8 w-10 cursor-pointer rounded border"
+                  title="Change texture color"
+                />
+                <span className="text-xs opacity-70">Texture color</span>
+              </div>
+            )}
+            <div className="pointer-events-auto fixed right-4 top-4 z-[500] flex gap-2">
+              <ThemeSelector theme={theme} setTheme={setTheme} />
+              <MusicSearchPopup
+                theme={theme}
+                addAudioElement={addAudioElement}
+                setGlobalAudio={setGlobalAudio}
+              />
+            </div>
+            <div
+              className={clsx(
+                "pointer-events-auto fixed bottom-8 left-1/2 z-[500] flex -translate-x-1/2 gap-3"
+              )}
+            >
+              <BackgroundPopup
+                theme={theme}
+                setBackground={setBackground}
+                background={background}
+              />
+              <button
+                className={toolbarButtonClass}
+                onClick={addTextElement}
+                title="Add text"
+                type="button"
+              >
+                <TextIcon size={18} />
+              </button>
+              <button
+                className={toolbarButtonClass}
+                onClick={addStickyNote}
+                title="Add sticky note"
+                type="button"
+              >
+                <StickyIcon size={18} />
+              </button>
+              <StickerSheetButton
+                Icon={stickerIconByTheme[theme]}
+                theme={theme}
+                addStickerElement={addStickerElement}
+              />
+              {filteredIcons.map((Icon, index) =>
+                Icon === LucideImage ? (
+                  <ImageToolButton
+                    Icon={Icon}
+                    theme={theme}
+                    addImageElement={addImageElement}
+                    key={index}
+                  />
+                ) : null
+              )}
+              <AudioPopup theme={theme} onAddAudio={addAudioElement} />
+              <button
+                className={toolbarButtonClass}
+                onClick={clearCanvas}
+                title="Clear canvas"
+                type="button"
+              >
+                <Trash2 size={18} />
+              </button>
+            </div>
+            {globalAudio && (
+              <div
+                className={clsx(
+                  "pointer-events-auto fixed bottom-4 left-4 z-[500] w-64 rounded shadow border border-[var(--color-border-subtle)]",
+                  themeConfig[theme].panel
+                )}
+              >
+                <div className="flex items-center p-2 gap-2">
+                  <img
+                    src={globalAudio.thumbnail}
+                    alt=""
+                    className="h-10 w-10 rounded object-cover"
+                  />
+                  <div className="flex-1 truncate text-sm text-[var(--color-ink-strong)]">
+                    {globalAudio.title}
+                  </div>
+                  <button
+                    onClick={() => setGlobalAudio(null)}
+                    className={clsx(
+                      "ml-auto rounded-full p-1 transition",
+                      themeConfig[theme].button,
+                      themeConfig[theme].hover
+                    )}
+                    aria-label="Close"
+                    type="button"
+                  >
+                    ✖
+                  </button>
+                </div>
+                <iframe
+                  id="yt-player"
+                  src={`https://www.youtube.com/embed/${globalAudio.videoId}?autoplay=1`}
+                  allow="autoplay; encrypted-media"
+                  className="hidden"
+                />
+              </div>
+            )}
+          </>,
+          document.body
+        )}
+
+      {/* Viewport: texture lives here (unscaled) so it fills the screen at any zoom; root still paints base color in the gutter. */}
+      <div
+        ref={viewportRef}
+        role="presentation"
+        className={clsx(
+          "absolute inset-0 touch-none",
+          isViewPanning && "cursor-grabbing"
+        )}
+        style={{ touchAction: "none" }}
+        onPointerDownCapture={handleViewportPointerDownCapture}
+        onWheel={handleViewportWheel}
+        onContextMenu={(e) => e.preventDefault()}
+      >
+        {background.texture ? (
+          <div
+            className="pointer-events-none absolute inset-0 z-0"
+            style={{
+              backgroundImage:
+                typeof background.texture?.style === "function"
+                  ? background.texture.style(theme, background.color)
+                  : background.texture?.style || "none",
+              backgroundColor: background.texture.color || "transparent",
+              backgroundBlendMode: background.texture.blend || "normal",
+              backgroundRepeat: "repeat",
+              backgroundSize: background.texture.size || "auto",
+              opacity: background.image ? 0.6 : 1,
+            }}
+          />
+        ) : null}
+        {/* Fills the viewport in screen space. The transformed world is only hit where it overlaps, so
+            after panning there is “gutter” that must still get grab + left-button pan and clear selection. */}
         <div
           className="absolute inset-0 z-0"
-          style={{ backgroundColor: background.color }}
+          style={{
+            cursor: isViewPanning ? "grabbing" : "grab",
+          }}
+          onPointerDown={handleCanvasBasePointerDown}
+          onClick={() => {
+            clearSelection();
+          }}
         />
-      )}
-      {/* Background Image Layer */}
+        <div
+          className="will-change-transform"
+          style={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            zIndex: 1,
+            width: CANVAS_WORLD_W,
+            height: CANVAS_WORLD_H,
+            transform: `translate3d(${viewPanX}px, ${viewPanY}px, 0) scale(${canvasZoom})`,
+            transformOrigin: "0 0",
+          }}
+        >
+      {/* World background + pan on empty area (transparent when a viewport texture is shown so the texture is visible) */}
+        <div
+          className="absolute inset-0 z-0"
+          style={{
+            width: "100%",
+            height: "100%",
+            backgroundColor: background.texture
+              ? "transparent"
+              : background.color ?? "var(--color-background)",
+            cursor: isViewPanning ? "grabbing" : "grab",
+          }}
+          onPointerDown={handleCanvasBasePointerDown}
+          onClick={() => {
+            clearSelection();
+          }}
+        />
       {background.image && (
         <img
           src={background.image}
-          alt="Background"
-          className="absolute inset-0 z-0 w-full h-full object-cover select-none pointer-events-none"
+          alt=""
+          className="pointer-events-none absolute inset-0 z-0 h-full w-full select-none"
           style={{
             objectFit: "cover",
             objectPosition: "center",
@@ -2748,59 +3169,7 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
           }}
         />
       )} */}
-      {/* Texture overlay (full background) */}
-      {background.texture ? (
-        <div
-          className="absolute inset-0 z-0 pointer-events-none"
-          style={{
-            backgroundImage:
-              typeof background.texture?.style === "function"
-                ? background.texture.style(theme, background.color) // call it if it’s a function
-                : background.texture?.style || "none", // else just use the string
-            backgroundColor: background.texture.color || "transparent",
-            backgroundBlendMode: background.texture.blend || "normal",
-            backgroundRepeat: "repeat",
-            backgroundSize: background.texture.size || "auto",
-            opacity: background.image ? 0.6 : 1,
-          }}
-        />
-      ) : null}
 
-      {/* Texture color picker (only if tintable) */}
-      {background.texture?.tintable && (
-        <div className="absolute bottom-16 right-4 flex items-center gap-2 bg-[var(--color-surface-card)] p-2 rounded shadow">
-          <input
-            type="color"
-            value={background.texture.color || "#000000"}
-            onChange={(e) =>
-              setBackground((prev) => ({
-                ...prev,
-                texture: { ...prev.texture!, color: e.target.value },
-              }))
-            }
-            className="w-10 h-8 border rounded cursor-pointer"
-            title="Change texture color"
-          />
-          <span className="text-xs opacity-70">Texture color</span>
-        </div>
-      )}
-      <div className="absolute top-4 right-4 flex gap-2">
-        <ThemeSelector theme={theme} setTheme={setTheme} />
-        <MusicSearchPopup
-          theme={theme}
-          addAudioElement={addAudioElement}
-          setGlobalAudio={setGlobalAudio}
-        />
-      </div>
-      {/* <p className="text-lg font-semibold">Canvas board reset</p>
-      <p className="text-sm">
-        The interactive canvas is temporarily disabled while we rebuild it.
-      </p> */}
-      {/* Render image elements (draggable, resizable, rotatable) */}
-      <div
-        className="relative mt-8 flex flex-col items-center"
-        style={{ width: "100%", height: 400 }}
-      >
         {/* Render audio elements */}
         {/* (Removed: audio <div> with <iframe> for YouTube. Audio is now only shown in popup playlist.) */}
         {/* Render sticky notes */}
@@ -3050,7 +3419,7 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
                       style={{
                         position: "relative",
                         width: "100%",
-                        height: "calc(100% - 16px)",
+                        height: "calc(100% - 1rem)",
                         display: "block",
                       }}
                     >
@@ -3654,54 +4023,6 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
             </div>
           );
         })}
-      </div>
-      <div className={clsx("absolute bottom-8 flex gap-3 items-center")}>
-        <BackgroundPopup
-          theme={theme}
-          setBackground={setBackground}
-          background={background}
-        />
-        <button
-          className={toolbarButtonClass}
-          onClick={addTextElement}
-          title="Add text"
-          type="button"
-        >
-          <TextIcon size={18} />
-        </button>
-        <button
-          className={toolbarButtonClass}
-          onClick={addStickyNote}
-          title="Add sticky note"
-          type="button"
-        >
-          <StickyIcon size={18} />
-        </button>
-        <StickerSheetButton
-          Icon={stickerIconByTheme[theme]}
-          theme={theme}
-          addStickerElement={addStickerElement}
-        />
-        {filteredIcons.map((Icon, index) =>
-          Icon === LucideImage ? (
-            <ImageToolButton
-              Icon={Icon}
-              theme={theme}
-              addImageElement={addImageElement}
-              key={index}
-            />
-          ) : null
-        )}
-        <AudioPopup theme={theme} onAddAudio={addAudioElement} />
-        <button
-          className={toolbarButtonClass}
-          onClick={clearCanvas}
-          title="Clear canvas"
-          type="button"
-        >
-          <Trash2 size={18} />
-        </button>
-      </div>
       {/* Render sticker elements (draggable, resizable, rotatable, deletable) */}
       {stickerElements
         .slice()
@@ -3838,44 +4159,8 @@ const CanvasBoard: React.FC<CanvasBoardProps> = ({
             </div>
           );
         })}
-      {/* Global floating audio player */}
-      {/* Floating global YouTube player */}
-      {globalAudio && (
-        <div
-          className={clsx(
-            "fixed bottom-4 left-4 z-50 w-64 rounded shadow border border-[var(--color-border-subtle)]",
-            themeConfig[theme].panel
-          )}
-        >
-          <div className="flex items-center p-2 gap-2">
-            <img
-              src={globalAudio.thumbnail}
-              className="w-10 h-10 rounded object-cover"
-            />
-            <div className="flex-1 truncate text-sm text-[var(--color-ink-strong)]">
-              {globalAudio.title}
-            </div>
-            <button
-              onClick={() => setGlobalAudio(null)}
-              className={clsx(
-                "ml-auto rounded-full p-1 transition",
-                themeConfig[theme].button,
-                themeConfig[theme].hover
-              )}
-              aria-label="Close"
-              type="button"
-            >
-              ✖
-            </button>
-          </div>
-          <iframe
-            id="yt-player"
-            src={`https://www.youtube.com/embed/${globalAudio.videoId}?autoplay=1`}
-            allow="autoplay; encrypted-media"
-            className="hidden"
-          />
         </div>
-      )}
+      </div>
 
       {/* {globalAudio && (
   <div className="fixed bottom-4 left-4 z-50 w-72 bg-white rounded shadow-lg overflow-hidden">

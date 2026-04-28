@@ -30,8 +30,8 @@ type CanvasItemProps = {
 };
 
 const handleStyle = (visible: boolean): React.CSSProperties => ({
-  width: "14px",
-  height: "14px",
+  width: "0.875rem",
+  height: "0.875rem",
   borderRadius: "9999px",
   border: "1px solid var(--color-border-emphasis)",
   background: visible
@@ -94,7 +94,7 @@ const TEXTURE_OVERLAY_MAP: Record<
 
 const FILTER_STYLES: Record<ThemeFilter, string> = {
   none: "none",
-  retro: "contrast(1.05) saturate(1.15) sepia(0.08)",
+  tone3: "contrast(1.05) saturate(1.15) sepia(0.08)",
   pastel: "saturate(0.92) brightness(1.05)",
   glow: "brightness(1.15) contrast(0.95) saturate(1.1)",
 };
@@ -481,8 +481,8 @@ function CanvasItem({
 
             {imageFrame === "taped" && (
               <>
-                <span className="pointer-events-none absolute -top-6 left-8 h-8 w-20 rotate-[-10deg] rounded bg-amber-200/90 shadow-sm" />
-                <span className="pointer-events-none absolute -top-5 right-10 h-8 w-20 rotate-[7deg] rounded bg-amber-100/90 shadow-sm" />
+                <span className="pointer-events-none absolute -top-6 left-8 h-8 w-[5rem] rotate-[-10deg] rounded bg-amber-200/90 shadow-sm" />
+                <span className="pointer-events-none absolute -top-5 right-10 h-8 w-[5rem] rotate-[7deg] rounded bg-amber-100/90 shadow-sm" />
               </>
             )}
           </div>

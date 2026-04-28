@@ -44,18 +44,18 @@ function isDarkColor(color: string): boolean {
 function pickGridColor(theme: Theme, background?: string): string {
   // Define palettes for each theme and background lightness
   const lightBackgroundColors: Record<Theme, string> = {
-    // subtle gray for neutral, pastel pink for kawaii, earthy brown for retro, deep black/gray for anime
-    neutral: "rgba(0,0,0,0.1)",      // faint gray
-    kawaii: "rgba(255,182,193,0.4)", // very soft pink
-    retro:  "rgba(74,50,31,0.2)",     // subtle brown
-    anime:  "rgba(20,20,20,0.6)", 
+    // subtle gray for tone1, pastel pink for tone2, earthy brown for tone3, deep black/gray for tone4
+    tone1: "rgba(0,0,0,0.1)",      // faint gray
+    tone2: "rgba(255,182,193,0.4)", // very soft pink
+    tone3:  "rgba(74,50,31,0.2)",     // subtle brown
+    tone4:  "rgba(20,20,20,0.6)", 
   };
   const darkBackgroundColors: Record<Theme, string> = {
-    // pure white for neutral, candy pink for kawaii, off-white/beige for retro, neon/bright for anime
-    neutral: "rgba(255,255,255,0.15)", // faint white
-  kawaii: "rgba(255,128,170,0.5)",  // slightly stronger candy pink
-  retro:  "rgba(245,235,210,0.25)",  // light beige
-  anime:  "rgba(200,255,255,0.18)",  // pale cyan accent
+    // pure white for tone1, vivid pink for tone2, off-white/beige for tone3, bright cyan for tone4
+    tone1: "rgba(255,255,255,0.15)", // faint white
+  tone2: "rgba(255,128,170,0.5)",  // slightly stronger vivid pink
+  tone3:  "rgba(245,235,210,0.25)",  // light beige
+  tone4:  "rgba(200,255,255,0.18)",  // pale cyan accent
   };
   let useDark = false;
   if (background) {
@@ -167,16 +167,15 @@ export function getUniversalPatterns(theme: Theme): Pattern[] {
       blend: "normal",
     },
     {
-      name: "Neutral",
+      name: "Base Texture",
       style: () =>
-        "url('https://www.transparenttextures.com/patterns/ps-neutral.png')",
-
+        "url('https://www.transparenttextures.com/patterns/grid.png')",
       color: "transparent",
       size: "40px",
       blend: "soft-light",
     },
     {
-      name: "Neutral Grid",
+      name: "Base Grid",
       style: () =>
         "url('https://www.transparenttextures.com/patterns/grid.png')",
       color: "transparent",
@@ -203,7 +202,7 @@ export function getUniversalPatterns(theme: Theme): Pattern[] {
 export function getThemeTexturePresets(theme: Theme): Pattern[] {
   const base = getUniversalPatterns(theme);
 
-  if (theme === "neutral") {
+  if (theme === "tone1") {
     return [
       ...base,
       {
@@ -251,7 +250,7 @@ export function getThemeTexturePresets(theme: Theme): Pattern[] {
     ];
   }
 
-  if (theme === "kawaii") {
+  if (theme === "tone2") {
     return [
       ...base,
       {
@@ -278,7 +277,7 @@ export function getThemeTexturePresets(theme: Theme): Pattern[] {
     ];
   }
 
-  if (theme === "retro") {
+  if (theme === "tone3") {
     return [
       ...base,
       {
@@ -305,7 +304,7 @@ export function getThemeTexturePresets(theme: Theme): Pattern[] {
     ];
   }
 
-  // anime
+  // tone4
   return [
     ...base,
     {

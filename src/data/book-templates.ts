@@ -1,7 +1,8 @@
 import type { CanvasSnapshot } from "@/components/canvas/canvas-board";
+import type { CoverGradientId } from "@/data/cover-gradients";
 
 export type TemplateCategory =
-  | "neutral"
+  | "tone1"
   | "colorful"
   | "professional"
   | "playful";
@@ -15,6 +16,8 @@ export type BookTemplate = {
   title: string;
   subtitle?: string;
   coverImage?: string | null;
+  /** Preset in `book.css` (`--book-cover-gradient-*`); use `coverBackgroundVar()`. */
+  coverGradientId: CoverGradientId;
   titleColor?: string | null;
   subtitleColor?: string | null;
   canvas: TemplateCanvasSnapshot;
@@ -52,7 +55,7 @@ const createSnapshot = (
   overrides: Partial<TemplateCanvasSnapshot>
 ): TemplateCanvasSnapshot => ({
   version: 1,
-  theme: "neutral",
+  theme: "tone1",
   background: { color: "#f8f7ff" },
   textElements: [],
   stickyNotes: [],
@@ -72,16 +75,17 @@ const createSnapshot = (
 
 const templates: BookTemplate[] = [
   {
-    id: "neutral-focus",
-    category: "neutral",
+    id: "tone1-focus",
+    category: "tone1",
     variant: "solid",
     title: "Morning Focus",
     subtitle: "Plan the day with intention",
     coverImage: null,
-    titleColor: "#2f2a4a",
-    subtitleColor: "#5b5775",
+    coverGradientId: "g3",
+    // titleColor: "#2f2a4a",
+    // subtitleColor: "#5b5775",
     canvas: createSnapshot({
-      theme: "neutral",
+      theme: "tone1",
       background: { color: "#f7f6fb" },
       textElements: [
         {
@@ -138,16 +142,17 @@ const templates: BookTemplate[] = [
     }),
   },
   {
-    id: "neutral-reflection",
-    category: "neutral",
+    id: "tone1-reflection",
+    category: "tone1",
     variant: "image",
     title: "Evening Reflection",
     subtitle: "Wrap up with clarity",
     coverImage: getCoverImage(1),
-    titleColor: "#343047",
-    subtitleColor: "#655f7d",
+    coverGradientId: "g2",
+    // titleColor: "#343047",
+    // subtitleColor: "#655f7d",
     canvas: createSnapshot({
-      theme: "neutral",
+      theme: "tone1",
       background: {
         image: "linear-gradient(135deg, #fdfbff 0%, #ece6ff 100%)",
       },
@@ -198,10 +203,11 @@ const templates: BookTemplate[] = [
     title: "Color Moodboard",
     subtitle: "Palette explorations",
     coverImage: null,
-    titleColor: "#412246",
-    subtitleColor: "#683968",
+    coverGradientId: "g4",
+    // titleColor: "#412246",
+    // subtitleColor: "#683968",
     canvas: createSnapshot({
-      theme: "kawaii",
+      theme: "tone2",
       background: { color: "#fff2f5" },
       textElements: [
         {
@@ -250,10 +256,11 @@ const templates: BookTemplate[] = [
     title: "Vision Wall",
     subtitle: "Scenes that excite you",
     coverImage: null,
-    titleColor: "#2c2a6b",
-    subtitleColor: "#554fa6",
+    coverGradientId: "g5",
+    // titleColor: "#2c2a6b",
+    // subtitleColor: "#554fa6",
     canvas: createSnapshot({
-      theme: "kawaii",
+      theme: "tone2",
       background: {
         image: "linear-gradient(160deg, #fff4d8 0%, #ffd8f0 100%)",
       },
@@ -307,7 +314,7 @@ const templates: BookTemplate[] = [
   //   titleColor: "#1f2940",
   //   subtitleColor: "#46526d",
   //   canvas: createSnapshot({
-  //     theme: "retro",
+  //     theme: "tone3",
   //     background: {
   //       pattern:
   //         "linear-gradient(90deg, rgba(49,60,94,.08) 1px, transparent 1px), linear-gradient(180deg, rgba(49,60,94,.08) 1px, transparent 1px)",
@@ -376,7 +383,7 @@ const templates: BookTemplate[] = [
   //   titleColor: "#1d3150",
   //   subtitleColor: "#4a5c7a",
   //   canvas: createSnapshot({
-  //     theme: "retro",
+  //     theme: "tone3",
   //     background: { color: "#f5f8fb" },
   //     textElements: [
   //       {
@@ -428,7 +435,7 @@ const templates: BookTemplate[] = [
   //   titleColor: "#2c2a5e",
   //   subtitleColor: "#5a57a1",
   //   canvas: createSnapshot({
-  //     theme: "anime",
+  //     theme: "tone4",
   //     background: { color: "#fdf1ff" },
   //     textElements: [
   //       {
@@ -480,7 +487,7 @@ const templates: BookTemplate[] = [
   //   titleColor: "#40275d",
   //   subtitleColor: "#6b4a8c",
   //   canvas: createSnapshot({
-  //     theme: "anime",
+  //     theme: "tone4",
   //     background: {
   //       image: "linear-gradient(140deg, #fff0f8 0%, #e9f3ff 100%)",
   //     },
@@ -531,10 +538,10 @@ const cloneCanvas = (
 ): TemplateCanvasSnapshot =>
   JSON.parse(JSON.stringify(snapshot)) as TemplateCanvasSnapshot;
 
-export const neutralBookTemplates: BookTemplate[] = templates;
+export const starterBookTemplates: BookTemplate[] = templates;
 
 export function getTemplateById(id: string): BookTemplate | null {
-  const template = neutralBookTemplates.find((item) => item.id === id);
+  const template = starterBookTemplates.find((item) => item.id === id);
   if (!template) return null;
   return {
     ...template,

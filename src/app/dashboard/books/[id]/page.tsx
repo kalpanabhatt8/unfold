@@ -6,6 +6,7 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { BookCover } from "@/components/book-cover";
 import type { BookCoverVariant } from "@/components/book-cover";
 import { getTemplateById } from "@/data/book-templates";
+import { coverBackgroundVar } from "@/data/cover-gradients";
 import {
   DRAFTS_STORAGE_KEY,
   syncDraftsAndRecents,
@@ -17,13 +18,14 @@ const blankDefaults = {
   variant: "solid" as const,
   title: "Untitled Book",
   subtitle: "Describe this notebook",
-  background: "linear-gradient(135deg, #f8f7ff 0%, #ebe9ff 100%)",
+  background: coverBackgroundVar("g1"),
 };
 
 const backgroundOptions = [
-  { id: "mist", label: "Neutral Mist", value: "linear-gradient(135deg, #f8f7ff 0%, #ebe9ff 100%)" },
-  { id: "linen", label: "Soft Linen", value: "linear-gradient(135deg, #f6f5f0 0%, #ebe7dd 100%)" },
-  { id: "dawn", label: "Dawn", value: "linear-gradient(135deg, #fef3e7 0%, #ffe8f2 100%)" },
+  { id: "g1", label: "Gradient 1", value: coverBackgroundVar("g1") },
+  { id: "g2", label: "Gradient 2", value: coverBackgroundVar("g2") },
+  { id: "g3", label: "Gradient 3", value: coverBackgroundVar("g3") },
+  { id: "g4", label: "Gradient 4", value: coverBackgroundVar("g4") },
 ];
 
 const galleryOptions = [
@@ -40,8 +42,8 @@ const galleryOptions = [
       "linear-gradient(180deg, #fef9f0 0%, #f7f0de 100%), repeating-linear-gradient(90deg, rgba(0,0,0,0.04), rgba(0,0,0,0.04) 1px, transparent 1px, transparent 18px), repeating-linear-gradient(0deg, rgba(0,0,0,0.04), rgba(0,0,0,0.04) 1px, transparent 1px, transparent 18px)",
   },
   {
-    id: "cover-sunset",
-    label: "Sunset",
+    id: "cover-soft-glow",
+    label: "Soft Glow",
     preview:
       "linear-gradient(135deg, rgba(255,236,221,0.9) 0%, rgba(255,211,226,0.85) 45%, rgba(215,203,255,0.8) 100%)",
   },
@@ -97,7 +99,7 @@ const BookBuilderPage = () => {
   const [title, setTitle] = useState(base.title);
   const [subtitle, setSubtitle] = useState(base.subtitle ?? "");
   const [coverImage, setCoverImage] = useState<string | null>(null);
-  const [background, setBackground] = useState<string>(backgroundOptions[0].value);
+  const [background, setBackground] = useState<string>(blankDefaults.background);
   const [customBackground, setCustomBackground] = useState<string>("");
   const [titleColor, setTitleColor] = useState<string>("");
   const [subtitleColor, setSubtitleColor] = useState<string>("");
@@ -116,43 +118,48 @@ const BookBuilderPage = () => {
 
     try {
       const draftsRaw = window.localStorage.getItem(DRAFTS_STORAGE_KEY);
-      if (!draftsRaw) return;
-
-      const drafts = JSON.parse(draftsRaw) as Record<string, DraftPayload>;
+      const drafts = draftsRaw
+        ? (JSON.parse(draftsRaw) as Record<string, DraftPayload>)
+        : {};
       const existing = drafts[draftId];
-      if (!existing) return;
 
-      if (existing.title) setTitle(existing.title);
-      if (typeof existing.subtitle === "string") setSubtitle(existing.subtitle);
-      if (typeof existing.coverImage === "string" || existing.coverImage === null) {
-        setCoverImage(existing.coverImage ?? null);
-      }
-
-      if (existing.background) {
-        const matchesPreset = backgroundOptions.some(
-          (option) => option.value === existing.background
-        );
-        if (matchesPreset) {
-          setBackground(existing.background);
-          setCustomBackground("");
-        } else {
-          setCustomBackground(existing.background);
+      if (existing) {
+        if (existing.title) setTitle(existing.title);
+        if (typeof existing.subtitle === "string") setSubtitle(existing.subtitle);
+        if (typeof existing.coverImage === "string" || existing.coverImage === null) {
+          setCoverImage(existing.coverImage ?? null);
         }
-      }
 
-      if (existing.titleColor) setTitleColor(existing.titleColor);
-      if (existing.subtitleColor) setSubtitleColor(existing.subtitleColor);
-      if (typeof existing.sourceTemplateId === "string") {
-        setSourceTemplateId(existing.sourceTemplateId);
-      } else if (existing.sourceTemplateId === null) {
-        setSourceTemplateId(null);
+        if (existing.background) {
+          const matchesPreset = backgroundOptions.some(
+            (option) => option.value === existing.background
+          );
+          if (matchesPreset) {
+            setBackground(existing.background);
+            setCustomBackground("");
+          } else {
+            setCustomBackground(existing.background);
+          }
+        } else if (template) {
+          setCustomBackground(coverBackgroundVar(template.coverGradientId));
+        }
+
+        if (existing.titleColor) setTitleColor(existing.titleColor);
+        if (existing.subtitleColor) setSubtitleColor(existing.subtitleColor);
+        if (typeof existing.sourceTemplateId === "string") {
+          setSourceTemplateId(existing.sourceTemplateId);
+        } else if (existing.sourceTemplateId === null) {
+          setSourceTemplateId(null);
+        }
+      } else if (template) {
+        setCustomBackground(coverBackgroundVar(template.coverGradientId));
       }
     } catch (error) {
       console.error("Failed to load draft configuration", error);
     } finally {
       setIsDraftHydrated(true);
     }
-  }, [draftId]);
+  }, [draftId, template]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -293,7 +300,7 @@ const BookBuilderPage = () => {
               coverImageUrl={coverImage}
               titleColor={titleColor || undefined}
               subtitleColor={subtitleColor || undefined}
-              className="w-[150px]"
+              className="w-[9.375rem]"
               style={{ background: activeBackground }}
             />
             <div className="flex flex-wrap items-center justify-center gap-3 text-[0.68rem] uppercase tracking-[0.2em] text-ink-muted">
@@ -311,7 +318,7 @@ const BookBuilderPage = () => {
                 Cover Photo
               </h2>
               <div className="mt-3 flex flex-wrap items-center gap-3">
-                <label className="flex flex-1 min-w-[200px] cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border-subtle bg-surface-raised px-4 py-4 text-xs uppercase tracking-[0.18em] text-ink transition hover:border-border-emphasis">
+                <label className="flex flex-1 min-w-[12.5rem] cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border-subtle bg-surface-raised px-4 py-4 text-xs uppercase tracking-[0.18em] text-ink transition hover:border-border-emphasis">
                   <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
                   Upload image
                   <span className="text-[0.65rem] normal-case text-ink-muted">PNG or JPG • portrait looks best</span>
@@ -336,7 +343,7 @@ const BookBuilderPage = () => {
                       key={option.id}
                       type="button"
                       onClick={() => setCoverImage(option.preview)}
-                      className="h-12 w-20 rounded-xl border border-border-subtle transition hover:border-border-emphasis"
+                      className="h-12 w-[5rem] rounded-xl border border-border-subtle transition hover:border-border-emphasis"
                       style={{ background: option.preview }}
                       aria-label={`Use ${option.label} cover`}
                     />
@@ -356,7 +363,7 @@ const BookBuilderPage = () => {
                     type="button"
                     onClick={() => setBackground(option.value)}
                     className={clsx(
-                      "h-10 w-20 rounded-xl border transition",
+                      "h-10 w-[5rem] rounded-xl border transition",
                       background === option.value
                         ? "border-border-emphasis"
                         : "border-border-subtle hover:border-border-emphasis"

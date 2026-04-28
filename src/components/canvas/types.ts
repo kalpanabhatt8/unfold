@@ -2,7 +2,7 @@ export type ElementKind = "text" | "image" | "sticker" | "emoji" | "date";
 
 export type FrameStyle = "none" | "polaroid" | "rounded" | "taped";
 export type TextureStyle = "none" | "noise" | "grain" | "paper";
-export type ThemeFilter = "none" | "retro" | "pastel" | "glow";
+export type ThemeFilter = "none" | "tone3" | "pastel" | "glow";
 
 export type BoardElementBase = {
   id: string;

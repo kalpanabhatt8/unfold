@@ -19,10 +19,10 @@ import {
     LucideMicOff,
   } from "lucide-react";
   
-  export type Theme = "neutral" | "kawaii" | "retro" | "anime";
+  export type Theme = "tone1" | "tone2" | "tone3" | "tone4";
   
   export const themeConfig = {
-    neutral: {
+    tone1: {
       panel: "bg-[var(--color-surface-card)] text-[var(--color-icon)]",
       button: "bg-[var(--color-iconbutton)] text-[var(--color-icon)] border-1 border-[var(--color-iconborder-border)]",
       hover: "hover:bg-[var(--color-iconbutton-hover))]",
@@ -32,7 +32,7 @@ import {
       audioIcon: LucideMusic,
       micIcon: LucideMic,
     },
-    kawaii: {
+    tone2: {
       panel: "bg-[var(--color-surface-card)] text-[var(--color-icon)]",
       button: "bg-[var(--color-iconbutton)] text-[var(--color-icon)] border-1 border-[var(--color-iconborder-border)]",
       hover: "hover:bg-[var(--color-iconbutton-hover))]",
@@ -42,7 +42,7 @@ import {
       audioIcon: LucideMusic4,
       micIcon: LucideMic2,
     },
-    retro: {
+    tone3: {
       panel: "bg-[var(--color-surface-card)] text-[var(--color-icon)]",
       button: "bg-[var(--color-iconbutton)] text-[var(--color-icon)] border-1 border-[var(--color-iconborder-border)]",
       hover: "hover:bg-[var(--color-iconbutton-hover))]",
@@ -52,7 +52,7 @@ import {
       audioIcon: LucideDisc,
       micIcon: LucideMicVocal,
     },
-    anime: {
+    tone4: {
       panel: "bg-[var(--color-surface-card)] text-[var(--color-icon)]",
       button: "bg-[var(--color-iconbutton)] text-[var(--color-icon)] border-1 border-[var(--color-iconborder-border)]",
       hover: "hover:bg-[var(--color-iconbutton-hover))]",

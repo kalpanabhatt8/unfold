@@ -249,13 +249,10 @@ export const syncDraftsAndRecents = <T extends DraftLike>(
 
   writeRecentBooks(recents);
 
-  removedIds.forEach((id) => {
-    try {
-      window.localStorage.removeItem(`${BOARD_STORAGE_PREFIX}${id}`);
-    } catch {
-      /* ignore storage removal errors */
-    }
-  });
+  // Do not remove keeps-board-* here: draft eviction (top-N limit) is not a user
+  // delete; wiping canvas data would drop textures and work when a book is
+  // temporarily outside the N most recently updated. Orphaned keys are bounded
+  // by the same N as recents; acceptable storage tradeoff vs silent data loss.
 
   console.debug("[RecentBooks] Synced drafts and recents", {
     kept: recents.map((book) => book.id),

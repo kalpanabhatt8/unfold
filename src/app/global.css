@@ -102,20 +102,11 @@
   --surface-3: var(--gray-200); /* cards + controls */
   --shadow: none;
 
-  /* Color semantics - text + foreground */
-  --color-background: var(--surface-0);
-  --color-foreground: var(--fg);
-  --color-surface-base: var(--surface-0);
-  --color-surface-raised: var(--surface-1);
-  --color-surface-card: var(--surface-2);
-  --color-surface-overlay: var(--surface-2);
-  --color-primary: var(--primary);
-  --color-secondary: var(--primary-soft);
-  --color-ink: var(--fg);
-  --color-ink-strong: var(--fg);
-  --color-ink-soft: var(--muted);
-  --color-ink-muted: var(--muted-2);
+  /* text semantics - text + foreground */
 
+--text-primary: var(--gray-900);
+--text-secondary: var(--gray-700);
+--text-tertiary: var(--gray-500);
 
   /* Color semantics - borders + controls */
   --color-border-subtle: var(--border);
@@ -514,7 +505,7 @@ button:hover {
 
 /* BookCover + dashboard book grid styles moved to `book.css` */
 
-@media (max-width: 768px) {
+@media (max-width: 48rem) {
   .starter-carousel__track {
     gap: var(--value-16);
   }
@@ -530,7 +521,7 @@ button:hover {
   top: 50% !important;
   transform: translate(-50%, -50%) !important; 
   width: fit-content !important;
-  max-width: min(92vw, 960px) !important; 
+  max-width: min(92vw, 60rem) !important; 
   z-index: 9999 !important;
 } */
 
@@ -547,9 +538,9 @@ button:hover {
 
 /* Target the draggable dot */
 .color-picker .react-colorful__pointer {
-  width: 18px !important;
+  width: 1.125rem !important;
   /* smaller size */
-  height: 18px !important;
+  height: 1.125rem !important;
   border: 2px solid var(--gray-50);
   /* clean border */
   box-shadow: none !important;
@@ -566,8 +557,8 @@ button:hover {
 
 .no-fill-icon {
   position: relative;
-  width: 20px;
-  height: 20px;
+  width: 1.25rem;
+  height: 1.25rem;
   border-radius: 50%;
   background: var(--gray-50);
   border: 1px solid var(--color-border-subtle);
@@ -576,10 +567,10 @@ button:hover {
 .no-fill-icon::after {
   content: "";
   position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 16px;
-  height: 2px;
+  top: 0.125rem;
+  left: 0.125rem;
+  width: 1rem;
+  height: 0.125rem;
   background: var(--gray-900);
   transform: rotate(45deg);
 }
@@ -589,18 +580,18 @@ button:hover {
 }
 
 .react-colorful__hue {
-  height: 12px !important;
+  height: 0.75rem !important;
   margin-bottom: var(--value-8) !important;
 }
 
 .react-colorful__pointer {
-  width: 14px !important;
-  height: 14px !important;
+  width: 0.875rem !important;
+  height: 0.875rem !important;
   z-index: 40 !important;
 }
 
 .react-colorful__alpha {
-  height: 12px !important;
+  height: 0.75rem !important;
   border-radius: var(--radius-pill) !important;
   margin-bottom: var(--value-8) !important;
 }
