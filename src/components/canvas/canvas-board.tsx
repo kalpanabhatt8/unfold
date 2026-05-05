@@ -1215,8 +1215,8 @@ export default function CanvasBoard({
                 className={clsx(
                   "inline-flex h-7 w-7 items-center justify-center rounded-lg transition",
                   activeTextKind === kind
-                    ? "bg-black/10 text-black"
-                    : "text-black/50 hover:bg-black/[0.05] hover:text-black/80"
+                    ? "bg-black/10 text-[var(--color-canvas-toolbar-icon)]"
+                    : "text-[var(--color-canvas-toolbar-icon)]/70 hover:bg-black/[0.05] hover:text-[var(--color-canvas-toolbar-icon)]"
                 )}
               >
                 {icon}
@@ -1270,8 +1270,8 @@ export default function CanvasBoard({
               className={clsx(
                 "inline-flex h-7 w-7 items-center justify-center rounded-lg transition",
                 selectedImage.polaroid
-                  ? "bg-black/10 text-black"
-                  : "text-black/50 hover:bg-black/[0.05] hover:text-black/80"
+                  ? "bg-black/10 text-[var(--color-canvas-toolbar-icon)]"
+                  : "text-[var(--color-canvas-toolbar-icon)]/70 hover:bg-black/[0.05] hover:text-[var(--color-canvas-toolbar-icon)]"
               )}
             >
               <Square size={14} strokeWidth={1.75} />
@@ -1282,7 +1282,7 @@ export default function CanvasBoard({
               aria-label="Delete image"
               title="Delete image"
               onClick={() => removeImage(selectedImage.id)}
-              className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-black/40 transition hover:bg-red-50 hover:text-red-500"
+              className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-[var(--color-canvas-toolbar-icon)]/65 transition hover:bg-red-50 hover:text-red-500"
             >
               <Trash2 size={14} strokeWidth={1.75} />
             </button>
@@ -1305,7 +1305,7 @@ export default function CanvasBoard({
               aria-label="Add image"
               title="Add image"
               onClick={() => fileInputRef.current?.click()}
-              className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-black/70 transition hover:bg-black/[0.06]"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[var(--color-canvas-toolbar-icon)] transition hover:bg-black/[0.06]"
             >
               <ImagePlus size={16} strokeWidth={1.75} />
             </button>
@@ -1333,7 +1333,7 @@ export default function CanvasBoard({
                 title={label}
                 onClick={() => switchColumns(n)}
                 className={clsx(
-                  "inline-flex h-8 w-8 items-center justify-center rounded-md text-[var(--fg,#1a1a1a)] transition",
+                  "inline-flex h-8 w-8 items-center justify-center rounded-md text-[var(--color-canvas-toolbar-icon)] transition",
                   columns === n
                     ? "bg-white shadow-sm"
                     : "hover:bg-black/[0.05]"
@@ -1388,7 +1388,7 @@ export default function CanvasBoard({
           onClick={() => setShowImages(false)}
           className={clsx(
             "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition",
-            !showImages ? "bg-black/85 text-white" : "text-black/50 hover:text-black/75"
+            !showImages ? "bg-black/85 text-white" : "text-[var(--color-canvas-toolbar-icon)]/70 hover:text-[var(--color-canvas-toolbar-icon)]"
           )}
         >
           <TypeIcon size={13} strokeWidth={1.75} aria-hidden />
@@ -1401,7 +1401,7 @@ export default function CanvasBoard({
           onClick={() => setShowImages(true)}
           className={clsx(
             "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition",
-            showImages ? "bg-black/85 text-white" : "text-black/50 hover:text-black/75"
+            showImages ? "bg-black/85 text-white" : "text-[var(--color-canvas-toolbar-icon)]/70 hover:text-[var(--color-canvas-toolbar-icon)]"
           )}
         >
           <Layers size={13} strokeWidth={1.75} aria-hidden />
@@ -1438,7 +1438,7 @@ function ToolbarButton({
       disabled={disabled}
       onClick={onClick}
       className={clsx(
-        "inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--fg,#1a1a1a)] transition",
+        "inline-flex h-8 w-8 items-center justify-center rounded-full text-[var(--color-canvas-toolbar-icon)] transition",
         active
           ? "bg-black/10"
           : "hover:bg-black/[0.06] disabled:opacity-40 disabled:hover:bg-transparent"

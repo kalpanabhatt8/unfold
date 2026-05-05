@@ -39,10 +39,14 @@ const BookBuilderPage = () => {
   const router = useRouter();
   const draftId = params?.id ?? "blank";
   const templateParam = searchParams.get("template");
-  // Cover page is one-time on first creation; reaching it from the canvas adds
-  // `?from=canvas` so we can route Back / the CTA back to writing instead of
-  // the dashboard.
-  const fromCanvas = searchParams.get("from") === "canvas";
+  // Cover page is one-time on first creation. Re-edits arrive with a `from`
+  // hint so Back and the primary CTA return to the originating surface:
+  //   - `from=canvas`    → keep writing (back/CTA → canvas)
+  //   - `from=dashboard` → quick cover tweak (back/CTA → dashboard)
+  //   - (none)           → first creation (back → dashboard, CTA → canvas)
+  const fromHint = searchParams.get("from");
+  const fromCanvas = fromHint === "canvas";
+  const fromDashboard = fromHint === "dashboard";
 
   // Bare ids (`blank` / a template id) get rewritten into a unique draft id so
   // the book has a stable home in storage. Behaviour preserved from earlier.
@@ -196,13 +200,29 @@ const BookBuilderPage = () => {
     router.push(`/dashboard/books/${draftId}/canvas${queryString}`);
   };
 
+  const goToDashboard = () => {
+    persistCurrentDraft(Date.now());
+    router.push("/dashboard");
+  };
+
   const handleBack = () => {
     if (fromCanvas) {
-      // Editing an existing book's cover — return to where they were writing.
+      // Re-edit from canvas — return to where they were writing.
       goToCanvas();
       return;
     }
+    // First creation and dashboard re-edits both back out to the dashboard.
     router.push("/dashboard");
+  };
+
+  const handlePrimary = () => {
+    if (fromDashboard) {
+      // Quick cover tweak from dashboard — save and return there.
+      goToDashboard();
+      return;
+    }
+    // First creation and canvas re-edits both proceed to writing.
+    goToCanvas();
   };
 
   return (
@@ -220,8 +240,9 @@ const BookBuilderPage = () => {
       <button
         type="button"
         onClick={handleBack}
-        className="fixed left-4 top-4 z-30 inline-flex items-center gap-2 rounded-full border border-black/5 bg-white/80 px-3 py-1.5 text-sm text-black/65 backdrop-blur-md transition hover:bg-white hover:text-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-black/30 focus-visible:outline-offset-2"
+        className="fixed left-4 top-4 z-30 inline-flex items-center gap-2 rounded-full border border-black/5 bg-white/80 px-3 py-1.5 text-sm text-[var(--color-icon)]/75 backdrop-blur-md transition hover:bg-[var(--color-iconbutton)] hover:text-[var(--color-icon)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-black/30 focus-visible:outline-offset-2"
         aria-label={fromCanvas ? "Back to writing" : "Back to dashboard"}
+        title={fromCanvas ? "Back to writing" : "Back to dashboard"}
       >
         <ArrowLeft strokeWidth={1.75} size={15} aria-hidden />
         Back
@@ -314,7 +335,7 @@ const BookBuilderPage = () => {
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm text-black/70 transition hover:bg-black/[0.05] hover:text-black"
+              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm text-[var(--color-icon)]/75 transition hover:bg-[var(--color-iconbutton)] hover:text-[var(--color-icon)]"
             >
               <ImagePlus strokeWidth={1.75} size={15} aria-hidden />
               {coverImage ? "Change photo" : "Cover photo"}
@@ -335,10 +356,10 @@ const BookBuilderPage = () => {
 
         <button
           type="button"
-          onClick={goToCanvas}
+          onClick={handlePrimary}
           className="inline-flex items-center gap-2 rounded-full bg-[var(--gray-900)] px-7 py-2.5 text-sm font-medium text-white transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-black/40 focus-visible:outline-offset-2"
         >
-          {fromCanvas ? "Done" : "Open book"}
+          {fromCanvas || fromDashboard ? "Done" : "Open book"}
         </button>
       </section>
     </main>

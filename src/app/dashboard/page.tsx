@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { PencilRulerIcon } from "lucide-react";
 import { BookCover } from "@/components/book-cover";
 import { starterBookTemplates } from "@/data/book-templates";
 import { coverBackgroundVar } from "@/data/cover-gradients";
@@ -137,25 +138,42 @@ const Dashboard = () => {
             <div className="flex flex-wrap items-start gap-10">
               {recentBooks.map((book) => (
                 <div key={`recent-${book.id}`} className="flex flex-col">
-                  <div
-                    onClick={() =>
-                      router.push(`/dashboard/books/${book.id}/canvas`)
-                    }
-                    className="flex flex-col items-center gap-2 cursor-pointer"
-                  >
-                    <div className={`${BOOK_SIZES.md} book-shadow-div`}>
-                      <BookCover
-                        variant={book.coverImage ? "image" : "solid"}
-                        title={book.title}
-                        // subtitle={book.subtitle || undefined}
-                        coverImageUrl={book.coverImage ?? undefined}
-                        titleColor={book.titleColor ?? undefined}
-                        // subtitleColor={book.subtitleColor ?? undefined}
-                        className="h-full w-full"
-                        style={{
-                          background: book.background || coverBackgroundVar("g1"),
-                        }}
-                      />
+                  <div className="group flex flex-col items-center gap-2">
+                    <div className="relative">
+                      <div
+                        onClick={() =>
+                          router.push(`/dashboard/books/${book.id}/canvas`)
+                        }
+                        className={`${BOOK_SIZES.md} book-shadow-div relative cursor-pointer`}
+                      >
+                        <BookCover
+                          variant={book.coverImage ? "image" : "solid"}
+                          title={book.title}
+                          // subtitle={book.subtitle || undefined}
+                          coverImageUrl={book.coverImage ?? undefined}
+                          titleColor={book.titleColor ?? undefined}
+                          // subtitleColor={book.subtitleColor ?? undefined}
+                          className="h-full w-full"
+                          style={{
+                            background:
+                              book.background || coverBackgroundVar("g1"),
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            router.push(
+                              `/dashboard/books/${book.id}?from=dashboard`
+                            );
+                          }}
+                          aria-label={`Edit cover of ${book.title}`}
+                          title="Edit cover"
+                          className="absolute right-2 bottom-2 z-10 inline-flex h-7 w-7 items-center justify-center rounded-full text-[var(--color-icon)]/65 opacity-0 backdrop-blur-md transition-[opacity,background-color,color] duration-200 ease-out hover:bg-[var(--color-iconbutton)] hover:text-[var(--color-icon)] focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-black/30 focus-visible:outline-offset-2 group-hover:opacity-100"
+                        >
+                          <PencilRulerIcon strokeWidth={1.85} size={18} aria-hidden />
+                        </button>
+                      </div>
                     </div>
                     <div className="text-xs text-[var(--text-secondary)] ">
                       {formatRelativeTime(book.updatedAt)}

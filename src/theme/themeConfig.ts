@@ -25,7 +25,7 @@ import {
     tone1: {
       panel: "bg-[var(--color-surface-card)] text-[var(--color-icon)]",
       button: "bg-[var(--color-iconbutton)] text-[var(--color-icon)] border-1 border-[var(--color-iconborder-border)]",
-      hover: "hover:bg-[var(--color-iconbutton-hover))]",
+      hover: "hover:bg-[var(--color-iconbutton-hover)]",
       backgroundIcon: LucidePalette,
       textIcon: LucideType,
       stickyIcon: LucidePalette,
@@ -35,7 +35,7 @@ import {
     tone2: {
       panel: "bg-[var(--color-surface-card)] text-[var(--color-icon)]",
       button: "bg-[var(--color-iconbutton)] text-[var(--color-icon)] border-1 border-[var(--color-iconborder-border)]",
-      hover: "hover:bg-[var(--color-iconbutton-hover))]",
+      hover: "hover:bg-[var(--color-iconbutton-hover)]",
       backgroundIcon: LucideHeart,
       textIcon: LucideCandy,
       stickyIcon: LucideHeart,
@@ -45,7 +45,7 @@ import {
     tone3: {
       panel: "bg-[var(--color-surface-card)] text-[var(--color-icon)]",
       button: "bg-[var(--color-iconbutton)] text-[var(--color-icon)] border-1 border-[var(--color-iconborder-border)]",
-      hover: "hover:bg-[var(--color-iconbutton-hover))]",
+      hover: "hover:bg-[var(--color-iconbutton-hover)]",
       backgroundIcon: LucideMonitor,
       textIcon: LucideMonitor,
       stickyIcon: LucideFileText,
@@ -55,7 +55,7 @@ import {
     tone4: {
       panel: "bg-[var(--color-surface-card)] text-[var(--color-icon)]",
       button: "bg-[var(--color-iconbutton)] text-[var(--color-icon)] border-1 border-[var(--color-iconborder-border)]",
-      hover: "hover:bg-[var(--color-iconbutton-hover))]",
+      hover: "hover:bg-[var(--color-iconbutton-hover)]",
       backgroundIcon: LucideSparkles,
       textIcon: LucidePen,
       stickyIcon: LucideBook,

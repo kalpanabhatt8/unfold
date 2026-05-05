@@ -7,7 +7,7 @@ import { coverBackgroundVar } from "@/data/cover-gradients";
 import CanvasBoard, {
   type CanvasSnapshot,
 } from "@/components/canvas/canvas-board";
-import { ArrowLeft, Image as ImageIcon } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import {
   DRAFTS_STORAGE_KEY,
   syncDraftsAndRecents,
@@ -178,16 +178,6 @@ const CanvasPage = () => {
 
   const boardStorageKey = useMemo(() => `keeps-board-${bookId}`, [bookId]);
 
-  // Cover page is a one-time setup surface, but the user can revisit it from
-  // the canvas to tweak cover/title. The `?from=canvas` flag tells that page
-  // to send Back/Save back to the canvas instead of the dashboard.
-  const editCoverHref = useMemo(() => {
-    const params = new URLSearchParams();
-    params.set("from", "canvas");
-    if (templateParam) params.set("template", templateParam);
-    return `/dashboard/books/${bookId}?${params.toString()}`;
-  }, [bookId, templateParam]);
-
   return (
     <main className="relative min-h-[100svh] w-full">
       <CanvasBoard
@@ -199,22 +189,11 @@ const CanvasPage = () => {
       <button
         type="button"
         onClick={() => router.push("/dashboard")}
-        className="fixed left-4 top-4 z-40 inline-flex items-center gap-2 rounded-full border border-black/5 bg-white/80 px-3 py-1.5 text-sm text-black/70 backdrop-blur-md transition hover:bg-white hover:text-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-black/30 focus-visible:outline-offset-2"
+        className="fixed left-4 top-4 z-40 inline-flex items-center gap-2 rounded-full border border-black/5 bg-white/80 px-3 py-1.5 text-sm text-[var(--color-icon)]/75 backdrop-blur-md transition hover:bg-[var(--color-iconbutton)] hover:text-[var(--color-icon)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-black/30 focus-visible:outline-offset-2"
         aria-label="Back to dashboard"
       >
         <ArrowLeft strokeWidth={1.75} size={16} aria-hidden />
         Back
-      </button>
-
-      <button
-        type="button"
-        onClick={() => router.push(editCoverHref)}
-        className="fixed right-4 top-4 z-40 inline-flex items-center gap-2 rounded-full border border-black/5 bg-white/80 px-3 py-1.5 text-sm text-black/70 backdrop-blur-md transition hover:bg-white hover:text-black focus-visible:outline focus-visible:outline-2 focus-visible:outline-black/30 focus-visible:outline-offset-2"
-        aria-label="Edit cover"
-        title="Edit cover"
-      >
-        <ImageIcon strokeWidth={1.75} size={15} aria-hidden />
-        Cover
       </button>
     </main>
   );

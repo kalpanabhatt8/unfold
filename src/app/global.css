@@ -88,7 +88,7 @@
 
   /* Color semantics - foundation */
   --bg: var(--gray-25);
-  --fg: var(--gray-900);
+  --fg: var(--gray-800);
   --muted: var(--gray-700);
   --muted-2: var(--gray-600);
   --border: var(--gray-300);
@@ -115,6 +115,7 @@
   --color-iconborder-border: var(--gray-300);
   --color-iconbutton-hover: var(--gray-300);
   --color-icon: var(--fg);
+  --color-canvas-toolbar-icon: var(--gray-700);
   --toolbar-button-border: 1px solid var(--color-border-subtle);
   --toolbar-button-border-selected: 1px solid var(--color-border-emphasis);
 
