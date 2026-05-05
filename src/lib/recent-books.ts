@@ -13,6 +13,12 @@ export type RecentBook = {
   titleColor?: string | null;
   subtitleColor?: string | null;
   sourceTemplateId?: string | null;
+  /**
+   * `true` once the user has actually opened this book's canvas at least once.
+   * Customization-only saves leave this `false`/undefined; the dashboard
+   * "Recents" list only surfaces drafts where this is `true`.
+   */
+  canvasOpened?: boolean;
   updatedAt: number;
 };
 
@@ -85,6 +91,10 @@ const normalizeRecentBook = (value: unknown): RecentBook | null => {
     normalized.sourceTemplateId = value.sourceTemplateId;
   } else if (value.sourceTemplateId === null) {
     normalized.sourceTemplateId = null;
+  }
+
+  if (typeof value.canvasOpened === "boolean") {
+    normalized.canvasOpened = value.canvasOpened;
   }
 
   return normalized;
@@ -183,6 +193,10 @@ export const syncDraftsAndRecents = <T extends DraftLike>(
         fallback.sourceTemplateId = null;
       }
 
+      if (typeof raw.canvasOpened === "boolean") {
+        fallback.canvasOpened = raw.canvasOpened as boolean;
+      }
+
       const normalizedBook = normalized ?? fallback;
 
       return {
@@ -216,6 +230,10 @@ export const syncDraftsAndRecents = <T extends DraftLike>(
               : normalizedBook.sourceTemplateId === null
               ? null
               : undefined,
+          canvasOpened:
+            typeof normalizedBook.canvasOpened === "boolean"
+              ? normalizedBook.canvasOpened
+              : undefined,
         } as T,
         normalized: normalizedBook,
         updatedAt,
@@ -234,9 +252,12 @@ export const syncDraftsAndRecents = <T extends DraftLike>(
     nextDrafts[entry.id] = entry.value;
   }
 
+  // Recents are gated on `canvasOpened`: customization-only drafts are persisted
+  // but stay out of the dashboard's Recents list until the user opens the canvas.
   const recents = limited
     .map((entry) => entry.normalized)
-    .filter((item): item is RecentBook => Boolean(item));
+    .filter((item): item is RecentBook => Boolean(item))
+    .filter((item) => item.canvasOpened === true);
 
   try {
     window.localStorage.setItem(

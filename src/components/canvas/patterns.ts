@@ -1,5 +1,5 @@
-// pattern.ts
-import type { Theme } from "./canvas-board";
+// pattern.ts — legacy presets; Canvas no longer consumes these UI-side.
+export type Theme = "tone1" | "tone2" | "tone3" | "tone4";
 
 export type Pattern = {
   name: string;
