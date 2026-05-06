@@ -63,8 +63,8 @@ const CanvasPage = () => {
         ? coverBackgroundVar(template.coverGradientId)
         : blankDefaults.background,
       variant: template?.variant ?? blankDefaults.variant,
-      titleColor: template?.titleColor ?? null,
-      subtitleColor: template?.subtitleColor ?? null,
+      titleColor: null,
+      subtitleColor: null,
       sourceTemplateId:
         templateParam ?? (template ? template.id : blankDefaults.id),
       updatedAt: Date.now(),

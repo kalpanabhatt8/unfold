@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import clsx from "clsx";
 import type { CoverGradientId } from "@/data/cover-gradients";
@@ -7,6 +7,11 @@ import {
   coverBackgroundVar,
   coverGradientIdFromBackground,
 } from "@/data/cover-gradients";
+import {
+  coverOverlayTextStyles,
+  estimateBackgroundLuminance,
+  sampleCoverImageFromUrl,
+} from "@/lib/cover-text-contrast";
 
 type BookCoverVariant = "solid" | "image";
 
@@ -16,8 +21,6 @@ type BookCoverBaseProps = {
   title?: string;
   subtitle?: string;
   coverImageUrl?: string | null;
-  titleColor?: string;
-  subtitleColor?: string;
   className?: string;
   /**
    * CSS preset from `book.css` (`[data-gradient]`). Prefer over inline
@@ -35,8 +38,6 @@ export function BookCover({
   title,
   subtitle,
   coverImageUrl,
-  titleColor,
-  subtitleColor,
   className,
   coverGradient,
   style,
@@ -48,7 +49,7 @@ export function BookCover({
     coverGradientIdFromBackground(
       style && typeof (style as React.CSSProperties).background === "string"
         ? ((style as React.CSSProperties).background as string)
-        : undefined
+        : undefined,
     );
 
   const coverStyle = useMemo((): React.CSSProperties | undefined => {
@@ -88,6 +89,46 @@ export function BookCover({
     return overlayVars as React.CSSProperties;
   }, [resolvedGradient, sizeConfig, style]);
 
+  const bgString =
+    typeof (coverStyle as React.CSSProperties | undefined)?.background === "string"
+      ? ((coverStyle as React.CSSProperties).background as string)
+      : typeof style?.background === "string"
+        ? (style.background as string)
+        : undefined;
+
+  const fallbackLum = useMemo(
+    () => estimateBackgroundLuminance(bgString, resolvedGradient),
+    [bgString, resolvedGradient],
+  );
+
+  const [imageRegionLum, setImageRegionLum] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (variant !== "image" || !coverImageUrl) {
+      setImageRegionLum(null);
+      return;
+    }
+    let cancelled = false;
+    void sampleCoverImageFromUrl(coverImageUrl).then((lum) => {
+      if (!cancelled) setImageRegionLum(lum);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [variant, coverImageUrl]);
+
+  const effectiveLuminance =
+    variant === "image" && imageRegionLum !== null ? imageRegionLum : fallbackLum;
+
+  const textChrome = useMemo(
+    () =>
+      coverOverlayTextStyles({
+        luminance: effectiveLuminance,
+        onImage: variant === "image" && Boolean(coverImageUrl),
+      }),
+    [effectiveLuminance, variant, coverImageUrl],
+  );
+
   return (
     <>
       <div className={clsx("book-cover-stack", className)} {...rest}>
@@ -114,38 +155,18 @@ export function BookCover({
           <div className="book-overlay-line" />
 
           <div className="book-cover__content">
-            <h3
-              className="book-cover__title"
-              style={titleColor ? { color: titleColor } : undefined}
-            >
+            <h3 className="book-cover__title" style={textChrome.title}>
               {title}
             </h3>
+            {/* Subtitle temporarily hidden on book cover
             {subtitle ? (
-              <p
-                className="book-cover__subtitle"
-                style={subtitleColor ? { color: subtitleColor } : undefined}
-              >
-                {/* {subtitle} */}
+              <p className="book-cover__subtitle" style={textChrome.subtitle}>
+                {subtitle}
               </p>
             ) : null}
+            */}
           </div>
         </div>
-        {/* <div className="trapezoid-bar" aria-hidden /> */}
-        {/* <svg width="0" height="0" style={{ position: "absolute" }}>
-        <defs>
-          <clipPath id="bookPageClip" clipPathUnits="objectBoundingBox">
-            <path
-              d="
-              M0,0.2
-              L0.9,0.2
-              Q1,-0.05 1,0.5
-              Q1,1.05 0.94,1
-              L0.04,1
-              Z"
-            />
-          </clipPath>
-        </defs>
-      </svg> */}
       </div>
     </>
   );

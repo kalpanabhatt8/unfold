@@ -147,8 +147,6 @@ const Dashboard = () => {
                           title={book.title}
                           // subtitle={book.subtitle || undefined}
                           coverImageUrl={book.coverImage ?? undefined}
-                          titleColor={book.titleColor ?? undefined}
-                          // subtitleColor={book.subtitleColor ?? undefined}
                           className="h-full w-full"
                           style={{
                             background:
@@ -199,7 +197,6 @@ const Dashboard = () => {
                           variant={book.coverImage ? "image" : "solid"}
                           title={book.title}
                           coverImageUrl={book.coverImage ?? undefined}
-                          titleColor={book.titleColor ?? undefined}
                           className="h-full w-full"
                           coverGradient={book.coverGradientId}
                         />

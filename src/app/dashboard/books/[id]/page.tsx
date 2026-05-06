@@ -93,37 +93,6 @@ const cssColorToRgba = (value: string): RgbaColor | null => {
   };
 };
 
-/** Readable hint chrome derived from the same color as the book cover background. */
-const coverPhotoHintStyles = (backgroundCss: string): React.CSSProperties => {
-  const parsed = cssColorToRgba(backgroundCss);
-  if (!parsed) {
-    return {
-      color: "var(--text-secondary)",
-      backgroundColor: "color-mix(in srgb, var(--gray-75) 88%, transparent)",
-      borderColor: "rgba(0,0,0,0.08)",
-    };
-  }
-  const { r, g, b, a } = parsed;
-  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  const base = rgbaToCss({ r, g, b, a: Math.min(1, a) });
-  if (lum > 0.52) {
-    const textR = Math.round(Math.max(24, Math.min(255, r * 0.28)));
-    const textG = Math.round(Math.max(24, Math.min(255, g * 0.28)));
-    const textB = Math.round(Math.max(24, Math.min(255, b * 0.28)));
-    return {
-      color: `rgb(${textR}, ${textG}, ${textB})`,
-      backgroundColor: `color-mix(in srgb, ${base} 18%, white)`,
-      borderColor: `color-mix(in srgb, ${base} 35%, rgba(0,0,0,0.12))`,
-    };
-  }
-  return {
-    color: "rgba(255, 252, 248, 0.94)",
-    backgroundColor: `color-mix(in srgb, ${base} 42%, rgba(0,0,0,0.55))`,
-    borderColor: `color-mix(in srgb, ${base} 55%, rgba(255,255,255,0.2))`,
-    textShadow: "0 1px 14px rgba(0,0,0,0.22)",
-  };
-};
-
 const BookBuilderPage = () => {
   const params = useParams<{ id: string }>();
   const searchParams = useSearchParams();
@@ -200,6 +169,18 @@ const BookBuilderPage = () => {
     return () => window.removeEventListener("pointerdown", onPointerDown);
   }, [isColorPickerOpen]);
 
+  // When the popover opens, align picker + hex with the current cover
+  // `background`. Do not re-sync on every `background` change while dragging —
+  // that round-trips through CSS and fights the picker (visible flicker).
+  useEffect(() => {
+    if (!isColorPickerOpen) return;
+    const parsed = cssColorToRgba(background);
+    if (!parsed) return;
+    setPickerColor(parsed);
+    setHexInput(rgbaToHex(parsed));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally only when opening
+  }, [isColorPickerOpen]);
+
   // Hydrate from any existing draft so reopening the customization page never
   // forgets work in progress (cover image, background, edited title, etc.).
   useEffect(() => {
@@ -216,7 +197,14 @@ const BookBuilderPage = () => {
         if (typeof existing.coverImage === "string" || existing.coverImage === null) {
           setCoverImage(existing.coverImage ?? null);
         }
-        if (existing.background) setBackground(existing.background);
+        if (existing.background) {
+          setBackground(existing.background);
+          const parsedBg = cssColorToRgba(existing.background);
+          if (parsedBg) {
+            setPickerColor(parsedBg);
+            setHexInput(rgbaToHex(parsedBg));
+          }
+        }
         if (typeof existing.sourceTemplateId === "string") {
           setSourceTemplateId(existing.sourceTemplateId);
         } else if (existing.sourceTemplateId === null) {
@@ -247,18 +235,6 @@ const BookBuilderPage = () => {
     return [...baseImages, coverImage];
   }, [coverImage]);
 
-  const coverPhotoHintChrome = useMemo(
-    () => coverPhotoHintStyles(background),
-    [background]
-  );
-
-  useEffect(() => {
-    const parsed = cssColorToRgba(background);
-    if (!parsed) return;
-    setPickerColor(parsed);
-    setHexInput(rgbaToHex(parsed));
-  }, [background]);
-
   const persistCurrentDraft = useCallback(
     (updatedAt: number) => {
       if (typeof window === "undefined") return;
@@ -277,10 +253,9 @@ const BookBuilderPage = () => {
           coverImage: coverImage ?? null,
           background,
           variant,
-          // Customization preserves color overrides if a template provided them,
-          // but never sets them itself — this page is intentionally minimal.
-          titleColor: existing?.titleColor ?? null,
-          subtitleColor: existing?.subtitleColor ?? null,
+          // Cover title/subtitle colors are derived automatically from the cover.
+          titleColor: null,
+          subtitleColor: null,
           sourceTemplateId:
             sourceTemplateId ??
             templateParam ??
@@ -399,20 +374,10 @@ const BookBuilderPage = () => {
           /> */}
         </div>
         <div className="flex w-full max-w-md flex-col items-center gap-2.5 mb-4">
-          {coverImage ? (
-            <p
-              role="status"
-              className="w-full max-w-[min(100%,18rem)] rounded-lg border px-3 py-2 text-center text-[0.8125rem] leading-snug tracking-[-0.01em]"
-              style={coverPhotoHintChrome}
-            >
-              Cover photo is on — your title still updates on the book. Tap the
-              book when you are ready to write inside.
-            </p>
-          ) : null}
           <button
             type="button"
             onClick={handlePrimary}
-            className={`${BOOK_CONFIG.lg.container} book-shadow-div cursor-pointer`}
+            className={`relative ${BOOK_CONFIG.lg.container} book-shadow-div cursor-pointer`}
             aria-label="Open book canvas"
             title="Open canvas"
           >
@@ -425,16 +390,13 @@ const BookBuilderPage = () => {
               className="h-full w-full"
               style={{ background }}
             />
-          </button>
-          {coverImage ? (
-            <p
-              className="w-full max-w-[min(100%,20rem)] rounded-lg border px-3 py-2 text-center text-[0.75rem] leading-snug text-balance opacity-95"
-              style={coverPhotoHintChrome}
+            <span
+              aria-hidden
+              className="pointer-events-none absolute inset-x-2 bottom-4 z-[40] text-center text-xs leading-none tracking-[0.04em] text-white/50 drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)]"
             >
-              Change the photo with the thumbnails or upload below. Remove it to
-              bring back solid cover colors.
-            </p>
-          ) : null}
+              Click to open journal
+            </span>
+          </button>
         </div>
         <input
             type="text"
@@ -474,6 +436,11 @@ const BookBuilderPage = () => {
                     onClick={() => {
                       setBackground(preset.value);
                       setCoverImage(null);
+                      const parsedPreset = cssColorToRgba(preset.value);
+                      if (parsedPreset) {
+                        setPickerColor(parsedPreset);
+                        setHexInput(rgbaToHex(parsedPreset));
+                      }
                     }}
                     aria-label={`Use ${preset.id} background`}
                     className="h-10 w-10 shrink-0 transition hover:brightness-95"
