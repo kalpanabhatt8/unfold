@@ -214,6 +214,7 @@ const cloneCanvas = (
   JSON.parse(JSON.stringify(snapshot)) as TemplateCanvasSnapshot;
 
 export const starterBookTemplates: BookTemplate[] = templates;
+export const bookCoverSamples: string[] = coverImagePaths;
 
 export function getTemplateById(id: string): BookTemplate | null {
   const template = starterBookTemplates.find((item) => item.id === id);

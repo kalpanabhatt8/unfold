@@ -2,6 +2,7 @@ import React, { useMemo } from "react";
 import Image from "next/image";
 import clsx from "clsx";
 import type { CoverGradientId } from "@/data/cover-gradients";
+import { BOOK_CONFIG, type BookCoverSize } from "@/components/book-cover-config";
 import {
   coverBackgroundVar,
   coverGradientIdFromBackground,
@@ -10,6 +11,7 @@ import {
 type BookCoverVariant = "solid" | "image";
 
 type BookCoverBaseProps = {
+  size?: BookCoverSize;
   variant?: BookCoverVariant;
   title?: string;
   subtitle?: string;
@@ -28,6 +30,7 @@ type BookCoverProps = BookCoverBaseProps &
   React.ComponentPropsWithoutRef<"div">;
 
 export function BookCover({
+  size = "md",
   variant = "solid",
   title,
   subtitle,
@@ -39,6 +42,7 @@ export function BookCover({
   style,
   ...rest
 }: BookCoverProps) {
+  const sizeConfig = BOOK_CONFIG[size];
   const resolvedGradient =
     coverGradient ??
     coverGradientIdFromBackground(
@@ -48,22 +52,41 @@ export function BookCover({
     );
 
   const coverStyle = useMemo((): React.CSSProperties | undefined => {
+    const overlayVars = {
+      "--book-padding-left": sizeConfig.padding.left,
+      "--book-padding-right": sizeConfig.padding.right,
+      "--book-padding-top": sizeConfig.padding.top,
+      "--book-padding-bottom": sizeConfig.padding.bottom,
+      "--book-groove-width": sizeConfig.groove.width,
+      "--book-overlay-line-left": sizeConfig.overlayLine.left,
+      "--book-overlay-line-width": sizeConfig.overlayLine.width,
+      "--book-content-margin-bottom": sizeConfig.content.marginBottom,
+      "--book-title-size": sizeConfig.text.titleSize,
+      "--book-subtitle-size": sizeConfig.text.subtitleSize,
+    } as Record<string, string>;
+
     if (resolvedGradient) {
       const { background: _drop, ...restStyle } = (style ?? {}) as React.CSSProperties;
       const nextStyle: React.CSSProperties = {
         ...restStyle,
         backgroundSize: "cover",
         backgroundPosition: "center",
+        ...(overlayVars as React.CSSProperties),
       };
       (nextStyle as Record<string, string>)["--book-cover-bg"] =
         coverBackgroundVar(resolvedGradient);
       return nextStyle;
     }
     if (style?.background) {
-      return { ...style, backgroundSize: "cover", backgroundPosition: "center" };
+      return {
+        ...style,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        ...(overlayVars as React.CSSProperties),
+      };
     }
-    return style;
-  }, [resolvedGradient, style]);
+    return overlayVars as React.CSSProperties;
+  }, [resolvedGradient, sizeConfig, style]);
 
   return (
     <>
@@ -102,7 +125,7 @@ export function BookCover({
                 className="book-cover__subtitle"
                 style={subtitleColor ? { color: subtitleColor } : undefined}
               >
-                {subtitle}
+                {/* {subtitle} */}
               </p>
             ) : null}
           </div>

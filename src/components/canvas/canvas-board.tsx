@@ -24,6 +24,7 @@ import {
   Trash2,
   Type as TypeIcon,
 } from "lucide-react";
+import { iconStrokePx } from "@/components/ui/button-system";
 
 /* -------------------------------------------------------------------------- */
 /*  Types                                                                     */
@@ -1201,9 +1202,9 @@ export default function CanvasBoard({
             )}
             {(
               [
-                { kind: "paragraph" as const, icon: <Pilcrow size={14} strokeWidth={1.75} />, label: "Paragraph" },
-                { kind: "bullet"    as const, icon: <List     size={14} strokeWidth={1.75} />, label: "Bullet list" },
-                { kind: "checklist" as const, icon: <ListChecks size={14} strokeWidth={1.75} />, label: "Checklist" },
+                { kind: "paragraph" as const, icon: <Pilcrow size={14} strokeWidth={iconStrokePx(14)} />, label: "Paragraph" },
+                { kind: "bullet"    as const, icon: <List     size={14} strokeWidth={iconStrokePx(14)} />, label: "Bullet list" },
+                { kind: "checklist" as const, icon: <ListChecks size={14} strokeWidth={iconStrokePx(14)} />, label: "Checklist" },
               ] as const
             ).map(({ kind, icon, label }) => (
               <button
@@ -1274,7 +1275,7 @@ export default function CanvasBoard({
                   : "text-[var(--color-canvas-toolbar-icon)]/70 hover:bg-black/[0.05] hover:text-[var(--color-canvas-toolbar-icon)]"
               )}
             >
-              <Square size={14} strokeWidth={1.75} />
+              <Square size={14} strokeWidth={iconStrokePx(14)} />
             </button>
             <div aria-hidden className="h-px w-5 self-center bg-black/10" />
             <button
@@ -1284,7 +1285,7 @@ export default function CanvasBoard({
               onClick={() => removeImage(selectedImage.id)}
               className="inline-flex h-7 w-7 items-center justify-center rounded-lg text-[var(--color-canvas-toolbar-icon)]/65 transition hover:bg-red-50 hover:text-red-500"
             >
-              <Trash2 size={14} strokeWidth={1.75} />
+              <Trash2 size={14} strokeWidth={iconStrokePx(14)} />
             </button>
           </div>
         </div>
@@ -1307,7 +1308,7 @@ export default function CanvasBoard({
               onClick={() => fileInputRef.current?.click()}
               className="inline-flex h-9 w-9 items-center justify-center rounded-xl text-[var(--color-canvas-toolbar-icon)] transition hover:bg-black/[0.06]"
             >
-              <ImagePlus size={16} strokeWidth={1.75} />
+              <ImagePlus size={18} strokeWidth={iconStrokePx(18)} />
             </button>
           </div>
 
@@ -1321,9 +1322,9 @@ export default function CanvasBoard({
           >
             {(
               [
-                { n: 1 as const, icon: <RectangleHorizontal size={14} strokeWidth={1.75} />, label: "One column" },
-                { n: 2 as const, icon: <Columns size={14} strokeWidth={1.75} />, label: "Two columns" },
-                { n: 3 as const, icon: <Columns3 size={14} strokeWidth={1.75} />, label: "Three columns" },
+                { n: 1 as const, icon: <RectangleHorizontal size={14} strokeWidth={iconStrokePx(14)} />, label: "One column" },
+                { n: 2 as const, icon: <Columns size={14} strokeWidth={iconStrokePx(14)} />, label: "Two columns" },
+                { n: 3 as const, icon: <Columns3 size={14} strokeWidth={iconStrokePx(14)} />, label: "Three columns" },
               ] as const
             ).map(({ n, icon, label }) => (
               <button
@@ -1391,7 +1392,7 @@ export default function CanvasBoard({
             !showImages ? "bg-black/85 text-white" : "text-[var(--color-canvas-toolbar-icon)]/70 hover:text-[var(--color-canvas-toolbar-icon)]"
           )}
         >
-          <TypeIcon size={13} strokeWidth={1.75} aria-hidden />
+          <TypeIcon size={13} strokeWidth={iconStrokePx(13)} aria-hidden />
           Text only
         </button>
         <button
@@ -1404,7 +1405,7 @@ export default function CanvasBoard({
             showImages ? "bg-black/85 text-white" : "text-[var(--color-canvas-toolbar-icon)]/70 hover:text-[var(--color-canvas-toolbar-icon)]"
           )}
         >
-          <Layers size={13} strokeWidth={1.75} aria-hidden />
+          <Layers size={13} strokeWidth={iconStrokePx(13)} aria-hidden />
           Show images
         </button>
       </div>
@@ -1819,7 +1820,7 @@ function FreeImage({ block, viewportWidth, selected, onSelect, onChange }: FreeI
             style={{ top: padTop - 56, left: "50%", transform: "translateX(-50%)" }}
             onPointerDown={startRotate}
           >
-            <RotateCw size={14} strokeWidth={1.75} className="opacity-80" />
+            <RotateCw size={14} strokeWidth={iconStrokePx(14)} className="opacity-80" />
           </div>
         </>
       )}

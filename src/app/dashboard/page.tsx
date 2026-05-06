@@ -4,6 +4,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PencilRulerIcon } from "lucide-react";
 import { BookCover } from "@/components/book-cover";
+import { BOOK_CONFIG } from "@/components/book-cover-config";
+import { btnIcon, btnState, iconFixed, iconPx, iconStroke } from "@/components/ui/button-system";
 import { starterBookTemplates } from "@/data/book-templates";
 import { coverBackgroundVar } from "@/data/cover-gradients";
 import {
@@ -11,19 +13,6 @@ import {
   RECENT_BOOKS_STORAGE_KEY,
   type RecentBook,
 } from "@/lib/recent-books";
-
-/* ✅ SIZE SYSTEM */
-type BookSize = "sm" | "md" | "smd" | "lg" | "xl" | "2xl" | "3xl";
-
-const BOOK_SIZES: Record<BookSize, string> = {
-  sm: "w-[8.625rem] h-[12.125rem]",
-  md: "w-[9.5rem] h-[13rem]",
-  smd: "w-[10.5rem] h-[15rem]",
-  lg: "w-[14.125rem] h-[19.875rem]",
-  xl: "w-[16.875rem] h-[23.75rem]",
-  "2xl": "w-[19.75rem] h-[27.75rem]",
-  "3xl": "w-[22.5rem] h-[31.625rem]",
-};
 
 const CREATE_NEW_COVER_BG =
   "linear-gradient(to bottom, #EBEDF0 0%, #E3E8EC 100%)";
@@ -102,6 +91,11 @@ const Dashboard = () => {
     router.push(`/dashboard/books/${draftId}/canvas?template=${templateId}`);
   };
 
+  const handleTemplateCoverEdit = (templateId: string) => {
+    const draftId = createDraftId(templateId);
+    router.push(`/dashboard/books/${draftId}?template=${templateId}&from=dashboard`);
+  };
+
   return (
     <main className="min-h-screen w-full">
 
@@ -119,8 +113,9 @@ const Dashboard = () => {
                 onClick={handleCreateNewBook}
                 className="create-new-notebook !p-0 cursor-pointer"
               >
-                <div className={`${BOOK_SIZES.md} book-shadow-div`}>
+                <div className={`${BOOK_CONFIG.md.container} book-shadow-div`}>
                   <BookCover
+                    size="md"
                     className="h-full w-full"
                     style={{ background: CREATE_NEW_COVER_BG }}
                   />
@@ -144,9 +139,10 @@ const Dashboard = () => {
                         onClick={() =>
                           router.push(`/dashboard/books/${book.id}/canvas`)
                         }
-                        className={`${BOOK_SIZES.md} book-shadow-div relative cursor-pointer`}
+                        className={`${BOOK_CONFIG.md.container} book-shadow-div relative cursor-pointer`}
                       >
                         <BookCover
+                          size="md"
                           variant={book.coverImage ? "image" : "solid"}
                           title={book.title}
                           // subtitle={book.subtitle || undefined}
@@ -169,9 +165,9 @@ const Dashboard = () => {
                           }}
                           aria-label={`Edit cover of ${book.title}`}
                           title="Edit cover"
-                          className="absolute right-2 bottom-2 z-10 inline-flex h-7 w-7 items-center justify-center rounded-full text-[var(--color-icon)]/65 opacity-0 backdrop-blur-md transition-[opacity,background-color,color] duration-200 ease-out hover:bg-[var(--color-iconbutton)] hover:text-[var(--color-icon)] focus-visible:opacity-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-black/30 focus-visible:outline-offset-2 group-hover:opacity-100"
+                          className={`absolute right-2 bottom-2 z-10 opacity-0 backdrop-blur-md transition-[opacity] duration-200 ease-out focus-visible:opacity-100 group-hover:opacity-100 ${btnIcon("sm")} ${btnState.default} ${btnState.hover} ${btnState.active}`}
                         >
-                          <PencilRulerIcon strokeWidth={1.85} size={18} aria-hidden />
+                          <PencilRulerIcon strokeWidth={iconStroke("sm")} size={iconPx("sm")} aria-hidden className={iconFixed} />
                         </button>
                       </div>
                     </div>
@@ -183,23 +179,46 @@ const Dashboard = () => {
               ))}
 
               {templatesAfterRecents.map((book) => (
-                <button
-                  key={`template-${book.id}`}
-                  type="button"
-                  onClick={() => handleTemplateSelect(book.id)}
-                  className="book-tilted-hover"
-                >
-                  <div className={`${BOOK_SIZES.md} book-shadow-div`}>
-                    <BookCover
-                      variant={book.coverImage ? "image" : "solid"}
-                      title={book.title}
-                      // subtitle={book.subtitle}
-                      coverImageUrl={book.coverImage ?? undefined}
-                      className="h-full w-full"
-                      coverGradient={book.coverGradientId}
-                    />
+                <div key={`template-${book.id}`} className="flex flex-col">
+                  <div className="group flex flex-col items-center gap-2">
+                    <div className="relative">
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => handleTemplateSelect(book.id)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            handleTemplateSelect(book.id);
+                          }
+                        }}
+                        className={`${BOOK_CONFIG.md.container} book-shadow-div relative cursor-pointer`}
+                      >
+                        <BookCover
+                          size="md"
+                          variant={book.coverImage ? "image" : "solid"}
+                          title={book.title}
+                          coverImageUrl={book.coverImage ?? undefined}
+                          titleColor={book.titleColor ?? undefined}
+                          className="h-full w-full"
+                          coverGradient={book.coverGradientId}
+                        />
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleTemplateCoverEdit(book.id);
+                          }}
+                          aria-label={`Edit cover of ${book.title}`}
+                          title="Edit cover"
+                          className={`absolute right-2 bottom-2 z-10 opacity-0 backdrop-blur-md transition-[opacity] duration-200 ease-out focus-visible:opacity-100 group-hover:opacity-100 ${btnIcon("sm")} ${btnState.default} ${btnState.hover} ${btnState.active}`}
+                        >
+                          <PencilRulerIcon strokeWidth={iconStroke("sm")} size={iconPx("sm")} aria-hidden className={iconFixed} />
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           </section>

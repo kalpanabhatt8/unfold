@@ -9,6 +9,14 @@ import CanvasBoard, {
 } from "@/components/canvas/canvas-board";
 import { ArrowLeft } from "lucide-react";
 import {
+  btnRadius,
+  btnState,
+  btnText,
+  iconFixed,
+  iconPx,
+  iconStroke,
+} from "@/components/ui/button-system";
+import {
   DRAFTS_STORAGE_KEY,
   syncDraftsAndRecents,
   type RecentBook,
@@ -189,10 +197,10 @@ const CanvasPage = () => {
       <button
         type="button"
         onClick={() => router.push("/dashboard")}
-        className="fixed left-4 top-4 z-40 inline-flex items-center gap-2 rounded-full border border-black/5 bg-white/80 px-3 py-1.5 text-sm text-[var(--color-icon)]/75 backdrop-blur-md transition hover:bg-[var(--color-iconbutton)] hover:text-[var(--color-icon)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-black/30 focus-visible:outline-offset-2"
+        className={`fixed left-4 top-4 z-40 px-3 ${btnRadius.pill} ${btnText("sm")} ${btnState.default} ${btnState.hover} ${btnState.active}`}
         aria-label="Back to dashboard"
       >
-        <ArrowLeft strokeWidth={1.75} size={16} aria-hidden />
+        <ArrowLeft strokeWidth={iconStroke("sm")} size={iconPx("sm")} aria-hidden className={iconFixed} />
         Back
       </button>
     </main>

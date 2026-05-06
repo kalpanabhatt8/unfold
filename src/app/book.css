@@ -95,10 +95,10 @@
   align-items: flex-end;
   overflow: hidden;
   border-radius: var(--radius-4);
-  padding-left: var(--value-30);
-  padding-top: var(--value-20);
-  padding-bottom: var(--value-20);
-  padding-right: var(--value-10);
+  padding-left: var(--book-padding-left, var(--value-30));
+  padding-top: var(--book-padding-top, var(--value-20));
+  padding-bottom: var(--book-padding-bottom, var(--value-20));
+  padding-right: var(--book-padding-right, var(--value-10));
   transition: transform 160ms ease, box-shadow 200ms ease;
   background: var(--book-cover-gradient-g1);
   background-size: cover;
@@ -144,9 +144,9 @@
   content: "";
   position: absolute;
   top: 0;
-  left: 14px;
+  left: var(--book-overlay-line-left, 0.875rem);
   /* left: 16px; */
-  width: 0.1875rem;
+  width: var(--book-overlay-line-width, 0.1875rem);
   height: 100%;
   background: rgba(33, 33, 33, 0.06);
   opacity: 1;
@@ -160,7 +160,7 @@
   position: absolute;
   top: 0;
   left: 0;
-  width: 0.625rem; /* Width of the groove */
+  width: var(--book-groove-width, 0.625rem); /* Width of the groove */
   height: 100%;
   pointer-events: none;
   z-index: 200000000;
@@ -246,7 +246,7 @@
   flex-direction: column;
   justify-content: center;
   min-height: 100%;
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--book-content-margin-bottom, 1.5rem);
 }
 
 .book-cover[data-variant="solid"] {
@@ -254,7 +254,8 @@
 }
 
 .book-cover[data-variant="image"] {
-  background: var(--surface-2);
+  /* Let photo covers use the same selected background gradients/colors */
+  background: var(--book-cover-bg, var(--surface-2));
 }
 
 .book-cover[data-variant="image"] .book-cover__spine {
@@ -305,12 +306,13 @@
 
 .book-cover__title {
   /* font-family: Georgia, "Times New Roman", serif; */
-  font-weight: 500;
+  font-family: var(--font-bricolage), var(--font-manrope), system-ui, sans-serif;
+  font-weight: 400;
   /* color: rgba(255, 255, 255, 0.92); */
   margin: 0;
   text-align: left;
   line-height: 1.15;
-font-size: 1rem;
+font-size: var(--book-title-size, 1rem);
   letter-spacing: 0.01em;
   text-overflow: ellipsis;
   color: var(--text-secondary);
@@ -323,7 +325,7 @@ font-size: 1rem;
 
 .book-cover__subtitle {
   margin-top: var(--value-6);
-  font-size: 0.8rem;
+  font-size: var(--book-subtitle-size, 0.8rem);
   color: rgba(255, 255, 255, 0.75);
   letter-spacing: 0.12em;
   text-align: left;
