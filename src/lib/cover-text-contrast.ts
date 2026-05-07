@@ -67,20 +67,20 @@ function collectHexColors(css: string): string[] {
 }
 
 /**
- * Approximate luminance for each built-in cover gradient (`book.css` / `--gradient-*`).
- * Values are averages of dominant linear-gradient stops (good enough for text polarity).
+ * Luminance for each built-in cover slot (`book.css` / `--gradient-*` solids).
+ * Kept in sync with the hex values there for title/subtitle contrast.
  */
 export const COVER_GRADIENT_LUMINANCE: Record<CoverGradientId, number> = {
-  g1: (relativeLuminance255(248, 250, 252) + relativeLuminance255(241, 245, 249)) / 2,
-  g2: (relativeLuminance255(248, 250, 252) + relativeLuminance255(238, 246, 249)) / 2,
-  g3: (relativeLuminance255(255, 251, 247) + relativeLuminance255(245, 243, 255)) / 2,
-  g4: (relativeLuminance255(250, 245, 255) + relativeLuminance255(241, 245, 249)) / 2,
-  g5: (relativeLuminance255(240, 249, 255) + relativeLuminance255(234, 246, 251)) / 2,
-  g6: (relativeLuminance255(250, 250, 250) + relativeLuminance255(244, 244, 245)) / 2,
-  g7: (relativeLuminance255(2, 6, 23) + relativeLuminance255(15, 23, 42)) / 2,
-  g8: (relativeLuminance255(2, 6, 23) + relativeLuminance255(11, 19, 36)) / 2,
-  g9: (relativeLuminance255(2, 6, 23) + relativeLuminance255(17, 24, 39)) / 2,
-  g10: (relativeLuminance255(255, 255, 255) + relativeLuminance255(248, 250, 252)) / 2,
+  g1: relativeLuminance255(247, 245, 242),
+  g2: relativeLuminance255(92, 111, 130),
+  g3: relativeLuminance255(196, 131, 106),
+  g4: relativeLuminance255(92, 74, 107),
+  g5: relativeLuminance255(61, 107, 92),
+  g6: relativeLuminance255(232, 230, 227),
+  g7: relativeLuminance255(26, 31, 46),
+  g8: relativeLuminance255(15, 45, 42),
+  g9: relativeLuminance255(42, 34, 53),
+  g10: relativeLuminance255(254, 253, 251),
 };
 
 const DARK_BG_THRESHOLD = 0.45;

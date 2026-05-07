@@ -1,5 +1,5 @@
 /**
- * Book cover presets live in `app/book.css` as `--book-cover-gradient-*`.
+ * Book cover color slots live in `app/book.css` as `--book-cover-gradient-*` (solid fills).
  * Use these helpers so drafts/localStorage and TS stay aligned with CSS.
  */
 export const COVER_GRADIENT_IDS = [

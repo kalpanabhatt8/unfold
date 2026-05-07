@@ -1,64 +1,33 @@
 /* =========================================================
-   MINIMAL GRADIENT SYSTEM (Slot-based, Notion-style)
+   BOOK COVER SOLIDS (slot palette; `--book-cover-gradient-g*` names unchanged)
    ========================================================= */
 
    :root {
-    /* ---------- Base Gradient Definitions (implementation layer) ---------- */
-  
-    --gradient-1:
-      radial-gradient(circle at 20% 20%, rgba(0,0,0,0.04) 0%, transparent 60%),
-      linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
-  
-    --gradient-2:
-      radial-gradient(circle at 30% 25%, rgba(121,185,197,0.18) 0%, transparent 65%),
-      linear-gradient(180deg, #f8fafc 0%, #eef6f9 100%);
-  
-    --gradient-3:
-      radial-gradient(circle at 25% 30%, rgba(255,220,180,0.16) 0%, transparent 70%),
-      linear-gradient(180deg, #fffbf7 0%, #f5f3ff 100%);
-  
-    --gradient-4:
-      radial-gradient(circle at 70% 25%, rgba(200,180,255,0.18) 0%, transparent 65%),
-      linear-gradient(180deg, #faf5ff 0%, #f1f5f9 100%);
-  
-    --gradient-5:
-      radial-gradient(circle at 35% 30%, rgba(125,211,252,0.18) 0%, transparent 65%),
-      linear-gradient(180deg, #f0f9ff 0%, #eaf6fb 100%);
-  
-    --gradient-6:
-      linear-gradient(180deg, #fafafa 0%, #f4f4f5 100%);
-  
-    --gradient-7:
-      radial-gradient(circle at 30% 20%, rgba(255,255,255,0.05) 0%, transparent 60%),
-      linear-gradient(180deg, #020617 0%, #0f172a 100%);
-  
-    --gradient-8:
-      radial-gradient(circle at 40% 30%, rgba(56,189,248,0.12) 0%, transparent 65%),
-      linear-gradient(180deg, #020617 0%, #0b1324 100%);
-  
-    --gradient-9:
-      radial-gradient(circle at 30% 25%, rgba(255,200,150,0.1) 0%, transparent 65%),
-      linear-gradient(180deg, #020617 0%, #111827 100%);
-  
-    --gradient-10:
-      linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-  
-  
-    /* ---------- Stable Public API (DO NOT CHANGE) ---------- */
-  
+    /* Implementation layer: flat fills (also referenced if needed elsewhere). */
+    --gradient-1: #f7f5f2;
+    --gradient-2: #5c6f82;
+    --gradient-3: #c4836a;
+    --gradient-4: #5c4a6b;
+    --gradient-5: #3d6b5c;
+    --gradient-6: #e8e6e3;
+    --gradient-7: #1a1f2e;
+    --gradient-8: #0f2d2a;
+    --gradient-9: #2a2235;
+    --gradient-10: #fefdfb;
+
+    /* ---------- Stable public API ---------- */
+
     --book-cover-gradient-g1: var(--gradient-1);
     --book-cover-gradient-g2: var(--gradient-2);
     --book-cover-gradient-g3: var(--gradient-3);
     --book-cover-gradient-g4: var(--gradient-4);
     --book-cover-gradient-g5: var(--gradient-5);
-  
+
     --book-cover-gradient-g6: var(--gradient-6);
     --book-cover-gradient-g7: var(--gradient-7);
     --book-cover-gradient-g8: var(--gradient-8);
     --book-cover-gradient-g9: var(--gradient-9);
     --book-cover-gradient-g10: var(--gradient-10);
-  
-  
   }
 
 .book-cover-stack {
