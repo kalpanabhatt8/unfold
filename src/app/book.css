@@ -4,16 +4,16 @@
 
    :root {
     /* Implementation layer: flat fills (also referenced if needed elsewhere). */
-    --gradient-1: #f7f5f2;
-    --gradient-2: #5c6f82;
-    --gradient-3: #c4836a;
-    --gradient-4: #5c4a6b;
-    --gradient-5: #3d6b5c;
-    --gradient-6: #e8e6e3;
-    --gradient-7: #1a1f2e;
-    --gradient-8: #0f2d2a;
-    --gradient-9: #2a2235;
-    --gradient-10: #fefdfb;
+    --gradient-1: #f6dbb2;
+    --gradient-2: #c5d4e3;
+    --gradient-3: #e6beb5;
+    --gradient-4: #dcd2ea;
+    --gradient-5: #bfd9c9;
+    --gradient-6: #ebe6df;
+    --gradient-7: #3d4555;
+    --gradient-8: #354845;
+    --gradient-9: #423d4f;
+    --gradient-10: #faf8f4;
 
     /* ---------- Stable public API ---------- */
 

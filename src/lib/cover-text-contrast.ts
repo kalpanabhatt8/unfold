@@ -71,16 +71,16 @@ function collectHexColors(css: string): string[] {
  * Kept in sync with the hex values there for title/subtitle contrast.
  */
 export const COVER_GRADIENT_LUMINANCE: Record<CoverGradientId, number> = {
-  g1: relativeLuminance255(247, 245, 242),
-  g2: relativeLuminance255(92, 111, 130),
-  g3: relativeLuminance255(196, 131, 106),
-  g4: relativeLuminance255(92, 74, 107),
-  g5: relativeLuminance255(61, 107, 92),
-  g6: relativeLuminance255(232, 230, 227),
-  g7: relativeLuminance255(26, 31, 46),
-  g8: relativeLuminance255(15, 45, 42),
-  g9: relativeLuminance255(42, 34, 53),
-  g10: relativeLuminance255(254, 253, 251),
+  g1: relativeLuminance255(246, 219, 178),
+  g2: relativeLuminance255(197, 212, 227),
+  g3: relativeLuminance255(230, 190, 181),
+  g4: relativeLuminance255(220, 210, 234),
+  g5: relativeLuminance255(191, 217, 201),
+  g6: relativeLuminance255(235, 230, 223),
+  g7: relativeLuminance255(61, 69, 85),
+  g8: relativeLuminance255(53, 72, 69),
+  g9: relativeLuminance255(66, 61, 79),
+  g10: relativeLuminance255(250, 248, 244),
 };
 
 const DARK_BG_THRESHOLD = 0.45;
