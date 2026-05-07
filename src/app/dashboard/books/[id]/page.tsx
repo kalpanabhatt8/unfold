@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import clsx from "clsx";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Palette, Trash2, Upload } from "lucide-react";
@@ -18,7 +24,15 @@ import {
 } from "@/components/ui/button-system";
 import type { BookCoverVariant } from "@/components/book-cover";
 import { bookCoverSamples, getTemplateById } from "@/data/book-templates";
-import { coverBackgroundVar } from "@/data/cover-gradients";
+import {
+  coverBackgroundVar,
+  coverGradientIdFromBackground,
+} from "@/data/cover-gradients";
+import {
+  coverOverlayTextStyles,
+  estimateBackgroundLuminance,
+  sampleCoverImageFromUrl,
+} from "@/lib/cover-text-contrast";
 import {
   DRAFTS_STORAGE_KEY,
   syncDraftsAndRecents,
@@ -46,7 +60,12 @@ type DraftPayload = RecentBook & { variant: BookCoverVariant };
 const hexToRgba = (hex: string): RgbaColor => {
   const clean = hex.replace("#", "");
   const full =
-    clean.length === 3 ? clean.split("").map((ch) => ch + ch).join("") : clean;
+    clean.length === 3
+      ? clean
+          .split("")
+          .map((ch) => ch + ch)
+          .join("")
+      : clean;
   const value = full.slice(0, 6);
   const r = Number.parseInt(value.slice(0, 2), 16) || 0;
   const g = Number.parseInt(value.slice(2, 4), 16) || 0;
@@ -57,17 +76,22 @@ const hexToRgba = (hex: string): RgbaColor => {
 const rgbaToCss = ({ r, g, b, a }: RgbaColor) =>
   `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${Math.max(
     0,
-    Math.min(1, a)
+    Math.min(1, a),
   ).toFixed(2)})`;
 
 const channelToHex = (value: number) =>
-  Math.max(0, Math.min(255, Math.round(value))).toString(16).padStart(2, "0");
+  Math.max(0, Math.min(255, Math.round(value)))
+    .toString(16)
+    .padStart(2, "0");
 
 const rgbaToHex = ({ r, g, b }: RgbaColor) =>
   `${channelToHex(r)}${channelToHex(g)}${channelToHex(b)}`.toUpperCase();
 
 const sanitizeHexInput = (value: string) =>
-  value.replace(/[^0-9a-fA-F]/g, "").slice(0, 6).toUpperCase();
+  value
+    .replace(/[^0-9a-fA-F]/g, "")
+    .slice(0, 6)
+    .toUpperCase();
 
 const cssColorToRgba = (value: string): RgbaColor | null => {
   const trimmed = value.trim();
@@ -75,7 +99,7 @@ const cssColorToRgba = (value: string): RgbaColor | null => {
   if (hexMatch) return hexToRgba(trimmed);
 
   const rgbaMatch = trimmed.match(
-    /^rgba?\(\s*([+-]?\d*\.?\d+)\s*,\s*([+-]?\d*\.?\d+)\s*,\s*([+-]?\d*\.?\d+)(?:\s*,\s*([+-]?\d*\.?\d+)\s*)?\)$/
+    /^rgba?\(\s*([+-]?\d*\.?\d+)\s*,\s*([+-]?\d*\.?\d+)\s*,\s*([+-]?\d*\.?\d+)(?:\s*,\s*([+-]?\d*\.?\d+)\s*)?\)$/,
   );
   if (!rgbaMatch) return null;
 
@@ -140,14 +164,14 @@ const BookBuilderPage = () => {
   const [subtitle, setSubtitle] = useState(base.subtitle ?? "");
   const [coverImage, setCoverImage] = useState<string | null>(null);
   const [pickerColor, setPickerColor] = useState<RgbaColor>(() =>
-    hexToRgba("#8ba9cf")
+    hexToRgba("#8ba9cf"),
   );
   const [hexInput, setHexInput] = useState("8BA9CF");
   const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
   const [background, setBackground] = useState<string>(defaultBackground);
   const [hydrated, setHydrated] = useState(false);
   const [sourceTemplateId, setSourceTemplateId] = useState<string | null>(
-    templateParam ?? null
+    templateParam ?? null,
   );
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const colorPickerRef = useRef<HTMLDivElement | null>(null);
@@ -188,13 +212,19 @@ const BookBuilderPage = () => {
 
     try {
       const raw = window.localStorage.getItem(DRAFTS_STORAGE_KEY);
-      const drafts = raw ? (JSON.parse(raw) as Record<string, DraftPayload>) : {};
+      const drafts = raw
+        ? (JSON.parse(raw) as Record<string, DraftPayload>)
+        : {};
       const existing = drafts[draftId];
 
       if (existing) {
         if (typeof existing.title === "string") setTitle(existing.title);
-        if (typeof existing.subtitle === "string") setSubtitle(existing.subtitle);
-        if (typeof existing.coverImage === "string" || existing.coverImage === null) {
+        if (typeof existing.subtitle === "string")
+          setSubtitle(existing.subtitle);
+        if (
+          typeof existing.coverImage === "string" ||
+          existing.coverImage === null
+        ) {
           setCoverImage(existing.coverImage ?? null);
         }
         if (existing.background) {
@@ -219,6 +249,44 @@ const BookBuilderPage = () => {
   }, [draftId]);
 
   const variant: BookCoverVariant = coverImage ? "image" : "solid";
+
+  const resolvedCoverGradient = useMemo(
+    () => coverGradientIdFromBackground(background),
+    [background],
+  );
+  const coverFallbackLuminance = useMemo(
+    () => estimateBackgroundLuminance(background, resolvedCoverGradient),
+    [background, resolvedCoverGradient],
+  );
+  const [coverImageRegionLum, setCoverImageRegionLum] = useState<number | null>(
+    null,
+  );
+  useEffect(() => {
+    if (variant !== "image" || !coverImage) {
+      setCoverImageRegionLum(null);
+      return;
+    }
+    let cancelled = false;
+    void sampleCoverImageFromUrl(coverImage).then((lum) => {
+      if (!cancelled) setCoverImageRegionLum(lum);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [variant, coverImage]);
+  const coverEffectiveLuminance =
+    variant === "image" && coverImageRegionLum !== null
+      ? coverImageRegionLum
+      : coverFallbackLuminance;
+  const journalHintStyle = useMemo(
+    () =>
+      coverOverlayTextStyles({
+        luminance: coverEffectiveLuminance,
+        onImage: variant === "image" && Boolean(coverImage),
+      }).hint,
+    [coverEffectiveLuminance, variant, coverImage],
+  );
+
   const colorPresets = useMemo(() => {
     const basePresets = backgroundPresets.slice(0, 4);
     const baseValues = new Set(basePresets.map((preset) => preset.value));
@@ -280,7 +348,7 @@ const BookBuilderPage = () => {
       templateParam,
       title,
       variant,
-    ]
+    ],
   );
 
   // Light debounce so every keystroke isn't writing to localStorage.
@@ -288,7 +356,7 @@ const BookBuilderPage = () => {
     if (!hydrated) return;
     const timeout = window.setTimeout(
       () => persistCurrentDraft(Date.now()),
-      250
+      250,
     );
     return () => window.clearTimeout(timeout);
   }, [hydrated, persistCurrentDraft]);
@@ -355,14 +423,18 @@ const BookBuilderPage = () => {
         aria-label={fromCanvas ? "Back to writing" : "Back to dashboard"}
         title={fromCanvas ? "Back to writing" : "Back to dashboard"}
       >
-        <ArrowLeft strokeWidth={iconStroke("sm")} size={iconPx("sm")} aria-hidden className={iconFixed} />
+        <ArrowLeft
+          strokeWidth={iconStroke("sm")}
+          size={iconPx("sm")}
+          aria-hidden
+          className={iconFixed}
+        />
         Back
       </button>
 
       <section className="mx-auto flex min-h-screen w-full max-w-3xl flex-col items-center justify-center gap-6 px-6 py-24">
         {/* —— Live preview ——————————————————————————————————————————— */}
         <div className="flex w-full max-w-md flex-col items-center gap-1.5">
-       
           {/* <input
             type="text"
             value={subtitle}
@@ -373,7 +445,7 @@ const BookBuilderPage = () => {
             aria-label="Book subtitle"
           /> */}
         </div>
-        <div className="flex w-full max-w-md flex-col items-center gap-2.5 mb-4">
+        <div className="flex w-full max-w-md flex-col items-center gap-3 mb-4">
           <button
             type="button"
             onClick={handlePrimary}
@@ -390,29 +462,37 @@ const BookBuilderPage = () => {
               className="h-full w-full"
               style={{ background }}
             />
-            <span
+            {/* <span
               aria-hidden
-              className="pointer-events-none absolute inset-x-2 bottom-4 z-[40] text-center text-xs leading-none tracking-[0.04em] text-white/50 drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)]"
+              className="pointer-events-none absolute inset-x-2 bottom-4 z-[40] text-center text-xs leading-none tracking-[0.04em]"
+              style={journalHintStyle}
             >
-              Click to open journal
-            </span>
+               Click to open canvas
+            </span> */}
           </button>
+          <span
+            aria-hidden
+            className="pointer-events-none text-center text-xs leading-none tracking-[0.04em]"
+            style={journalHintStyle}
+          >
+            Click to open canvas
+          </span>
         </div>
         <input
-            type="text"
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            size={Math.max(title.length, 15)}
-            placeholder="Untitled book"
-            autoFocus={shouldAutoFocusTitle}
-            className="w-auto bg-[var(--gray-75)] rounded-md p-2 text-center text-[1.6rem] font-medium leading-tight tracking-[-0.01em] text-[var(--text-primary)] placeholder:text-black/35 outline-none"
-            style={{
-              fontFamily:
-                "var(--font-bricolage), var(--font-manrope), system-ui, sans-serif",
-            }}
-            spellCheck={false}
-            aria-label="Book title"
-          />
+          type="text"
+          value={title}
+          onChange={(event) => setTitle(event.target.value)}
+          size={Math.max(title.length, 15)}
+          placeholder="Untitled book"
+          autoFocus={shouldAutoFocusTitle}
+          className="w-auto bg-[var(--gray-75)] rounded-md p-2 text-center text-[1.6rem] font-medium leading-tight tracking-[-0.01em] text-[var(--text-primary)] placeholder:text-black/35 outline-none"
+          style={{
+            fontFamily:
+              "var(--font-bricolage), var(--font-manrope), system-ui, sans-serif",
+          }}
+          spellCheck={false}
+          aria-label="Book title"
+        />
 
         {/* —— Inline title / subtitle —————————————————————————————————
              Inputs sit below the book and update it live. They look like
@@ -474,7 +554,9 @@ const BookBuilderPage = () => {
                 />
                 <div className="mt-3 flex items-center gap-2 text-[var(--text-secondary)] w-[fit-content]">
                   <div className=" flex items-center overflow-hidden rounded-sm bg-black/[0.03]">
-                    <span className="px-3 py-1.5 text-sm text-black/85">Hex</span>
+                    <span className="px-3 py-1.5 text-sm text-black/85">
+                      Hex
+                    </span>
                     <input
                       type="text"
                       value={hexInput}
@@ -538,7 +620,7 @@ const BookBuilderPage = () => {
               className="hidden"
               onChange={handleFileChange}
             />
-          
+
             {sampleImages.map((imageSrc) => {
               return (
                 <button
@@ -554,31 +636,36 @@ const BookBuilderPage = () => {
                 />
               );
             })}
-              <button
+            <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               className={`h-10 w-10 shrink-0 flex items-center justify-center border-none transition ${btnState.neutral} ${btnState.hover} ${btnState.active}`}
               aria-label="Upload cover photo"
               title="Upload cover photo"
             >
-              <Upload strokeWidth={iconStroke("md")} size={iconPx("md")} aria-hidden className={iconFixed} />
+              <Upload
+                strokeWidth={iconStroke("md")}
+                size={iconPx("md")}
+                aria-hidden
+                className={iconFixed}
+              />
             </button>
-
-          
           </div>
           <button
-              type="button"
-              onClick={() => setCoverImage(null)}
-              className={`${btnIcon("lg")} ${btnState.default} ${btnState.hover} ${btnState.active} !rounded-[0.5rem]`}
-              aria-label="Remove cover photo"
-              title="Remove cover photo"
-            >
-              <Trash2 strokeWidth={iconStroke("md")} size={iconPx("md")} aria-hidden className={iconFixed} />
-            </button>
-
-       
+            type="button"
+            onClick={() => setCoverImage(null)}
+            className={`${btnIcon("lg")} ${btnState.default} ${btnState.hover} ${btnState.active} !rounded-[0.5rem]`}
+            aria-label="Remove cover photo"
+            title="Remove cover photo"
+          >
+            <Trash2
+              strokeWidth={iconStroke("md")}
+              size={iconPx("md")}
+              aria-hidden
+              className={iconFixed}
+            />
+          </button>
         </div>
-
       </section>
     </main>
   );

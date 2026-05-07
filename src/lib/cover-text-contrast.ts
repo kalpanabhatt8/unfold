@@ -130,6 +130,8 @@ const IMAGE_TEXT_SHADOW_DARK =
 export type CoverOverlayTextStyles = {
   title: CSSProperties;
   subtitle: CSSProperties;
+  /** Muted overlay copy (e.g. “open journal”) — same polarity as title, lower alpha. */
+  hint: CSSProperties;
 };
 
 export function coverOverlayTextStyles(opts: {
@@ -147,11 +149,13 @@ export function coverOverlayTextStyles(opts: {
     return {
       title: { color: "rgba(255,255,255,0.94)", textShadow: shadow },
       subtitle: { color: "rgba(255,255,255,0.78)", textShadow: shadow },
+      hint: { color: "rgba(255,255,255,0.5)", textShadow: shadow },
     };
   }
   return {
     title: { color: "rgba(15,23,42,0.92)", textShadow: shadow },
     subtitle: { color: "rgba(15,23,42,0.68)", textShadow: shadow },
+    hint: { color: "rgba(15,23,42,0.45)", textShadow: shadow },
   };
 }
 
