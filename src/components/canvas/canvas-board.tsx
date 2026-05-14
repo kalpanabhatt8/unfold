@@ -11,20 +11,20 @@ import React, {
 import clsx from "clsx";
 import Image from "next/image";
 import {
+  Archive,
   Columns,
   Columns3,
   ImagePlus,
-  Layers,
   List,
   ListChecks,
+  NotebookPen,
   Pilcrow,
   RectangleHorizontal,
   RotateCw,
   Square,
   Trash2,
-  Type as TypeIcon,
 } from "lucide-react";
-import { iconStrokePx } from "@/components/ui/button-system";
+import { btnIcon, iconPx, iconStroke, iconStrokePx } from "@/components/ui/button-system";
 
 /* -------------------------------------------------------------------------- */
 /*  Types                                                                     */
@@ -1318,7 +1318,7 @@ export default function CanvasBoard({
           <div
             role="group"
             aria-label="Column layout"
-            className="flex items-center rounded-lg bg-black/[0.04] p-0.5"
+            className="flex items-center rounded-lg bg-[var(--color-segment-control-surface)] p-0.5"
           >
             {(
               [
@@ -1376,38 +1376,54 @@ export default function CanvasBoard({
         </div>
       </div>
 
-      {/* Mode toggle — top-right segmented control */}
+      {/* Mode toggle — top-right segmented control (icon-only) */}
       <div
         role="group"
         aria-label="View mode"
-        className="fixed right-4 top-4 z-40 flex items-center rounded-full border border-black/[0.06] bg-white/90 p-0.5 shadow-[0_4px_16px_rgba(15,15,15,0.08)] backdrop-blur-md"
+        className="fixed right-4 top-4 z-40 rounded-lg border border-black/[0.06] p-1 bg-[var(--color-segment-control-surface)]"
       >
-        <button
-          type="button"
-          title="Text only"
-          aria-label="Text only"
-          onClick={() => setShowImages(false)}
-          className={clsx(
-            "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition",
-            !showImages ? "bg-black/85 text-white" : "text-[var(--color-canvas-toolbar-icon)]/70 hover:text-[var(--color-canvas-toolbar-icon)]"
-          )}
-        >
-          <TypeIcon size={13} strokeWidth={iconStrokePx(13)} aria-hidden />
-          Text only
-        </button>
-        <button
-          type="button"
-          title="Show images"
-          aria-label="Show images"
-          onClick={() => setShowImages(true)}
-          className={clsx(
-            "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition",
-            showImages ? "bg-black/85 text-white" : "text-[var(--color-canvas-toolbar-icon)]/70 hover:text-[var(--color-canvas-toolbar-icon)]"
-          )}
-        >
-          <Layers size={13} strokeWidth={iconStrokePx(13)} aria-hidden />
-          Show images
-        </button>
+        <div className="flex items-center p-0.5">
+          <button
+            type="button"
+            title="Text only"
+            aria-label="Text only"
+            aria-pressed={!showImages}
+            onClick={() => setShowImages(false)}
+            className={clsx(
+              btnIcon("md"),
+              "!rounded-md text-[var(--color-canvas-toolbar-icon)] transition",
+              !showImages
+                ? "bg-white shadow-sm"
+                : "bg-transparent text-[var(--color-canvas-toolbar-icon)]/70 hover:bg-black/[0.05] hover:text-[var(--color-canvas-toolbar-icon)]"
+            )}
+          >
+            <NotebookPen
+              size={iconPx("md")}
+              strokeWidth={iconStroke("md")}
+              aria-hidden
+            />
+          </button>
+          <button
+            type="button"
+            title="Show images"
+            aria-label="Show images"
+            aria-pressed={showImages}
+            onClick={() => setShowImages(true)}
+            className={clsx(
+              btnIcon("md"),
+              "!rounded-md text-[var(--color-canvas-toolbar-icon)] transition",
+              showImages
+                ? "bg-white shadow-sm"
+                : "bg-transparent text-[var(--color-canvas-toolbar-icon)]/70 hover:bg-black/[0.05] hover:text-[var(--color-canvas-toolbar-icon)]"
+            )}
+          >
+            <Archive
+              size={iconPx("md")}
+              strokeWidth={iconStroke("md")}
+              aria-hidden
+            />
+          </button>
+        </div>
       </div>
 
     </div>
