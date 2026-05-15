@@ -1,21 +1,12 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { getTemplateById } from "@/data/book-templates";
 import { coverBackgroundVar } from "@/data/cover-gradients";
 import CanvasBoard, {
   type CanvasSnapshot,
 } from "@/components/canvas/canvas-board";
-import { ArrowLeft } from "lucide-react";
-import {
-  btnRadius,
-  btnState,
-  btnText,
-  iconFixed,
-  iconPx,
-  iconStroke,
-} from "@/components/ui/button-system";
 import {
   DRAFTS_STORAGE_KEY,
   syncDraftsAndRecents,
@@ -34,7 +25,6 @@ type Draft = RecentBook;
 
 const CanvasPage = () => {
   const params = useParams<{ id: string }>();
-  const router = useRouter();
   const bookId = params?.id ?? "blank";
   const searchParams = useSearchParams();
   const templateParam = searchParams.get("template");
@@ -71,8 +61,12 @@ const CanvasPage = () => {
     };
   }, [bookId, template, templateParam]);
 
-  const [, setDraft] = useState<Draft>(baseDraft);
+  const [draft, setDraft] = useState<Draft>(baseDraft);
   const [isDraftHydrated, setIsDraftHydrated] = useState(false);
+  // The "Last opened" line in the canvas header should reflect the *previous*
+  // open — not the open that's happening right now. We capture it on mount,
+  // then write a fresh `lastOpenedAt` back to the draft for next time.
+  const [previousOpenedAt, setPreviousOpenedAt] = useState<number | null>(null);
   const draftRef = React.useRef<Draft>(baseDraft);
   const pendingSnapshotRef = React.useRef<CanvasSnapshot | null>(null);
   const isDraftHydratedRef = React.useRef(false);
@@ -87,6 +81,13 @@ const CanvasPage = () => {
         : {};
       const existing = drafts[bookId];
       const now = Date.now();
+      // Capture the previous open time *before* we overwrite it, so the
+      // header can render "Last opened 2d ago" instead of "just now".
+      setPreviousOpenedAt(
+        typeof existing?.lastOpenedAt === "number"
+          ? existing.lastOpenedAt
+          : null
+      );
       // Reaching the canvas page is the moment a book "becomes real" for the
       // dashboard's Recents list; flip the flag here so customization-only
       // drafts stay hidden until the user actually opens them.
@@ -94,6 +95,7 @@ const CanvasPage = () => {
         ...baseDraft,
         ...(existing ?? {}),
         canvasOpened: true,
+        lastOpenedAt: now,
         updatedAt: now,
       };
       const updatedDrafts: Record<string, Draft> = {
@@ -177,6 +179,21 @@ const CanvasPage = () => {
     [persistDraft]
   );
 
+  // Milestone save handler — fires on the 30s autosave tick and on manual
+  // save. This is the seam for AI title generation: read the latest snapshot,
+  // ship the writing-column text to the title model, and persist the result
+  // back to the draft. AI plumbing is not wired yet; once it lands, call it
+  // from here and merge the returned title via `persistDraft({ title })`.
+  const handleMilestoneSave = useCallback(
+    (snapshot: CanvasSnapshot) => {
+      persistDraft({}, snapshot.updatedAt);
+      // TODO(ai-title): trigger AI title generation from `snapshot.textColumns`
+      // and call persistDraft({ title }) when it resolves. Keep this silent —
+      // the product spec calls for "no confirmation dialogs — silent save".
+    },
+    [persistDraft]
+  );
+
   useEffect(() => {
     if (!isDraftHydrated || !pendingSnapshotRef.current) return;
     const snapshot = pendingSnapshotRef.current;
@@ -187,22 +204,15 @@ const CanvasPage = () => {
   const boardStorageKey = useMemo(() => `keeps-board-${bookId}`, [bookId]);
 
   return (
-    <main className="relative min-h-[100svh] w-full">
+    <main className="relative h-svh min-h-0 w-full overflow-hidden">
       <CanvasBoard
         storageKey={boardStorageKey}
         onSnapshotChange={handleSnapshotChange}
+        onSave={handleMilestoneSave}
         initialSnapshot={templateSnapshot}
+        title={draft.title}
+        previousOpenedAt={previousOpenedAt}
       />
-
-      <button
-        type="button"
-        onClick={() => router.push("/dashboard")}
-        className={`fixed left-4 top-4 z-40 px-3 ${btnRadius.pill} ${btnText("sm")} ${btnState.default} ${btnState.hover} ${btnState.active}`}
-        aria-label="Back to dashboard"
-      >
-        <ArrowLeft strokeWidth={iconStroke("sm")} size={iconPx("sm")} aria-hidden className={iconFixed} />
-        Back
-      </button>
     </main>
   );
 };

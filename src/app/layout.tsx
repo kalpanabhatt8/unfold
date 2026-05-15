@@ -4,7 +4,7 @@ import "./global.css";
 import "./book.css";
 
 // Google Fonts
-import { Bricolage_Grotesque, Manrope, Caveat } from "next/font/google";
+import { Bricolage_Grotesque, Manrope, Caveat, Lora } from "next/font/google";
 
 const bricolageGrotesque = Bricolage_Grotesque({
   subsets: ["latin"],
@@ -25,6 +25,16 @@ const caveat = Caveat({
   weight: ["400", "500", "600", "700"],
   display: "swap",
   variable: "--font-caveat",
+});
+
+// Writing-area serif used by the canvas. Defined globally so we can reference
+// it via the `--font-lora` CSS variable wherever a writing surface lives.
+const lora = Lora({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  style: ["normal", "italic"],
+  display: "swap",
+  variable: "--font-lora",
 });
 
 export const metadata: Metadata = {
@@ -61,7 +71,7 @@ export default function RootLayout({
       <html
         lang="en"
         className={`
-          ${bricolageGrotesque.variable} ${manrope.variable} ${caveat.variable}
+          ${bricolageGrotesque.variable} ${manrope.variable} ${caveat.variable} ${lora.variable}
         `}
       >
         <body suppressHydrationWarning className={`${manrope.className} font-sans`}>

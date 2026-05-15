@@ -643,3 +643,19 @@ input[type='number'] {
   -moz-appearance: textfield;
 }
 
+/* —— Canvas writing surface ————————————————————————————————————————
+   The writing textarea uses Lora for the body (the actual entries), but
+   the placeholder hint is Manrope so it reads as a calm UI label, not
+   "writing that hasn't loaded yet". Color matches the spec. */
+[data-block-element="text"] textarea::placeholder {
+  font-family: var(--font-manrope), system-ui, -apple-system, sans-serif;
+  font-size: 16px;
+  font-style: normal;
+  color: #B0ABA6;
+  opacity: 1;
+  letter-spacing: 0;
+  /* Match the textarea's line-height so the hint doesn't shift the caret
+     baseline up or down on the first keystroke. */
+  line-height: inherit;
+}
+

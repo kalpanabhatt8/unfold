@@ -19,6 +19,12 @@ export type RecentBook = {
    * "Recents" list only surfaces drafts where this is `true`.
    */
   canvasOpened?: boolean;
+  /**
+   * Timestamp of the last time the canvas page was opened. Distinct from
+   * `updatedAt` (which tracks any save / autosave), so the canvas header
+   * can show "Last opened 2d ago" independently of typing activity.
+   */
+  lastOpenedAt?: number;
   updatedAt: number;
 };
 
@@ -95,6 +101,13 @@ const normalizeRecentBook = (value: unknown): RecentBook | null => {
 
   if (typeof value.canvasOpened === "boolean") {
     normalized.canvasOpened = value.canvasOpened;
+  }
+
+  if (
+    typeof value.lastOpenedAt === "number" &&
+    Number.isFinite(value.lastOpenedAt)
+  ) {
+    normalized.lastOpenedAt = value.lastOpenedAt;
   }
 
   return normalized;
@@ -197,6 +210,13 @@ export const syncDraftsAndRecents = <T extends DraftLike>(
         fallback.canvasOpened = raw.canvasOpened as boolean;
       }
 
+      if (
+        typeof raw.lastOpenedAt === "number" &&
+        Number.isFinite(raw.lastOpenedAt)
+      ) {
+        fallback.lastOpenedAt = raw.lastOpenedAt as number;
+      }
+
       const normalizedBook = normalized ?? fallback;
 
       return {
@@ -233,6 +253,10 @@ export const syncDraftsAndRecents = <T extends DraftLike>(
           canvasOpened:
             typeof normalizedBook.canvasOpened === "boolean"
               ? normalizedBook.canvasOpened
+              : undefined,
+          lastOpenedAt:
+            typeof normalizedBook.lastOpenedAt === "number"
+              ? normalizedBook.lastOpenedAt
               : undefined,
         } as T,
         normalized: normalizedBook,
