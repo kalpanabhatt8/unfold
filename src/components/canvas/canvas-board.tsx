@@ -450,42 +450,6 @@ const fileToDataUrl = (file: File): Promise<string> =>
     reader.readAsDataURL(file);
   });
 
-/** Max horizontal space the blob may use (~72px sprite + margin). */
-const BLOB_LAYOUT_WIDTH = 88;
-
-/** Vertical offset so the blob sits above the caret (writing coordinates). */
-const BLOB_ABOVE_CURSOR_OFFSET = 32;
-
-/**
- * Caret position in viewport space from the active DOM selection, when the
- * browser exposes a usable range (e.g. contenteditable). For `<textarea>` this
- * is often empty — callers should fall back to `caretOffsetInTextarea`.
- */
-function getCaretClientRectFromWindowSelection(): DOMRect | null {
-  const sel = window.getSelection();
-  if (!sel || sel.rangeCount < 1) return null;
-  try {
-    const base = sel.getRangeAt(0);
-    const range = base.cloneRange();
-    if (!range.collapsed && sel.focusNode) {
-      range.setStart(sel.focusNode, sel.focusOffset);
-      range.setEnd(sel.focusNode, sel.focusOffset);
-    }
-    let rect = range.getBoundingClientRect();
-    if (rect.width === 0 && rect.height === 0) {
-      const rects = range.getClientRects();
-      if (rects.length > 0) {
-        rect = rects[rects.length - 1]!;
-      }
-    }
-    if (!Number.isFinite(rect.left) || !Number.isFinite(rect.top)) return null;
-    if (rect.width === 0 && rect.height === 0) return null;
-    return rect;
-  } catch {
-    return null;
-  }
-}
-
 /**
  * Approximate x-offset (px) from the textarea's left border to `index`,
  * using canvas measureText — **fallback only** when mirror layout fails
@@ -543,45 +507,6 @@ const caretOffsetInTextarea = (
     top: approxCaretYInTextarea(el, index),
   };
 };
-
-/**
- * Viewport-space rect for the caret in a focused textarea: prefer
- * `getSelection().getRangeAt(0).getBoundingClientRect()` when it matches the
- * field; otherwise mirror-based `caretOffsetInTextarea` (handles soft-wrap).
- */
-function getTextareaCaretClientRect(el: HTMLTextAreaElement): DOMRect | null {
-  const taRect = el.getBoundingClientRect();
-  if (taRect.width < 2 || taRect.height < 2) return null;
-
-  if (document.activeElement === el) {
-    const selRect = getCaretClientRectFromWindowSelection();
-    if (selRect) {
-      const pad = 4;
-      const overlapsY =
-        selRect.bottom >= taRect.top - pad && selRect.top <= taRect.bottom + pad;
-      const overlapsX =
-        selRect.right >= taRect.left - pad && selRect.left <= taRect.right + pad;
-      if (overlapsX && overlapsY) {
-        return selRect;
-      }
-    }
-  }
-
-  const idx = (() => {
-    const a = el.selectionStart ?? 0;
-    const b = el.selectionEnd ?? 0;
-    if (a === b) return a;
-    return el.selectionDirection === "backward" ? Math.min(a, b) : Math.max(a, b);
-  })();
-  const { left: relX, top: relY } = caretOffsetInTextarea(el, idx);
-  const cs = window.getComputedStyle(el);
-  const lhRaw = parseFloat(cs.lineHeight);
-  const lineHeight =
-    Number.isFinite(lhRaw) && lhRaw > 0
-      ? lhRaw
-      : (parseFloat(cs.fontSize) || 16) * WRITING_LINE_HEIGHT;
-  return new DOMRect(taRect.left + relX, taRect.top + relY, 0, Math.max(1, lineHeight));
-}
 
 /* -------------------------------------------------------------------------- */
 /*  Top-level component                                                       */
@@ -663,6 +588,8 @@ function CanvasBoardInner(
   const writingRef = useRef<HTMLDivElement | null>(null);
   /** Scrollport for the writing column only — page / left rail stay fixed. */
   const writingScrollRef = useRef<HTMLDivElement | null>(null);
+  /** The actual centered text column; used to anchor the blob to its right edge. */
+  const writingColumnRef = useRef<HTMLDivElement | null>(null);
   const imageFileInputRef = useRef<HTMLInputElement | null>(null);
   const textRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
   const hydratedRef = useRef(false);
@@ -673,8 +600,33 @@ function CanvasBoardInner(
 
   /* ---------------------------- Blob companion ---------------------------- */
 
+  // The companion lives just to the right of the writing column, vertically
+  // centred. We measure the column's right edge so the position is correct
+  // at every viewport width without any CSS-vs-actual-width drift.
   const blob = useBlobState();
-  const [blobPos, setBlobPos] = useState<{ x: number; y: number } | null>(null);
+  const [blobLeft, setBlobLeft] = useState<number | null>(null);
+
+  useLayoutEffect(() => {
+    const measure = () => {
+      const col = writingColumnRef.current;
+      const writing = writingRef.current;
+      if (!col || !writing) return;
+      const colRect = col.getBoundingClientRect();
+      const writingRect = writing.getBoundingClientRect();
+      // 24px breathing room between the text column and the character.
+      setBlobLeft(colRect.right - writingRect.left + 24);
+    };
+
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (writingRef.current) ro.observe(writingRef.current);
+    if (writingColumnRef.current) ro.observe(writingColumnRef.current);
+    window.addEventListener("resize", measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, []);
 
   /* ------------------------------ Hydration ------------------------------ */
 
@@ -1112,63 +1064,6 @@ function CanvasBoardInner(
     return () => window.removeEventListener("pointerdown", hide);
   }, []);
 
-  /* ----------------------- Blob position tracking ------------------------- */
-
-  // Recompute the blob from the real caret rect (`getSelection().getRangeAt(0)`
-  // when available, else mirror-based caret offset). Also on keyup, scroll,
-  // and resize so wrapped lines and all blocks stay aligned.
-  useLayoutEffect(() => {
-    const recompute = () => {
-      const id = activeBlockId;
-      const el = id ? textRefs.current[id] : null;
-      const writing = writingRef.current;
-      if (!el || !writing) {
-        setBlobPos(null);
-        return;
-      }
-      const writingRect = writing.getBoundingClientRect();
-      const caretRect = getTextareaCaretClientRect(el);
-      if (!caretRect) {
-        setBlobPos(null);
-        return;
-      }
-
-      const x = caretRect.left - writingRect.left;
-      const y = caretRect.top - writingRect.top - BLOB_ABOVE_CURSOR_OFFSET;
-
-      const clampedX = clamp(x, 8, Math.max(8, writingRect.width - BLOB_LAYOUT_WIDTH));
-      const clampedY = Math.max(-8, y);
-      setBlobPos({ x: clampedX, y: clampedY });
-    };
-
-    const onKeyUp = (e: KeyboardEvent) => {
-      const t = e.target;
-      const curId = activeBlockId;
-      if (
-        t instanceof HTMLTextAreaElement &&
-        curId &&
-        textRefs.current[curId] === t
-      ) {
-        recompute();
-      }
-    };
-
-    recompute();
-    window.addEventListener("scroll", recompute, true);
-    window.addEventListener("resize", recompute);
-    window.addEventListener("keyup", onKeyUp, true);
-    document.addEventListener("selectionchange", recompute);
-    const scrollRoot = writingScrollRef.current;
-    scrollRoot?.addEventListener("scroll", recompute, { passive: true });
-    return () => {
-      window.removeEventListener("scroll", recompute, true);
-      window.removeEventListener("resize", recompute);
-      window.removeEventListener("keyup", onKeyUp, true);
-      document.removeEventListener("selectionchange", recompute);
-      scrollRoot?.removeEventListener("scroll", recompute);
-    };
-  }, [activeBlockId, textColumns, columns]);
-
   /* ---------------------------- Surface gestures -------------------------- */
 
   const onWritingPointerDown = useCallback(
@@ -1243,6 +1138,7 @@ function CanvasBoardInner(
           />
 
           <div
+            ref={writingColumnRef}
             className="relative mx-auto flex w-full"
             style={{ gap: TEXT_COLUMN_GAP, maxWidth: WRITING_WIDTH_CSS[columns] }}
           >
@@ -1368,19 +1264,26 @@ function CanvasBoardInner(
           </div>
         </div>
 
-        {/* —————————— Blob companion (fixed to writing column, not the scroll body) —————————— */}
-        {blobPos && (
+        {/* —————————— Companion (right of writing column, vertically centred) ——————————
+            Sits in the writingRef container (which doesn't scroll) so the
+            character stays put as the user scrolls through the page.
+            The horizontal position is measured against the column's right
+            edge, so it follows resize without any CSS-vs-actual drift. */}
+        {blobLeft !== null && (
           <div
-            aria-hidden
-            className="pointer-events-none absolute z-0"
+            className="pointer-events-auto absolute z-30"
             style={{
-              left: blobPos.x,
-              top: blobPos.y,
-              transition:
-                "top 220ms cubic-bezier(.4,.0,.2,1), left 140ms ease-out",
+              left: blobLeft,
+              top: "50%",
+              transform: "translateY(-50%)",
+              transition: "left 0.15s ease-out, top 0.15s ease-out",
             }}
           >
-            <BlobCharacter state={blob.state} />
+            <BlobCharacter
+              state={blob.state}
+              hidden={blob.hidden}
+              onWakeUp={blob.onWakeUp}
+            />
           </div>
         )}
       </div>
@@ -1474,7 +1377,10 @@ function CanvasBoardInner(
         type="button"
         title="Save"
         aria-label="Save"
-        onClick={triggerMilestoneSave}
+        onClick={() => {
+          triggerMilestoneSave();
+          blob.onSave();
+        }}
         className="fixed right-4 top-4 z-40 inline-flex h-9 w-9 items-center justify-center rounded-full border border-black/[0.06] bg-white/85 text-[#615E5E] shadow-[0_4px_16px_rgba(15,15,15,0.06)] backdrop-blur-md transition hover:bg-white hover:text-[#2C2C2A]"
       >
         <Save size={16} strokeWidth={iconStrokePx(16)} />

@@ -1,545 +1,634 @@
 "use client";
 
 /**
- * BlobCharacter — small companion above the cursor in the writing column.
+ * BlobCharacter — soft mochi-style companion for the writing canvas.
  *
- * Visual language (UI):
- *   - Soft bean silhouette, warm radial “paper” face, light drop shadow.
- *   - Refined eyes with highlights; calm mouth curves per state.
- *   - Optional blush (wave), mini pencil (scribble), path-based sleep Zs.
+ * One cohesive SVG entity. The body (squishy head + two stub arms),
+ * sparkly eyes, blush, and tiny mouth stay identical across every state;
+ * only the eye shape, mouth shape, eyebrow, arm rotation, and body tilt
+ * change. Purposely cute: big highlights, pink cheeks, gentle smile.
  *
- * Five states (driven by `state`) — motion unchanged from spec:
- *   - "wave"     → bounces in, waves once.
- *   - "scribble" → tiny walk-cycle while the user types.
- *   - "looking"  → curious head tilt + eyes scan (3s+ pause).
- *   - "sleep"    → slow breathing, closed eyes, floating Zz (30s+ idle).
- *   - "goodbye"  → wave + hop + fade out on close.
+ * States:
+ *   - "idle"     → relaxed, gentle 3px bob, soft smile.
+ *   - "typing"   → squinted eyes, focused little line of a mouth, taps.
+ *   - "sleeping" → closed eyes + tiny "o" + floating Z's; tilts 12° right.
+ *   - "waking"   → snap-open wide eyes + surprised "o" + arms up.
+ *   - "saving"   → happy squint + big smile + arms up, then fades.
  *
- * Sizing: default 72px (viewBox 40×40; arms/Zz may bleed). Swap the SVG
- * body for Lottie later; keep props and call sites the same.
+ * Pure SVG + CSS animation — no external libraries, no Lottie.
  */
 
 import React from "react";
 import clsx from "clsx";
 
-export type BlobState =
-  | "wave"
-  | "scribble"
-  | "looking"
-  | "sleep"
-  | "goodbye";
+export type BlobState = "idle" | "typing" | "sleeping" | "waking" | "saving";
 
 export type BlobCharacterProps = {
   state: BlobState;
-  /** Visual size in px (renders in a 40×40 viewBox). */
+  /** Visual size in px (renders inside a 60×60 viewBox so arms/Z's bleed). */
   size?: number;
   className?: string;
-  /** Optional ink color override. Defaults to a warm graphite. */
-  color?: string;
-  /** Optional paper-tint fill. Set to "transparent" for pure outline. */
-  fill?: string;
   /** Hide entirely without unmounting (smooth state transitions). */
   hidden?: boolean;
+  /**
+   * Called when the user hovers the character while it is sleeping.
+   * Consumers wire this to `useBlobState().onWakeUp`.
+   */
+  onWakeUp?: () => void;
 };
 
-const DEFAULT_INK = "#2C2C2A";
-const DEFAULT_PAPER = "rgba(255, 252, 246, 0.85)";
+const INK = "#2C2C2A";
+const PAPER = "#FBF6EE";
+const HIGHLIGHT = "#FFFFFF";
+const BLUSH = "#F4A8A0";
+
+/* -------------------------------------------------------------------------- */
+/*  Visual primitives                                                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Soft squishy head — slightly chubbier than a perfect ellipse, with a
+ * touch of asymmetry so it never reads as a stamped-out circle.
+ * Centered around (30, 30) — width ~40, height ~36.
+ */
+const HEAD_PATH =
+  "M 10.0 29.0 \
+   C 9.6 18.2 16.8 11.4 30.4 11.2 \
+   C 44.0 11.6 50.6 18.6 50.0 30.6 \
+   C 49.6 41.8 43.0 48.6 29.6 48.6 \
+   C 16.0 48.2 9.4 41.8 10.0 29.0 Z";
+
+/** Eye + face geometry. */
+const EYE_RX = 5;
+const EYE_RY = 6.5;
+const LEFT_EYE_CX = 24;
+const RIGHT_EYE_CX = 36;
+const EYE_CY = 29;
+
+const LEFT_BLUSH_CX = 16.5;
+const RIGHT_BLUSH_CX = 43.5;
+const BLUSH_CY = 36.5;
+
+/* -------------------------------------------------------------------------- */
+/*  Eye, eyebrow, mouth                                                       */
+/* -------------------------------------------------------------------------- */
+
+function Eye({ cx, state }: { cx: number; state: BlobState }) {
+  if (state === "sleeping") {
+    return (
+      <path
+        d={`M ${cx - 5} ${EYE_CY} q 5 1.8 10 0`}
+        fill="none"
+        stroke={INK}
+        strokeWidth={1.6}
+        strokeLinecap="round"
+      />
+    );
+  }
+  if (state === "saving") {
+    return (
+      <path
+        d={`M ${cx - 5} ${EYE_CY + 1} q 5 -3.6 10 0`}
+        fill="none"
+        stroke={INK}
+        strokeWidth={1.6}
+        strokeLinecap="round"
+      />
+    );
+  }
+
+  // Idle / typing / waking — animated oval with sparkle highlights.
+  return (
+    <g
+      className={`blob-eye blob-eye--${state}`}
+      style={{ transformOrigin: `${cx}px ${EYE_CY}px` }}
+    >
+      <ellipse cx={cx} cy={EYE_CY} rx={EYE_RX} ry={EYE_RY} fill={INK} />
+      {/* Big main shimmer — top-right. */}
+      <ellipse
+        cx={cx + 1.6}
+        cy={EYE_CY - 2.6}
+        rx={1.7}
+        ry={2.1}
+        fill={HIGHLIGHT}
+      />
+      {/* Tiny secondary sparkle — bottom-left. */}
+      <circle
+        cx={cx - 1.6}
+        cy={EYE_CY + 2.4}
+        r={0.85}
+        fill={HIGHLIGHT}
+        opacity={0.75}
+      />
+    </g>
+  );
+}
+
+function Eyebrow({ state }: { state: BlobState }) {
+  let d: string;
+  switch (state) {
+    case "typing":
+      d = "M 19.5 17.4 Q 30 19.4 40.5 17.4";
+      break;
+    case "sleeping":
+      d = "M 19.8 16.0 Q 30 14.4 40.2 16.0";
+      break;
+    case "waking":
+      d = "M 19.5 12.4 Q 30 9.4 40.5 12.4";
+      break;
+    case "saving":
+      d = "M 19.5 14.6 Q 30 11.6 40.5 14.6";
+      break;
+    case "idle":
+    default:
+      d = "M 19.8 17.4 Q 30 15.4 40.2 17.4";
+      break;
+  }
+  return (
+    <path
+      className="blob-eyebrow"
+      d={d}
+      fill="none"
+      stroke={INK}
+      strokeWidth={1.4}
+      strokeLinecap="round"
+      opacity={0.85}
+    />
+  );
+}
+
+function Mouth({ state }: { state: BlobState }) {
+  // Sleeping & waking — small open mouth (a tiny ink dot/oval).
+  if (state === "sleeping") {
+    return <ellipse cx={30} cy={39.4} rx={0.85} ry={1.3} fill={INK} />;
+  }
+  if (state === "waking") {
+    return <ellipse cx={30} cy={40} rx={1.6} ry={2.1} fill={INK} />;
+  }
+
+  // Saving — big happy smile.
+  if (state === "saving") {
+    return (
+      <path
+        d="M 26.6 38.2 Q 30 41.6 33.4 38.2"
+        fill="none"
+        stroke={INK}
+        strokeWidth={1.4}
+        strokeLinecap="round"
+      />
+    );
+  }
+
+  // Typing — focused tiny line.
+  if (state === "typing") {
+    return (
+      <path
+        d="M 28.4 39.4 L 31.6 39.4"
+        stroke={INK}
+        strokeWidth={1.4}
+        strokeLinecap="round"
+      />
+    );
+  }
+
+  // Idle — soft little smile.
+  return (
+    <path
+      d="M 28.0 39.0 Q 30 40.4 32.0 39.0"
+      fill="none"
+      stroke={INK}
+      strokeWidth={1.3}
+      strokeLinecap="round"
+    />
+  );
+}
+
+/** Permanent rosy cheeks. Subtle — adds warmth without becoming a clown. */
+function Blush() {
+  return (
+    <g opacity={0.55}>
+      <ellipse
+        cx={LEFT_BLUSH_CX}
+        cy={BLUSH_CY}
+        rx={3.2}
+        ry={2.1}
+        fill={BLUSH}
+      />
+      <ellipse
+        cx={RIGHT_BLUSH_CX}
+        cy={BLUSH_CY}
+        rx={3.2}
+        ry={2.1}
+        fill={BLUSH}
+      />
+    </g>
+  );
+}
+
+function SleepZs() {
+  return (
+    <g
+      className="blob-zzz"
+      fill={INK}
+      stroke="none"
+      style={{
+        fontFamily:
+          "var(--font-manrope), system-ui, -apple-system, sans-serif",
+        fontWeight: 700,
+      }}
+    >
+      <text className="blob-z blob-z-1" x={49} y={20} fontSize={8}>
+        z
+      </text>
+      <text className="blob-z blob-z-2" x={53} y={13} fontSize={6}>
+        z
+      </text>
+      <text className="blob-z blob-z-3" x={56} y={8} fontSize={4}>
+        z
+      </text>
+    </g>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  BlobCharacter                                                              */
+/* -------------------------------------------------------------------------- */
 
 export default function BlobCharacter({
   state,
-  size = 72,
+  size = 76,
   className,
-  color = DEFAULT_INK,
-  fill = DEFAULT_PAPER,
   hidden = false,
+  onWakeUp,
 }: BlobCharacterProps) {
-  const uid = React.useId().replace(/:/g, "_");
-  const faceGradId = `blob-face-${uid}`;
-  const softShadowId = `blob-shadow-${uid}`;
-  const useWarmFace = fill === DEFAULT_PAPER;
-  const outlineOnly = fill === "transparent";
-
-  /** Smooth asymmetric bean — tuned for ~20×21 center. */
-  const bodyD =
-    "M12.1 20.6 \
-     C11.9 14.9, 15.6 12.0, 20.0 12.0 \
-     C24.8 12.0, 28.2 15.4, 28.1 20.2 \
-     C28.0 25.4, 24.3 28.7, 19.7 28.7 \
-     C14.9 28.7, 12.1 25.6, 12.1 20.6 Z";
-
-  const faceFill = useWarmFace ? `url(#${faceGradId})` : fill;
-  const faceFilter = outlineOnly ? undefined : `url(#${softShadowId})`;
+  const handlePointerEnter = React.useCallback(() => {
+    if (state === "sleeping") onWakeUp?.();
+  }, [state, onWakeUp]);
 
   return (
     <div
       data-blob-state={state}
       aria-hidden="true"
+      onPointerEnter={handlePointerEnter}
       className={clsx(
-        "pointer-events-none select-none",
-        "transition-opacity duration-300",
+        "select-none transition-opacity duration-300",
         hidden ? "opacity-0" : "opacity-100",
+        state === "sleeping" ? "cursor-pointer" : "cursor-default",
         className
       )}
-      style={{
-        width: size,
-        height: size,
-        transform: "translateY(-2px)",
-      }}
+      style={{ width: size, height: size }}
     >
       <svg
-        viewBox="0 0 40 40"
+        viewBox="0 0 60 60"
         width="100%"
         height="100%"
         fill="none"
-        stroke={color}
-        strokeWidth={1.15}
-        strokeLinecap="round"
-        strokeLinejoin="round"
         className="overflow-visible"
       >
-        {!outlineOnly && (
-          <defs>
-            {useWarmFace && (
-              <radialGradient
-                id={faceGradId}
-                cx="0.34"
-                cy="0.28"
-                r="0.92"
-                gradientUnits="objectBoundingBox"
-              >
-                <stop offset="0%" stopColor="#FFFCF8" />
-                <stop offset="55%" stopColor="#FAF4EB" />
-                <stop offset="100%" stopColor="#EDE4D8" />
-              </radialGradient>
-            )}
-            <filter
-              id={softShadowId}
-              x="-35%"
-              y="-35%"
-              width="170%"
-              height="170%"
-              colorInterpolationFilters="sRGB"
-            >
-              <feGaussianBlur in="SourceAlpha" stdDeviation="1.15" result="b" />
-              <feOffset dx="0" dy="1.35" in="b" result="o" />
-              <feFlood floodColor="#1a1816" floodOpacity="0.14" result="f" />
-              <feComposite in="f" in2="o" operator="in" result="sh" />
-              <feMerge>
-                <feMergeNode in="sh" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-          </defs>
-        )}
-
-        {/* Ground contact shadow */}
+        {/* Soft contact shadow under the head — a calm grounding touch. */}
         <ellipse
-          cx="20"
-          cy="33.2"
-          rx="9"
-          ry="1.15"
-          fill={color}
-          stroke="none"
-          opacity={state === "sleep" ? 0.14 : 0.08}
-          className={clsx(
-            state === "scribble" && "blob-shadow-bounce",
-            state === "sleep" && "blob-shadow-breathe"
-          )}
+          className={`blob-shadow blob-shadow--${state}`}
+          cx={30}
+          cy={51}
+          rx={14}
+          ry={1.4}
+          fill={INK}
+          opacity={0.1}
         />
 
+        {/* Body group — receives per-state tilt + bob animations. */}
         <g
-          className={clsx(
-            "blob-body",
-            state === "wave" && "blob-body-wave",
-            state === "scribble" && "blob-body-scribble",
-            state === "looking" && "blob-body-look",
-            state === "sleep" && "blob-body-sleep",
-            state === "goodbye" && "blob-body-goodbye"
-          )}
-          style={{ transformOrigin: "20px 21px" }}
-          filter={faceFilter}
+          className={`blob-body blob-body--${state}`}
+          style={{ transformOrigin: "30px 46px" }}
         >
-          <path d={bodyD} fill={outlineOnly ? "none" : faceFill} stroke="none" />
-          {!outlineOnly && (
-            <path
-              d={bodyD}
-              stroke={color}
-              strokeWidth={1.05}
-              strokeOpacity={0.22}
-              transform="translate(0.45, -0.25)"
-            />
-          )}
-          <path
-            d={bodyD}
-            fill="none"
-            stroke={color}
-            strokeWidth={outlineOnly ? 1.25 : 1.08}
+          {/* Arms — drawn before the head so the head sits on top. */}
+          <rect
+            className={`blob-arm blob-arm-left blob-arm-left--${state}`}
+            x={2.5}
+            y={26}
+            width={8}
+            height={14}
+            rx={4}
+            ry={4}
+            fill={PAPER}
+            stroke={INK}
+            strokeWidth={1.5}
+            strokeLinejoin="round"
           />
+          <rect
+            className={`blob-arm blob-arm-right blob-arm-right--${state}`}
+            x={49.5}
+            y={26}
+            width={8}
+            height={14}
+            rx={4}
+            ry={4}
+            fill={PAPER}
+            stroke={INK}
+            strokeWidth={1.5}
+            strokeLinejoin="round"
+          />
+
+          {/* Head */}
+          <path
+            d={HEAD_PATH}
+            fill={PAPER}
+            stroke={INK}
+            strokeWidth={1.5}
+            strokeLinejoin="round"
+          />
+
+          {/* Tiny tuft of hair on top — a little personality. */}
+          <path
+            d="M 28.6 11.6 Q 30 8 31.4 11.4"
+            fill="none"
+            stroke={INK}
+            strokeWidth={1.4}
+            strokeLinecap="round"
+          />
+
+          {/* Face */}
+          <Eyebrow state={state} />
+          <Eye cx={LEFT_EYE_CX} state={state} />
+          <Eye cx={RIGHT_EYE_CX} state={state} />
+          <Blush />
+          <Mouth state={state} />
         </g>
 
-        {/* Face */}
-        {state === "sleep" ? (
-          <g strokeWidth={1.05}>
-            <path d="M15.9 20.4 q 1.55 1.15 3.05 0.05" />
-            <path d="M21.0 20.4 q 1.55 1.15 3.05 0.05" />
-          </g>
-        ) : (
-          <g
-            className={clsx(
-              state === "looking" && "blob-eyes-look",
-              state === "scribble" && "blob-eyes-blink"
-            )}
-            style={{ transformOrigin: "20px 20px" }}
-          >
-            <circle cx="16.85" cy="20.15" r="1.15" fill={color} stroke="none" />
-            <circle
-              cx="17.35"
-              cy="19.75"
-              r="0.38"
-              fill="#FFFCFA"
-              fillOpacity={0.92}
-              stroke="none"
-            />
-            <circle cx="23.15" cy="20.15" r="1.15" fill={color} stroke="none" />
-            <circle
-              cx="23.65"
-              cy="19.75"
-              r="0.38"
-              fill="#FFFCFA"
-              fillOpacity={0.92}
-              stroke="none"
-            />
-            {state === "looking" && (
-              <>
-                <path
-                  d="M15.4 17.85 q 1.6 -0.55 2.85 -0.05"
-                  strokeWidth={0.85}
-                  strokeOpacity={0.5}
-                />
-                <path
-                  d="M21.75 17.85 q 1.6 -0.55 2.85 -0.05"
-                  strokeWidth={0.85}
-                  strokeOpacity={0.5}
-                />
-              </>
-            )}
-          </g>
-        )}
-
-        <path
-          d={
-            state === "wave"
-              ? "M17.0 23.6 Q20.0 26.4 23.0 23.6"
-              : state === "sleep"
-                ? "M18.35 24.0 q 1.65 0.45 3.3 0"
-                : "M18.2 23.75 q 1.8 1.05 3.6 0"
-          }
-          strokeWidth={state === "wave" ? 1.05 : 1.0}
-          className={clsx(state === "wave" && "blob-mouth-open")}
-          style={{ transformOrigin: "20px 24px" }}
-        />
-
-        {state === "wave" && (
-          <g opacity={0.42}>
-            <circle
-              cx="14.1"
-              cy="22.4"
-              r="1.05"
-              fill="#E8A8A0"
-              stroke="none"
-            />
-            <circle
-              cx="25.9"
-              cy="22.4"
-              r="1.05"
-              fill="#E8A8A0"
-              stroke="none"
-            />
-          </g>
-        )}
-
-        {(state === "wave" || state === "goodbye" || state === "scribble") && (
-          <path
-            d={
-              state === "scribble"
-                ? "M27.6 22.2 q 3.4 -0.75 4.5 -2.65"
-                : "M27.2 17.6 q 4.6 -1.85 6.0 -5.8"
-            }
-            strokeWidth={1.05}
-            className={clsx(
-              state === "wave" && "blob-arm-wave",
-              state === "goodbye" && "blob-arm-goodbye",
-              state === "scribble" && "blob-arm-scribble"
-            )}
-            style={{ transformOrigin: "27.5px 19.5px" }}
-          />
-        )}
-
-        {state === "sleep" && (
-          <g className="blob-zz" fill="none" stroke={color} strokeWidth={0.75}>
-            <path
-              d="M27.8 12.2 q 0.9 0.35 1.1 1.15 q -0.85 0.5 -1.0 1.35"
-              className="blob-zz-path"
-            />
-            <path
-              d="M31.2 8.4 q 0.65 0.25 0.85 0.85 q -0.6 0.35 -0.75 1.0"
-              className="blob-zz-path blob-zz-2"
-            />
-          </g>
-        )}
-
-        {state === "scribble" && (
-          <g className="blob-pencil" fill={color} stroke="none">
-            <path
-              d="M31.2 17.2 l 2.1 -2.05 l 0.55 0.55 l -2.1 2.05 z"
-              opacity={0.45}
-            />
-            <path d="M33.0 15.35 l 0.95 0.95" stroke={color} strokeWidth={0.9} />
-          </g>
-        )}
+        {state === "sleeping" && <SleepZs />}
       </svg>
 
       <style jsx>{`
-        /* ── Body motion ───────────────────────────────────────────── */
+        /* ── Body bob / tilt ─────────────────────────────────────── */
 
-        .blob-body-wave {
-          animation: blob-wave-bounce 1.2s ease-out 1 both;
+        :global(.blob-body) {
+          transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        @keyframes blob-wave-bounce {
-          0% {
-            transform: translateY(4px) scale(0.9, 0.9);
-            opacity: 0;
+
+        :global(.blob-body--idle) {
+          animation: blob-bob-idle 2s ease-in-out infinite;
+        }
+        @keyframes blob-bob-idle {
+          0%,
+          100% {
+            transform: translateY(0);
           }
-          40% {
-            transform: translateY(-2px) scale(1.05, 0.95);
+          50% {
+            transform: translateY(-3px);
+          }
+        }
+
+        :global(.blob-body--typing) {
+          animation: blob-typing-lean 0.9s ease-in-out infinite;
+        }
+        @keyframes blob-typing-lean {
+          0%,
+          100% {
+            transform: rotate(5deg) translateY(0);
+          }
+          50% {
+            transform: rotate(5deg) translateY(-1.5px);
+          }
+        }
+
+        :global(.blob-body--sleeping) {
+          animation: blob-bob-sleep 3s ease-in-out infinite;
+        }
+        @keyframes blob-bob-sleep {
+          0%,
+          100% {
+            transform: rotate(12deg) translateY(0);
+          }
+          50% {
+            transform: rotate(12deg) translateY(-4px);
+          }
+        }
+
+        :global(.blob-body--waking) {
+          animation: blob-wake 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        @keyframes blob-wake {
+          0% {
+            transform: rotate(12deg) translateY(0);
+          }
+          15% {
+            transform: rotate(0deg) translateY(-3px);
+          }
+          100% {
+            transform: rotate(0deg) translateY(0);
+          }
+        }
+
+        :global(.blob-body--saving) {
+          animation: blob-save 1.1s ease-in-out forwards;
+        }
+        @keyframes blob-save {
+          0% {
+            transform: translateY(0);
             opacity: 1;
           }
-          70% {
-            transform: translateY(0px) scale(0.98, 1.02);
-          }
-          100% {
-            transform: translateY(0px) scale(1, 1);
-          }
-        }
-
-        .blob-body-scribble {
-          animation: blob-scribble-walk 0.7s ease-in-out infinite;
-        }
-        @keyframes blob-scribble-walk {
-          0% {
-            transform: translateY(0) rotate(-2deg);
-          }
-          50% {
-            transform: translateY(-1.5px) rotate(2deg);
-          }
-          100% {
-            transform: translateY(0) rotate(-2deg);
-          }
-        }
-
-        .blob-body-look {
-          animation: blob-look-tilt 2.6s ease-in-out infinite;
-        }
-        @keyframes blob-look-tilt {
-          0%,
-          100% {
-            transform: rotate(-3deg);
-          }
-          50% {
-            transform: rotate(3deg);
-          }
-        }
-
-        .blob-body-sleep {
-          animation: blob-sleep-breathe 3.4s ease-in-out infinite;
-        }
-        @keyframes blob-sleep-breathe {
-          0%,
-          100% {
-            transform: scale(1, 1);
-          }
-          50% {
-            transform: scale(1.05, 0.95);
-          }
-        }
-
-        .blob-body-goodbye {
-          animation: blob-goodbye-hop 1.1s ease-in 1 forwards;
-        }
-        @keyframes blob-goodbye-hop {
-          0% {
-            transform: translateY(0) scale(1);
+          15% {
+            transform: translateY(-6px);
             opacity: 1;
           }
-          50% {
-            transform: translateY(-5px) scale(1.04, 0.96);
-            opacity: 0.9;
+          30% {
+            transform: translateY(0);
+            opacity: 1;
           }
-          100% {
-            transform: translateY(3px) scale(0.92, 1.05);
-            opacity: 0;
-          }
-        }
-
-        /* ── Arm motion ────────────────────────────────────────────── */
-
-        .blob-arm-wave {
-          animation: blob-arm-wave 0.55s ease-in-out 3 both;
-        }
-        .blob-arm-goodbye {
-          animation: blob-arm-wave 0.7s ease-in-out infinite;
-        }
-        @keyframes blob-arm-wave {
-          0%,
-          100% {
-            transform: rotate(-12deg);
-          }
-          50% {
-            transform: rotate(24deg);
-          }
-        }
-
-        .blob-arm-scribble {
-          animation: blob-arm-scribble 0.32s ease-in-out infinite;
-        }
-        @keyframes blob-arm-scribble {
-          0%,
-          100% {
-            transform: translateY(0) rotate(0deg);
-          }
-          50% {
-            transform: translateY(-1px) rotate(10deg);
-          }
-        }
-
-        /* ── Eyes / mouth ─────────────────────────────────────────── */
-
-        .blob-eyes-look {
-          animation: blob-eyes-scan 2.6s ease-in-out infinite;
-        }
-        @keyframes blob-eyes-scan {
-          0%,
-          100% {
-            transform: translateX(-0.6px);
-          }
-          50% {
-            transform: translateX(0.8px);
-          }
-        }
-
-        .blob-eyes-blink {
-          animation: blob-eyes-blink 2.2s ease-in-out infinite;
-        }
-        @keyframes blob-eyes-blink {
-          0%,
-          92%,
-          100% {
-            transform: scaleY(1);
-          }
-          96% {
-            transform: scaleY(0.1);
-          }
-        }
-
-        .blob-mouth-open {
-          animation: blob-mouth-grin 1.2s ease-out 1 both;
-        }
-        @keyframes blob-mouth-grin {
-          0% {
-            transform: scale(0.6, 0.6);
+          45% {
+            transform: translateY(-6px);
+            opacity: 1;
           }
           60% {
-            transform: scale(1.2, 1.1);
+            transform: translateY(0);
+            opacity: 1;
           }
           100% {
-            transform: scale(1, 1);
+            transform: translateY(0);
+            opacity: 0;
           }
         }
 
-        /* ── Sleep Zz's (path-based) ───────────────────────────────── */
+        /* ── Shadow — squashes a touch with each bob. ─────────────── */
+        :global(.blob-shadow) {
+          transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          transform-origin: 30px 51px;
+        }
+        :global(.blob-shadow--idle) {
+          animation: blob-shadow-bob 2s ease-in-out infinite;
+        }
+        :global(.blob-shadow--sleeping) {
+          animation: blob-shadow-bob 3s ease-in-out infinite;
+        }
+        @keyframes blob-shadow-bob {
+          0%,
+          100% {
+            transform: scaleX(1);
+          }
+          50% {
+            transform: scaleX(0.9);
+          }
+        }
 
-        .blob-zz :global(.blob-zz-path) {
-          animation: blob-zz-float 2.4s ease-out infinite;
-          opacity: 0;
+        /* ── Arms ────────────────────────────────────────────────── */
+
+        :global(.blob-arm) {
+          transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        .blob-zz :global(.blob-zz-path.blob-zz-2) {
-          animation-delay: 1.2s;
+
+        :global(.blob-arm-right--typing) {
+          transform-origin: 53.5px 27px;
+          animation: blob-arm-tap 0.3s ease-in-out infinite;
         }
-        @keyframes blob-zz-float {
+        @keyframes blob-arm-tap {
+          0%,
+          100% {
+            transform: rotate(0deg);
+          }
+          50% {
+            transform: rotate(-30deg);
+          }
+        }
+
+        :global(.blob-arm-left--sleeping) {
+          transform-origin: 6.5px 27px;
+          transform: rotate(-12deg) translateY(2px);
+        }
+        :global(.blob-arm-right--sleeping) {
+          transform-origin: 53.5px 27px;
+          transform: rotate(12deg) translateY(2px);
+        }
+
+        :global(.blob-arm-left--waking) {
+          transform-origin: 6.5px 27px;
+          animation: blob-arm-wake-l 0.5s ease-out forwards;
+        }
+        :global(.blob-arm-right--waking) {
+          transform-origin: 53.5px 27px;
+          animation: blob-arm-wake-r 0.5s ease-out forwards;
+        }
+        @keyframes blob-arm-wake-l {
           0% {
-            transform: translateY(2px);
-            opacity: 0;
+            transform: rotate(0deg);
           }
           25% {
-            opacity: 0.65;
+            transform: rotate(45deg);
           }
           100% {
-            transform: translateY(-6px);
+            transform: rotate(0deg);
+          }
+        }
+        @keyframes blob-arm-wake-r {
+          0% {
+            transform: rotate(0deg);
+          }
+          25% {
+            transform: rotate(-45deg);
+          }
+          100% {
+            transform: rotate(0deg);
+          }
+        }
+
+        :global(.blob-arm-left--saving) {
+          transform-origin: 6.5px 27px;
+          animation: blob-arm-save-l 1.1s ease-out forwards;
+        }
+        :global(.blob-arm-right--saving) {
+          transform-origin: 53.5px 27px;
+          animation: blob-arm-save-r 1.1s ease-out forwards;
+        }
+        @keyframes blob-arm-save-l {
+          0% {
+            transform: rotate(0deg);
+          }
+          20% {
+            transform: rotate(60deg);
+          }
+          100% {
+            transform: rotate(60deg);
+          }
+        }
+        @keyframes blob-arm-save-r {
+          0% {
+            transform: rotate(0deg);
+          }
+          20% {
+            transform: rotate(-60deg);
+          }
+          100% {
+            transform: rotate(-60deg);
+          }
+        }
+
+        /* ── Eyes ────────────────────────────────────────────────── */
+
+        :global(.blob-eye) {
+          transition: transform 0.15s ease-out;
+        }
+        :global(.blob-eye--idle) {
+          transform: scaleY(1);
+        }
+        :global(.blob-eye--typing) {
+          transform: scaleY(0.62);
+        }
+        :global(.blob-eye--waking) {
+          animation: blob-eye-wake 0.15s ease-out forwards;
+        }
+        @keyframes blob-eye-wake {
+          0% {
+            transform: scaleY(0.05);
+          }
+          100% {
+            transform: scaleY(1.23);
+          }
+        }
+
+        /* ── Sleep Z's ───────────────────────────────────────────── */
+
+        :global(.blob-z) {
+          opacity: 0;
+          animation: blob-z-float 1.8s ease-out infinite;
+        }
+        :global(.blob-z-1) {
+          animation-delay: 0s;
+        }
+        :global(.blob-z-2) {
+          animation-delay: 0.6s;
+        }
+        :global(.blob-z-3) {
+          animation-delay: 1.2s;
+        }
+        @keyframes blob-z-float {
+          0% {
             opacity: 0;
+            transform: translateY(2px);
           }
-        }
-
-        /* ── Scribble pencil ───────────────────────────────────────── */
-
-        .blob-pencil {
-          animation: blob-pencil-tick 0.32s ease-in-out infinite;
-          transform-origin: 32px 16px;
-        }
-        @keyframes blob-pencil-tick {
-          0%,
+          20% {
+            opacity: 0.8;
+          }
           100% {
-            transform: translate(0, 0) rotate(0deg);
-          }
-          50% {
-            transform: translate(0.5px, -0.5px) rotate(8deg);
-          }
-        }
-
-        /* ── Shadow ───────────────────────────────────────────────── */
-
-        .blob-shadow-bounce {
-          animation: blob-shadow-bounce 0.7s ease-in-out infinite;
-          transform-origin: 20px 33px;
-        }
-        @keyframes blob-shadow-bounce {
-          0%,
-          100% {
-            transform: scaleX(1);
-          }
-          50% {
-            transform: scaleX(0.85);
-          }
-        }
-
-        .blob-shadow-breathe {
-          animation: blob-shadow-breathe 3.4s ease-in-out infinite;
-          transform-origin: 20px 33px;
-        }
-        @keyframes blob-shadow-breathe {
-          0%,
-          100% {
-            transform: scaleX(1);
-          }
-          50% {
-            transform: scaleX(1.06);
+            opacity: 0;
+            transform: translateY(-10px);
           }
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .blob-body-wave,
-          .blob-body-scribble,
-          .blob-body-look,
-          .blob-body-sleep,
-          .blob-body-goodbye,
-          .blob-arm-wave,
-          .blob-arm-goodbye,
-          .blob-arm-scribble,
-          .blob-eyes-look,
-          .blob-eyes-blink,
-          .blob-mouth-open,
-          .blob-pencil,
-          .blob-shadow-bounce,
-          .blob-shadow-breathe {
+          :global(.blob-body),
+          :global(.blob-body--idle),
+          :global(.blob-body--typing),
+          :global(.blob-body--sleeping),
+          :global(.blob-body--waking),
+          :global(.blob-body--saving),
+          :global(.blob-shadow--idle),
+          :global(.blob-shadow--sleeping),
+          :global(.blob-arm-right--typing),
+          :global(.blob-arm-left--waking),
+          :global(.blob-arm-right--waking),
+          :global(.blob-arm-left--saving),
+          :global(.blob-arm-right--saving),
+          :global(.blob-eye--waking),
+          :global(.blob-z) {
             animation: none !important;
           }
         }
@@ -549,95 +638,133 @@ export default function BlobCharacter({
 }
 
 /* -------------------------------------------------------------------------- */
-/*  useBlobState — small state machine helper                                  */
+/*  useBlobState — small state machine helper                                 */
 /* -------------------------------------------------------------------------- */
 
 /**
- * Drives the BlobCharacter's state from typing / idle activity.
+ * Drives the BlobCharacter's state from typing / idle / save activity.
  *
- * Usage:
- *   const { state, onActivity, onClosing } = useBlobState();
- *   <BlobCharacter state={state} />
- *
- *   Call onActivity() on every keystroke in the writing area.
- *   Call onClosing() right before navigating away; it switches to "goodbye"
- *   and resolves the returned promise once the animation has visually settled.
+ * Lifecycle:
+ *   - Mount → "idle" with the gentle bob.
+ *   - onActivity()  → "typing" (auto-returns to idle ~0.9s after last call).
+ *   - 20s of inactivity → "sleeping" (with floating Zs).
+ *   - onWakeUp()    → "waking" → "idle" (only effective while sleeping).
+ *   - onSave()      → "saving" → fades out → "idle" again.
+ *   - onClosing()   → "saving" → resolves once the fade has settled.
  */
 
 export type UseBlobStateOptions = {
-  /** ms of inactivity before switching to "looking". Spec: 3000. */
-  lookAfterMs?: number;
-  /** ms of inactivity before switching to "sleep". Spec: 30000. */
+  typingRestoreMs?: number;
   sleepAfterMs?: number;
-  /** ms the opening wave is held. */
-  waveDurationMs?: number;
-  /** ms the goodbye animation is held before resolving. */
-  goodbyeDurationMs?: number;
+  wakeDurationMs?: number;
+  saveDurationMs?: number;
 };
 
 export function useBlobState(opts: UseBlobStateOptions = {}) {
   const {
-    lookAfterMs = 3000,
-    sleepAfterMs = 30000,
-    waveDurationMs = 1400,
-    goodbyeDurationMs = 1100,
+    typingRestoreMs = 900,
+    sleepAfterMs = 20_000,
+    wakeDurationMs = 800,
+    saveDurationMs = 1100,
   } = opts;
 
-  const [state, setState] = React.useState<BlobState>("wave");
-  const lookTimerRef = React.useRef<number | null>(null);
+  const [state, setState] = React.useState<BlobState>("idle");
+  const [hidden, setHidden] = React.useState(false);
+
   const sleepTimerRef = React.useRef<number | null>(null);
-  const waveTimerRef = React.useRef<number | null>(null);
+  const idleTimerRef = React.useRef<number | null>(null);
+  const wakeTimerRef = React.useRef<number | null>(null);
+  const saveTimerRef = React.useRef<number | null>(null);
   const closingRef = React.useRef(false);
+  const stateRef = React.useRef<BlobState>("idle");
 
-  const clearTimers = React.useCallback(() => {
-    if (lookTimerRef.current !== null) {
-      window.clearTimeout(lookTimerRef.current);
-      lookTimerRef.current = null;
-    }
-    if (sleepTimerRef.current !== null) {
-      window.clearTimeout(sleepTimerRef.current);
-      sleepTimerRef.current = null;
-    }
-  }, []);
-
-  // Initial wave → looking after waveDurationMs → sleep after sleepAfterMs.
   React.useEffect(() => {
-    waveTimerRef.current = window.setTimeout(() => {
-      if (closingRef.current) return;
-      setState("looking");
-      sleepTimerRef.current = window.setTimeout(() => {
-        if (!closingRef.current) setState("sleep");
-      }, Math.max(0, sleepAfterMs - lookAfterMs));
-    }, waveDurationMs);
-    return () => {
-      if (waveTimerRef.current !== null)
-        window.clearTimeout(waveTimerRef.current);
-      clearTimers();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    stateRef.current = state;
+  }, [state]);
+
+  const clearTimer = (
+    ref: React.MutableRefObject<number | null>
+  ) => {
+    if (ref.current !== null) {
+      window.clearTimeout(ref.current);
+      ref.current = null;
+    }
+  };
+
+  const clearAll = React.useCallback(() => {
+    clearTimer(sleepTimerRef);
+    clearTimer(idleTimerRef);
+    clearTimer(wakeTimerRef);
+    clearTimer(saveTimerRef);
   }, []);
+
+  const scheduleSleep = React.useCallback(() => {
+    clearTimer(sleepTimerRef);
+    sleepTimerRef.current = window.setTimeout(() => {
+      if (closingRef.current) return;
+      setState("sleeping");
+    }, sleepAfterMs);
+  }, [sleepAfterMs]);
+
+  React.useEffect(() => {
+    scheduleSleep();
+    return clearAll;
+  }, [clearAll, scheduleSleep]);
 
   const onActivity = React.useCallback(() => {
     if (closingRef.current) return;
-    clearTimers();
-    setState("scribble");
-    lookTimerRef.current = window.setTimeout(() => {
+    clearTimer(sleepTimerRef);
+    clearTimer(idleTimerRef);
+    setState("typing");
+    idleTimerRef.current = window.setTimeout(() => {
       if (closingRef.current) return;
-      setState("looking");
-      sleepTimerRef.current = window.setTimeout(() => {
-        if (!closingRef.current) setState("sleep");
-      }, Math.max(0, sleepAfterMs - lookAfterMs));
-    }, lookAfterMs);
-  }, [clearTimers, lookAfterMs, sleepAfterMs]);
+      setState("idle");
+      scheduleSleep();
+    }, typingRestoreMs);
+  }, [scheduleSleep, typingRestoreMs]);
+
+  const onWakeUp = React.useCallback(() => {
+    if (closingRef.current) return;
+    if (stateRef.current !== "sleeping") return;
+    clearTimer(wakeTimerRef);
+    setState("waking");
+    wakeTimerRef.current = window.setTimeout(() => {
+      if (closingRef.current) return;
+      setState("idle");
+      scheduleSleep();
+    }, wakeDurationMs);
+  }, [scheduleSleep, wakeDurationMs]);
+
+  const onSave = React.useCallback(() => {
+    if (closingRef.current) return;
+    clearAll();
+    setState("saving");
+    saveTimerRef.current = window.setTimeout(() => {
+      if (closingRef.current) return;
+      setState("idle");
+      scheduleSleep();
+    }, saveDurationMs);
+  }, [clearAll, saveDurationMs, scheduleSleep]);
 
   const onClosing = React.useCallback((): Promise<void> => {
     closingRef.current = true;
-    clearTimers();
-    setState("goodbye");
+    clearAll();
+    setState("saving");
     return new Promise((resolve) => {
-      window.setTimeout(resolve, goodbyeDurationMs);
+      window.setTimeout(() => {
+        setHidden(true);
+        resolve();
+      }, saveDurationMs);
     });
-  }, [clearTimers, goodbyeDurationMs]);
+  }, [clearAll, saveDurationMs]);
 
-  return { state, setState, onActivity, onClosing };
+  return {
+    state,
+    setState,
+    hidden,
+    onActivity,
+    onWakeUp,
+    onSave,
+    onClosing,
+  };
 }

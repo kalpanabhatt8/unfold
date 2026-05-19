@@ -16,11 +16,11 @@ import BlobCharacter, {
 } from "@/components/canvas/blob-character";
 
 const ALL_STATES: BlobState[] = [
-  "wave",
-  "scribble",
-  "looking",
-  "sleep",
-  "goodbye",
+  "idle",
+  "typing",
+  "sleeping",
+  "waking",
+  "saving",
 ];
 
 const PASTELS = [
@@ -35,7 +35,6 @@ export default function BlobDevPage() {
   const live = useBlobState();
   const [bg, setBg] = React.useState(PASTELS[0].value);
   const [size, setSize] = React.useState(72);
-  const [outlineOnly, setOutlineOnly] = React.useState(false);
 
   return (
     <main
@@ -51,8 +50,7 @@ export default function BlobDevPage() {
             Blob character
           </h1>
           <p className="text-sm text-black/55">
-            Sketchy 2D companion · 5 states · pure SVG · ready to swap for
-            Lottie later.
+            One cohesive SVG · 5 expression states · pure CSS animation.
           </p>
         </header>
 
@@ -68,11 +66,7 @@ export default function BlobDevPage() {
                 className="flex flex-col items-center gap-2 rounded-2xl border border-black/[0.05] bg-white/55 p-5 backdrop-blur-sm"
               >
                 <div className="flex h-24 w-24 items-center justify-center">
-                  <BlobCharacter
-                    state={s}
-                    size={size}
-                    fill={outlineOnly ? "transparent" : undefined}
-                  />
+                  <BlobCharacter state={s} size={size} />
                 </div>
                 <figcaption className="text-xs text-black/60">{s}</figcaption>
               </figure>
@@ -83,19 +77,20 @@ export default function BlobDevPage() {
         {/* ── Live state machine ──────────────────────────────────── */}
         <section className="flex flex-col gap-4">
           <h2 className="text-xs uppercase tracking-[0.18em] text-black/45">
-            Live (typing-driven)
+            Live (typing-driven · hover the sleeping character to wake)
           </h2>
           <div className="flex flex-col items-center gap-4 rounded-2xl border border-black/[0.05] bg-white/55 p-6 backdrop-blur-sm">
             <div className="flex h-24 w-24 items-center justify-center">
               <BlobCharacter
                 state={live.state}
                 size={size}
-                fill={outlineOnly ? "transparent" : undefined}
+                hidden={live.hidden}
+                onWakeUp={live.onWakeUp}
               />
             </div>
             <textarea
               onKeyDown={live.onActivity}
-              placeholder="Type here — the blob follows your activity…"
+              placeholder="Type here — character bobs while typing, sleeps after 20s…"
               rows={4}
               className="w-full max-w-xl resize-none rounded-xl border border-black/10 bg-white/70 px-4 py-3 text-[17px] leading-relaxed outline-none placeholder:text-black/35"
               style={{ fontFamily: "Lora, Georgia, serif" }}
@@ -105,10 +100,16 @@ export default function BlobDevPage() {
                 state: <code className="font-mono">{live.state}</code>
               </span>
               <button
-                onClick={() => live.setState("wave")}
+                onClick={() => live.onSave()}
                 className="rounded-full border border-black/10 bg-white/80 px-3 py-1 hover:bg-white"
               >
-                replay wave
+                trigger save
+              </button>
+              <button
+                onClick={() => live.setState("sleeping")}
+                className="rounded-full border border-black/10 bg-white/80 px-3 py-1 hover:bg-white"
+              >
+                force sleep
               </button>
               <button
                 onClick={() => live.onClosing()}
@@ -148,21 +149,12 @@ export default function BlobDevPage() {
             <input
               type="range"
               min={40}
-              max={96}
+              max={120}
               value={size}
               onChange={(e) => setSize(Number(e.target.value))}
               className="flex-1 max-w-xs"
             />
             <span className="font-mono">{size}px</span>
-          </label>
-
-          <label className="flex items-center gap-2 text-xs text-black/65">
-            <input
-              type="checkbox"
-              checked={outlineOnly}
-              onChange={(e) => setOutlineOnly(e.target.checked)}
-            />
-            outline-only (no paper fill)
           </label>
         </section>
       </div>
