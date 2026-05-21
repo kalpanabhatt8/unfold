@@ -107,8 +107,14 @@ export type CanvasSnapshot = {
 /*  Visual constants                                                          */
 /* -------------------------------------------------------------------------- */
 
-/** Single warm canvas surface — soft parchment, not rose-tinted. */
-export const CANVAS_BACKGROUND = "#FFFCF8";
+/**
+ * Writing surface — soft sage-linen tuned for the sunflower companion
+ * (golden petals #FAC666, sage leaves #6D8759, cream face #FFF8E5).
+ * Warmer and greener than generic cream; not Claude-style off-white.
+ */
+export const CANVAS_BACKGROUND = "#EFF0E8";
+/** Inset wells (sidebar, polaroid stack) — slightly deeper than the page. */
+export const CANVAS_RECESS = "#E4E7DC";
 
 /** Width allotted to the writing zone per column count (CSS values). */
 const WRITING_WIDTH_CSS: Record<ColumnLayout, string> = {
@@ -1434,8 +1440,8 @@ function ImageStack({
         style={{
           paddingLeft: 20,
           paddingRight: 20,
-          // Subtle darker recess on top of the warm canvas background.
-          background: "#FAF7F2",
+          // Subtle darker recess on top of the canvas background.
+          background: CANVAS_RECESS,
         }}
         onClick={(e) => {
           if ((e.target as HTMLElement).closest("[data-polaroid]")) return;

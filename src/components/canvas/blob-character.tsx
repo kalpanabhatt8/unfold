@@ -210,8 +210,10 @@ const SUNFLOWER_TX = 5;
 const SUNFLOWER_TY = 4;
 /** Bottom-center valley of the 50×50 petal ring (x = 25). */
 const SUNFLOWER_LEAF_ATTACH_Y = 48.32;
+/** Move both leaves on Y only. Negative = up, positive = down (try −0.5, −1, −1.5). */
+const LEAF_Y_NUDGE = -0.45;
 const LEAF_ATTACH_X = SUNFLOWER_TX + 25;
-const LEAF_ATTACH_Y = SUNFLOWER_TY + SUNFLOWER_LEAF_ATTACH_Y;
+const LEAF_ATTACH_Y = SUNFLOWER_TY + SUNFLOWER_LEAF_ATTACH_Y + LEAF_Y_NUDGE;
 /** Stem tip on each leaf SVG — top inner corner that touches the petal. */
 const LEAF_STEM_LEFT_X = 18.9881;
 const LEAF_STEM_RIGHT_X = 2.88546;
@@ -221,6 +223,45 @@ const LEAF_LEFT_X = LEAF_ATTACH_X - LEAF_STEM_LEFT_X * LEAF_SCALE;
 const LEAF_RIGHT_X = LEAF_ATTACH_X - LEAF_STEM_RIGHT_X * LEAF_SCALE;
 const LEAF_LEFT_Y = LEAF_ATTACH_Y - LEAF_STEM_Y * LEAF_SCALE;
 const LEAF_RIGHT_Y = LEAF_LEFT_Y;
+
+// ── Wake tuning (base + leaves only — eyes/mouth snap instantly) ─────────
+// Edit these, save, reload /dev/blob → sleep → hover to wake.
+/** How long the `waking` state lasts before returning to idle (ms). */
+export const WAKE_DURATION_MS = 550;
+/** Body jolt length in seconds. Higher = slower. */
+const WAKE_BODY_DURATION_S = 0.55;
+/** Body scale at the peak of the jolt (1 = full size). Try 1.02–1.05. */
+const WAKE_BODY_SCALE_PEAK = 1.025;
+/** Body lift at peak in viewBox px (negative = up). Try −1 to −2.5. */
+const WAKE_BODY_LIFT_PX = -1.25;
+/** Leaf wake length in seconds (up, then settle). */
+const WAKE_LEAF_DURATION_S = 0.58;
+/** How far leaves lift up at peak (viewBox px, negative = up). */
+const WAKE_LEAF_LIFT_PX = -2;
+/** Degrees to swing up from droop before settling (try 4–10). */
+const WAKE_LEAF_ROTATE_LIFT = 6;
+
+// ── Typing tuning (subtle float while listening — not distracting) ───────
+/** Body lean + float cycle in seconds. Higher = slower/calmer. */
+const TYPING_LEAN_DURATION_S = 1.35;
+/** Tilt while typing in degrees. Try 1–2 (was 4). */
+const TYPING_LEAN_ROTATE_DEG = 2;
+/** Vertical float at peak in viewBox px (negative = up). Try −0.5 to −1. */
+const TYPING_LEAN_FLOAT_PX = -0.75;
+/** Leaf sway cycle in seconds. */
+const TYPING_LEAF_SWAY_DURATION_S = 1.9;
+/** Leaf sway amount in degrees. Try 1.5–2.5 (was 4). */
+const TYPING_LEAF_SWAY_DEG = 2;
+
+// ── Sleep breathing (body shrink/grow loop while sleeping) ───────────────
+/** Full inhale+exhale cycle in seconds. Try 3–5. */
+const SLEEP_BREATH_DURATION_S = 4;
+/** Scale at exhale (smallest). Try 0.955–0.97. */
+const SLEEP_BREATH_SCALE_MIN = 0.962;
+/** Scale at inhale (largest). Try 0.99–1. */
+const SLEEP_BREATH_SCALE_MAX = 0.992;
+/** Lift on inhale in viewBox px (negative = up). Try 0 to −1. */
+const SLEEP_BREATH_LIFT_PX = -0.6;
 
 /* ════════════════════════════════════════════════════════════════════════════
  *  4. STATES MAP — the ONE place that decides what each state looks like.
@@ -269,7 +310,7 @@ const STATES: Record<BlobState, StateConfig> = {
     extras: "none",
   },
 
-  // 👉 SLEEPING: closed eyes, slight smile, gentle shrink + zzz on cream face.
+  // 👉 SLEEPING: closed eyes, slight smile, breathing shrink + zzz.
   sleeping: {
     eye: "closed",
     mouth: "slight-smile",
@@ -278,9 +319,9 @@ const STATES: Record<BlobState, StateConfig> = {
     extras: "zzz",
   },
 
-  // 👉 WAKING: eyes wink + big smile instantly (no mouth fade).
+  // 👉 WAKING: face snaps instantly; base/leaves do a quick shock jolt.
   waking: {
-    eye: "wink",
+    eye: "open",
     mouth: "big-smile",
     body: "wake",
     leaves: "wake",
@@ -702,29 +743,38 @@ export default function BlobCharacter({
         }
 
         :global(.blob-body[data-body="lean"]) {
-          animation: blob-lean 0.9s ease-in-out infinite;
+          animation: blob-lean ${TYPING_LEAN_DURATION_S}s ease-in-out infinite;
         }
         @keyframes blob-lean {
-          0%, 100% { transform: rotate(4deg) translateY(0); }
-          50%      { transform: rotate(4deg) translateY(-1.5px); }
+          0%, 100% {
+            transform: rotate(${TYPING_LEAN_ROTATE_DEG}deg) translateY(0);
+          }
+          50% {
+            transform: rotate(${TYPING_LEAN_ROTATE_DEG}deg) translateY(${TYPING_LEAN_FLOAT_PX}px);
+          }
         }
 
-        /* Sleeping — very subtle settle (almost still). */
+        /* Sleeping — gentle breathe (exhale small → inhale swell → repeat). */
         :global(.blob-body[data-body="shrink"]) {
-          animation: blob-shrink 5s ease-in-out infinite;
+          animation: blob-sleep-breath ${SLEEP_BREATH_DURATION_S}s ease-in-out infinite;
         }
-        @keyframes blob-shrink {
-          0%, 100% { transform: scale(0.985); }
-          50%      { transform: scale(0.97); }
+        @keyframes blob-sleep-breath {
+          0%, 100% {
+            transform: scale(${SLEEP_BREATH_SCALE_MIN}) translateY(0.4px);
+          }
+          50% {
+            transform: scale(${SLEEP_BREATH_SCALE_MAX}) translateY(${SLEEP_BREATH_LIFT_PX}px);
+          }
         }
 
-        /* Wake — subtle perk-up from sleep (between still and bouncy). */
+        /* Wake — body jolt (tune in section 3: WAKE_BODY_*). */
         :global(.blob-body[data-body="wake"]) {
-          animation: blob-wake 1s ease-in-out forwards;
+          animation: blob-wake ${WAKE_BODY_DURATION_S}s cubic-bezier(0.33, 1, 0.68, 1) forwards;
         }
         @keyframes blob-wake {
-          0%   { transform: scale(0.97) translateY(0.5px); }
-          55%  { transform: scale(1.025) translateY(-1.5px); }
+          0%   { transform: scale(0.97) translateY(1px); }
+          40%  { transform: scale(${WAKE_BODY_SCALE_PEAK}) translateY(${WAKE_BODY_LIFT_PX}px); }
+          70%  { transform: scale(0.99) translateY(0.5px); }
           100% { transform: scale(1) translateY(0); }
         }
 
@@ -780,18 +830,18 @@ export default function BlobCharacter({
         /* still → no animation (default) */
 
         :global(.blob-leaf-left[data-leaves="sway"]) {
-          animation: blob-leaf-sway-l 1.4s ease-in-out infinite;
+          animation: blob-leaf-sway-l ${TYPING_LEAF_SWAY_DURATION_S}s ease-in-out infinite;
         }
         :global(.blob-leaf-right[data-leaves="sway"]) {
-          animation: blob-leaf-sway-r 1.4s ease-in-out infinite;
+          animation: blob-leaf-sway-r ${TYPING_LEAF_SWAY_DURATION_S}s ease-in-out infinite;
         }
         @keyframes blob-leaf-sway-l {
           0%, 100% { transform: rotate(0); }
-          50%      { transform: rotate(-4deg); }
+          50%      { transform: rotate(-${TYPING_LEAF_SWAY_DEG}deg); }
         }
         @keyframes blob-leaf-sway-r {
           0%, 100% { transform: rotate(0); }
-          50%      { transform: rotate(4deg); }
+          50%      { transform: rotate(${TYPING_LEAF_SWAY_DEG}deg); }
         }
 
         :global(.blob-leaf-left[data-leaves="droop"]) {
@@ -808,19 +858,27 @@ export default function BlobCharacter({
           animation: blob-leaf-perk-r 1.1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         }
 
+        :global(.blob-leaf-left[data-leaves="wake"]),
+        :global(.blob-leaf-right[data-leaves="wake"]) {
+          transition: none;
+        }
         :global(.blob-leaf-left[data-leaves="wake"]) {
-          animation: blob-leaf-wake-l 1s ease-out forwards;
+          animation: blob-leaf-wake-l ${WAKE_LEAF_DURATION_S}s cubic-bezier(0.34, 1.15, 0.64, 1) forwards;
         }
         :global(.blob-leaf-right[data-leaves="wake"]) {
-          animation: blob-leaf-wake-r 1s ease-out forwards;
+          animation: blob-leaf-wake-r ${WAKE_LEAF_DURATION_S}s cubic-bezier(0.34, 1.15, 0.64, 1) forwards;
         }
         @keyframes blob-leaf-wake-l {
           0%   { transform: rotate(-6deg) translateY(0.6px); }
-          100% { transform: rotate(0deg); }
+          38%  { transform: rotate(${-6 + WAKE_LEAF_ROTATE_LIFT}deg) translateY(${WAKE_LEAF_LIFT_PX}px); }
+          68%  { transform: rotate(1.5deg) translateY(-0.35px); }
+          100% { transform: rotate(0deg) translateY(0); }
         }
         @keyframes blob-leaf-wake-r {
           0%   { transform: rotate(6deg) translateY(0.6px); }
-          100% { transform: rotate(0deg); }
+          38%  { transform: rotate(${6 - WAKE_LEAF_ROTATE_LIFT}deg) translateY(${WAKE_LEAF_LIFT_PX}px); }
+          68%  { transform: rotate(-1.5deg) translateY(-0.35px); }
+          100% { transform: rotate(0deg) translateY(0); }
         }
 
         @keyframes blob-leaf-perk-l {
@@ -879,15 +937,18 @@ export default function BlobCharacter({
         }
 
         :global(.blob-zzz) {
-          animation: blob-zzz-float 2.8s ease-in-out infinite;
+          animation: blob-zzz-float ${SLEEP_BREATH_DURATION_S}s ease-in-out infinite;
         }
         @keyframes blob-zzz-float {
-          0%, 100% { opacity: 0.65; }
+          0%, 100% { opacity: 0.55; }
           50%      { opacity: 1; }
         }
 
         /* Respect users who don't want motion. */
         @media (prefers-reduced-motion: reduce) {
+          :global(.blob-body[data-body="shrink"]) {
+            animation: blob-sleep-breath ${SLEEP_BREATH_DURATION_S * 2}s ease-in-out infinite;
+          }
           :global(.blob-body),
           :global(.blob-petals),
           :global(.blob-leaf-left[data-leaves="wake"]),
@@ -931,7 +992,7 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
   const {
     typingRestoreMs = 900,
     sleepAfterMs = DEFAULT_SLEEP_AFTER_MS,
-    wakeDurationMs = 1000,
+    wakeDurationMs = WAKE_DURATION_MS,
     saveDurationMs = 1100,
   } = opts;
 
