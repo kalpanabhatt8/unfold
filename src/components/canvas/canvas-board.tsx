@@ -115,8 +115,8 @@ export type CanvasSnapshot = {
  *  Cool stone            #F6F6F4 / #EEEDEA  — neutral grey, yellow pops more
  *  Warm linen            #F7F5F1 / #EFEBE6  — honey undertone (previous)
  */
-export const CANVAS_BACKGROUND = "#FFFDFA";
-export const CANVAS_RECESS = "#FFFDFA";
+export const CANVAS_BACKGROUND = "#fafafa";
+export const CANVAS_RECESS = "#fafafa";
 
 /** Width allotted to the writing zone per column count (CSS values). */
 const WRITING_WIDTH_CSS: Record<ColumnLayout, string> = {

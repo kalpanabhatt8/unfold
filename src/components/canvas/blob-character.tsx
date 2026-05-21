@@ -224,6 +224,13 @@ const LEAF_RIGHT_X = LEAF_ATTACH_X - LEAF_STEM_RIGHT_X * LEAF_SCALE;
 const LEAF_LEFT_Y = LEAF_ATTACH_Y - LEAF_STEM_Y * LEAF_SCALE;
 const LEAF_RIGHT_Y = LEAF_LEFT_Y;
 
+/** Ground shadow — sits below the leaves (not under them). */
+const SHADOW_CX = BODY_CX;
+const SHADOW_CY = 62;
+const SHADOW_RX = 14.5;
+const SHADOW_RY = 1.35;
+const SHADOW_OPACITY = 0.1;
+
 // ── Wake tuning (base + leaves only — eyes/mouth snap instantly) ─────────
 // Edit these, save, reload /dev/blob → sleep → hover to wake.
 /** How long the `waking` state lasts before returning to idle (ms). */
@@ -644,18 +651,6 @@ export default function BlobCharacter({
           </clipPath>
         </defs>
 
-        {/* Soft ground shadow (animates with idle/sleeping bob). */}
-        {/* <ellipse
-          className="blob-shadow"
-          data-body={cfg.body}
-          cx={30}
-          cy={55}
-          rx={13}
-          ry={1.2}
-          fill={INK}
-          opacity={0.08}
-        /> */}
-
         {/* Body group — bobs/tilts/bounces depending on cfg.body. */}
         <g
           className="blob-body"
@@ -693,7 +688,20 @@ export default function BlobCharacter({
           {cfg.extras === "zzz" ? <SleepZzz /> : null}
           {debugLayout ? <FaceLayoutGuides /> : null}
 
-          {/* Leaves last — stems meet at bottom-center scallop, fan down in a V. */}
+          {/* Ground shadow (paused — set SHADOW_* and uncomment to re-enable).
+          <ellipse
+            className="blob-shadow"
+            data-body={cfg.body}
+            cx={SHADOW_CX}
+            cy={SHADOW_CY}
+            rx={SHADOW_RX}
+            ry={SHADOW_RY}
+            fill={INK}
+            opacity={SHADOW_OPACITY}
+          />
+          */}
+
+          {/* Leaves last so they paint on top of the yellow petals. */}
           <g transform={`translate(${LEAF_LEFT_X} ${LEAF_LEFT_Y}) scale(${LEAF_SCALE})`}>
             <g
               className="blob-leaf blob-leaf-left"
@@ -804,23 +812,26 @@ export default function BlobCharacter({
           100% { transform: translateY(0); opacity: 0; }
         }
 
-        /* ── SHADOW (matches body bob/tilt) ────────────────────────────── */
+        /* ── SHADOW (paused — uncomment with ellipse above) ──────────────── */
+        /*
         :global(.blob-shadow) {
           transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          transform-origin: 30px 55px;
+          transform-origin: ${SHADOW_CX}px ${SHADOW_CY}px;
         }
-        /* Floating paused for now:
         :global(.blob-shadow[data-body="bob"]) {
           animation: blob-shadow-squash 2.4s ease-in-out infinite;
         }
-        :global(.blob-shadow[data-body="tilt"]) {
-          animation: blob-shadow-squash 3s ease-in-out infinite;
+        :global(.blob-shadow[data-body="lean"]) {
+          animation: blob-shadow-squash ${TYPING_LEAN_DURATION_S}s ease-in-out infinite;
         }
-        */
+        :global(.blob-shadow[data-body="shrink"]) {
+          animation: blob-shadow-squash ${SLEEP_BREATH_DURATION_S}s ease-in-out infinite;
+        }
         @keyframes blob-shadow-squash {
           0%, 100% { transform: scaleX(1); }
           50%      { transform: scaleX(0.88); }
         }
+        */
 
         /* ── LEAVES (data-leaves) ─────────────────────────────────────── */
         :global(.blob-leaf) {
