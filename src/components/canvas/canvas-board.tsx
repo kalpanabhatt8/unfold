@@ -108,13 +108,15 @@ export type CanvasSnapshot = {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Writing surface — soft sage-linen tuned for the sunflower companion
- * (golden petals #FAC666, sage leaves #6D8759, cream face #FFF8E5).
- * Warmer and greener than generic cream; not Claude-style off-white.
+ * Writing surface — swap any pair below (all subtle, no green cast).
+ *
+ *  Blush paper (active)  #F8F5F2 / #F1EDE9  — soft peach-grey, matches cheek blush
+ *  Sun ivory             #FAF8F5 / #F2EFE9  — golden-white, hugs yellow petals
+ *  Cool stone            #F6F6F4 / #EEEDEA  — neutral grey, yellow pops more
+ *  Warm linen            #F7F5F1 / #EFEBE6  — honey undertone (previous)
  */
-export const CANVAS_BACKGROUND = "#EFF0E8";
-/** Inset wells (sidebar, polaroid stack) — slightly deeper than the page. */
-export const CANVAS_RECESS = "#E4E7DC";
+export const CANVAS_BACKGROUND = "#FFFDFA";
+export const CANVAS_RECESS = "#FFFDFA";
 
 /** Width allotted to the writing zone per column count (CSS values). */
 const WRITING_WIDTH_CSS: Record<ColumnLayout, string> = {

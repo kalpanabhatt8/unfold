@@ -24,6 +24,7 @@ const ALL_STATES: BlobState[] = [
 ];
 
 const PASTELS = [
+  { id: "canvas",   label: "Canvas",  value: "#F8F5F2" },
   { id: "blush",    label: "Blush",   value: "#F2E8E4" },
   { id: "ivory",    label: "Ivory",   value: "#FBF8F1" },
   { id: "sage",     label: "Sage",    value: "#E8EFE8" },
@@ -33,7 +34,7 @@ const PASTELS = [
 
 export default function BlobDevPage() {
   const live = useBlobState();
-  const [bg, setBg] = React.useState(PASTELS[0].value);
+  const [bg, setBg] = React.useState(PASTELS[0].value); // Canvas — matches writing page
   const [size, setSize] = React.useState(72);
   const [debugLayout, setDebugLayout] = React.useState(false);
 
