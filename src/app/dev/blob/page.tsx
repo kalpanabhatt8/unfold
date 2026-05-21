@@ -35,6 +35,7 @@ export default function BlobDevPage() {
   const live = useBlobState();
   const [bg, setBg] = React.useState(PASTELS[0].value);
   const [size, setSize] = React.useState(72);
+  const [debugLayout, setDebugLayout] = React.useState(false);
 
   return (
     <main
@@ -66,7 +67,7 @@ export default function BlobDevPage() {
                 className="flex flex-col items-center gap-2 rounded-2xl border border-black/[0.05] bg-white/55 p-5 backdrop-blur-sm"
               >
                 <div className="flex h-24 w-24 items-center justify-center">
-                  <BlobCharacter state={s} size={size} />
+                  <BlobCharacter state={s} size={size} debugLayout={debugLayout} />
                 </div>
                 <figcaption className="text-xs text-black/60">{s}</figcaption>
               </figure>
@@ -86,6 +87,7 @@ export default function BlobDevPage() {
                 size={size}
                 hidden={live.hidden}
                 onWakeUp={live.onWakeUp}
+                debugLayout={debugLayout}
               />
             </div>
             <textarea
@@ -156,6 +158,21 @@ export default function BlobDevPage() {
             />
             <span className="font-mono">{size}px</span>
           </label>
+
+          <label className="flex cursor-pointer items-center gap-2 text-xs text-black/65">
+            <input
+              type="checkbox"
+              checked={debugLayout}
+              onChange={(e) => setDebugLayout(e.target.checked)}
+            />
+            Show Y-alignment guides (face center vs eyes+mouth block)
+          </label>
+          {debugLayout ? (
+            <p className="text-xs text-black/50">
+              Blue = cream face vertical center. Green = eyes+mouth bbox center
+              (should sit on blue). Dashed red = face bounds.
+            </p>
+          ) : null}
         </section>
       </div>
     </main>

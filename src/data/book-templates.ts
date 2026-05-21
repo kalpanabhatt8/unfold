@@ -1,4 +1,7 @@
-import type { CanvasSnapshot } from "@/components/canvas/canvas-board";
+import {
+  CANVAS_BACKGROUND,
+  type CanvasSnapshot,
+} from "@/components/canvas/canvas-board";
 import type { CoverGradientId } from "@/data/cover-gradients";
 
 export type TemplateCategory =
@@ -51,15 +54,13 @@ const getCoverImage = (index: number) => {
   return coverImagePaths[index % coverImagePaths.length];
 };
 
-const DEFAULT_TEMPLATE_BACKGROUND = "#fbf8f1";
-
 const createSnapshot = (
   overrides: Partial<TemplateCanvasSnapshot>
 ): TemplateCanvasSnapshot => ({
   version: 4,
   textColumns: [[]],
   imageBlocks: [],
-  background: DEFAULT_TEMPLATE_BACKGROUND,
+  background: CANVAS_BACKGROUND,
   columns: 1,
   ...overrides,
 });
@@ -74,7 +75,6 @@ const templates: BookTemplate[] = [
     coverImage: null,
     coverGradientId: "g3",
     canvas: createSnapshot({
-      background: "#fbf8f1",
       columns: 1,
       textColumns: [
         [
@@ -119,7 +119,6 @@ const templates: BookTemplate[] = [
     coverImage: getCoverImage(1),
     coverGradientId: "g2",
     canvas: createSnapshot({
-      background: "#eaeef3",
       columns: 1,
       textColumns: [
         [
@@ -161,7 +160,6 @@ const templates: BookTemplate[] = [
     coverImage: null,
     coverGradientId: "g4",
     canvas: createSnapshot({
-      background: "#f5ecec",
       columns: 1,
       textColumns: [
         [
@@ -188,7 +186,6 @@ const templates: BookTemplate[] = [
     coverImage: null,
     coverGradientId: "g5",
     canvas: createSnapshot({
-      background: "#edf1ec",
       columns: 1,
       textColumns: [
         [

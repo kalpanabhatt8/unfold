@@ -1,266 +1,578 @@
 "use client";
 
 /**
- * BlobCharacter — soft mochi-style companion for the writing canvas.
+ * BlobCharacter — sunflower companion for the writing canvas.
  *
- * One cohesive SVG entity. The body (squishy head + two stub arms),
- * sparkly eyes, blush, and tiny mouth stay identical across every state;
- * only the eye shape, mouth shape, eyebrow, arm rotation, and body tilt
- * change. Purposely cute: big highlights, pink cheeks, gentle smile.
+ * ─────────────────────────────────────────────────────────────────────────────
+ *  HOW THIS FILE IS ORGANISED (read top-to-bottom)
+ * ─────────────────────────────────────────────────────────────────────────────
  *
- * States:
- *   - "idle"     → relaxed, gentle 3px bob, soft smile.
- *   - "typing"   → squinted eyes, focused little line of a mouth, taps.
- *   - "sleeping" → closed eyes + tiny "o" + floating Z's; tilts 12° right.
- *   - "waking"   → snap-open wide eyes + surprised "o" + arms up.
- *   - "saving"   → happy squint + big smile + arms up, then fades.
+ *  1. COLORS            → palette pulled from your figma assets.
+ *  2. SVG PATHS         → raw path data from /public/Images/character/*.svg.
+ *  3. LAYOUT NUMBERS    → where eyes / mouth / leaves / blush sit on the face.
+ *  4. STATES MAP        → the single source of truth for every state.
+ *                          One row per state. Edit a value here to customise
+ *                          how that state looks/animates. Nothing else.
+ *  5. RENDER HELPERS    → simple switch-functions that turn a config string
+ *                          like "open-blink" into an actual SVG element.
+ *  6. <BlobCharacter />  → puts it all together (no `if state===` branches).
+ *  7. CSS (styled-jsx)  → animations, grouped by what they affect.
+ *  8. useBlobState()    → hook that flips between states from typing/save events.
  *
- * Pure SVG + CSS animation — no external libraries, no Lottie.
+ *  TO CUSTOMISE A STATE:
+ *    Go to the STATES map (section 4) and change a value, e.g. change
+ *    `idle.mouth` from "slight-smile" to "big-smile". That's it — no other
+ *    edits needed. To create a new eye/mouth/leaf style, add a `case` in
+ *    the matching render helper (section 5) and reference its name in STATES.
+ *
+ *  TO MOVE A FEATURE ON THE FACE (eyes, mouth, blush, leaves):
+ *    Edit the constants in section 3 — those are the only positioning values.
+ * ─────────────────────────────────────────────────────────────────────────────
  */
 
 import React from "react";
 import clsx from "clsx";
 
+/* ════════════════════════════════════════════════════════════════════════════
+ *  PUBLIC API (don't rename — used by canvas-board.tsx and /dev/blob)
+ * ════════════════════════════════════════════════════════════════════════════ */
+
 export type BlobState = "idle" | "typing" | "sleeping" | "waking" | "saving";
 
 export type BlobCharacterProps = {
   state: BlobState;
-  /** Visual size in px (renders inside a 60×60 viewBox so arms/Z's bleed). */
+  /** Visual size in px. Renders inside a 60×60 viewBox; leaves bleed below. */
   size?: number;
   className?: string;
   /** Hide entirely without unmounting (smooth state transitions). */
   hidden?: boolean;
-  /**
-   * Called when the user hovers the character while it is sleeping.
-   * Consumers wire this to `useBlobState().onWakeUp`.
-   */
+  /** Called when the user hovers the character while it is sleeping. */
   onWakeUp?: () => void;
+  /** Dev only: draw face center + feature-block guides to check Y alignment. */
+  debugLayout?: boolean;
 };
 
-const INK = "#2C2C2A";
-const PAPER = "#FBF6EE";
+/* ════════════════════════════════════════════════════════════════════════════
+ *  1. COLORS
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+const PETAL = "#FAC666";
+const FACE_CREAM = "#FFF8E5";
+const LEAF = "#6D8759";
+const INK = "#68462A";
+/** Sleeping closed-eye lines — darker than open-state INK. */
+const CLOSED_EYE_INK = "#4A3528";
+const BLUSH = "#FEE1B2";
 const HIGHLIGHT = "#FFFFFF";
-const BLUSH = "#F4A8A0";
+const SPARKLE = "#F0B654";
+const ZZZ = "#68462A"; // sleeping-sign-zzz.svg
 
-/* -------------------------------------------------------------------------- */
-/*  Visual primitives                                                         */
-/* -------------------------------------------------------------------------- */
+/* ════════════════════════════════════════════════════════════════════════════
+ *  2. SVG PATHS — copied verbatim from /public/Images/character/*.svg
+ *     Each path lives in its own local coordinate system; the renderer
+ *     translates+scales it into the master 60×60 viewBox.
+ * ════════════════════════════════════════════════════════════════════════════ */
 
-/**
- * Soft squishy head — slightly chubbier than a perfect ellipse, with a
- * touch of asymmetry so it never reads as a stamped-out circle.
- * Centered around (30, 30) — width ~40, height ~36.
- */
-const HEAD_PATH =
-  "M 10.0 29.0 \
-   C 9.6 18.2 16.8 11.4 30.4 11.2 \
-   C 44.0 11.6 50.6 18.6 50.0 30.6 \
-   C 49.6 41.8 43.0 48.6 29.6 48.6 \
-   C 16.0 48.2 9.4 41.8 10.0 29.0 Z";
+// sunflower-leaf.svg  (50 × 50) — yellow scalloped petal ring
+const SUNFLOWER_PATH =
+  "M22.1844 1.76522C22.2854 1.82385 22.4135 1.8088 22.4982 1.72848C24.2891 0.0315996 26.9988 -0.519715 29.3906 0.541992C30.4307 1.00372 31.2828 1.71513 31.9092 2.57312C31.9781 2.66748 32.1015 2.70527 32.2114 2.66579C34.5439 1.82823 37.2552 2.41861 39.0166 4.36914C39.7794 5.21394 40.2681 6.20895 40.4905 7.2462C40.515 7.36052 40.6124 7.44534 40.729 7.45398C43.1984 7.63693 45.436 9.27414 46.249 11.7686C46.6011 12.8488 46.6409 13.9557 46.4207 14.993C46.3964 15.1076 46.451 15.225 46.5543 15.2803C48.7357 16.4488 50.1127 18.8522 49.8379 21.4609C49.7188 22.5906 49.3038 23.6178 48.6793 24.4762C48.6103 24.5711 48.6125 24.7007 48.6845 24.7934C50.2022 26.746 50.4779 29.5002 49.1621 31.7725C48.5923 32.7564 47.7941 33.5267 46.8736 34.0578C46.7721 34.1164 46.7213 34.2355 46.7493 34.3494C47.3395 36.7499 46.4659 39.376 44.3389 40.917C43.4169 41.5849 42.3728 41.9658 41.3145 42.0778C41.1982 42.0901 41.1036 42.1781 41.0827 42.2931C40.6412 44.7257 38.7703 46.7712 36.2031 47.3154C35.0893 47.5515 33.9797 47.4752 32.9664 47.1475C32.8553 47.1115 32.7332 47.1534 32.6674 47.2499C31.2721 49.2946 28.7274 50.4055 26.1592 49.8613C25.0458 49.6254 24.0634 49.1062 23.2716 48.3964C23.1846 48.3184 23.0561 48.3071 22.9568 48.3685C20.8491 49.6712 18.0731 49.6547 15.9453 48.1133C15.0232 47.4452 14.3377 46.5728 13.9039 45.6036C13.8562 45.4969 13.7433 45.4343 13.6275 45.45C11.1732 45.7838 8.6447 44.6467 7.3291 42.375C6.75912 41.3907 6.48824 40.3157 6.48722 39.2549C6.48711 39.1379 6.40939 39.0345 6.297 39.0018C3.92017 38.3107 2.07184 36.246 1.79688 33.6377C1.67771 32.5072 1.86957 31.4153 2.30201 30.4457C2.34978 30.3386 2.32079 30.2123 2.23115 30.1366C0.341044 28.5413 -0.504336 25.9058 0.308594 23.4111C0.660463 22.3316 1.27954 21.4132 2.06836 20.7032C2.15554 20.6247 2.18038 20.4975 2.12923 20.392C1.05102 18.1668 1.3572 15.4168 3.11816 13.4668C3.88106 12.6221 4.82261 12.0333 5.83398 11.7044C5.9453 11.6682 6.01962 11.5624 6.01604 11.4454C5.94054 8.97498 7.34409 6.58754 9.74316 5.52246C10.7746 5.06456 11.8652 4.90675 12.9158 5.01125C13.032 5.02282 13.1425 4.95604 13.1864 4.84774C14.1206 2.54275 16.3897 0.916048 19.0273 0.916016C20.1766 0.916016 21.2552 1.22591 22.1844 1.76522Z";
 
-/** Eye + face geometry. */
-const EYE_RX = 5;
-const EYE_RY = 6.5;
-const LEFT_EYE_CX = 24;
-const RIGHT_EYE_CX = 36;
-const EYE_CY = 29;
+// leaf-left.svg  (22 × 23) — stem-tip at upper-right (~19, 5)
+const LEAF_LEFT_PATH =
+  "M2.8855 13.975L7.57314 15.5213C12.6422 17.1933 18.0333 14.061 19.0912 8.82918L18.9881 8.52462C14.9369 4.86856 8.59143 5.62462 5.51273 10.1302L2.8855 13.975Z";
 
-const LEFT_BLUSH_CX = 16.5;
-const RIGHT_BLUSH_CX = 43.5;
-const BLUSH_CY = 36.5;
+// leaf-right.svg  (22 × 23) — stem-tip at upper-left (~3, 8.5)
+const LEAF_RIGHT_PATH =
+  "M18.988 13.975L14.3004 15.5213C9.23136 17.1933 3.84023 14.061 2.78237 8.82918L2.88546 8.52462C6.93661 4.86856 13.2821 5.62462 16.3608 10.1302L18.988 13.975Z";
 
-/* -------------------------------------------------------------------------- */
-/*  Eye, eyebrow, mouth                                                       */
-/* -------------------------------------------------------------------------- */
+// eye-left.svg / eye-right.svg  (~1.94 × 2.25) — open teardrop dot
+const OPEN_EYE_LEFT_PATH =
+  "M1.93922 1.19201C1.93922 1.81218 1.49407 2.24583 0.9625 2.24583C0.430926 2.24583 0 1.9352 0 1.31503C0 0.694863 0.430926 0 0.9625 0C1.49407 0 1.93922 0.571836 1.93922 1.19201Z";
+const OPEN_EYE_RIGHT_PATH =
+  "M0.000231862 1.19201C0.000231862 1.81218 0.445379 2.24583 0.976953 2.24583C1.50853 2.24583 1.93945 1.9352 1.93945 1.31503C1.93945 0.694863 1.50853 0 0.976953 0C0.445379 0 0.000231862 0.571836 0.000231862 1.19201Z";
 
-function Eye({ cx, state }: { cx: number; state: BlobState }) {
-  if (state === "sleeping") {
-    return (
-      <path
-        d={`M ${cx - 5} ${EYE_CY} q 5 1.8 10 0`}
-        fill="none"
-        stroke={INK}
-        strokeWidth={1.6}
-        strokeLinecap="round"
-      />
-    );
+// eye-{left,right}-smilling.svg  (~4.06 × 2.28) — deep happy U
+const SMILE_EYE_PATH =
+  "M0 0.25C0 0.111929 0.111929 0 0.25 0C0.388071 0 0.5 0.111929 0.5 0.25C0.5 1.09596 1.18627 1.78223 2.03223 1.78223C2.87796 1.78196 3.56348 1.09579 3.56348 0.25C3.56348 0.111929 3.67541 0 3.81348 0C3.95155 0 4.06348 0.111929 4.06348 0.25C4.06348 1.37194 3.1541 2.28196 2.03223 2.28223C0.910128 2.28223 0 1.3721 0 0.25Z";
+
+// sleeping-{left,right}-eye.svg  (~2.55 × 0.84) — shallow closed line
+const SLEEPING_EYE_PATH =
+  "M2.19632 0.0479186C2.30792 -0.0332344 2.46469 -0.00888619 2.54593 0.102606C2.62714 0.214274 2.60194 0.371013 2.49027 0.452215C2.15516 0.695838 1.74253 0.839889 1.29691 0.839911C0.851162 0.839911 0.437745 0.695946 0.102573 0.452215C-0.00883789 0.37095 -0.0332446 0.214173 0.0478851 0.102606C0.12915 -0.0088044 0.285927 -0.0332111 0.397494 0.0479186C0.650027 0.231462 0.960453 0.339911 1.29691 0.339911C1.63338 0.339889 1.94379 0.231502 2.19632 0.0479186Z";
+
+// slight-smile.svg  (viewBox 0 0 4 2) — subtle smile
+const SLIGHT_SMILE_PATH =
+  "M2.97343 0.107215C3.05213 -0.00613984 3.20768 -0.033878 3.32108 0.0447155C3.43446 0.123433 3.4632 0.278967 3.38456 0.392372C3.01816 0.920088 2.40675 1.26631 1.71464 1.2664C1.02247 1.2664 0.411174 0.920083 0.0447155 0.392372C-0.0340005 0.279 -0.00609231 0.123489 0.107215 0.0447155C0.220587 -0.0340005 0.376098 -0.00609231 0.454872 0.107215C0.731886 0.506189 1.19315 0.766395 1.71464 0.766395C2.23598 0.766308 2.69645 0.506075 2.97343 0.107215Z";
+
+// sleeping-sign-zzz.svg  (5 × 8) — three stacked sleep marks
+const ZZZ_PATH_SMALL =
+  "M1.42 2.916C1.344 2.926 1.287 2.933 1.249 2.937C1.211 2.939 1.182 2.936 1.162 2.928C1.144 2.92 1.124 2.906 1.102 2.886C1.084 2.87 1.077 2.851 1.081 2.829C1.087 2.807 1.121 2.764 1.183 2.7C1.221 2.654 1.26 2.611 1.3 2.571C1.34 2.529 1.376 2.495 1.408 2.469C1.422 2.457 1.438 2.445 1.456 2.433C1.474 2.419 1.503 2.398 1.543 2.37C1.583 2.342 1.642 2.302 1.72 2.25C1.758 2.22 1.788 2.197 1.81 2.181C1.832 2.165 1.85 2.152 1.864 2.142C1.88 2.13 1.896 2.118 1.912 2.106C1.898 2.104 1.867 2.101 1.819 2.097C1.773 2.093 1.73 2.093 1.69 2.097C1.634 2.097 1.598 2.097 1.582 2.097C1.566 2.095 1.55 2.092 1.534 2.088H1.489C1.479 2.088 1.461 2.084 1.435 2.076C1.409 2.066 1.385 2.054 1.363 2.04C1.341 2.026 1.329 2.012 1.327 1.998C1.327 1.998 1.333 1.995 1.345 1.989C1.357 1.981 1.367 1.973 1.375 1.965C1.391 1.955 1.403 1.947 1.411 1.941C1.421 1.935 1.43 1.936 1.438 1.944C1.438 1.944 1.457 1.944 1.495 1.944C1.533 1.942 1.576 1.94 1.624 1.938C1.74 1.94 1.825 1.944 1.879 1.95C1.935 1.954 1.976 1.962 2.002 1.974C2.03 1.986 2.057 2.004 2.083 2.028C2.115 2.06 2.128 2.091 2.122 2.121C2.116 2.151 2.102 2.178 2.08 2.202C2.072 2.21 2.064 2.219 2.056 2.229C2.05 2.237 2.044 2.241 2.038 2.241C2.038 2.241 2.024 2.25 1.996 2.268C1.968 2.286 1.934 2.308 1.894 2.334C1.856 2.36 1.818 2.384 1.78 2.406C1.744 2.428 1.722 2.444 1.714 2.454C1.7 2.462 1.683 2.473 1.663 2.487C1.643 2.499 1.629 2.509 1.621 2.517C1.615 2.525 1.601 2.539 1.579 2.559C1.559 2.579 1.537 2.597 1.513 2.613C1.495 2.629 1.473 2.649 1.447 2.673C1.423 2.697 1.402 2.718 1.384 2.736C1.366 2.754 1.357 2.763 1.357 2.763C1.357 2.763 1.377 2.761 1.417 2.757C1.457 2.751 1.507 2.746 1.567 2.742C1.627 2.736 1.686 2.735 1.744 2.739C1.838 2.737 1.912 2.735 1.966 2.733C2.022 2.729 2.064 2.728 2.092 2.73C2.122 2.73 2.145 2.734 2.161 2.742C2.175 2.746 2.187 2.754 2.197 2.766C2.209 2.778 2.217 2.791 2.221 2.805C2.227 2.817 2.228 2.826 2.224 2.832C2.216 2.832 2.185 2.835 2.131 2.841C2.077 2.845 2.015 2.849 1.945 2.853C1.853 2.861 1.764 2.871 1.678 2.883C1.592 2.895 1.506 2.906 1.42 2.916Z";
+const ZZZ_PATH_MID =
+  "M3.32172 4.90167C3.22039 4.91501 3.14439 4.92434 3.09372 4.92967C3.04305 4.93234 3.00439 4.92834 2.97772 4.91767C2.95372 4.90701 2.92705 4.88834 2.89772 4.86167C2.87372 4.84034 2.86439 4.81501 2.86972 4.78567C2.87772 4.75634 2.92305 4.69901 3.00572 4.61367C3.05639 4.55234 3.10839 4.49501 3.16172 4.44167C3.21505 4.38567 3.26305 4.34034 3.30572 4.30567C3.32439 4.28967 3.34572 4.27367 3.36972 4.25767C3.39372 4.23901 3.43239 4.21101 3.48572 4.17367C3.53905 4.13634 3.61772 4.08301 3.72172 4.01367C3.77239 3.97367 3.81239 3.94301 3.84172 3.92167C3.87105 3.90034 3.89505 3.88301 3.91372 3.86967C3.93505 3.85367 3.95639 3.83767 3.97772 3.82167C3.95905 3.81901 3.91772 3.81501 3.85372 3.80967C3.79239 3.80434 3.73505 3.80434 3.68172 3.80967C3.60705 3.80967 3.55905 3.80967 3.53772 3.80967C3.51639 3.80701 3.49505 3.80301 3.47372 3.79767H3.41372C3.40039 3.79767 3.37639 3.79234 3.34172 3.78167C3.30705 3.76834 3.27505 3.75234 3.24572 3.73367C3.21639 3.71501 3.20039 3.69634 3.19772 3.67767C3.19772 3.67767 3.20572 3.67367 3.22172 3.66567C3.23772 3.65501 3.25105 3.64434 3.26172 3.63367C3.28305 3.62034 3.29905 3.60967 3.30972 3.60167C3.32305 3.59367 3.33505 3.59501 3.34572 3.60567C3.34572 3.60567 3.37105 3.60567 3.42172 3.60567C3.47239 3.60301 3.52972 3.60034 3.59372 3.59767C3.74839 3.60034 3.86172 3.60567 3.93372 3.61367C4.00839 3.61901 4.06305 3.62967 4.09772 3.64567C4.13505 3.66167 4.17105 3.68567 4.20572 3.71767C4.24839 3.76034 4.26572 3.80167 4.25772 3.84167C4.24972 3.88167 4.23105 3.91767 4.20172 3.94967C4.19105 3.96034 4.18039 3.97234 4.16972 3.98567C4.16172 3.99634 4.15372 4.00167 4.14572 4.00167C4.14572 4.00167 4.12705 4.01367 4.08972 4.03767C4.05239 4.06167 4.00705 4.09101 3.95372 4.12567C3.90305 4.16034 3.85239 4.19234 3.80172 4.22167C3.75372 4.25101 3.72439 4.27234 3.71372 4.28567C3.69505 4.29634 3.67239 4.31101 3.64572 4.32967C3.61905 4.34567 3.60039 4.35901 3.58972 4.36967C3.58172 4.38034 3.56305 4.39901 3.53372 4.42567C3.50705 4.45234 3.47772 4.47634 3.44572 4.49767C3.42172 4.51901 3.39239 4.54567 3.35772 4.57767C3.32572 4.60967 3.29772 4.63767 3.27372 4.66167C3.24972 4.68567 3.23772 4.69767 3.23772 4.69767C3.23772 4.69767 3.26439 4.69501 3.31772 4.68967C3.37105 4.68167 3.43772 4.67501 3.51772 4.66967C3.59772 4.66167 3.67639 4.66034 3.75372 4.66567C3.87905 4.66301 3.97772 4.66034 4.04972 4.65767C4.12439 4.65234 4.18039 4.65101 4.21772 4.65367C4.25772 4.65367 4.28839 4.65901 4.30972 4.66967C4.32839 4.67501 4.34439 4.68567 4.35772 4.70167C4.37372 4.71767 4.38439 4.73501 4.38972 4.75367C4.39772 4.76967 4.39905 4.78167 4.39372 4.78967C4.38305 4.78967 4.34172 4.79367 4.26972 4.80167C4.19772 4.80701 4.11505 4.81234 4.02172 4.81767C3.89905 4.82834 3.78039 4.84167 3.66572 4.85767C3.55105 4.87367 3.43639 4.88834 3.32172 4.90167Z";
+const ZZZ_PATH_LARGE =
+  "M0.56 6.888C0.458667 6.90133 0.382667 6.91067 0.332 6.916C0.281333 6.91867 0.242667 6.91467 0.216 6.904C0.192 6.89333 0.165333 6.87467 0.136 6.848C0.112 6.82667 0.102667 6.80133 0.108 6.772C0.116 6.74267 0.161333 6.68533 0.244 6.6C0.294667 6.53867 0.346667 6.48133 0.4 6.428C0.453333 6.372 0.501333 6.32667 0.544 6.292C0.562667 6.276 0.584 6.26 0.608 6.244C0.632 6.22533 0.670667 6.19733 0.724 6.16C0.777333 6.12267 0.856 6.06933 0.96 6C1.01067 5.96 1.05067 5.92933 1.08 5.908C1.10933 5.88667 1.13333 5.86933 1.152 5.856C1.17333 5.84 1.19467 5.824 1.216 5.808C1.19733 5.80533 1.156 5.80133 1.092 5.796C1.03067 5.79067 0.973333 5.79067 0.92 5.796C0.845333 5.796 0.797333 5.796 0.776 5.796C0.754667 5.79333 0.733333 5.78933 0.712 5.784H0.652C0.638667 5.784 0.614667 5.77867 0.58 5.768C0.545333 5.75467 0.513333 5.73867 0.484 5.72C0.454667 5.70133 0.438667 5.68267 0.436 5.664C0.436 5.664 0.444 5.66 0.46 5.652C0.476 5.64133 0.489333 5.63067 0.5 5.62C0.521333 5.60667 0.537333 5.596 0.548 5.588C0.561333 5.58 0.573333 5.58133 0.584 5.592C0.584 5.592 0.609333 5.592 0.66 5.592C0.710667 5.58933 0.768 5.58667 0.832 5.584C0.986667 5.58667 1.1 5.592 1.172 5.6C1.24667 5.60533 1.30133 5.616 1.336 5.632C1.37333 5.648 1.40933 5.672 1.444 5.704C1.48667 5.74667 1.504 5.788 1.496 5.828C1.488 5.868 1.46933 5.904 1.44 5.936C1.42933 5.94667 1.41867 5.95867 1.408 5.972C1.4 5.98267 1.392 5.988 1.384 5.988C1.384 5.988 1.36533 6 1.328 6.024C1.29067 6.048 1.24533 6.07733 1.192 6.112C1.14133 6.14667 1.09067 6.17867 1.04 6.208C0.992 6.23733 0.962667 6.25867 0.952 6.272C0.933333 6.28267 0.910667 6.29733 0.884 6.316C0.857333 6.332 0.838667 6.34533 0.828 6.356C0.82 6.36667 0.801333 6.38533 0.772 6.412C0.745333 6.43867 0.716 6.46267 0.684 6.484C0.66 6.50533 0.630667 6.532 0.596 6.564C0.564 6.596 0.536 6.624 0.512 6.648C0.488 6.672 0.476 6.684 0.476 6.684C0.476 6.684 0.502667 6.68133 0.556 6.676C0.609333 6.668 0.676 6.66133 0.756 6.656C0.836 6.648 0.914667 6.64667 0.992 6.652C1.11733 6.64933 1.216 6.64667 1.288 6.644C1.36267 6.63867 1.41867 6.63733 1.456 6.64C1.496 6.64 1.52667 6.64533 1.548 6.656C1.56667 6.66133 1.58267 6.672 1.596 6.688C1.612 6.704 1.62267 6.72133 1.628 6.74C1.636 6.756 1.63733 6.768 1.632 6.776C1.62133 6.776 1.58 6.78 1.508 6.788C1.436 6.79333 1.35333 6.79867 1.26 6.804C1.13733 6.81467 1.01867 6.828 0.904 6.844C0.789333 6.86 0.674667 6.87467 0.56 6.888Z";
+
+// mouth-smilling.svg  (viewBox 0 0 5 3) — big smile
+const BIG_SMILE_PATH =
+  "M0 0.25C0 0.111929 0.111929 0 0.25 0C0.388071 0 0.5 0.111929 0.5 0.25C0.5 1.09596 1.18627 1.78223 2.03223 1.78223C2.87796 1.78196 3.56348 1.09579 3.56348 0.25C3.56348 0.111929 3.67541 0 3.81348 0C3.95155 0 4.06348 0.111929 4.06348 0.25C4.06348 1.37194 3.1541 2.28196 2.03223 2.28223C0.910128 2.28223 0 1.3721 0 0.25Z";
+
+/* ════════════════════════════════════════════════════════════════════════════
+ *  3. LAYOUT NUMBERS — move features on the face by editing these.
+ *     Coordinate system: SVG viewBox is 0 0 60 60. (0,0) = top-left.
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+// ── Face circle (cream disc inside the petals) ────────────────────────
+// Strict Figma proportions:
+// body 50×50, face 31×31 (62% of body), eyes 1.49×2, blush 3×3,
+// smile 4.06×2.28, leaf height 22.
+const BODY_SIZE = 50;
+const FACE_SVG_SIZE = 31.4213; // from face.svg rect width/height
+const FACE_SVG_RX = 15.7106; // from face.svg rect rx
+// Oval figma eyes (paused — using minimal dots for open states):
+// const VIEWBOX_PER_SCREEN_PX = 60 / 120;
+// const EYE_TARGET_W = 1.9 + VIEWBOX_PER_SCREEN_PX;
+// const EYE_TARGET_H = 2.24 + VIEWBOX_PER_SCREEN_PX;
+/** Minimal open eye: plain ink circle at each EYE_CY anchor. */
+const DOT_EYE_R = 1.05;
+const BLUSH_SIZE = 3;
+const SMILE_TARGET_W = 4.06;
+const SMILE_TARGET_H = 2.28;
+const LEAF_TARGET_H = 22;
+const LEAF_SOURCE_H = 23;
+
+const BODY_CX = 30;
+const BODY_CY = 29;
+
+// ── Face features — hand-tuned in /dev/blob ─────────────────────────────
+// X is never auto-adjusted. Y uses your *_TUNED values plus one optional nudge
+// that moves eyes + mouth + blush together (negative = up, positive = down).
+const LEFT_EYE_CX = 25.5;
+const RIGHT_EYE_CX = 34.5;
+const LEFT_BLUSH_CX = 22.2;
+const RIGHT_BLUSH_CX = 37.8;
+const EYE_CY_TUNED = 25;
+const MOUTH_CY_TUNED = 29;
+const BLUSH_CY_TUNED = 28;
+/** Move whole face cluster on Y only. Try −1.5 to sit a bit higher on the face. */
+const FACE_FEATURES_Y_NUDGE = 0;
+
+const EYE_CY = EYE_CY_TUNED + FACE_FEATURES_Y_NUDGE;
+const MOUTH_CY = MOUTH_CY_TUNED + FACE_FEATURES_Y_NUDGE;
+const BLUSH_CY = BLUSH_CY_TUNED + FACE_FEATURES_Y_NUDGE;
+
+// Sleeping-only layout (1 screen px ≈ 0.5 viewBox units at default size 120).
+const SCREEN_PX_TO_VIEWBOX = 60 / 120;
+/** Eyes sit ~1px lower on the face than idle (more gap from face top). */
+const SLEEP_EYE_Y_OFFSET = SCREEN_PX_TO_VIEWBOX;
+const CLOSED_EYE_SCALE = 1;
+const CLOSED_EYE_W = 2.55;
+const CLOSED_EYE_H = 0.84;
+const FACE_TOP_Y = BODY_CY - FACE_SVG_SIZE / 2;
+
+function getFaceLayout(isSleeping: boolean) {
+  if (!isSleeping) {
+    return { eyeCy: EYE_CY, mouthCy: MOUTH_CY, blushCy: BLUSH_CY };
   }
-  if (state === "saving") {
-    return (
-      <path
-        d={`M ${cx - 5} ${EYE_CY + 1} q 5 -3.6 10 0`}
-        fill="none"
-        stroke={INK}
-        strokeWidth={1.6}
-        strokeLinecap="round"
-      />
-    );
-  }
+  const eyeCy = EYE_CY + SLEEP_EYE_Y_OFFSET;
+  const mouthCy = MOUTH_CY;
+  const blushCy = BLUSH_CY;
+  const closedH = CLOSED_EYE_H * CLOSED_EYE_SCALE;
+  const blockTop = eyeCy - closedH / 2;
+  const blockBottom = mouthCy + SMILE_TARGET_H / 2;
+  const centerShift = BODY_CY - (blockTop + blockBottom) / 2;
+  return {
+    eyeCy: eyeCy + centerShift,
+    mouthCy: mouthCy + centerShift,
+    blushCy: blushCy + centerShift,
+  };
+}
 
-  // Idle / typing / waking — animated oval with sparkle highlights.
+// sleeping-sign-zzz.svg — straddles cream face + yellow petals (upper-right rim)
+const ZZZ_SOURCE_W = 5;
+const ZZZ_SOURCE_H = 8;
+const ZZZ_SCALE = 1.5;
+/** Degrees from center toward upper-right rim of the cream circle. */
+const ZZZ_RIM_DEG = 42;
+
+function zzzPosition() {
+  const rad = (ZZZ_RIM_DEG * Math.PI) / 180;
+  const rimX = BODY_CX + FACE_SVG_RX * Math.cos(rad);
+  const rimY = BODY_CY - FACE_SVG_RX * Math.sin(rad);
+  const w = ZZZ_SOURCE_W * ZZZ_SCALE;
+  const h = ZZZ_SOURCE_H * ZZZ_SCALE;
+  return {
+    x: rimX - w * 0.2,
+    y: rimY - h * 0.78,
+  };
+}
+
+// ── Leaves: top inner corners meet at bottom-center scallop (Figma ref) ──
+const SUNFLOWER_TX = 5;
+const SUNFLOWER_TY = 4;
+/** Bottom-center valley of the 50×50 petal ring (x = 25). */
+const SUNFLOWER_LEAF_ATTACH_Y = 48.32;
+const LEAF_ATTACH_X = SUNFLOWER_TX + 25;
+const LEAF_ATTACH_Y = SUNFLOWER_TY + SUNFLOWER_LEAF_ATTACH_Y;
+/** Stem tip on each leaf SVG — top inner corner that touches the petal. */
+const LEAF_STEM_LEFT_X = 18.9881;
+const LEAF_STEM_RIGHT_X = 2.88546;
+const LEAF_STEM_Y = 8.52462;
+const LEAF_SCALE = LEAF_TARGET_H / LEAF_SOURCE_H;
+const LEAF_LEFT_X = LEAF_ATTACH_X - LEAF_STEM_LEFT_X * LEAF_SCALE;
+const LEAF_RIGHT_X = LEAF_ATTACH_X - LEAF_STEM_RIGHT_X * LEAF_SCALE;
+const LEAF_LEFT_Y = LEAF_ATTACH_Y - LEAF_STEM_Y * LEAF_SCALE;
+const LEAF_RIGHT_Y = LEAF_LEFT_Y;
+
+/* ════════════════════════════════════════════════════════════════════════════
+ *  4. STATES MAP — the ONE place that decides what each state looks like.
+ *
+ *  Each row picks a value from the catalogue (the union types below).
+ *  Edit a value here and reload — no other change needed.
+ *
+ *  Catalogue:
+ *    eye    : "open" | "open-blink" | "open-wake" | "closed" | "smile" | "wink"
+ *    mouth  : "slight-smile" | "big-smile" | "small-o"
+ *    body   : "bob" | "lean" | "shrink" | "wake" | "bounce"
+ *    leaves : "still" | "sway" | "droop" | "perk" | "wake"
+ *    extras : "none" | "zzz" | "sparkle-burst"
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+type EyeKind = "open" | "open-blink" | "open-wake" | "closed" | "smile" | "wink";
+type MouthKind = "slight-smile" | "big-smile" ;
+type BodyKind = "bob" | "lean" | "shrink" | "wake" | "bounce";
+type LeafKind = "still" | "sway" | "droop" | "perk" | "wake";
+type ExtrasKind = "none" | "zzz" | "sparkle-burst";
+
+type StateConfig = {
+  eye: EyeKind;
+  mouth: MouthKind;
+  body: BodyKind;
+  leaves: LeafKind;
+  extras: ExtrasKind;
+};
+
+const STATES: Record<BlobState, StateConfig> = {
+  // 👉 IDLE (the "ideal" image #1): open eyes, slight smile, gentle bob.
+  idle: {
+    eye: "open",
+    mouth: "big-smile",
+    body: "bob",
+    leaves: "still",
+    extras: "none",
+  },
+
+  // 👉 TYPING (image #2): open eyes that blink, slight smile, lean + leaf sway.
+  typing: {
+    eye: "open-blink",
+    mouth: "slight-smile",
+    body: "lean",
+    leaves: "sway",
+    extras: "none",
+  },
+
+  // 👉 SLEEPING: closed eyes, slight smile, gentle shrink + zzz on cream face.
+  sleeping: {
+    eye: "closed",
+    mouth: "slight-smile",
+    body: "shrink",
+    leaves: "droop",
+    extras: "zzz",
+  },
+
+  // 👉 WAKING: eyes wink + big smile instantly (no mouth fade).
+  waking: {
+    eye: "wink",
+    mouth: "big-smile",
+    body: "wake",
+    leaves: "wake",
+    extras: "none",
+  },
+
+  // 👉 SAVING (after a save action): happy U eyes, big smile, sparkle burst.
+  saving: {
+    eye: "smile",
+    mouth: "slight-smile",
+    body: "bounce",
+    leaves: "perk",
+    extras: "sparkle-burst",
+  },
+};
+
+/* ════════════════════════════════════════════════════════════════════════════
+ *  5. RENDER HELPERS — turn config strings into actual SVG.
+ *     To add a new option, add a `case` and a constant for it.
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+/** Position one eye at (cx, eyeCy) with the chosen visual style. */
+function Eye({
+  kind,
+  side,
+  eyeCy,
+}: {
+  kind: EyeKind;
+  side: "left" | "right";
+  eyeCy: number;
+}) {
+  const cx = side === "left" ? LEFT_EYE_CX : RIGHT_EYE_CX;
+
+  // The outer <g> places the eye on the face.
+  // The inner <g> (with data-eye=…) is what CSS animates (blink, wake).
   return (
-    <g
-      className={`blob-eye blob-eye--${state}`}
-      style={{ transformOrigin: `${cx}px ${EYE_CY}px` }}
-    >
-      <ellipse cx={cx} cy={EYE_CY} rx={EYE_RX} ry={EYE_RY} fill={INK} />
-      {/* Big main shimmer — top-right. */}
-      <ellipse
-        cx={cx + 1.6}
-        cy={EYE_CY - 2.6}
-        rx={1.7}
-        ry={2.1}
-        fill={HIGHLIGHT}
+    <g transform={`translate(${cx} ${eyeCy})`}>
+      <g
+        className={`blob-eye blob-eye-${side}`}
+        data-eye={kind}
+        style={{ transformOrigin: "0px 0px" }}
+      >
+        {renderEyeShape(kind, side)}
+      </g>
+    </g>
+  );
+}
+
+/** Minimal open eye — centered on the anchor set by <Eye />. */
+function MinimalDotEye() {
+  return <circle cx={0} cy={0} r={DOT_EYE_R} fill={INK} />;
+}
+
+function renderEyeShape(kind: EyeKind, side: "left" | "right") {
+  switch (kind) {
+    // Open — plain dots (idle, typing blink, waking snap).
+    case "open":
+    case "open-blink":
+    case "open-wake":
+      return <MinimalDotEye />;
+
+    /* Figma oval + pupil (swap back by replacing cases above):
+    case "open":
+    case "open-blink":
+    case "open-wake": {
+      const path = side === "left" ? OPEN_EYE_LEFT_PATH : OPEN_EYE_RIGHT_PATH;
+      ...
+    }
+    */
+
+    // Sleeping eye — shallow closed curve (darker ink).
+    case "closed": {
+      return (
+        <g
+          transform={`translate(${(-CLOSED_EYE_W * CLOSED_EYE_SCALE) / 2} ${(-CLOSED_EYE_H * CLOSED_EYE_SCALE) / 2}) scale(${CLOSED_EYE_SCALE})`}
+        >
+          <path d={SLEEPING_EYE_PATH} fill={CLOSED_EYE_INK} />
+        </g>
+      );
+    }
+
+    // Saving eye — deeper happy U curve.
+    case "smile": {
+      const scale = 0.8;
+      const nw = 4.06;
+      const nh = 2.28;
+      return (
+        <g transform={`translate(${(-nw * scale) / 2} ${(-nh * scale) / 2}) scale(${scale})`}>
+          <path d={SMILE_EYE_PATH} fill={INK} />
+        </g>
+      );
+    }
+
+    // Wink — both eyes squash together (waking state).
+    case "wink":
+      return <MinimalDotEye />;
+  }
+}
+
+function mouthTransforms(mouthCy: number) {
+  const slightSourceW = 4;
+  const slightSourceH = 2;
+  const slightSx = SMILE_TARGET_W / slightSourceW;
+  const slightSy = SMILE_TARGET_H / slightSourceH;
+  const slightTx = BODY_CX - (slightSourceW * slightSx) / 2;
+  const slightTy = mouthCy - (slightSourceH * slightSy) / 2;
+
+  const bigSourceW = 4.06348;
+  const bigSourceH = 2.28223;
+  const bigSx = SMILE_TARGET_W / bigSourceW;
+  const bigSy = SMILE_TARGET_H / bigSourceH;
+  const bigTx = BODY_CX - (bigSourceW * bigSx) / 2;
+  const bigTy = mouthCy - (bigSourceH * bigSy) / 2;
+
+  return { slightTx, slightTy, slightSx, slightSy, bigTx, bigTy, bigSx, bigSy };
+}
+
+type MouthDisplay = "slight" | "big";
+
+function mouthDisplay(kind: MouthKind): MouthDisplay {
+  return kind === "big-smile" ? "big" : "slight";
+}
+
+/** Both smile paths mounted; opacity switches instantly (no fade). */
+function Mouth({ kind, mouthCy }: { kind: MouthKind; mouthCy: number }) {
+  const t = mouthTransforms(mouthCy);
+  const display = mouthDisplay(kind);
+
+  return (
+    <g className="blob-mouth" data-mouth-display={display}>
+      <g
+        transform={`translate(${t.slightTx} ${t.slightTy}) scale(${t.slightSx} ${t.slightSy})`}
+        className="blob-mouth-slight"
+      >
+        <path d={SLIGHT_SMILE_PATH} fill={INK} />
+      </g>
+      <g
+        transform={`translate(${t.bigTx} ${t.bigTy}) scale(${t.bigSx} ${t.bigSy})`}
+        className="blob-mouth-big"
+      >
+        <path d={BIG_SMILE_PATH} fill={INK} />
+      </g>
+    </g>
+  );
+}
+
+/** Two cheek dots. */
+function Blush({ blushCy }: { blushCy: number }) {
+  return (
+    <g>
+      <rect
+        x={LEFT_BLUSH_CX - BLUSH_SIZE / 2}
+        y={blushCy - BLUSH_SIZE / 2}
+        width={BLUSH_SIZE}
+        height={BLUSH_SIZE}
+        rx={BLUSH_SIZE / 2}
+        fill={BLUSH}
       />
-      {/* Tiny secondary sparkle — bottom-left. */}
-      <circle
-        cx={cx - 1.6}
-        cy={EYE_CY + 2.4}
-        r={0.85}
-        fill={HIGHLIGHT}
-        opacity={0.75}
+      <rect
+        x={RIGHT_BLUSH_CX - BLUSH_SIZE / 2}
+        y={blushCy - BLUSH_SIZE / 2}
+        width={BLUSH_SIZE}
+        height={BLUSH_SIZE}
+        rx={BLUSH_SIZE / 2}
+        fill={BLUSH}
       />
     </g>
   );
 }
 
-function Eyebrow({ state }: { state: BlobState }) {
-  let d: string;
-  switch (state) {
-    case "typing":
-      d = "M 19.5 17.4 Q 30 19.4 40.5 17.4";
-      break;
-    case "sleeping":
-      d = "M 19.8 16.0 Q 30 14.4 40.2 16.0";
-      break;
-    case "waking":
-      d = "M 19.5 12.4 Q 30 9.4 40.5 12.4";
-      break;
-    case "saving":
-      d = "M 19.5 14.6 Q 30 11.6 40.5 14.6";
-      break;
-    case "idle":
-    default:
-      d = "M 19.8 17.4 Q 30 15.4 40.2 17.4";
-      break;
-  }
+/** Dev overlay: blue = face center, green = eyes+mouth block center. */
+function FaceLayoutGuides() {
+  const faceX = BODY_CX - FACE_SVG_SIZE / 2;
+  const featureCy =
+    (EYE_CY - DOT_EYE_R + MOUTH_CY + SMILE_TARGET_H / 2) / 2;
+  return (
+    <g className="pointer-events-none" opacity={0.45}>
+      <rect
+        x={faceX}
+        y={BODY_CY - FACE_SVG_SIZE / 2}
+        width={FACE_SVG_SIZE}
+        height={FACE_SVG_SIZE}
+        rx={FACE_SVG_RX}
+        fill="none"
+        stroke="#E85D5D"
+        strokeWidth={0.35}
+        strokeDasharray="1.2 0.8"
+      />
+      <line
+        x1={faceX}
+        y1={BODY_CY}
+        x2={faceX + FACE_SVG_SIZE}
+        y2={BODY_CY}
+        stroke="#3B82F6"
+        strokeWidth={0.35}
+      />
+      <line
+        x1={faceX}
+        y1={featureCy}
+        x2={faceX + FACE_SVG_SIZE}
+        y2={featureCy}
+        stroke="#22C55E"
+        strokeWidth={0.35}
+        strokeDasharray="0.6 0.6"
+      />
+      <circle cx={BODY_CX} cy={BODY_CY} r={0.55} fill="#3B82F6" />
+      <circle cx={BODY_CX} cy={featureCy} r={0.55} fill="#22C55E" />
+      <circle cx={LEAF_ATTACH_X} cy={LEAF_ATTACH_Y} r={0.65} fill="#6D8759" />
+    </g>
+  );
+}
+
+/** Single 4-point sparkle path used by both sparkle layouts. */
+function Sparkle({
+  cx,
+  cy,
+  r,
+  className,
+}: {
+  cx: number;
+  cy: number;
+  r: number;
+  className?: string;
+}) {
+  const k = r * 0.32;
+  const d =
+    `M ${cx} ${cy - r} C ${cx + k} ${cy - k} ${cx + k} ${cy - k} ${cx + r} ${cy} ` +
+    `C ${cx + k} ${cy + k} ${cx + k} ${cy + k} ${cx} ${cy + r} ` +
+    `C ${cx - k} ${cy + k} ${cx - k} ${cy + k} ${cx - r} ${cy} ` +
+    `C ${cx - k} ${cy - k} ${cx - k} ${cy - k} ${cx} ${cy - r} Z`;
   return (
     <path
-      className="blob-eyebrow"
       d={d}
-      fill="none"
-      stroke={INK}
-      strokeWidth={1.4}
-      strokeLinecap="round"
-      opacity={0.85}
+      fill={SPARKLE}
+      className={className}
+      style={{ transformOrigin: `${cx}px ${cy}px` }}
     />
   );
 }
 
-function Mouth({ state }: { state: BlobState }) {
-  // Sleeping & waking — small open mouth (a tiny ink dot/oval).
-  if (state === "sleeping") {
-    return <ellipse cx={30} cy={39.4} rx={0.85} ry={1.3} fill={INK} />;
-  }
-  if (state === "waking") {
-    return <ellipse cx={30} cy={40} rx={1.6} ry={2.1} fill={INK} />;
-  }
-
-  // Saving — big happy smile.
-  if (state === "saving") {
-    return (
-      <path
-        d="M 26.6 38.2 Q 30 41.6 33.4 38.2"
-        fill="none"
-        stroke={INK}
-        strokeWidth={1.4}
-        strokeLinecap="round"
-      />
-    );
-  }
-
-  // Typing — focused tiny line.
-  if (state === "typing") {
-    return (
-      <path
-        d="M 28.4 39.4 L 31.6 39.4"
-        stroke={INK}
-        strokeWidth={1.4}
-        strokeLinecap="round"
-      />
-    );
-  }
-
-  // Idle — soft little smile.
+/** Sleeping zzz — on the face/petal boundary (not clipped to cream only). */
+function SleepZzz() {
+  const { x, y } = zzzPosition();
+  // Outer <g> = SVG position (never CSS-animated). Inner <g> = opacity pulse only.
+  // CSS transform on the same node as SVG transform hides the zzz (same bug as eyes).
   return (
-    <path
-      d="M 28.0 39.0 Q 30 40.4 32.0 39.0"
-      fill="none"
-      stroke={INK}
-      strokeWidth={1.3}
-      strokeLinecap="round"
-    />
-  );
-}
-
-/** Permanent rosy cheeks. Subtle — adds warmth without becoming a clown. */
-function Blush() {
-  return (
-    <g opacity={0.55}>
-      <ellipse
-        cx={LEFT_BLUSH_CX}
-        cy={BLUSH_CY}
-        rx={3.2}
-        ry={2.1}
-        fill={BLUSH}
-      />
-      <ellipse
-        cx={RIGHT_BLUSH_CX}
-        cy={BLUSH_CY}
-        rx={3.2}
-        ry={2.1}
-        fill={BLUSH}
-      />
+    <g transform={`translate(${x} ${y}) scale(${ZZZ_SCALE})`}>
+      <g className="blob-zzz">
+        <path d={ZZZ_PATH_SMALL} fill={ZZZ} />
+        <path d={ZZZ_PATH_MID} fill={ZZZ} />
+        <path d={ZZZ_PATH_LARGE} fill={ZZZ} />
+      </g>
     </g>
   );
 }
 
-function SleepZs() {
-  return (
-    <g
-      className="blob-zzz"
-      fill={INK}
-      stroke="none"
-      style={{
-        fontFamily:
-          "var(--font-manrope), system-ui, -apple-system, sans-serif",
-        fontWeight: 700,
-      }}
-    >
-      <text className="blob-z blob-z-1" x={49} y={20} fontSize={8}>
-        z
-      </text>
-      <text className="blob-z blob-z-2" x={53} y={13} fontSize={6}>
-        z
-      </text>
-      <text className="blob-z blob-z-3" x={56} y={8} fontSize={4}>
-        z
-      </text>
-    </g>
-  );
+/** Pick the right extras layer for the given config. */
+function Extras({ kind }: { kind: ExtrasKind }) {
+  if (kind === "sparkle-burst") {
+    return (
+      <g>
+        <Sparkle cx={46} cy={13} r={1.6} className="blob-sparkle-burst blob-sparkle-burst-1" />
+        <Sparkle cx={50.5} cy={18} r={1.1} className="blob-sparkle-burst blob-sparkle-burst-2" />
+        <Sparkle cx={43} cy={8} r={0.85} className="blob-sparkle-burst blob-sparkle-burst-3" />
+      </g>
+    );
+  }
+  return null;
 }
 
-/* -------------------------------------------------------------------------- */
-/*  BlobCharacter                                                              */
-/* -------------------------------------------------------------------------- */
+/* ════════════════════════════════════════════════════════════════════════════
+ *  6. <BlobCharacter />
+ *     - Looks up the config for the current state.
+ *     - Renders each layer with that config.
+ *     - Sets data-* attributes so CSS (section 7) can target the
+ *       right animation without using string concatenation.
+ * ════════════════════════════════════════════════════════════════════════════ */
 
 export default function BlobCharacter({
   state,
-  size = 76,
+  size = 120,
   className,
   hidden = false,
   onWakeUp,
+  debugLayout = false,
 }: BlobCharacterProps) {
+  const cfg = STATES[state];
+  const face = getFaceLayout(state === "sleeping");
+  const faceClipId = `blob-face-clip-${React.useId().replace(/:/g, "")}`;
+  const faceX = BODY_CX - FACE_SVG_SIZE / 2;
+  const faceY = BODY_CY - FACE_SVG_SIZE / 2;
+
   const handlePointerEnter = React.useCallback(() => {
     if (state === "sleeping") onWakeUp?.();
   }, [state, onWakeUp]);
@@ -285,350 +597,306 @@ export default function BlobCharacter({
         fill="none"
         className="overflow-visible"
       >
-        {/* Soft contact shadow under the head — a calm grounding touch. */}
-        <ellipse
-          className={`blob-shadow blob-shadow--${state}`}
-          cx={30}
-          cy={51}
-          rx={14}
-          ry={1.4}
-          fill={INK}
-          opacity={0.1}
-        />
+        <defs>
+          <clipPath id={faceClipId}>
+            <circle cx={BODY_CX} cy={BODY_CY} r={FACE_SVG_RX} />
+          </clipPath>
+        </defs>
 
-        {/* Body group — receives per-state tilt + bob animations. */}
+        {/* Soft ground shadow (animates with idle/sleeping bob). */}
+        {/* <ellipse
+          className="blob-shadow"
+          data-body={cfg.body}
+          cx={30}
+          cy={55}
+          rx={13}
+          ry={1.2}
+          fill={INK}
+          opacity={0.08}
+        /> */}
+
+        {/* Body group — bobs/tilts/bounces depending on cfg.body. */}
         <g
-          className={`blob-body blob-body--${state}`}
+          className="blob-body"
+          data-body={cfg.body}
           style={{ transformOrigin: "30px 46px" }}
         >
-          {/* Arms — drawn before the head so the head sits on top. */}
+          {/* Yellow scalloped petal ring — blooms on wake. */}
+          <g transform={`translate(${SUNFLOWER_TX} ${SUNFLOWER_TY})`}>
+            <g
+              className="blob-petals"
+              data-body={cfg.body}
+              style={{ transformOrigin: "25px 25px" }}
+            >
+              <path d={SUNFLOWER_PATH} fill={PETAL} />
+            </g>
+          </g>
+
+          {/* Cream face from face.svg (exact rect + corner radius). */}
           <rect
-            className={`blob-arm blob-arm-left blob-arm-left--${state}`}
-            x={2.5}
-            y={26}
-            width={8}
-            height={14}
-            rx={4}
-            ry={4}
-            fill={PAPER}
-            stroke={INK}
-            strokeWidth={1.5}
-            strokeLinejoin="round"
+            x={faceX}
+            y={faceY}
+            width={FACE_SVG_SIZE}
+            height={FACE_SVG_SIZE}
+            rx={FACE_SVG_RX}
+            fill={FACE_CREAM}
           />
-          <rect
-            className={`blob-arm blob-arm-right blob-arm-right--${state}`}
-            x={49.5}
-            y={26}
-            width={8}
-            height={14}
-            rx={4}
-            ry={4}
-            fill={PAPER}
-            stroke={INK}
-            strokeWidth={1.5}
-            strokeLinejoin="round"
-          />
+          {/* Face features clipped to cream circle. */}
+          <g clipPath={`url(#${faceClipId})`}>
+            <Eye kind={cfg.eye} side="left" eyeCy={face.eyeCy} />
+            <Eye kind={cfg.eye} side="right" eyeCy={face.eyeCy} />
+            <Blush blushCy={face.blushCy} />
+            <Mouth kind={cfg.mouth} mouthCy={face.mouthCy} />
+          </g>
+          {/* Zzz sits on face + petal edge (upper-right), like Figma reference. */}
+          {cfg.extras === "zzz" ? <SleepZzz /> : null}
+          {debugLayout ? <FaceLayoutGuides /> : null}
 
-          {/* Head */}
-          <path
-            d={HEAD_PATH}
-            fill={PAPER}
-            stroke={INK}
-            strokeWidth={1.5}
-            strokeLinejoin="round"
-          />
-
-          {/* Tiny tuft of hair on top — a little personality. */}
-          <path
-            d="M 28.6 11.6 Q 30 8 31.4 11.4"
-            fill="none"
-            stroke={INK}
-            strokeWidth={1.4}
-            strokeLinecap="round"
-          />
-
-          {/* Face */}
-          <Eyebrow state={state} />
-          <Eye cx={LEFT_EYE_CX} state={state} />
-          <Eye cx={RIGHT_EYE_CX} state={state} />
-          <Blush />
-          <Mouth state={state} />
+          {/* Leaves last — stems meet at bottom-center scallop, fan down in a V. */}
+          <g transform={`translate(${LEAF_LEFT_X} ${LEAF_LEFT_Y}) scale(${LEAF_SCALE})`}>
+            <g
+              className="blob-leaf blob-leaf-left"
+              data-leaves={cfg.leaves}
+              style={{ transformOrigin: `${LEAF_STEM_LEFT_X}px ${LEAF_STEM_Y}px` }}
+            >
+              <path d={LEAF_LEFT_PATH} fill={LEAF} />
+            </g>
+          </g>
+          <g transform={`translate(${LEAF_RIGHT_X} ${LEAF_RIGHT_Y}) scale(${LEAF_SCALE})`}>
+            <g
+              className="blob-leaf blob-leaf-right"
+              data-leaves={cfg.leaves}
+              style={{ transformOrigin: `${LEAF_STEM_RIGHT_X}px ${LEAF_STEM_Y}px` }}
+            >
+              <path d={LEAF_RIGHT_PATH} fill={LEAF} />
+            </g>
+          </g>
         </g>
 
-        {state === "sleeping" && <SleepZs />}
+        {/* Sparkles live outside the body group so the body bob doesn't move them. */}
+        <Extras
+          kind={cfg.extras === "sparkle-burst" ? "sparkle-burst" : "none"}
+        />
       </svg>
 
       <style jsx>{`
-        /* ── Body bob / tilt ─────────────────────────────────────── */
+        /* ════════════════════════════════════════════════════════════════
+         *  7. CSS ANIMATIONS — grouped by what they target.
+         *     Selectors use data-* attributes so they read like the STATES
+         *     map: data-body="bob" → bob animation, etc.
+         * ════════════════════════════════════════════════════════════════ */
 
+        /* ── BODY (data-body) ─────────────────────────────────────────── */
         :global(.blob-body) {
           transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        :global(.blob-body--idle) {
-          animation: blob-bob-idle 2s ease-in-out infinite;
+        /* Floating paused for now:
+        :global(.blob-body[data-body="bob"]) {
+          animation: blob-bob 2.4s ease-in-out infinite;
         }
-        @keyframes blob-bob-idle {
-          0%,
-          100% {
-            transform: translateY(0);
-          }
-          50% {
-            transform: translateY(-3px);
-          }
+        */
+        @keyframes blob-bob {
+          0%, 100% { transform: translateY(0); }
+          50%      { transform: translateY(-2.5px); }
         }
 
-        :global(.blob-body--typing) {
-          animation: blob-typing-lean 0.9s ease-in-out infinite;
+        :global(.blob-body[data-body="lean"]) {
+          animation: blob-lean 0.9s ease-in-out infinite;
         }
-        @keyframes blob-typing-lean {
-          0%,
-          100% {
-            transform: rotate(5deg) translateY(0);
-          }
-          50% {
-            transform: rotate(5deg) translateY(-1.5px);
-          }
+        @keyframes blob-lean {
+          0%, 100% { transform: rotate(4deg) translateY(0); }
+          50%      { transform: rotate(4deg) translateY(-1.5px); }
         }
 
-        :global(.blob-body--sleeping) {
-          animation: blob-bob-sleep 3s ease-in-out infinite;
+        /* Sleeping — very subtle settle (almost still). */
+        :global(.blob-body[data-body="shrink"]) {
+          animation: blob-shrink 5s ease-in-out infinite;
         }
-        @keyframes blob-bob-sleep {
-          0%,
-          100% {
-            transform: rotate(12deg) translateY(0);
-          }
-          50% {
-            transform: rotate(12deg) translateY(-4px);
-          }
+        @keyframes blob-shrink {
+          0%, 100% { transform: scale(0.985); }
+          50%      { transform: scale(0.97); }
         }
 
-        :global(.blob-body--waking) {
-          animation: blob-wake 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        /* Wake — subtle perk-up from sleep (between still and bouncy). */
+        :global(.blob-body[data-body="wake"]) {
+          animation: blob-wake 1s ease-in-out forwards;
         }
         @keyframes blob-wake {
-          0% {
-            transform: rotate(12deg) translateY(0);
-          }
-          15% {
-            transform: rotate(0deg) translateY(-3px);
-          }
-          100% {
-            transform: rotate(0deg) translateY(0);
-          }
+          0%   { transform: scale(0.97) translateY(0.5px); }
+          55%  { transform: scale(1.025) translateY(-1.5px); }
+          100% { transform: scale(1) translateY(0); }
         }
 
-        :global(.blob-body--saving) {
-          animation: blob-save 1.1s ease-in-out forwards;
+        /* Mouth — instant switch (no fade); both paths stay mounted. */
+        :global(.blob-mouth[data-mouth-display="slight"] .blob-mouth-slight) {
+          opacity: 1;
         }
-        @keyframes blob-save {
-          0% {
-            transform: translateY(0);
-            opacity: 1;
-          }
-          15% {
-            transform: translateY(-6px);
-            opacity: 1;
-          }
-          30% {
-            transform: translateY(0);
-            opacity: 1;
-          }
-          45% {
-            transform: translateY(-6px);
-            opacity: 1;
-          }
-          60% {
-            transform: translateY(0);
-            opacity: 1;
-          }
-          100% {
-            transform: translateY(0);
-            opacity: 0;
-          }
+        :global(.blob-mouth[data-mouth-display="slight"] .blob-mouth-big) {
+          opacity: 0;
+        }
+        :global(.blob-mouth[data-mouth-display="big"] .blob-mouth-slight) {
+          opacity: 0;
+        }
+        :global(.blob-mouth[data-mouth-display="big"] .blob-mouth-big) {
+          opacity: 1;
         }
 
-        /* ── Shadow — squashes a touch with each bob. ─────────────── */
+        :global(.blob-body[data-body="bounce"]) {
+          animation: blob-bounce 1.1s ease-in-out forwards;
+        }
+        @keyframes blob-bounce {
+          0%   { transform: translateY(0); opacity: 1; }
+          15%  { transform: translateY(-6px); opacity: 1; }
+          30%  { transform: translateY(0); opacity: 1; }
+          45%  { transform: translateY(-5px); opacity: 1; }
+          60%  { transform: translateY(0); opacity: 1; }
+          100% { transform: translateY(0); opacity: 0; }
+        }
+
+        /* ── SHADOW (matches body bob/tilt) ────────────────────────────── */
         :global(.blob-shadow) {
           transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          transform-origin: 30px 51px;
+          transform-origin: 30px 55px;
         }
-        :global(.blob-shadow--idle) {
-          animation: blob-shadow-bob 2s ease-in-out infinite;
+        /* Floating paused for now:
+        :global(.blob-shadow[data-body="bob"]) {
+          animation: blob-shadow-squash 2.4s ease-in-out infinite;
         }
-        :global(.blob-shadow--sleeping) {
-          animation: blob-shadow-bob 3s ease-in-out infinite;
+        :global(.blob-shadow[data-body="tilt"]) {
+          animation: blob-shadow-squash 3s ease-in-out infinite;
         }
-        @keyframes blob-shadow-bob {
-          0%,
-          100% {
-            transform: scaleX(1);
-          }
-          50% {
-            transform: scaleX(0.9);
-          }
+        */
+        @keyframes blob-shadow-squash {
+          0%, 100% { transform: scaleX(1); }
+          50%      { transform: scaleX(0.88); }
         }
 
-        /* ── Arms ────────────────────────────────────────────────── */
-
-        :global(.blob-arm) {
+        /* ── LEAVES (data-leaves) ─────────────────────────────────────── */
+        :global(.blob-leaf) {
           transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
-        :global(.blob-arm-right--typing) {
-          transform-origin: 53.5px 27px;
-          animation: blob-arm-tap 0.3s ease-in-out infinite;
+        /* still → no animation (default) */
+
+        :global(.blob-leaf-left[data-leaves="sway"]) {
+          animation: blob-leaf-sway-l 1.4s ease-in-out infinite;
         }
-        @keyframes blob-arm-tap {
-          0%,
-          100% {
-            transform: rotate(0deg);
-          }
-          50% {
-            transform: rotate(-30deg);
-          }
+        :global(.blob-leaf-right[data-leaves="sway"]) {
+          animation: blob-leaf-sway-r 1.4s ease-in-out infinite;
+        }
+        @keyframes blob-leaf-sway-l {
+          0%, 100% { transform: rotate(0); }
+          50%      { transform: rotate(-4deg); }
+        }
+        @keyframes blob-leaf-sway-r {
+          0%, 100% { transform: rotate(0); }
+          50%      { transform: rotate(4deg); }
         }
 
-        :global(.blob-arm-left--sleeping) {
-          transform-origin: 6.5px 27px;
-          transform: rotate(-12deg) translateY(2px);
+        :global(.blob-leaf-left[data-leaves="droop"]) {
+          transform: rotate(-6deg) translateY(0.6px);
         }
-        :global(.blob-arm-right--sleeping) {
-          transform-origin: 53.5px 27px;
-          transform: rotate(12deg) translateY(2px);
+        :global(.blob-leaf-right[data-leaves="droop"]) {
+          transform: rotate(6deg) translateY(0.6px);
         }
 
-        :global(.blob-arm-left--waking) {
-          transform-origin: 6.5px 27px;
-          animation: blob-arm-wake-l 0.5s ease-out forwards;
+        :global(.blob-leaf-left[data-leaves="perk"]) {
+          animation: blob-leaf-perk-l 1.1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         }
-        :global(.blob-arm-right--waking) {
-          transform-origin: 53.5px 27px;
-          animation: blob-arm-wake-r 0.5s ease-out forwards;
-        }
-        @keyframes blob-arm-wake-l {
-          0% {
-            transform: rotate(0deg);
-          }
-          25% {
-            transform: rotate(45deg);
-          }
-          100% {
-            transform: rotate(0deg);
-          }
-        }
-        @keyframes blob-arm-wake-r {
-          0% {
-            transform: rotate(0deg);
-          }
-          25% {
-            transform: rotate(-45deg);
-          }
-          100% {
-            transform: rotate(0deg);
-          }
+        :global(.blob-leaf-right[data-leaves="perk"]) {
+          animation: blob-leaf-perk-r 1.1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         }
 
-        :global(.blob-arm-left--saving) {
-          transform-origin: 6.5px 27px;
-          animation: blob-arm-save-l 1.1s ease-out forwards;
+        :global(.blob-leaf-left[data-leaves="wake"]) {
+          animation: blob-leaf-wake-l 1s ease-out forwards;
         }
-        :global(.blob-arm-right--saving) {
-          transform-origin: 53.5px 27px;
-          animation: blob-arm-save-r 1.1s ease-out forwards;
+        :global(.blob-leaf-right[data-leaves="wake"]) {
+          animation: blob-leaf-wake-r 1s ease-out forwards;
         }
-        @keyframes blob-arm-save-l {
-          0% {
-            transform: rotate(0deg);
-          }
-          20% {
-            transform: rotate(60deg);
-          }
-          100% {
-            transform: rotate(60deg);
-          }
+        @keyframes blob-leaf-wake-l {
+          0%   { transform: rotate(-6deg) translateY(0.6px); }
+          100% { transform: rotate(0deg); }
         }
-        @keyframes blob-arm-save-r {
-          0% {
-            transform: rotate(0deg);
-          }
-          20% {
-            transform: rotate(-60deg);
-          }
-          100% {
-            transform: rotate(-60deg);
-          }
+        @keyframes blob-leaf-wake-r {
+          0%   { transform: rotate(6deg) translateY(0.6px); }
+          100% { transform: rotate(0deg); }
         }
 
-        /* ── Eyes ────────────────────────────────────────────────── */
+        @keyframes blob-leaf-perk-l {
+          0%   { transform: rotate(0); }
+          25%  { transform: rotate(-22deg); }
+          100% { transform: rotate(-14deg); }
+        }
+        @keyframes blob-leaf-perk-r {
+          0%   { transform: rotate(0); }
+          25%  { transform: rotate(22deg); }
+          100% { transform: rotate(14deg); }
+        }
 
-        :global(.blob-eye) {
-          transition: transform 0.15s ease-out;
+        /* ── EYES (data-eye) ──────────────────────────────────────────── */
+        /* Typing — both eyes blink in sync. */
+        :global(.blob-eye[data-eye="open-blink"]) {
+          animation: blob-blink 2.6s ease-in-out infinite;
         }
-        :global(.blob-eye--idle) {
-          transform: scaleY(1);
+        @keyframes blob-blink {
+          0%, 88%, 100% { transform: scaleY(1); }
+          92%           { transform: scaleY(0.12); }
+          96%           { transform: scaleY(1); }
         }
-        :global(.blob-eye--typing) {
-          transform: scaleY(0.62);
-        }
-        :global(.blob-eye--waking) {
-          animation: blob-eye-wake 0.15s ease-out forwards;
+
+        :global(.blob-eye[data-eye="open-wake"]) {
+          animation: blob-eye-wake 0.25s ease-out forwards;
         }
         @keyframes blob-eye-wake {
-          0% {
-            transform: scaleY(0.05);
-          }
-          100% {
-            transform: scaleY(1.23);
-          }
+          0%   { transform: scaleY(0.08); }
+          100% { transform: scaleY(1); }
         }
 
-        /* ── Sleep Z's ───────────────────────────────────────────── */
+        /* Waking — both eyes wink together. */
+        :global(.blob-eye[data-eye="wink"]) {
+          animation: blob-wink-sync 0.48s ease-in-out 0.05s 1 forwards;
+        }
+        @keyframes blob-wink-sync {
+          0%, 100% { transform: scaleY(1); }
+          32%      { transform: scaleY(0.12); }
+          58%      { transform: scaleY(1); }
+        }
 
-        :global(.blob-z) {
+        /* ── SPARKLES ─────────────────────────────────────────────────── */
+        :global(.blob-sparkle-burst) {
           opacity: 0;
-          animation: blob-z-float 1.8s ease-out infinite;
+          animation: blob-sparkle-burst 1.1s ease-out forwards;
         }
-        :global(.blob-z-1) {
-          animation-delay: 0s;
-        }
-        :global(.blob-z-2) {
-          animation-delay: 0.6s;
-        }
-        :global(.blob-z-3) {
-          animation-delay: 1.2s;
-        }
-        @keyframes blob-z-float {
-          0% {
-            opacity: 0;
-            transform: translateY(2px);
-          }
-          20% {
-            opacity: 0.8;
-          }
-          100% {
-            opacity: 0;
-            transform: translateY(-10px);
-          }
+        :global(.blob-sparkle-burst-1) { animation-delay: 0.05s; }
+        :global(.blob-sparkle-burst-2) { animation-delay: 0.22s; }
+        :global(.blob-sparkle-burst-3) { animation-delay: 0.38s; }
+        @keyframes blob-sparkle-burst {
+          0%   { opacity: 0; transform: scale(0.2); }
+          25%  { opacity: 1; transform: scale(1.1); }
+          70%  { opacity: 1; transform: scale(0.95); }
+          100% { opacity: 0; transform: scale(0.6); }
         }
 
+        :global(.blob-zzz) {
+          animation: blob-zzz-float 2.8s ease-in-out infinite;
+        }
+        @keyframes blob-zzz-float {
+          0%, 100% { opacity: 0.65; }
+          50%      { opacity: 1; }
+        }
+
+        /* Respect users who don't want motion. */
         @media (prefers-reduced-motion: reduce) {
           :global(.blob-body),
-          :global(.blob-body--idle),
-          :global(.blob-body--typing),
-          :global(.blob-body--sleeping),
-          :global(.blob-body--waking),
-          :global(.blob-body--saving),
-          :global(.blob-shadow--idle),
-          :global(.blob-shadow--sleeping),
-          :global(.blob-arm-right--typing),
-          :global(.blob-arm-left--waking),
-          :global(.blob-arm-right--waking),
-          :global(.blob-arm-left--saving),
-          :global(.blob-arm-right--saving),
-          :global(.blob-eye--waking),
-          :global(.blob-z) {
+          :global(.blob-petals),
+          :global(.blob-leaf-left[data-leaves="wake"]),
+          :global(.blob-leaf-right[data-leaves="wake"]),
+          :global(.blob-shadow),
+          :global(.blob-leaf),
+          :global(.blob-eye),
+          :global(.blob-sparkle-burst),
+          :global(.blob-zzz) {
             animation: none !important;
           }
         }
@@ -637,21 +905,20 @@ export default function BlobCharacter({
   );
 }
 
-/* -------------------------------------------------------------------------- */
-/*  useBlobState — small state machine helper                                 */
-/* -------------------------------------------------------------------------- */
-
-/**
- * Drives the BlobCharacter's state from typing / idle / save activity.
+/* ════════════════════════════════════════════════════════════════════════════
+ *  8. useBlobState — typing / idle / sleep state machine.
  *
- * Lifecycle:
- *   - Mount → "idle" with the gentle bob.
- *   - onActivity()  → "typing" (auto-returns to idle ~0.9s after last call).
- *   - 20s of inactivity → "sleeping" (with floating Zs).
- *   - onWakeUp()    → "waking" → "idle" (only effective while sleeping).
- *   - onSave()      → "saving" → fades out → "idle" again.
- *   - onClosing()   → "saving" → resolves once the fade has settled.
- */
+ *  Lifecycle:
+ *    - Mount → "idle", sleep timer starts
+ *    - onActivity() → "typing" → "idle" after pause; sleep timer resets
+ *    - sleepAfterMs with no activity → "sleeping" (stays until interaction)
+ *    - onCanvasInteraction() / onWakeUp() while sleeping → "waking" → "idle"
+ *    - Typing while sleeping skips wake animation → "typing" directly
+ *    - onSave() → "saving" → "idle"
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+/** Default inactivity before sleep (30s). Pass 45_000 in useBlobState to use 45s. */
+export const DEFAULT_SLEEP_AFTER_MS = 5_000;
 
 export type UseBlobStateOptions = {
   typingRestoreMs?: number;
@@ -663,8 +930,8 @@ export type UseBlobStateOptions = {
 export function useBlobState(opts: UseBlobStateOptions = {}) {
   const {
     typingRestoreMs = 900,
-    sleepAfterMs = 20_000,
-    wakeDurationMs = 800,
+    sleepAfterMs = DEFAULT_SLEEP_AFTER_MS,
+    wakeDurationMs = 1000,
     saveDurationMs = 1100,
   } = opts;
 
@@ -682,9 +949,7 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
     stateRef.current = state;
   }, [state]);
 
-  const clearTimer = (
-    ref: React.MutableRefObject<number | null>
-  ) => {
+  const clearTimer = (ref: React.MutableRefObject<number | null>) => {
     if (ref.current !== null) {
       window.clearTimeout(ref.current);
       ref.current = null;
@@ -702,6 +967,8 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
     clearTimer(sleepTimerRef);
     sleepTimerRef.current = window.setTimeout(() => {
       if (closingRef.current) return;
+      if (stateRef.current === "sleeping" || stateRef.current === "waking") return;
+      clearTimer(idleTimerRef);
       setState("sleeping");
     }, sleepAfterMs);
   }, [sleepAfterMs]);
@@ -711,21 +978,11 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
     return clearAll;
   }, [clearAll, scheduleSleep]);
 
-  const onActivity = React.useCallback(() => {
-    if (closingRef.current) return;
-    clearTimer(sleepTimerRef);
-    clearTimer(idleTimerRef);
-    setState("typing");
-    idleTimerRef.current = window.setTimeout(() => {
-      if (closingRef.current) return;
-      setState("idle");
-      scheduleSleep();
-    }, typingRestoreMs);
-  }, [scheduleSleep, typingRestoreMs]);
-
   const onWakeUp = React.useCallback(() => {
     if (closingRef.current) return;
     if (stateRef.current !== "sleeping") return;
+    clearTimer(sleepTimerRef);
+    clearTimer(idleTimerRef);
     clearTimer(wakeTimerRef);
     setState("waking");
     wakeTimerRef.current = window.setTimeout(() => {
@@ -734,6 +991,37 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
       scheduleSleep();
     }, wakeDurationMs);
   }, [scheduleSleep, wakeDurationMs]);
+
+  /** Pointer on canvas or character while sleeping → wake (no auto-idle until this). */
+  const onCanvasInteraction = React.useCallback(() => {
+    onWakeUp();
+  }, [onWakeUp]);
+
+  const onActivity = React.useCallback(() => {
+    if (closingRef.current) return;
+    clearTimer(sleepTimerRef);
+    clearTimer(idleTimerRef);
+    clearTimer(wakeTimerRef);
+
+    if (stateRef.current === "sleeping") {
+      setState("typing");
+      idleTimerRef.current = window.setTimeout(() => {
+        if (closingRef.current) return;
+        setState("idle");
+        scheduleSleep();
+      }, typingRestoreMs);
+      return;
+    }
+
+    if (stateRef.current === "waking" || stateRef.current === "saving") return;
+
+    setState("typing");
+    idleTimerRef.current = window.setTimeout(() => {
+      if (closingRef.current) return;
+      setState("idle");
+      scheduleSleep();
+    }, typingRestoreMs);
+  }, [scheduleSleep, typingRestoreMs]);
 
   const onSave = React.useCallback(() => {
     if (closingRef.current) return;
@@ -763,6 +1051,7 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
     setState,
     hidden,
     onActivity,
+    onCanvasInteraction,
     onWakeUp,
     onSave,
     onClosing,

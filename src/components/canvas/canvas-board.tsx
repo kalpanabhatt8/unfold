@@ -107,15 +107,8 @@ export type CanvasSnapshot = {
 /*  Visual constants                                                          */
 /* -------------------------------------------------------------------------- */
 
-export const BACKGROUND_PRESETS = [
-  { id: "blush",    value: "#F2E8E4", label: "Blush" },
-  { id: "ivory",    value: "#F7F1E8", label: "Ivory" },
-  { id: "sage",     value: "#E8EFE8", label: "Sage" },
-  { id: "mist",     value: "#E8EEF3", label: "Mist" },
-  { id: "lavender", value: "#EEEBF3", label: "Lavender" },
-] as const;
-
-export const DEFAULT_BACKGROUND = BACKGROUND_PRESETS[0].value;
+/** Single warm canvas surface — soft parchment, not rose-tinted. */
+export const CANVAS_BACKGROUND = "#FFFCF8";
 
 /** Width allotted to the writing zone per column count (CSS values). */
 const WRITING_WIDTH_CSS: Record<ColumnLayout, string> = {
@@ -210,7 +203,7 @@ export const emptySnapshot = (): CanvasSnapshot => ({
   version: CANVAS_SNAPSHOT_VERSION,
   textColumns: [[emptyParagraph()]],
   imageBlocks: [],
-  background: DEFAULT_BACKGROUND,
+  background: CANVAS_BACKGROUND,
   columns: 1,
   updatedAt: Date.now(),
 });
@@ -354,16 +347,11 @@ function migrateLegacy(raw: Record<string, unknown>): CanvasSnapshot {
     }
   }
 
-  const background =
-    typeof raw.background === "string" && raw.background.length > 0
-      ? raw.background
-      : DEFAULT_BACKGROUND;
-
   return {
     version: CANVAS_SNAPSHOT_VERSION,
     textColumns: [flatText.length > 0 ? flatText : [emptyParagraph()]],
     imageBlocks: images,
-    background,
+    background: CANVAS_BACKGROUND,
     columns: 1,
     updatedAt: Date.now(),
   };
@@ -406,11 +394,6 @@ export function normalizeSnapshot(value: unknown): CanvasSnapshot | null {
     .map(sanitizeImage)
     .filter((b): b is JournalImage => Boolean(b));
 
-  const background =
-    typeof value.background === "string" && value.background.length > 0
-      ? value.background
-      : DEFAULT_BACKGROUND;
-
   const updatedAt =
     typeof value.updatedAt === "number" && Number.isFinite(value.updatedAt)
       ? value.updatedAt
@@ -420,7 +403,7 @@ export function normalizeSnapshot(value: unknown): CanvasSnapshot | null {
     version: CANVAS_SNAPSHOT_VERSION,
     textColumns,
     imageBlocks,
-    background,
+    background: CANVAS_BACKGROUND,
     columns,
     updatedAt,
   };
@@ -567,9 +550,6 @@ function CanvasBoardInner(
   // for backward-compat (legacy notebooks still deserialize) but always
   // render as a single column going forward.
   const [columns] = useState<ColumnLayout>(1);
-  // Background is no longer user-editable from the toolbar, but the value
-  // still hydrates from the snapshot so template-specified colors render.
-  const [background, setBackground] = useState<string>(DEFAULT_BACKGROUND);
   const [lastSavedAt, setLastSavedAt] = useState<number>(() => Date.now());
 
   // Forces a re-render every 30s so relative time labels stay fresh even
@@ -603,7 +583,7 @@ function CanvasBoardInner(
   // The companion lives just to the right of the writing column, vertically
   // centred. We measure the column's right edge so the position is correct
   // at every viewport width without any CSS-vs-actual-width drift.
-  const blob = useBlobState();
+  const blob = useBlobState({ sleepAfterMs: 10_000 });
   const [blobLeft, setBlobLeft] = useState<number | null>(null);
 
   useLayoutEffect(() => {
@@ -639,7 +619,6 @@ function CanvasBoardInner(
       // the UI matches the simplified spec without losing existing content.
       setTextColumns(adjustColumns(snap.textColumns, 1));
       setImageBlocks(snap.imageBlocks);
-      setBackground(snap.background);
       setLastSavedAt(snap.updatedAt);
       const first = snap.textColumns[0]?.[0];
       if (first) {
@@ -693,11 +672,11 @@ function CanvasBoardInner(
       version: CANVAS_SNAPSHOT_VERSION,
       textColumns,
       imageBlocks,
-      background,
+      background: CANVAS_BACKGROUND,
       columns,
       updatedAt: Date.now(),
     }),
-    [background, columns, imageBlocks, textColumns]
+    [columns, imageBlocks, textColumns]
   );
 
   // Fast local mirror so a tab close never loses keystrokes. This is *not*
@@ -1091,7 +1070,7 @@ function CanvasBoardInner(
       ref={outerRef}
       className="relative flex h-svh min-h-0 w-full flex-row overflow-x-hidden overflow-y-hidden transition-colors duration-500"
       style={{
-        background,
+        background: CANVAS_BACKGROUND,
         color: WRITING_INK,
         caretColor: WRITING_INK,
       }}
@@ -1120,7 +1099,10 @@ function CanvasBoardInner(
       <div
         className="relative flex min-h-0 flex-1 flex-col overflow-hidden"
         ref={writingRef}
-        onPointerDown={onWritingPointerDown}
+        onPointerDown={(e) => {
+          blob.onCanvasInteraction();
+          onWritingPointerDown(e);
+        }}
       >
         <div
           ref={writingScrollRef}
@@ -1264,7 +1246,7 @@ function CanvasBoardInner(
           </div>
         </div>
 
-        {/* —————————— Companion (right of writing column, vertically centred) ——————————
+        {/* —————————— Companion (right of writing column, pinned to top) ——————————
             Sits in the writingRef container (which doesn't scroll) so the
             character stays put as the user scrolls through the page.
             The horizontal position is measured against the column's right
@@ -1274,15 +1256,14 @@ function CanvasBoardInner(
             className="pointer-events-auto absolute z-30"
             style={{
               left: blobLeft,
-              top: "50%",
-              transform: "translateY(-50%)",
-              transition: "left 0.15s ease-out, top 0.15s ease-out",
+              top: PAGE_PADDING_Y,
+              transition: "left 0.15s ease-out",
             }}
           >
             <BlobCharacter
               state={blob.state}
               hidden={blob.hidden}
-              onWakeUp={blob.onWakeUp}
+              onWakeUp={blob.onCanvasInteraction}
             />
           </div>
         )}
@@ -1443,7 +1424,7 @@ function ImageStack({
         width: "20%",
         minHeight: "80svh",
         height: "calc(100vh - 16px)",
-        margin: 8,
+        margin: 12,
         position: "sticky",
         top: 20,
       }}
@@ -1453,7 +1434,8 @@ function ImageStack({
         style={{
           paddingLeft: 20,
           paddingRight: 20,
-          background: "rgba(15, 15, 15, 0.045)",
+          // Subtle darker recess on top of the warm canvas background.
+          background: "#FAF7F2",
         }}
         onClick={(e) => {
           if ((e.target as HTMLElement).closest("[data-polaroid]")) return;
@@ -1517,8 +1499,8 @@ function PolaroidPlaceholder({
       onClick={onClick}
       className="group relative mx-auto flex min-h-0 max-w-full shrink-0 cursor-pointer flex-col rounded-[6px] bg-white text-left shadow-[0_8px_28px_rgba(15,15,15,0.14),0_2px_8px_rgba(15,15,15,0.08)] transition hover:shadow-[0_12px_32px_rgba(15,15,15,0.16)]"
       style={{
-        width: "calc((100% - 20px) * 0.88)",
-        aspectRatio: "4 / 4.88",
+        width: "calc((100% - 20px) * 0.9)",
+        aspectRatio: "4 / 4.6",
         paddingLeft: POLAROID_PAD_X,
         paddingRight: POLAROID_PAD_X,
         paddingTop: POLAROID_PAD_TOP,
