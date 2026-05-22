@@ -116,7 +116,7 @@ export type CanvasSnapshot = {
  *  Warm linen            #F7F5F1 / #EFEBE6  — honey undertone (previous)
  */
 export const CANVAS_BACKGROUND = "#fafafa";
-export const CANVAS_RECESS = "#fafafa";
+export const CANVAS_RECESS = "#F6F6F6";
 
 /** Width allotted to the writing zone per column count (CSS values). */
 const WRITING_WIDTH_CSS: Record<ColumnLayout, string> = {
@@ -1398,12 +1398,17 @@ type ImageStackProps = {
   onAdd: () => void;
 };
 
-/** Curated stack: alternating tilt (°) and horizontal nudge (px) — wraps for
- *  extra slots so the column still feels hand-placed, not grid-aligned. */
-const STACK_TILT_DEG = [-6.5, 6, -7.5, 5.5, -6, 6.5];
-const STACK_OFFSET_X_PX = [-10, -12, 9, -8, 11, -7];
-/** Pull each card up over the one below — smaller = more visible gap. */
-const STACK_OVERLAP_PX = 18;
+/** Fixed height of the two-polaroid stack — container never grows. */
+const STACK_HEIGHT_PX = 300;
+/** Tilt for the front polaroid. */
+const FRONT_TILT_DEG = -5;
+/** Tilt for the back polaroid — visible peek without feeling extreme. */
+const BACK_TILT_DEG = 14;
+/** Back card offset so it peeks from behind the front. */
+const BACK_NUDGE_X_PX = 7;
+const BACK_NUDGE_Y_PX = 14;
+const STACK_SWAP_MS = 560;
+const STACK_SWAP_TRANSITION = `transform ${STACK_SWAP_MS}ms cubic-bezier(0.25, 0.46, 0.45, 0.94)`;
 
 function ImageStack({
   images,
@@ -1413,123 +1418,163 @@ function ImageStack({
   onRemove,
   onAdd,
 }: ImageStackProps) {
-  // Order preserved by `order` if set; otherwise insertion order.
+  // Which of the two slots is displayed in front (0 = first slot, 1 = second).
+  const [frontSlot, setFrontSlot] = useState(0);
+  /** Keeps the rising card above the other for the full swap animation. */
+  const [liftedSlot, setLiftedSlot] = useState<number | null>(null);
+  const swapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const bringForward = useCallback((slotIdx: number) => {
+    if (slotIdx === frontSlot) return;
+    if (swapTimerRef.current) clearTimeout(swapTimerRef.current);
+    setLiftedSlot(slotIdx);
+    setFrontSlot(slotIdx);
+    swapTimerRef.current = setTimeout(() => {
+      setLiftedSlot(null);
+      swapTimerRef.current = null;
+    }, STACK_SWAP_MS + 40);
+  }, [frontSlot]);
+
+  useEffect(
+    () => () => {
+      if (swapTimerRef.current) clearTimeout(swapTimerRef.current);
+    },
+    []
+  );
+
   const ordered = useMemo(() => {
-    return [...images].sort(
-      (a, b) => (a.order ?? images.indexOf(a)) - (b.order ?? images.indexOf(b))
-    );
+    return [...images]
+      .sort(
+        (a, b) => (a.order ?? images.indexOf(a)) - (b.order ?? images.indexOf(b))
+      )
+      .slice(0, 2);
   }, [images]);
 
-  // At least 3 visible slots so the panel never reads as blank — extras
-  // beyond the image count render as upload-on-click placeholders.
-  const slotCount = Math.max(ordered.length, 3);
+  // Render back slot first in DOM so the front slot paints on top.
+  const backSlot = 1 - frontSlot;
 
   return (
     <aside
       aria-label="Image column"
-      className="relative z-10 flex shrink-0 flex-col self-stretch min-h-0"
+      className="relative z-10 shrink-0 self-end rounded-[22px]"
       style={{
         width: "20%",
-        minHeight: "80svh",
-        height: "calc(100vh - 16px)",
+        height: "fit-content",
         margin: 12,
         position: "sticky",
-        top: 20,
+        bottom: 20,
+        padding: 24,
+        background: CANVAS_RECESS,
       }}
     >
       <div
-        className="flex min-h-[80svh] flex-1 flex-col items-center overflow-visible rounded-[22px] py-12 px-8 justify-center"
-        style={{
-          paddingLeft: 20,
-          paddingRight: 20,
-          // Subtle darker recess on top of the canvas background.
-          background: CANVAS_RECESS,
-        }}
+        className="flex flex-col items-center justify-end"
         onClick={(e) => {
           if ((e.target as HTMLElement).closest("[data-polaroid]")) return;
           onSelect(null);
         }}
       >
-        <div className="flex w-full shrink-0 flex-col items-center">
-          {Array.from({ length: slotCount }).map((_, i) => {
-            const tilt = STACK_TILT_DEG[i % STACK_TILT_DEG.length];
-            const offsetX = STACK_OFFSET_X_PX[i % STACK_OFFSET_X_PX.length];
-            const img = ordered[i];
+        {/* Fixed-height stack — never grows regardless of image count. */}
+        <div
+          className="relative w-full shrink-0 overflow-visible"
+          style={{ height: STACK_HEIGHT_PX }}
+        >
+          {([backSlot, frontSlot] as const).map((slotIdx) => {
+            const isFront = slotIdx === frontSlot;
+            const isLifted = liftedSlot === slotIdx;
+            const tilt = isFront ? FRONT_TILT_DEG : BACK_TILT_DEG;
+            const nudgeX = isFront ? 0 : BACK_NUDGE_X_PX;
+            const nudgeY = isFront ? 0 : BACK_NUDGE_Y_PX;
+            const scale = isFront ? 1 : 0.98;
+            const img = ordered[slotIdx] ?? null;
+            const zIndex = isLifted ? 3 : isFront ? 2 : 1;
+
             return (
               <div
-                key={img ? img.id : `slot-${i}`}
-                className="relative flex w-full justify-center"
+                key={slotIdx}
+                data-polaroid
+                className="absolute"
                 style={{
-                  zIndex: i + 1,
-                  marginTop: i === 0 ? 0 : -STACK_OVERLAP_PX,
-                  transform: `translateX(${offsetX}px)`,
+                  width: "80%",
+                  left: "50%",
+                  bottom: 20,
+                  transform: `translate3d(calc(-50% + ${nudgeX}px), ${nudgeY}px, 0) scale(${scale}) rotate(${tilt}deg)`,
+                  transformOrigin: "50% 100%",
+                  zIndex,
+                  cursor: "pointer",
+                  transition: STACK_SWAP_TRANSITION,
+                }}
+                onTransitionEnd={(e) => {
+                  if (e.propertyName !== "transform") return;
+                  setLiftedSlot((prev) => (prev === slotIdx ? null : prev));
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (!isFront) {
+                    bringForward(slotIdx);
+                  } else if (img) {
+                    onSelect(img.id);
+                  } else {
+                    onAdd();
+                  }
                 }}
               >
                 {img ? (
                   <PolaroidImage
                     block={img}
-                    tilt={tilt}
                     selected={selectedImageId === img.id}
                     onSelect={() => onSelect(img.id)}
                     onUpdate={(patch) => onUpdate(img.id, patch)}
                     onRemove={() => onRemove(img.id)}
                   />
                 ) : (
-                  <PolaroidPlaceholder tilt={tilt} onClick={onAdd} />
+                  <PolaroidPlaceholder />
                 )}
               </div>
             );
           })}
         </div>
-     
       </div>
     </aside>
   );
 }
 
 /* -------------------------------------------------------------------------- */
-/*  PolaroidPlaceholder — empty slot that uploads on click                     */
+/*  PolaroidPlaceholder — empty slot; click-to-upload handled by parent        */
 /* -------------------------------------------------------------------------- */
 
-function PolaroidPlaceholder({
-  tilt,
-  onClick,
-}: {
-  tilt: number;
-  onClick: () => void;
-}) {
+function PolaroidPlaceholder() {
   return (
-    <button
-      type="button"
-      data-polaroid
-      aria-label="Upload image"
-      title="Upload image"
-      onClick={onClick}
-      className="group relative mx-auto flex min-h-0 max-w-full shrink-0 cursor-pointer flex-col rounded-[6px] bg-white text-left shadow-[0_8px_28px_rgba(15,15,15,0.14),0_2px_8px_rgba(15,15,15,0.08)] transition hover:shadow-[0_12px_32px_rgba(15,15,15,0.16)]"
+    <div
+      className="group relative flex w-full cursor-pointer flex-col rounded-[6px] bg-white shadow-[0_8px_28px_rgba(15,15,15,0.14),0_2px_8px_rgba(15,15,15,0.08)] transition hover:shadow-[0_12px_32px_rgba(15,15,15,0.16)]"
       style={{
-        width: "calc((100% - 20px) * 0.9)",
         aspectRatio: "4 / 4.6",
         paddingLeft: POLAROID_PAD_X,
         paddingRight: POLAROID_PAD_X,
         paddingTop: POLAROID_PAD_TOP,
         paddingBottom: POLAROID_PAD_BOTTOM,
-        transform: `rotate(${tilt}deg)`,
-        transformOrigin: "center bottom",
       }}
     >
-      <div className="relative min-h-0 w-full flex-1 overflow-hidden rounded-[3px] bg-black/[0.06] transition-colors group-hover:bg-black/[0.09]">
-        <span
-          aria-hidden
-          className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-visible:opacity-100"
-        >
-          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-[#2C2C2A] shadow-[0_4px_14px_rgba(15,15,15,0.10)]">
-            <ImagePlus size={18} strokeWidth={iconStrokePx(18)} />
+      {/* Photo area */}
+      <div className="relative w-full flex-1 overflow-hidden rounded-[3px] bg-black/[0.05] transition-colors group-hover:bg-black/[0.08]">
+        <span className="absolute inset-0 flex items-center justify-center">
+          <span className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/60 text-black/20 shadow-sm transition-all duration-200 group-hover:bg-white/90 group-hover:text-black/45 group-hover:shadow-md">
+            <ImagePlus size={16} strokeWidth={iconStrokePx(16)} />
           </span>
         </span>
       </div>
 
-      <span aria-hidden className="mt-2 block h-4 w-full shrink-0" />
-    </button>
+      {/* Bottom caption strip — journal-appropriate placeholder text */}
+      <span
+        aria-hidden
+        className="mt-2 block w-full shrink-0 text-center text-[11px] italic text-black/20 transition-colors duration-200 group-hover:text-black/35"
+        style={{
+          fontFamily: "var(--font-caveat), var(--font-lora), cursive",
+        }}
+      >
+        add a memory
+      </span>
+    </div>
   );
 }
 
@@ -1539,9 +1584,6 @@ function PolaroidPlaceholder({
 
 type PolaroidImageProps = {
   block: JournalImage;
-  /** Tilt forwarded by the stack so filled and empty slots share the same
-   *  casual rotation pattern. */
-  tilt: number;
   selected: boolean;
   onSelect: () => void;
   onUpdate: (patch: Partial<JournalImage>) => void;
@@ -1550,7 +1592,6 @@ type PolaroidImageProps = {
 
 function PolaroidImage({
   block,
-  tilt,
   selected,
   onSelect,
   onUpdate,
@@ -1558,24 +1599,16 @@ function PolaroidImage({
 }: PolaroidImageProps) {
   return (
     <figure
-      data-polaroid
-      onPointerDown={(e) => {
-        e.stopPropagation();
-        onSelect();
-      }}
       className={clsx(
-        "relative mx-auto flex min-h-0 max-w-full shrink-0 cursor-pointer flex-col rounded-[6px] bg-white shadow-[0_8px_28px_rgba(15,15,15,0.14),0_2px_8px_rgba(15,15,15,0.08)] transition",
+        "relative flex w-full cursor-pointer flex-col rounded-[6px] bg-white shadow-[0_8px_28px_rgba(15,15,15,0.14),0_2px_8px_rgba(15,15,15,0.08)] transition",
         selected && "ring-2 ring-black/15"
       )}
       style={{
-        width: "calc((100% - 20px) * 0.82 + 8px)",
         aspectRatio: "4 / 5",
         paddingLeft: POLAROID_PAD_X,
         paddingRight: POLAROID_PAD_X,
         paddingTop: POLAROID_PAD_TOP,
         paddingBottom: POLAROID_PAD_BOTTOM,
-        transform: `rotate(${tilt}deg)`,
-        transformOrigin: "center bottom",
       }}
     >
       <div className="relative min-h-0 w-full flex-1 overflow-hidden rounded-[3px] bg-black/[0.04]">
@@ -1593,16 +1626,14 @@ function PolaroidImage({
         <input
           type="text"
           value={block.caption ?? ""}
-          placeholder="Caption"
-          onChange={(e) =>
-            onUpdate({ caption: e.target.value || undefined })
-          }
+          placeholder="add a caption"
+          onChange={(e) => onUpdate({ caption: e.target.value || undefined })}
           onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
           onFocus={onSelect}
-          className="w-full border-0 bg-transparent p-0 text-center text-[13px] tracking-tight text-black/65 outline-none placeholder:text-black/30"
+          className="w-full border-0 bg-transparent p-0 text-center text-[11px] italic tracking-tight text-black/55 outline-none placeholder:text-black/25"
           style={{
-            fontFamily:
-              "var(--font-caveat), var(--font-manrope), system-ui, sans-serif",
+            fontFamily: "var(--font-caveat), var(--font-lora), cursive",
           }}
         />
       </figcaption>
