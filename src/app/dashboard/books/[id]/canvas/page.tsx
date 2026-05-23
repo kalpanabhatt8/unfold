@@ -1,12 +1,22 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { useParams, useSearchParams } from "next/navigation";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { getTemplateById } from "@/data/book-templates";
 import { coverBackgroundVar } from "@/data/cover-gradients";
 import CanvasBoard, {
+  type CanvasBoardHandle,
   type CanvasSnapshot,
 } from "@/components/canvas/canvas-board";
+import {
+  btnIcon,
+  btnRadius,
+  btnState,
+  iconFixed,
+  iconPx,
+  iconStroke,
+} from "@/components/ui/button-system";
 import {
   DRAFTS_STORAGE_KEY,
   syncDraftsAndRecents,
@@ -25,8 +35,11 @@ type Draft = RecentBook;
 
 const CanvasPage = () => {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const bookId = params?.id ?? "blank";
   const searchParams = useSearchParams();
+  const boardRef = useRef<CanvasBoardHandle>(null);
+  const [isNavigatingBack, setIsNavigatingBack] = useState(false);
   const templateParam = searchParams.get("template");
 
   const template = useMemo(() => {
@@ -63,10 +76,6 @@ const CanvasPage = () => {
 
   const [draft, setDraft] = useState<Draft>(baseDraft);
   const [isDraftHydrated, setIsDraftHydrated] = useState(false);
-  // The "Last opened" line in the canvas header should reflect the *previous*
-  // open — not the open that's happening right now. We capture it on mount,
-  // then write a fresh `lastOpenedAt` back to the draft for next time.
-  const [previousOpenedAt, setPreviousOpenedAt] = useState<number | null>(null);
   const draftRef = React.useRef<Draft>(baseDraft);
   const pendingSnapshotRef = React.useRef<CanvasSnapshot | null>(null);
   const isDraftHydratedRef = React.useRef(false);
@@ -81,13 +90,6 @@ const CanvasPage = () => {
         : {};
       const existing = drafts[bookId];
       const now = Date.now();
-      // Capture the previous open time *before* we overwrite it, so the
-      // header can render "Last opened 2d ago" instead of "just now".
-      setPreviousOpenedAt(
-        typeof existing?.lastOpenedAt === "number"
-          ? existing.lastOpenedAt
-          : null
-      );
       // Reaching the canvas page is the moment a book "becomes real" for the
       // dashboard's Recents list; flip the flag here so customization-only
       // drafts stay hidden until the user actually opens them.
@@ -119,7 +121,11 @@ const CanvasPage = () => {
   }, [isDraftHydrated]);
 
   const persistDraft = useCallback(
-    (updates: Partial<Draft>, updatedAtOverride?: number) => {
+    (
+      updates: Partial<Draft>,
+      updatedAtOverride?: number,
+      opts?: { skipRender?: boolean }
+    ) => {
       const updatedAt = updatedAtOverride ?? Date.now();
       const current = draftRef.current ?? baseDraft;
       const resolvedTemplateId =
@@ -138,7 +144,9 @@ const CanvasPage = () => {
           current.background,
       };
       draftRef.current = nextDraft;
-      setDraft(nextDraft);
+      if (!opts?.skipRender) {
+        setDraft(nextDraft);
+      }
 
       if (typeof window === "undefined") {
         return nextDraft;
@@ -155,7 +163,9 @@ const CanvasPage = () => {
         const syncedDraft = syncedDrafts[bookId];
         if (syncedDraft) {
           draftRef.current = syncedDraft;
-          setDraft(syncedDraft);
+          if (!opts?.skipRender) {
+            setDraft(syncedDraft);
+          }
           return syncedDraft;
         }
       } catch (error) {
@@ -203,15 +213,65 @@ const CanvasPage = () => {
 
   const boardStorageKey = useMemo(() => `keeps-board-${bookId}`, [bookId]);
 
+  const persistBoardSnapshot = useCallback(
+    (snapshot: CanvasSnapshot) => {
+      if (typeof window === "undefined") return;
+      try {
+        window.localStorage.setItem(
+          boardStorageKey,
+          JSON.stringify(snapshot)
+        );
+      } catch (error) {
+        console.error("Failed to persist board snapshot", error);
+      }
+      persistDraft({}, snapshot.updatedAt, { skipRender: true });
+    },
+    [boardStorageKey, persistDraft]
+  );
+
+  useEffect(() => {
+    router.prefetch("/dashboard");
+  }, [router]);
+
+  const handleBack = useCallback(() => {
+    if (isNavigatingBack) return;
+    setIsNavigatingBack(true);
+    const snapshot = boardRef.current?.captureForClose() ?? null;
+    router.push("/dashboard");
+    if (!snapshot) return;
+    // Defer the heavy stringify + localStorage work so navigation isn't blocked
+    // by large canvas text.
+    window.requestAnimationFrame(() => {
+      persistBoardSnapshot(snapshot);
+    });
+  }, [isNavigatingBack, persistBoardSnapshot, router]);
+
   return (
     <main className="relative h-svh min-h-0 w-full overflow-hidden">
+      <button
+        type="button"
+        onClick={handleBack}
+        disabled={isNavigatingBack}
+        className={`fixed left-4 top-4 z-50 ${btnRadius.pill} ${btnIcon("md")} ${btnState.default} ${btnState.hover} ${btnState.active} ${btnState.disabled}`}
+        aria-label="Back to books"
+        title="Back to books"
+      >
+        <ArrowLeft
+          strokeWidth={iconStroke("md")}
+          size={iconPx("md")}
+          aria-hidden
+          className={iconFixed}
+        />
+      </button>
+
       <CanvasBoard
+        ref={boardRef}
         storageKey={boardStorageKey}
         onSnapshotChange={handleSnapshotChange}
         onSave={handleMilestoneSave}
         initialSnapshot={templateSnapshot}
         title={draft.title}
-        previousOpenedAt={previousOpenedAt}
+        coverBackground={draft.background}
       />
     </main>
   );

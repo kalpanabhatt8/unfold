@@ -46,7 +46,7 @@ export default function BlobDevPage() {
       <div className="mx-auto flex max-w-4xl flex-col gap-12 px-6 py-12">
         <header className="flex flex-col gap-1">
           <h1
-            className="text-[28px] font-medium tracking-tight text-[#2C2C2A]"
+            className="header-xl font-medium tracking-tight text-[#2C2C2A]"
             style={{ fontFamily: "Lora, Georgia, serif" }}
           >
             Blob character
@@ -95,7 +95,7 @@ export default function BlobDevPage() {
               onKeyDown={live.onActivity}
               placeholder="Type here — character bobs while typing, sleeps after 20s…"
               rows={4}
-              className="w-full max-w-xl resize-none rounded-xl border border-black/10 bg-white/70 px-4 py-3 text-[17px] leading-relaxed outline-none placeholder:text-black/35"
+              className="w-full max-w-xl resize-none rounded-xl border border-black/10 bg-white/70 px-4 py-3 text-md leading-relaxed outline-none placeholder:text-black/35"
               style={{ fontFamily: "Lora, Georgia, serif" }}
             />
             <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-black/65">

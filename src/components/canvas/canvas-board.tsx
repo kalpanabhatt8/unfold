@@ -4,11 +4,10 @@
  * CanvasBoard — calm two-zone writing surface.
  *
  *  ┌─────────────────────────────────────────────────────────────┐
- *  │  ┌─ image panel ─┐    │  Heading + meta strip               │
- *  │  │ ▢ polaroid    │    │  ───────────────────────────────    │
- *  │  │   ▢ polaroid  │    │  writing zone (≤ 600px)             │
- *  │  │ ▢ polaroid    │    │  Lora 20px · single column          │
- *  │  └───────────────┘    │  blob follows cursor                │
+ *  │  blob                 │  Heading + meta strip               │
+ *  │  ┌─ polaroids ─┐      │  ───────────────────────────────    │
+ *  │  │ ▢  ▢        │      │  writing zone (≤ 600px)             │
+ *  │  └─────────────┘      │  Lora 20px · single column          │
  *  └─────────────────────────────────────────────────────────────┘
  *
  * Image input model:
@@ -18,9 +17,8 @@
  *   - Paste + drag/drop on the canvas still work as a fallback.
  *
  * Header strip (top of writing zone) is intentional anti-empty-state:
+ *   - calendar date of last edit sits above the book title (journal feel)
  *   - book title acts as a calm "Heading"
- *   - a thin meta line shows "Saved Xm ago · Last opened Yd ago"
- *   - both update on a 30s tick so the relative times stay fresh
  *
  * Save model:
  *   - Snapshot is mirrored to localStorage shortly after each change so the
@@ -46,11 +44,14 @@ import {
   List,
   ListChecks,
   Pilcrow,
-  Save,
   Trash2,
 } from "lucide-react";
 import { iconStrokePx } from "@/components/ui/button-system";
-import BlobCharacter, { useBlobState } from "@/components/canvas/blob-character";
+import BlobCharacter, {
+  type BlobState,
+  useBlobState,
+} from "@/components/canvas/blob-character";
+import { canvasSurfaceFromCover } from "@/lib/canvas-surface-from-cover";
 import { getTextareaCaretOffsetInTextareaPx } from "@/lib/textarea-caret-offset";
 
 /* -------------------------------------------------------------------------- */
@@ -120,18 +121,20 @@ export const CANVAS_RECESS = "#F6F6F6";
 
 /** Width allotted to the writing zone per column count (CSS values). */
 const WRITING_WIDTH_CSS: Record<ColumnLayout, string> = {
-  1: "min(92vw, 600px)",
+  1: "min(92vw, 720px)",
   2: "min(92vw, 720px)",
   3: "min(94vw, 900px)",
 };
 
 const TEXT_COLUMN_GAP = 32;
 
+/** Nudge the centered writing block slightly left (toward the polaroid rail). */
+const WRITING_NUDGE_LEFT_PX = 20;
+
 /** Vertical breathing room at the top and bottom of the page. */
 const PAGE_PADDING_Y = 88;
 
 /** Writing typography (matches product spec). */
-const WRITING_FONT_SIZE = 20;
 const WRITING_LINE_HEIGHT = 1.7;
 const WRITING_INK = "#2C2C2A";
 const PLACEHOLDER_INK = "#B0ABA6";
@@ -522,21 +525,18 @@ type CanvasBoardProps = {
    */
   title?: string;
   /**
-   * Timestamp from the *previous* canvas open (null = first time). Drives
-   * the "Last opened Xd ago" line in the meta strip. The current open is
-   * intentionally not used — "Last opened just now" reads wrong on entry.
+   * Cover `background` from the book draft — toned down for the writing surface.
    */
-  previousOpenedAt?: number | null;
+  coverBackground?: string;
 };
 
 /**
  * Imperative handle exposed via `ref`. Used by the page-level back button
- * to play the blob's goodbye wave and run a final milestone save before
- * navigation. The returned promise resolves once the animation has visually
- * settled, so the parent can `await` it before changing routes.
+ * to grab an in-memory snapshot and start the blob goodbye animation.
+ * Heavy localStorage writes are deferred by the page until after navigation.
  */
 export type CanvasBoardHandle = {
-  prepareForClose: () => Promise<void>;
+  captureForClose: () => CanvasSnapshot;
 };
 
 function CanvasBoardInner(
@@ -546,7 +546,7 @@ function CanvasBoardInner(
     onSnapshotChange,
     onSave,
     title,
-    previousOpenedAt,
+    coverBackground,
   }: CanvasBoardProps,
   ref: React.ForwardedRef<CanvasBoardHandle>
 ) {
@@ -560,13 +560,6 @@ function CanvasBoardInner(
   const [columns] = useState<ColumnLayout>(1);
   const [lastSavedAt, setLastSavedAt] = useState<number>(() => Date.now());
 
-  // Forces a re-render every 30s so relative time labels stay fresh even
-  // when nothing else in the canvas has changed.
-  const [, setMetaTick] = useState(0);
-  useEffect(() => {
-    const id = window.setInterval(() => setMetaTick((t) => t + 1), 30_000);
-    return () => window.clearInterval(id);
-  }, []);
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
   const [rangeAnchorId, setRangeAnchorId] = useState<string | null>(null);
   const [selectedBlockIds, setSelectedBlockIds] = useState<string[]>([]);
@@ -576,7 +569,6 @@ function CanvasBoardInner(
   const writingRef = useRef<HTMLDivElement | null>(null);
   /** Scrollport for the writing column only — page / left rail stay fixed. */
   const writingScrollRef = useRef<HTMLDivElement | null>(null);
-  /** The actual centered text column; used to anchor the blob to its right edge. */
   const writingColumnRef = useRef<HTMLDivElement | null>(null);
   const imageFileInputRef = useRef<HTMLInputElement | null>(null);
   const textRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
@@ -588,33 +580,12 @@ function CanvasBoardInner(
 
   /* ---------------------------- Blob companion ---------------------------- */
 
-  // The companion lives just to the right of the writing column, vertically
-  // centred. We measure the column's right edge so the position is correct
-  // at every viewport width without any CSS-vs-actual-width drift.
   const blob = useBlobState({ sleepAfterMs: 10_000 });
-  const [blobLeft, setBlobLeft] = useState<number | null>(null);
 
-  useLayoutEffect(() => {
-    const measure = () => {
-      const col = writingColumnRef.current;
-      const writing = writingRef.current;
-      if (!col || !writing) return;
-      const colRect = col.getBoundingClientRect();
-      const writingRect = writing.getBoundingClientRect();
-      // 24px breathing room between the text column and the character.
-      setBlobLeft(colRect.right - writingRect.left + 24);
-    };
-
-    measure();
-    const ro = new ResizeObserver(measure);
-    if (writingRef.current) ro.observe(writingRef.current);
-    if (writingColumnRef.current) ro.observe(writingColumnRef.current);
-    window.addEventListener("resize", measure);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("resize", measure);
-    };
-  }, []);
+  const surface = useMemo(
+    () => canvasSurfaceFromCover(coverBackground),
+    [coverBackground]
+  );
 
   /* ------------------------------ Hydration ------------------------------ */
 
@@ -712,9 +683,8 @@ function CanvasBoardInner(
       /* noop */
     }
     setLastSavedAt(snap.updatedAt);
-    onSnapshotChange?.(snap);
     onSave?.(snap);
-  }, [buildSnapshot, onSave, onSnapshotChange, storageKey]);
+  }, [buildSnapshot, onSave, storageKey]);
 
   // 30-second milestone tick. Reset whenever anything materially changes so a
   // burst of typing doesn't fire a save the moment the user pauses.
@@ -726,17 +696,18 @@ function CanvasBoardInner(
     return () => window.clearInterval(id);
   }, [triggerMilestoneSave]);
 
-  // Imperative seam used by the page-level back button: play the goodbye
-  // wave + run one last save, then resolve so the parent can navigate.
+  // Imperative seam used by the page-level back button: capture state in
+  // memory and start the goodbye animation. The page navigates immediately
+  // and persists to localStorage afterward so large snapshots don't block.
   useImperativeHandle(
     ref,
     () => ({
-      prepareForClose: async () => {
-        triggerMilestoneSave();
-        await blob.onClosing();
+      captureForClose: () => {
+        void blob.onClosing();
+        return buildSnapshot();
       },
     }),
-    [triggerMilestoneSave, blob]
+    [buildSnapshot, blob]
   );
 
   /* --------------------------- Focus management --------------------------- */
@@ -1078,7 +1049,7 @@ function CanvasBoardInner(
       ref={outerRef}
       className="relative flex h-svh min-h-0 w-full flex-row overflow-x-hidden overflow-y-hidden transition-colors duration-500"
       style={{
-        background: CANVAS_BACKGROUND,
+        background: surface.background,
         color: WRITING_INK,
         caretColor: WRITING_INK,
       }}
@@ -1089,6 +1060,10 @@ function CanvasBoardInner(
       <ImageStack
         images={imageBlocks}
         selectedImageId={selectedImageId}
+        blobState={blob.state}
+        blobHidden={blob.hidden}
+        recessBackground={surface.recess}
+        onBlobWakeUp={blob.onCanvasInteraction}
         onSelect={(id) => {
           setSelectedImageId(id);
           setShowTextCtx(false);
@@ -1102,8 +1077,7 @@ function CanvasBoardInner(
           `flex-1` claims the remaining horizontal space so the writing
           column never slides underneath the photo zone. The inner div
           centers the text columns (with `mx-auto`) and caps them at the
-          spec width per column count. The space to the right of that
-          inner div is the "breathing room" — intentionally empty. */}
+          spec width per column count. */}
       <div
         className="relative flex min-h-0 flex-1 flex-col overflow-hidden"
         ref={writingRef}
@@ -1120,18 +1094,20 @@ function CanvasBoardInner(
             paddingBottom: PAGE_PADDING_Y,
           }}
         >
-          <CanvasHeader
-            title={title}
-            savedAt={lastSavedAt}
-            previousOpenedAt={previousOpenedAt ?? null}
-            maxWidthCss={WRITING_WIDTH_CSS[columns]}
-          />
-
           <div
-            ref={writingColumnRef}
-            className="relative mx-auto flex w-full"
-            style={{ gap: TEXT_COLUMN_GAP, maxWidth: WRITING_WIDTH_CSS[columns] }}
+            className="mx-auto w-full"
+            style={{
+              maxWidth: WRITING_WIDTH_CSS[columns],
+              transform: `translateX(-${WRITING_NUDGE_LEFT_PX}px)`,
+            }}
           >
+            <CanvasHeader title={title} lastEditedAt={lastSavedAt} />
+
+            <div
+              ref={writingColumnRef}
+              className="relative flex w-full"
+              style={{ gap: TEXT_COLUMN_GAP }}
+            >
           {textColumns.map((col, colIdx) => (
             <div
               key={colIdx}
@@ -1251,30 +1227,10 @@ function CanvasBoardInner(
               ))}
             </div>
           ))}
+            </div>
           </div>
         </div>
 
-        {/* —————————— Companion (right of writing column, pinned to top) ——————————
-            Sits in the writingRef container (which doesn't scroll) so the
-            character stays put as the user scrolls through the page.
-            The horizontal position is measured against the column's right
-            edge, so it follows resize without any CSS-vs-actual drift. */}
-        {blobLeft !== null && (
-          <div
-            className="pointer-events-auto absolute z-30"
-            style={{
-              left: blobLeft,
-              top: PAGE_PADDING_Y,
-              transition: "left 0.15s ease-out",
-            }}
-          >
-            <BlobCharacter
-              state={blob.state}
-              hidden={blob.hidden}
-              onWakeUp={blob.onCanvasInteraction}
-            />
-          </div>
-        )}
       </div>
 
       {/* —————————— Hidden file input — driven by polaroid placeholder clicks —————————— */}
@@ -1308,7 +1264,7 @@ function CanvasBoardInner(
               }}
             >
               {selectedBlockIds.length > 1 && (
-                <span className="mr-0.5 rounded-md bg-black/[0.06] px-1.5 py-0.5 text-[11px] font-medium text-black/50">
+                <span className="mr-0.5 rounded-md bg-black/[0.06] px-1.5 py-0.5 text-xs font-medium text-black/50">
                   {selectedBlockIds.length} rows
                 </span>
               )}
@@ -1360,20 +1316,6 @@ function CanvasBoardInner(
             </div>
           </div>
         )}
-
-      {/* —————————— Manual save (top-right) —————————— */}
-      <button
-        type="button"
-        title="Save"
-        aria-label="Save"
-        onClick={() => {
-          triggerMilestoneSave();
-          blob.onSave();
-        }}
-        className="fixed right-4 top-4 z-40 inline-flex h-9 w-9 items-center justify-center rounded-full border border-black/[0.06] bg-white/85 text-[#615E5E] shadow-[0_4px_16px_rgba(15,15,15,0.06)] backdrop-blur-md transition hover:bg-white hover:text-[#2C2C2A]"
-      >
-        <Save size={16} strokeWidth={iconStrokePx(16)} />
-      </button>
     </div>
   );
 }
@@ -1392,6 +1334,10 @@ export default CanvasBoard;
 type ImageStackProps = {
   images: JournalImage[];
   selectedImageId: string | null;
+  blobState: BlobState;
+  blobHidden: boolean;
+  recessBackground: string;
+  onBlobWakeUp: () => void;
   onSelect: (id: string | null) => void;
   onUpdate: (id: string, patch: Partial<JournalImage>) => void;
   onRemove: (id: string) => void;
@@ -1400,19 +1346,24 @@ type ImageStackProps = {
 
 /** Fixed height of the two-polaroid stack — container never grows. */
 const STACK_HEIGHT_PX = 300;
-/** Tilt for the front polaroid. */
-const FRONT_TILT_DEG = -5;
-/** Tilt for the back polaroid — visible peek without feeling extreme. */
-const BACK_TILT_DEG = 14;
-/** Back card offset so it peeks from behind the front. */
-const BACK_NUDGE_X_PX = 7;
-const BACK_NUDGE_Y_PX = 14;
-const STACK_SWAP_MS = 560;
-const STACK_SWAP_TRANSITION = `transform ${STACK_SWAP_MS}ms cubic-bezier(0.25, 0.46, 0.45, 0.94)`;
+/** Front polaroid — reference top card: rotate(+10.17deg). */
+const FRONT_TILT_DEG = 6;
+/** Back polaroid — reference card below: rotate(-4.49deg). */
+const BACK_TILT_DEG = -8;
+/** Back card offset (++ x, ++ y) so it peeks behind the front. */
+const BACK_NUDGE_X_PX = 6;
+const BACK_NUDGE_Y_PX = 8;
+const STACK_SWAP_MS = 700;
+const STACK_SWAP_TRANSITION = `transform ${STACK_SWAP_MS}ms cubic-bezier(0.4, 0, 0.2, 1)`;
+const POLAROID_SLOTS = [0, 1] as const;
 
 function ImageStack({
   images,
   selectedImageId,
+  blobState,
+  blobHidden,
+  recessBackground,
+  onBlobWakeUp,
   onSelect,
   onUpdate,
   onRemove,
@@ -1420,20 +1371,28 @@ function ImageStack({
 }: ImageStackProps) {
   // Which of the two slots is displayed in front (0 = first slot, 1 = second).
   const [frontSlot, setFrontSlot] = useState(0);
-  /** Keeps the rising card above the other for the full swap animation. */
-  const [liftedSlot, setLiftedSlot] = useState<number | null>(null);
+  const [isSwapping, setIsSwapping] = useState(false);
   const swapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const bringForward = useCallback((slotIdx: number) => {
-    if (slotIdx === frontSlot) return;
-    if (swapTimerRef.current) clearTimeout(swapTimerRef.current);
-    setLiftedSlot(slotIdx);
-    setFrontSlot(slotIdx);
-    swapTimerRef.current = setTimeout(() => {
-      setLiftedSlot(null);
-      swapTimerRef.current = null;
-    }, STACK_SWAP_MS + 40);
-  }, [frontSlot]);
+  const bringForward = useCallback(
+    (slotIdx: number) => {
+      if (slotIdx === frontSlot || isSwapping) return;
+      if (swapTimerRef.current) clearTimeout(swapTimerRef.current);
+      setIsSwapping(true);
+      // Let the browser paint the current transform before applying the new
+      // targets — avoids the instant "snap" on click.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          setFrontSlot(slotIdx);
+        });
+      });
+      swapTimerRef.current = setTimeout(() => {
+        setIsSwapping(false);
+        swapTimerRef.current = null;
+      }, STACK_SWAP_MS + 50);
+    },
+    [frontSlot, isSwapping]
+  );
 
   useEffect(
     () => () => {
@@ -1450,44 +1409,52 @@ function ImageStack({
       .slice(0, 2);
   }, [images]);
 
-  // Render back slot first in DOM so the front slot paints on top.
-  const backSlot = 1 - frontSlot;
-
   return (
-    <aside
-      aria-label="Image column"
-      className="relative z-10 shrink-0 self-end rounded-[22px]"
+    <div
+      className="relative z-10 flex shrink-0 flex-col items-center self-end"
       style={{
         width: "20%",
-        height: "fit-content",
         margin: 12,
         position: "sticky",
         bottom: 20,
-        padding: 24,
-        background: CANVAS_RECESS,
       }}
     >
-      <div
-        className="flex flex-col items-center justify-end"
-        onClick={(e) => {
-          if ((e.target as HTMLElement).closest("[data-polaroid]")) return;
-          onSelect(null);
+      <div className="pointer-events-auto flex w-full justify-left">
+        <BlobCharacter
+          state={blobState}
+          hidden={blobHidden}
+          onWakeUp={onBlobWakeUp}
+        />
+      </div>
+
+      <aside
+        aria-label="Image column"
+        className="w-full rounded-[22px]"
+        style={{
+          padding: 32,
+          background: recessBackground,
         }}
       >
-        {/* Fixed-height stack — never grows regardless of image count. */}
         <div
-          className="relative w-full shrink-0 overflow-visible"
-          style={{ height: STACK_HEIGHT_PX }}
+          className="flex flex-col items-center justify-end"
+          onClick={(e) => {
+            if ((e.target as HTMLElement).closest("[data-polaroid]")) return;
+            onSelect(null);
+          }}
         >
-          {([backSlot, frontSlot] as const).map((slotIdx) => {
+          {/* Fixed-height stack — never grows regardless of image count. */}
+          <div
+            className="relative w-full shrink-0 overflow-visible"
+            style={{ height: STACK_HEIGHT_PX, perspective: 1200 }}
+          >
+          {/* Fixed slot order — reordering DOM on swap caused the click "shock". */}
+          {POLAROID_SLOTS.map((slotIdx) => {
             const isFront = slotIdx === frontSlot;
-            const isLifted = liftedSlot === slotIdx;
             const tilt = isFront ? FRONT_TILT_DEG : BACK_TILT_DEG;
             const nudgeX = isFront ? 0 : BACK_NUDGE_X_PX;
             const nudgeY = isFront ? 0 : BACK_NUDGE_Y_PX;
-            const scale = isFront ? 1 : 0.98;
+            const depthZ = isFront ? 32 : 0;
             const img = ordered[slotIdx] ?? null;
-            const zIndex = isLifted ? 3 : isFront ? 2 : 1;
 
             return (
               <div
@@ -1497,16 +1464,12 @@ function ImageStack({
                 style={{
                   width: "80%",
                   left: "50%",
-                  bottom: 20,
-                  transform: `translate3d(calc(-50% + ${nudgeX}px), ${nudgeY}px, 0) scale(${scale}) rotate(${tilt}deg)`,
-                  transformOrigin: "50% 100%",
-                  zIndex,
-                  cursor: "pointer",
+                  top: "50%",
+                  transform: `translate3d(calc(-50% + ${nudgeX}px), calc(-50% + ${nudgeY}px), ${depthZ}px) rotate(${tilt}deg)`,
+                  transformOrigin: "50% 50%",
+                  zIndex: 1,
+                  cursor: isSwapping ? "default" : "pointer",
                   transition: STACK_SWAP_TRANSITION,
-                }}
-                onTransitionEnd={(e) => {
-                  if (e.propertyName !== "transform") return;
-                  setLiftedSlot((prev) => (prev === slotIdx ? null : prev));
                 }}
                 onClick={(e) => {
                   e.stopPropagation();
@@ -1533,9 +1496,10 @@ function ImageStack({
               </div>
             );
           })}
+          </div>
         </div>
-      </div>
-    </aside>
+      </aside>
+    </div>
   );
 }
 
@@ -1567,7 +1531,7 @@ function PolaroidPlaceholder() {
       {/* Bottom caption strip — journal-appropriate placeholder text */}
       <span
         aria-hidden
-        className="mt-2 block w-full shrink-0 text-center text-[11px] italic text-black/20 transition-colors duration-200 group-hover:text-black/35"
+        className="mt-2 block w-full shrink-0 text-center text-xs italic text-black/20 transition-colors duration-200 group-hover:text-black/35"
         style={{
           fontFamily: "var(--font-caveat), var(--font-lora), cursive",
         }}
@@ -1631,7 +1595,7 @@ function PolaroidImage({
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
           onFocus={onSelect}
-          className="w-full border-0 bg-transparent p-0 text-center text-[11px] italic tracking-tight text-black/55 outline-none placeholder:text-black/25"
+          className="w-full border-0 bg-transparent p-0 text-center text-xs italic tracking-tight text-black/55 outline-none placeholder:text-black/25"
           style={{
             fontFamily: "var(--font-caveat), var(--font-lora), cursive",
           }}
@@ -1658,82 +1622,74 @@ function PolaroidImage({
 }
 
 /* -------------------------------------------------------------------------- */
-/*  Canvas header — Heading + "Saved · Last opened" meta strip                 */
+/*  Canvas header — last-edited date + heading                                   */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Returns a calm relative-time phrase suitable for the canvas meta strip.
- * Buckets are intentionally coarse — the journal aesthetic should feel
- * approximate, not surveillance-grade.
- */
-function formatRelativeTime(ts: number | null | undefined): string {
-  if (typeof ts !== "number" || !Number.isFinite(ts)) return "just now";
-  const diffMs = Date.now() - ts;
-  if (diffMs < 0) return "just now";
-  if (diffMs < 45_000) return "just now";
-  const minutes = Math.floor(diffMs / 60_000);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `${days}d ago`;
-  const weeks = Math.floor(days / 7);
-  if (weeks < 5) return `${weeks}w ago`;
-  const months = Math.floor(days / 30);
-  if (months < 12) return `${months}mo ago`;
-  const years = Math.floor(days / 365);
-  return `${years}y ago`;
+/** Calendar date for the journal-style line above the heading. */
+function formatEditedCalendarDate(ts: number): string {
+  const edited = new Date(ts);
+  const now = new Date();
+  const startOfToday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate()
+  );
+  const startOfEdited = new Date(
+    edited.getFullYear(),
+    edited.getMonth(),
+    edited.getDate()
+  );
+  const dayDiff = Math.floor(
+    (startOfToday.getTime() - startOfEdited.getTime()) / 86_400_000
+  );
+
+  if (dayDiff === 0) return "Today";
+  if (dayDiff === 1) return "Yesterday";
+
+  const weekday = edited.toLocaleDateString(undefined, { weekday: "long" });
+  const monthDay = edited.toLocaleDateString(undefined, {
+    month: "long",
+    day: "numeric",
+  });
+  if (edited.getFullYear() === now.getFullYear()) {
+    return `${weekday}, ${monthDay}`;
+  }
+  return `${weekday}, ${monthDay}, ${edited.getFullYear()}`;
 }
 
 type CanvasHeaderProps = {
   title?: string;
-  savedAt: number;
-  previousOpenedAt: number | null;
-  maxWidthCss: string;
+  lastEditedAt: number;
 };
 
-function CanvasHeader({
-  title,
-  savedAt,
-  previousOpenedAt,
-  maxWidthCss,
-}: CanvasHeaderProps) {
+function CanvasHeader({ title, lastEditedAt }: CanvasHeaderProps) {
   const displayTitle =
     typeof title === "string" && title.trim().length > 0
       ? title.trim()
       : "Heading";
 
-  const openedLabel =
-    previousOpenedAt === null
-      ? "Last opened just now"
-      : `Last opened ${formatRelativeTime(previousOpenedAt)}`;
+  const calendarDate = formatEditedCalendarDate(lastEditedAt);
+  const isoDate = new Date(lastEditedAt).toISOString().slice(0, 10);
 
   return (
     <header
-      className="mx-auto w-full"
+      className="w-full"
       style={{
-        maxWidth: maxWidthCss,
         marginBottom: 56,
         fontFamily:
           "var(--font-manrope), system-ui, -apple-system, sans-serif",
       }}
     >
-      <h1
-        className="text-[15px] font-semibold tracking-tight text-[#2C2C2A]"
-        style={{ lineHeight: 1.3 }}
+      <time
+        dateTime={isoDate}
+        className="block text-sm tracking-[0.01em] text-black/35"
+        style={{ lineHeight: 1.5, marginBottom: 6 }}
       >
+        {calendarDate}
+      </time>
+      <h1 className="header-lg font-semibold tracking-tight text-[#2C2C2A]">
         {displayTitle}
       </h1>
-      <p
-        className="mt-1 text-[12px] text-black/40"
-        style={{ lineHeight: 1.5 }}
-      >
-        <span>Saved {formatRelativeTime(savedAt)}</span>
-        <span aria-hidden className="mx-1.5 opacity-50">
-          ·
-        </span>
-        <span>{openedLabel}</span>
-      </p>
     </header>
   );
 }
@@ -1822,10 +1778,7 @@ function TextBlockView({
           aria-hidden={block.blockKind === "bullet"}
         >
           {block.blockKind === "bullet" ? (
-            <span
-              className="leading-none opacity-60"
-              style={{ fontSize: WRITING_FONT_SIZE + 1 }}
-            >
+            <span className="text-lg leading-none opacity-60">
               •
             </span>
           ) : (
@@ -1894,7 +1847,7 @@ function TextBlockView({
           }
         }}
         className={clsx(
-          "block w-full resize-none overflow-hidden border-0 bg-transparent p-0 outline-none focus:outline-none",
+          "block w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-lg outline-none focus:outline-none",
           block.blockKind === "checklist" && block.checked
             ? "text-black/35 line-through decoration-black/30 decoration-[1.5px]"
             : ""
@@ -1902,7 +1855,6 @@ function TextBlockView({
         style={{
           fontFamily:
             "var(--font-lora), Georgia, 'Times New Roman', serif",
-          fontSize: WRITING_FONT_SIZE,
           lineHeight: WRITING_LINE_HEIGHT,
           color: WRITING_INK,
           // Placeholder color is set via CSS var so we don't fight Tailwind's preset.

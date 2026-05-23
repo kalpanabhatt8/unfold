@@ -269,7 +269,7 @@
 }
 
 .book-cover__emoji {
-  font-size: clamp(1.4rem, 2.2vw, 2rem);
+  font-size: clamp(var(--text-lg), 2.2vw, var(--text-xl));
   margin-bottom: var(--value-12);
 }
 
@@ -281,7 +281,7 @@
   margin: 0;
   text-align: left;
   line-height: 1.15;
-font-size: var(--book-title-size, 1rem);
+font-size: var(--book-title-size, var(--text-md));
   letter-spacing: 0.01em;
   text-overflow: ellipsis;
   color: var(--text-secondary);
@@ -294,7 +294,7 @@ font-size: var(--book-title-size, 1rem);
 
 .book-cover__subtitle {
   margin-top: var(--value-6);
-  font-size: var(--book-subtitle-size, 0.8rem);
+  font-size: var(--book-subtitle-size, var(--text-xs));
   color: rgba(255, 255, 255, 0.75);
   letter-spacing: 0.12em;
   text-align: left;
@@ -326,7 +326,7 @@ font-size: var(--book-title-size, 1rem);
   align-self: flex-start;
   padding: var(--value-4) var(--value-10);
   border-radius: var(--radius-pill);
-  font-size: 0.65rem;
+  font-size: var(--text-xs);
   text-transform: uppercase;
   letter-spacing: 0.18em;
   color: var(--muted);
@@ -348,7 +348,7 @@ font-size: var(--book-title-size, 1rem);
   font-weight: 600;
   letter-spacing: 0.18em;
   text-transform: uppercase;
-  font-size: 0.65rem;
+  font-size: var(--text-xs);
   transition: border-color 180ms ease, color 180ms ease;
 }
 

@@ -1,5 +1,6 @@
 export const DRAFTS_STORAGE_KEY = "keeps-drafts";
 export const RECENT_BOOKS_STORAGE_KEY = "keeps-recents";
+export const RECENTS_UPDATED_EVENT = "keeps-recents-updated";
 export const BOARD_STORAGE_PREFIX = "keeps-board-";
 export const RECENT_BOOKS_LIMIT = 8;
 
@@ -139,6 +140,7 @@ const writeRecentBooks = (books: RecentBook[]) => {
       RECENT_BOOKS_STORAGE_KEY,
       JSON.stringify(books)
     );
+    window.dispatchEvent(new Event(RECENTS_UPDATED_EVENT));
   } catch (error) {
     console.error("Failed to write recent books", error);
   }
@@ -293,6 +295,9 @@ export const syncDraftsAndRecents = <T extends DraftLike>(
   }
 
   writeRecentBooks(recents);
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(RECENTS_UPDATED_EVENT));
+  }
 
   // Do not remove keeps-board-* here: draft eviction (top-N limit) is not a user
   // delete; wiping canvas data would drop textures and work when a book is

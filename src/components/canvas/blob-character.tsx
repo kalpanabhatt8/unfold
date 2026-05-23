@@ -299,7 +299,7 @@ type StateConfig = {
 };
 
 const STATES: Record<BlobState, StateConfig> = {
-  // 👉 IDLE (the "ideal" image #1): open eyes, slight smile, gentle bob.
+  // 👉 IDLE — at rest but alive: gentle breath, soft blinks, drifting petals.
   idle: {
     eye: "open",
     mouth: "big-smile",
@@ -308,16 +308,16 @@ const STATES: Record<BlobState, StateConfig> = {
     extras: "none",
   },
 
-  // 👉 TYPING (image #2): open eyes that blink, slight smile, lean + leaf sway.
+  // 👉 TYPING — leaning in, listening: faster blinks, lively leaves.
   typing: {
     eye: "open-blink",
-    mouth: "slight-smile",
+    mouth: "big-smile",
     body: "lean",
     leaves: "sway",
     extras: "none",
   },
 
-  // 👉 SLEEPING: closed eyes, slight smile, breathing shrink + zzz.
+  // 👉 SLEEPING — slow breath, occasional REM twitch, staggered zzz rising.
   sleeping: {
     eye: "closed",
     mouth: "slight-smile",
@@ -326,16 +326,16 @@ const STATES: Record<BlobState, StateConfig> = {
     extras: "zzz",
   },
 
-  // 👉 WAKING: face snaps instantly; base/leaves do a quick shock jolt.
+  // 👉 WAKING — gasp, stretch up, eyes pop wide, leaves shoot up to settle.
   waking: {
-    eye: "open",
+    eye: "open-wake",
     mouth: "big-smile",
     body: "wake",
     leaves: "wake",
     extras: "none",
   },
 
-  // 👉 SAVING (after a save action): happy U eyes, big smile, sparkle burst.
+  // 👉 SAVING — happy eyes + smaller mouth (big mouth duplicates the eye curve).
   saving: {
     eye: "smile",
     mouth: "slight-smile",
@@ -452,24 +452,31 @@ function mouthDisplay(kind: MouthKind): MouthDisplay {
   return kind === "big-smile" ? "big" : "slight";
 }
 
-/** Both smile paths mounted; opacity switches instantly (no fade). */
+/** One smile path at a time — avoids a double-mouth flash before styled-jsx hydrates. */
 function Mouth({ kind, mouthCy }: { kind: MouthKind; mouthCy: number }) {
   const t = mouthTransforms(mouthCy);
   const display = mouthDisplay(kind);
 
+  if (display === "big") {
+    return (
+      <g className="blob-mouth" data-mouth-display="big">
+        <g
+          transform={`translate(${t.bigTx} ${t.bigTy}) scale(${t.bigSx} ${t.bigSy})`}
+          className="blob-mouth-big"
+        >
+          <path d={BIG_SMILE_PATH} fill={INK} />
+        </g>
+      </g>
+    );
+  }
+
   return (
-    <g className="blob-mouth" data-mouth-display={display}>
+    <g className="blob-mouth" data-mouth-display="slight">
       <g
         transform={`translate(${t.slightTx} ${t.slightTy}) scale(${t.slightSx} ${t.slightSy})`}
         className="blob-mouth-slight"
       >
         <path d={SLIGHT_SMILE_PATH} fill={INK} />
-      </g>
-      <g
-        transform={`translate(${t.bigTx} ${t.bigTy}) scale(${t.bigSx} ${t.bigSy})`}
-        className="blob-mouth-big"
-      >
-        <path d={BIG_SMILE_PATH} fill={INK} />
       </g>
     </g>
   );
@@ -564,22 +571,28 @@ function Sparkle({
       d={d}
       fill={SPARKLE}
       className={className}
-      style={{ transformOrigin: `${cx}px ${cy}px` }}
+      style={{ opacity: 0, transformOrigin: `${cx}px ${cy}px` }}
     />
   );
 }
 
-/** Sleeping zzz — on the face/petal boundary (not clipped to cream only). */
+/** Sleeping zzz — three Zs rise and fade in a slow, drifting cascade. */
 function SleepZzz() {
   const { x, y } = zzzPosition();
-  // Outer <g> = SVG position (never CSS-animated). Inner <g> = opacity pulse only.
-  // CSS transform on the same node as SVG transform hides the zzz (same bug as eyes).
+  // Outer <g> = SVG position (never CSS-animated). Inner wrappers handle the
+  // float; each Z animates independently so the cascade feels dreamy, not looped.
   return (
     <g transform={`translate(${x} ${y}) scale(${ZZZ_SCALE})`}>
       <g className="blob-zzz">
-        <path d={ZZZ_PATH_SMALL} fill={ZZZ} />
-        <path d={ZZZ_PATH_MID} fill={ZZZ} />
-        <path d={ZZZ_PATH_LARGE} fill={ZZZ} />
+        <g className="blob-zzz-tier blob-zzz-1">
+          <path d={ZZZ_PATH_SMALL} fill={ZZZ} />
+        </g>
+        <g className="blob-zzz-tier blob-zzz-2">
+          <path d={ZZZ_PATH_MID} fill={ZZZ} />
+        </g>
+        <g className="blob-zzz-tier blob-zzz-3">
+          <path d={ZZZ_PATH_LARGE} fill={ZZZ} />
+        </g>
       </g>
     </g>
   );
@@ -615,11 +628,30 @@ export default function BlobCharacter({
   onWakeUp,
   debugLayout = false,
 }: BlobCharacterProps) {
+  // styled-jsx injects after first paint; gate visibility so animations /
+  // opacity rules never flash the wrong frame on refresh.
+  const [paintReady, setPaintReady] = React.useState(false);
+  React.useLayoutEffect(() => {
+    setPaintReady(true);
+  }, []);
+
   const cfg = STATES[state];
   const face = getFaceLayout(state === "sleeping");
-  const faceClipId = `blob-face-clip-${React.useId().replace(/:/g, "")}`;
+  const reactId = React.useId();
+  const faceClipId = `blob-face-clip-${reactId.replace(/:/g, "")}`;
   const faceX = BODY_CX - FACE_SVG_SIZE / 2;
   const faceY = BODY_CY - FACE_SVG_SIZE / 2;
+
+  // Per-mount seed (0..1) derived from React's stable useId so multiple
+  // companions on a page don't loop in lockstep, but SSR/CSR stay matched.
+  const seed = React.useMemo(() => {
+    let h = 2166136261;
+    for (let i = 0; i < reactId.length; i++) {
+      h ^= reactId.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return ((h >>> 0) % 1000) / 1000;
+  }, [reactId]);
 
   const handlePointerEnter = React.useCallback(() => {
     if (state === "sleeping") onWakeUp?.();
@@ -631,12 +663,20 @@ export default function BlobCharacter({
       aria-hidden="true"
       onPointerEnter={handlePointerEnter}
       className={clsx(
-        "select-none transition-opacity duration-300",
-        hidden ? "opacity-0" : "opacity-100",
+        "select-none",
+        !paintReady || hidden ? "opacity-0" : "opacity-100",
+        hidden && paintReady && "transition-opacity duration-300",
         state === "sleeping" ? "cursor-pointer" : "cursor-default",
         className
       )}
-      style={{ width: size, height: size }}
+      style={
+        {
+          width: size,
+          height: size,
+          // Used by `animation-delay: calc(var(--blob-seed) * Ns)` further down.
+          "--blob-seed": seed,
+        } as React.CSSProperties
+      }
     >
       <svg
         viewBox="0 0 60 60"
@@ -677,12 +717,24 @@ export default function BlobCharacter({
             rx={FACE_SVG_RX}
             fill={FACE_CREAM}
           />
-          {/* Face features clipped to cream circle. */}
+          {/* Face features clipped to cream circle.
+              `.blob-features` lets the whole face cluster nudge for "head"
+              beats (gaze drop while typing, lift on a save hop) independently
+              from the body. `.blob-eyes-look` lets both eyes glance together
+              without disturbing the per-eye blink scaleY. */}
           <g clipPath={`url(#${faceClipId})`}>
-            <Eye kind={cfg.eye} side="left" eyeCy={face.eyeCy} />
-            <Eye kind={cfg.eye} side="right" eyeCy={face.eyeCy} />
-            <Blush blushCy={face.blushCy} />
-            <Mouth kind={cfg.mouth} mouthCy={face.mouthCy} />
+            <g
+              className="blob-features"
+              data-state={state}
+              style={{ transformOrigin: `${BODY_CX}px ${BODY_CY}px` }}
+            >
+              <g className="blob-eyes-look" data-eye={cfg.eye}>
+                <Eye kind={cfg.eye} side="left" eyeCy={face.eyeCy} />
+                <Eye kind={cfg.eye} side="right" eyeCy={face.eyeCy} />
+              </g>
+              <Blush blushCy={face.blushCy} />
+              <Mouth kind={cfg.mouth} mouthCy={face.mouthCy} />
+            </g>
           </g>
           {/* Zzz sits on face + petal edge (upper-right), like Figma reference. */}
           {cfg.extras === "zzz" ? <SleepZzz /> : null}
@@ -730,63 +782,183 @@ export default function BlobCharacter({
 
       <style jsx>{`
         /* ════════════════════════════════════════════════════════════════
-         *  7. CSS ANIMATIONS — grouped by what they target.
-         *     Selectors use data-* attributes so they read like the STATES
-         *     map: data-body="bob" → bob animation, etc.
+         *  7. CSS ANIMATIONS
+         *
+         *  Design rules (read before editing):
+         *    • Every state layers ≥ 2 animations on different elements with
+         *      mismatched periods so the loop never feels like one big GIF.
+         *    • Per-mount randomness via --blob-seed phases blinks / sways /
+         *      glances so multiple companions on a page don't lockstep.
+         *    • Body, petals, leaves, features, eyes each animate on
+         *      DIFFERENT cycle lengths — that mismatch is what feels alive.
+         *    • Custom cubic-beziers (never linear) for organic ease.
+         *    • One-shot states (wake, bounce) use anticipation + overshoot
+         *      + settle — never a single linear pop.
          * ════════════════════════════════════════════════════════════════ */
 
         /* ── BODY (data-body) ─────────────────────────────────────────── */
         :global(.blob-body) {
-          transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          transition: transform 0.45s cubic-bezier(0.34, 1.12, 0.64, 1);
+          will-change: transform;
         }
 
-        /* Floating paused for now:
+        /* IDLE — slow, soft breath. Y drift + tiny squash like inhale/exhale,
+           not a hover-bob. Phased per mount so two companions don't sync. */
         :global(.blob-body[data-body="bob"]) {
-          animation: blob-bob 2.4s ease-in-out infinite;
+          animation: blob-idle-breath 4.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+          animation-delay: calc(var(--blob-seed, 0) * -2.3s);
         }
-        */
-        @keyframes blob-bob {
-          0%, 100% { transform: translateY(0); }
-          50%      { transform: translateY(-2.5px); }
+        @keyframes blob-idle-breath {
+          0%, 100% { transform: translateY(0) scale(1, 1); }
+          50%      { transform: translateY(-0.85px) scale(1.012, 0.992); }
         }
 
+        /* TYPING — leans in like it's listening. Secondary bob + scale so
+           the lean never feels frozen; reads as "nodding along". */
         :global(.blob-body[data-body="lean"]) {
-          animation: blob-lean ${TYPING_LEAN_DURATION_S}s ease-in-out infinite;
+          animation: blob-typing-listen ${TYPING_LEAN_DURATION_S}s cubic-bezier(0.45, 0, 0.55, 1) infinite;
         }
-        @keyframes blob-lean {
+        @keyframes blob-typing-listen {
           0%, 100% {
-            transform: rotate(${TYPING_LEAN_ROTATE_DEG}deg) translateY(0);
+            transform: rotate(${TYPING_LEAN_ROTATE_DEG}deg) translateY(0) scale(1, 1);
           }
-          50% {
-            transform: rotate(${TYPING_LEAN_ROTATE_DEG}deg) translateY(${TYPING_LEAN_FLOAT_PX}px);
+          35% {
+            transform: rotate(${TYPING_LEAN_ROTATE_DEG + 0.4}deg)
+                       translateY(${TYPING_LEAN_FLOAT_PX}px)
+                       scale(1.012, 0.988);
+          }
+          70% {
+            transform: rotate(${TYPING_LEAN_ROTATE_DEG - 0.5}deg)
+                       translateY(${TYPING_LEAN_FLOAT_PX * -0.25}px)
+                       scale(0.996, 1.004);
           }
         }
 
-        /* Sleeping — gentle breathe (exhale small → inhale swell → repeat). */
+        /* SLEEPING — slow inhale/exhale, with a tiny "second beat" at 58%
+           so each cycle has a chest-rise shape (not a perfect sine wave). */
         :global(.blob-body[data-body="shrink"]) {
-          animation: blob-sleep-breath ${SLEEP_BREATH_DURATION_S}s ease-in-out infinite;
+          animation: blob-sleep-breath ${SLEEP_BREATH_DURATION_S}s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
         @keyframes blob-sleep-breath {
           0%, 100% {
-            transform: scale(${SLEEP_BREATH_SCALE_MIN}) translateY(0.4px);
+            transform: scale(${SLEEP_BREATH_SCALE_MIN}, ${SLEEP_BREATH_SCALE_MIN - 0.005}) translateY(0.55px);
           }
-          50% {
-            transform: scale(${SLEEP_BREATH_SCALE_MAX}) translateY(${SLEEP_BREATH_LIFT_PX}px);
+          45% {
+            transform: scale(${SLEEP_BREATH_SCALE_MAX}, ${SLEEP_BREATH_SCALE_MAX - 0.012})
+                       translateY(${SLEEP_BREATH_LIFT_PX}px);
+          }
+          58% {
+            transform: scale(${(SLEEP_BREATH_SCALE_MAX + SLEEP_BREATH_SCALE_MIN) / 2 + 0.003},
+                             ${(SLEEP_BREATH_SCALE_MAX + SLEEP_BREATH_SCALE_MIN) / 2 - 0.005})
+                       translateY(${SLEEP_BREATH_LIFT_PX * 0.55}px);
           }
         }
 
-        /* Wake — body jolt (tune in section 3: WAKE_BODY_*). */
+        /* WAKING — gasp → stretch up → tiny re-bounce → settle. 0% frame
+           matches the last sleeping pose so there's no snap at flip. */
         :global(.blob-body[data-body="wake"]) {
-          animation: blob-wake ${WAKE_BODY_DURATION_S}s cubic-bezier(0.33, 1, 0.68, 1) forwards;
+          animation: blob-wake-body ${WAKE_BODY_DURATION_S}s cubic-bezier(0.34, 1.36, 0.64, 1) forwards;
         }
-        @keyframes blob-wake {
-          0%   { transform: scale(0.97) translateY(1px); }
-          40%  { transform: scale(${WAKE_BODY_SCALE_PEAK}) translateY(${WAKE_BODY_LIFT_PX}px); }
-          70%  { transform: scale(0.99) translateY(0.5px); }
-          100% { transform: scale(1) translateY(0); }
+        @keyframes blob-wake-body {
+          0%   { transform: scale(0.965, 0.97) translateY(0.6px); }
+          18%  { transform: scale(0.95, 1.06) translateY(-0.4px); }
+          42%  { transform: scale(${WAKE_BODY_SCALE_PEAK + 0.01}, ${WAKE_BODY_SCALE_PEAK - 0.05})
+                            translateY(${WAKE_BODY_LIFT_PX}px); }
+          62%  { transform: scale(0.99, 1.015) translateY(-0.2px); }
+          82%  { transform: scale(1.008, 0.994) translateY(0.1px); }
+          100% { transform: scale(1, 1) translateY(0); }
         }
 
-        /* Mouth — instant switch (no fade); both paths stay mounted. */
+        /* SAVING — proud little hop. Anticipation squat first, then up with
+           stretch, second smaller bounce, settle. Never touches opacity
+           (closing handles fade via the parent 'hidden' prop). */
+        :global(.blob-body[data-body="bounce"]) {
+          animation: blob-save-hop 1.1s cubic-bezier(0.34, 1.4, 0.64, 1) forwards;
+        }
+        @keyframes blob-save-hop {
+          0%   { transform: translateY(0) scale(1, 1); }
+          12%  { transform: translateY(0.8px) scale(1.045, 0.94); }
+          32%  { transform: translateY(-5.5px) scale(0.96, 1.06); }
+          50%  { transform: translateY(-0.6px) scale(1.025, 0.978); }
+          66%  { transform: translateY(-2.6px) scale(0.985, 1.018); }
+          82%  { transform: translateY(0.1px) scale(1.008, 0.994); }
+          100% { transform: translateY(0) scale(1, 1); }
+        }
+
+        /* ── PETALS (data-body) — secondary motion on the petal ring ─── */
+        :global(.blob-petals) {
+          transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        :global(.blob-petals[data-body="bob"]) {
+          animation: blob-petals-drift 7.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+          animation-delay: calc(var(--blob-seed, 0) * -3.7s);
+        }
+        @keyframes blob-petals-drift {
+          0%, 100% { transform: rotate(0deg); }
+          33%      { transform: rotate(0.7deg); }
+          66%      { transform: rotate(-0.5deg); }
+        }
+        :global(.blob-petals[data-body="lean"]) {
+          animation: blob-petals-typing 2.5s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+        }
+        @keyframes blob-petals-typing {
+          0%, 100% { transform: rotate(-0.4deg); }
+          50%      { transform: rotate(0.9deg); }
+        }
+        :global(.blob-petals[data-body="shrink"]) {
+          animation: blob-petals-sleep ${SLEEP_BREATH_DURATION_S}s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes blob-petals-sleep {
+          0%, 100% { transform: rotate(-0.5deg); }
+          50%      { transform: rotate(0.5deg); }
+        }
+        :global(.blob-petals[data-body="wake"]) {
+          animation: blob-petals-wake ${WAKE_BODY_DURATION_S}s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        @keyframes blob-petals-wake {
+          0%   { transform: rotate(-0.4deg); }
+          25%  { transform: rotate(-2.6deg); }
+          55%  { transform: rotate(2deg); }
+          80%  { transform: rotate(-0.6deg); }
+          100% { transform: rotate(0); }
+        }
+        :global(.blob-petals[data-body="bounce"]) {
+          animation: blob-petals-save 1.1s cubic-bezier(0.34, 1.4, 0.64, 1) forwards;
+        }
+        @keyframes blob-petals-save {
+          0%   { transform: rotate(0); }
+          32%  { transform: rotate(4deg); }
+          66%  { transform: rotate(-2.5deg); }
+          100% { transform: rotate(0); }
+        }
+
+        /* ── FEATURES (head cluster) — eyes+blush+mouth shift together
+              for tiny "head" beats: looking down to read, lifting on a hop. */
+        :global(.blob-features) {
+          transition: transform 0.45s cubic-bezier(0.34, 1.18, 0.64, 1);
+        }
+        :global(.blob-features[data-state="typing"]) {
+          transform: translateY(0.45px);
+        }
+        :global(.blob-features[data-state="waking"]) {
+          animation: blob-features-wake ${WAKE_BODY_DURATION_S}s cubic-bezier(0.34, 1.4, 0.64, 1) forwards;
+        }
+        @keyframes blob-features-wake {
+          0%   { transform: translateY(0.4px); }
+          40%  { transform: translateY(-0.6px); }
+          100% { transform: translateY(0); }
+        }
+        :global(.blob-features[data-state="saving"]) {
+          animation: blob-features-save 1.1s cubic-bezier(0.34, 1.4, 0.64, 1) forwards;
+        }
+        @keyframes blob-features-save {
+          0%   { transform: translateY(0); }
+          32%  { transform: translateY(-0.7px); }
+          66%  { transform: translateY(-0.3px); }
+          100% { transform: translateY(0); }
+        }
+
+        /* ── MOUTH — instant switch (no fade); both paths stay mounted. */
         :global(.blob-mouth[data-mouth-display="slight"] .blob-mouth-slight) {
           opacity: 1;
         }
@@ -800,129 +972,184 @@ export default function BlobCharacter({
           opacity: 1;
         }
 
-        :global(.blob-body[data-body="bounce"]) {
-          animation: blob-bounce 1.1s ease-in-out forwards;
-        }
-        @keyframes blob-bounce {
-          0%   { transform: translateY(0); opacity: 1; }
-          15%  { transform: translateY(-6px); opacity: 1; }
-          30%  { transform: translateY(0); opacity: 1; }
-          45%  { transform: translateY(-5px); opacity: 1; }
-          60%  { transform: translateY(0); opacity: 1; }
-          100% { transform: translateY(0); opacity: 0; }
-        }
-
-        /* ── SHADOW (paused — uncomment with ellipse above) ──────────────── */
-        /*
-        :global(.blob-shadow) {
-          transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          transform-origin: ${SHADOW_CX}px ${SHADOW_CY}px;
-        }
-        :global(.blob-shadow[data-body="bob"]) {
-          animation: blob-shadow-squash 2.4s ease-in-out infinite;
-        }
-        :global(.blob-shadow[data-body="lean"]) {
-          animation: blob-shadow-squash ${TYPING_LEAN_DURATION_S}s ease-in-out infinite;
-        }
-        :global(.blob-shadow[data-body="shrink"]) {
-          animation: blob-shadow-squash ${SLEEP_BREATH_DURATION_S}s ease-in-out infinite;
-        }
-        @keyframes blob-shadow-squash {
-          0%, 100% { transform: scaleX(1); }
-          50%      { transform: scaleX(0.88); }
-        }
-        */
-
         /* ── LEAVES (data-leaves) ─────────────────────────────────────── */
         :global(.blob-leaf) {
-          transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+          transition: transform 0.45s cubic-bezier(0.34, 1.18, 0.64, 1);
+          will-change: transform;
         }
 
-        /* still → no animation (default) */
+        /* IDLE — barely-there sway, like a tiny breeze. Two different
+           periods so the leaves never swing as a mirror pair. */
+        :global(.blob-leaf-left[data-leaves="still"]) {
+          animation: blob-leaf-still-l 5.3s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+          animation-delay: calc(var(--blob-seed, 0) * -2.6s);
+        }
+        :global(.blob-leaf-right[data-leaves="still"]) {
+          animation: blob-leaf-still-r 5.9s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+          animation-delay: calc(var(--blob-seed, 0) * -2.9s - 0.6s);
+        }
+        @keyframes blob-leaf-still-l {
+          0%, 100% { transform: rotate(0deg); }
+          50%      { transform: rotate(-0.9deg); }
+        }
+        @keyframes blob-leaf-still-r {
+          0%, 100% { transform: rotate(0deg); }
+          50%      { transform: rotate(0.9deg); }
+        }
 
+        /* TYPING — livelier sway. Right leaf slightly slower so they
+           never read as one mirrored shape. */
         :global(.blob-leaf-left[data-leaves="sway"]) {
-          animation: blob-leaf-sway-l ${TYPING_LEAF_SWAY_DURATION_S}s ease-in-out infinite;
+          animation: blob-leaf-sway-l ${TYPING_LEAF_SWAY_DURATION_S}s cubic-bezier(0.45, 0, 0.55, 1) infinite;
         }
         :global(.blob-leaf-right[data-leaves="sway"]) {
-          animation: blob-leaf-sway-r ${TYPING_LEAF_SWAY_DURATION_S}s ease-in-out infinite;
+          animation: blob-leaf-sway-r ${TYPING_LEAF_SWAY_DURATION_S + 0.25}s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+          animation-delay: -0.5s;
         }
         @keyframes blob-leaf-sway-l {
-          0%, 100% { transform: rotate(0); }
+          0%, 100% { transform: rotate(0deg); }
           50%      { transform: rotate(-${TYPING_LEAF_SWAY_DEG}deg); }
         }
         @keyframes blob-leaf-sway-r {
-          0%, 100% { transform: rotate(0); }
+          0%, 100% { transform: rotate(0deg); }
           50%      { transform: rotate(${TYPING_LEAF_SWAY_DEG}deg); }
         }
 
+        /* SLEEPING — relaxed droop that very gently breathes with the body. */
         :global(.blob-leaf-left[data-leaves="droop"]) {
-          transform: rotate(-6deg) translateY(0.6px);
+          animation: blob-leaf-droop-l ${SLEEP_BREATH_DURATION_S}s cubic-bezier(0.4, 0, 0.6, 1) infinite;
         }
         :global(.blob-leaf-right[data-leaves="droop"]) {
-          transform: rotate(6deg) translateY(0.6px);
+          animation: blob-leaf-droop-r ${SLEEP_BREATH_DURATION_S}s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes blob-leaf-droop-l {
+          0%, 100% { transform: rotate(-6deg) translateY(0.7px); }
+          50%      { transform: rotate(-4.5deg) translateY(0.3px); }
+        }
+        @keyframes blob-leaf-droop-r {
+          0%, 100% { transform: rotate(6deg) translateY(0.7px); }
+          50%      { transform: rotate(4.5deg) translateY(0.3px); }
         }
 
+        /* WAKING — leaves shoot up off the droop, overshoot, settle. */
+        :global(.blob-leaf-left[data-leaves="wake"]),
+        :global(.blob-leaf-right[data-leaves="wake"]) {
+          transition: none;
+        }
+        :global(.blob-leaf-left[data-leaves="wake"]) {
+          animation: blob-leaf-wake-l ${WAKE_LEAF_DURATION_S}s cubic-bezier(0.34, 1.4, 0.64, 1) forwards;
+        }
+        :global(.blob-leaf-right[data-leaves="wake"]) {
+          animation: blob-leaf-wake-r ${WAKE_LEAF_DURATION_S}s cubic-bezier(0.34, 1.4, 0.64, 1) forwards;
+        }
+        @keyframes blob-leaf-wake-l {
+          0%   { transform: rotate(-6deg) translateY(0.6px); }
+          32%  { transform: rotate(${-6 + WAKE_LEAF_ROTATE_LIFT + 2}deg) translateY(${WAKE_LEAF_LIFT_PX}px); }
+          60%  { transform: rotate(-2deg) translateY(-0.4px); }
+          82%  { transform: rotate(1deg) translateY(-0.1px); }
+          100% { transform: rotate(0deg) translateY(0); }
+        }
+        @keyframes blob-leaf-wake-r {
+          0%   { transform: rotate(6deg) translateY(0.6px); }
+          32%  { transform: rotate(${6 - WAKE_LEAF_ROTATE_LIFT - 2}deg) translateY(${WAKE_LEAF_LIFT_PX}px); }
+          60%  { transform: rotate(2deg) translateY(-0.4px); }
+          82%  { transform: rotate(-1deg) translateY(-0.1px); }
+          100% { transform: rotate(0deg) translateY(0); }
+        }
+
+        /* SAVING — leaves perk up proudly on the hop, settle slightly raised. */
         :global(.blob-leaf-left[data-leaves="perk"]) {
           animation: blob-leaf-perk-l 1.1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         }
         :global(.blob-leaf-right[data-leaves="perk"]) {
           animation: blob-leaf-perk-r 1.1s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         }
-
-        :global(.blob-leaf-left[data-leaves="wake"]),
-        :global(.blob-leaf-right[data-leaves="wake"]) {
-          transition: none;
-        }
-        :global(.blob-leaf-left[data-leaves="wake"]) {
-          animation: blob-leaf-wake-l ${WAKE_LEAF_DURATION_S}s cubic-bezier(0.34, 1.15, 0.64, 1) forwards;
-        }
-        :global(.blob-leaf-right[data-leaves="wake"]) {
-          animation: blob-leaf-wake-r ${WAKE_LEAF_DURATION_S}s cubic-bezier(0.34, 1.15, 0.64, 1) forwards;
-        }
-        @keyframes blob-leaf-wake-l {
-          0%   { transform: rotate(-6deg) translateY(0.6px); }
-          38%  { transform: rotate(${-6 + WAKE_LEAF_ROTATE_LIFT}deg) translateY(${WAKE_LEAF_LIFT_PX}px); }
-          68%  { transform: rotate(1.5deg) translateY(-0.35px); }
-          100% { transform: rotate(0deg) translateY(0); }
-        }
-        @keyframes blob-leaf-wake-r {
-          0%   { transform: rotate(6deg) translateY(0.6px); }
-          38%  { transform: rotate(${6 - WAKE_LEAF_ROTATE_LIFT}deg) translateY(${WAKE_LEAF_LIFT_PX}px); }
-          68%  { transform: rotate(-1.5deg) translateY(-0.35px); }
-          100% { transform: rotate(0deg) translateY(0); }
-        }
-
         @keyframes blob-leaf-perk-l {
           0%   { transform: rotate(0); }
-          25%  { transform: rotate(-22deg); }
+          30%  { transform: rotate(-22deg) translateY(-0.4px); }
+          65%  { transform: rotate(-10deg) translateY(0.1px); }
           100% { transform: rotate(-14deg); }
         }
         @keyframes blob-leaf-perk-r {
           0%   { transform: rotate(0); }
-          25%  { transform: rotate(22deg); }
+          30%  { transform: rotate(22deg) translateY(-0.4px); }
+          65%  { transform: rotate(10deg) translateY(0.1px); }
           100% { transform: rotate(14deg); }
         }
 
-        /* ── EYES (data-eye) ──────────────────────────────────────────── */
-        /* Typing — both eyes blink in sync. */
-        :global(.blob-eye[data-eye="open-blink"]) {
-          animation: blob-blink 2.6s ease-in-out infinite;
+        /* ── EYES ─────────────────────────────────────────────────────── */
+        /* Each <Eye> CSS-animates scaleY (blink). Wrapper .blob-eyes-look
+           handles gaze translation so the two channels never collide. */
+
+        /* IDLE — natural slow blink + a much rarer "double-blink" beat. */
+        :global(.blob-eye[data-eye="open"]) {
+          animation: blob-idle-blink 5.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+          animation-delay: calc(var(--blob-seed, 0) * -3.3s);
         }
-        @keyframes blob-blink {
-          0%, 88%, 100% { transform: scaleY(1); }
-          92%           { transform: scaleY(0.12); }
-          96%           { transform: scaleY(1); }
+        @keyframes blob-idle-blink {
+          0%, 53%, 56%, 86%, 90%, 100% { transform: scaleY(1); }
+          54.5%                         { transform: scaleY(0.08); }
+          88%                           { transform: scaleY(0.08); }
         }
 
-        :global(.blob-eye[data-eye="open-wake"]) {
-          animation: blob-eye-wake 0.25s ease-out forwards;
+        /* IDLE — eyes drift left, hold, return; later drift right, hold,
+           return. Mostly idle at 0 — the rarity is what makes it cute. */
+        :global(.blob-eyes-look[data-eye="open"]) {
+          animation: blob-idle-glance 13s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+          animation-delay: calc(var(--blob-seed, 0) * -8s);
         }
-        @keyframes blob-eye-wake {
-          0%   { transform: scaleY(0.08); }
+        @keyframes blob-idle-glance {
+          0%, 18%   { transform: translateX(0) translateY(0); }
+          22%, 30%  { transform: translateX(-0.55px) translateY(-0.05px); }
+          34%, 62%  { transform: translateX(0) translateY(0); }
+          66%, 74%  { transform: translateX(0.6px) translateY(0); }
+          78%, 100% { transform: translateX(0) translateY(0); }
+        }
+
+        /* TYPING — quicker, more attentive blinks with an occasional double. */
+        :global(.blob-eye[data-eye="open-blink"]) {
+          animation: blob-typing-blink 2.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+          animation-delay: calc(var(--blob-seed, 0) * -1.5s);
+        }
+        @keyframes blob-typing-blink {
+          0%, 38%, 47%, 70%, 73%, 78%, 100% { transform: scaleY(1); }
+          42%                                { transform: scaleY(0.1); }
+          75%                                { transform: scaleY(0.1); }
+        }
+
+        /* WAKING — eyes pop wide with overshoot (surprise → settle). */
+        :global(.blob-eye[data-eye="open-wake"]) {
+          animation: blob-eye-wake-pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        @keyframes blob-eye-wake-pop {
+          0%   { transform: scaleY(0.05); }
+          40%  { transform: scaleY(1.18); }
+          70%  { transform: scaleY(0.94); }
           100% { transform: scaleY(1); }
         }
 
-        /* Waking — both eyes wink together. */
+        /* SLEEPING — closed line very occasionally twitches (REM). */
+        :global(.blob-eye[data-eye="closed"]) {
+          animation: blob-sleep-twitch 7.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+          animation-delay: calc(var(--blob-seed, 0) * -3s);
+        }
+        @keyframes blob-sleep-twitch {
+          0%, 86%, 92%, 100% { transform: scaleX(1) translateX(0); }
+          88%                { transform: scaleX(0.88) translateX(0.18px); }
+          90%                { transform: scaleX(0.92) translateX(-0.12px); }
+        }
+
+        /* SAVING — happy U eyes squint in with overshoot. */
+        :global(.blob-eye[data-eye="smile"]) {
+          animation: blob-smile-pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        @keyframes blob-smile-pop {
+          0%   { transform: scaleY(0.4); }
+          55%  { transform: scaleY(1.15); }
+          100% { transform: scaleY(1); }
+        }
+
+        /* Wink kept for future use — both eyes squash together. */
         :global(.blob-eye[data-eye="wink"]) {
           animation: blob-wink-sync 0.48s ease-in-out 0.05s 1 forwards;
         }
@@ -932,44 +1159,104 @@ export default function BlobCharacter({
           58%      { transform: scaleY(1); }
         }
 
-        /* ── SPARKLES ─────────────────────────────────────────────────── */
+        /* ── SPARKLES — three sparkles bloom outward then fade ──────── */
         :global(.blob-sparkle-burst) {
           opacity: 0;
-          animation: blob-sparkle-burst 1.1s ease-out forwards;
+          animation-duration: 1.15s;
+          animation-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
+          animation-fill-mode: forwards;
         }
-        :global(.blob-sparkle-burst-1) { animation-delay: 0.05s; }
-        :global(.blob-sparkle-burst-2) { animation-delay: 0.22s; }
-        :global(.blob-sparkle-burst-3) { animation-delay: 0.38s; }
-        @keyframes blob-sparkle-burst {
-          0%   { opacity: 0; transform: scale(0.2); }
-          25%  { opacity: 1; transform: scale(1.1); }
-          70%  { opacity: 1; transform: scale(0.95); }
-          100% { opacity: 0; transform: scale(0.6); }
+        :global(.blob-sparkle-burst-1) {
+          animation-name: blob-sparkle-1;
+          animation-delay: 0.05s;
+        }
+        :global(.blob-sparkle-burst-2) {
+          animation-name: blob-sparkle-2;
+          animation-delay: 0.22s;
+        }
+        :global(.blob-sparkle-burst-3) {
+          animation-name: blob-sparkle-3;
+          animation-delay: 0.38s;
+        }
+        /* Each sparkle drifts outward in its own direction so the burst
+           reads as a celebration, not three pulses in place. */
+        @keyframes blob-sparkle-1 {
+          0%   { opacity: 0; transform: scale(0.15) translate(0, 0) rotate(-18deg); }
+          28%  { opacity: 1; transform: scale(1.2) translate(0.6px, -0.5px) rotate(10deg); }
+          65%  { opacity: 0.95; transform: scale(0.95) translate(1.1px, -1.1px) rotate(2deg); }
+          100% { opacity: 0; transform: scale(0.5) translate(1.8px, -1.9px) rotate(-12deg); }
+        }
+        @keyframes blob-sparkle-2 {
+          0%   { opacity: 0; transform: scale(0.15) translate(0, 0) rotate(12deg); }
+          28%  { opacity: 1; transform: scale(1.15) translate(0.4px, 0.4px) rotate(-6deg); }
+          65%  { opacity: 0.95; transform: scale(0.9) translate(0.8px, 0.9px) rotate(2deg); }
+          100% { opacity: 0; transform: scale(0.45) translate(1.4px, 1.5px) rotate(14deg); }
+        }
+        @keyframes blob-sparkle-3 {
+          0%   { opacity: 0; transform: scale(0.15) translate(0, 0) rotate(-8deg); }
+          28%  { opacity: 1; transform: scale(1.1) translate(-0.3px, -0.5px) rotate(8deg); }
+          65%  { opacity: 0.95; transform: scale(0.85) translate(-0.6px, -1px) rotate(-2deg); }
+          100% { opacity: 0; transform: scale(0.45) translate(-1px, -1.6px) rotate(10deg); }
         }
 
-        :global(.blob-zzz) {
-          animation: blob-zzz-float ${SLEEP_BREATH_DURATION_S}s ease-in-out infinite;
+        /* ── ZZZ — three Zs rise and fade in a staggered cascade ────── */
+        /* fill-box origin so each tier scales around its own bbox center,
+           not the viewBox corner. */
+        :global(.blob-zzz-tier) {
+          transform-box: fill-box;
+          transform-origin: center;
+          opacity: 0;
+          animation-duration: 3.6s;
+          animation-iteration-count: infinite;
+          animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1);
         }
-        @keyframes blob-zzz-float {
-          0%, 100% { opacity: 0.55; }
-          50%      { opacity: 1; }
+        :global(.blob-zzz-1) {
+          animation-name: blob-zzz-rise;
+          animation-delay: 0s;
+        }
+        :global(.blob-zzz-2) {
+          animation-name: blob-zzz-rise;
+          animation-delay: 1.2s;
+        }
+        :global(.blob-zzz-3) {
+          animation-name: blob-zzz-rise;
+          animation-delay: 2.4s;
+        }
+        @keyframes blob-zzz-rise {
+          0%   { opacity: 0;    transform: translate(0, 0.9px) scale(0.85); }
+          18%  { opacity: 0.85; transform: translate(0.05px, 0) scale(1); }
+          45%  { opacity: 1;    transform: translate(0.15px, -0.9px) scale(1.04); }
+          75%  { opacity: 0.55; transform: translate(0.25px, -1.9px) scale(1); }
+          100% { opacity: 0;    transform: translate(0.4px, -2.8px) scale(0.9); }
         }
 
-        /* Respect users who don't want motion. */
+        /* ── REDUCED MOTION — keep only the breathing rhythms ──────── */
         @media (prefers-reduced-motion: reduce) {
-          :global(.blob-body[data-body="shrink"]) {
-            animation: blob-sleep-breath ${SLEEP_BREATH_DURATION_S * 2}s ease-in-out infinite;
+          :global(.blob-body[data-body="bob"]) {
+            animation: blob-idle-breath 7s ease-in-out infinite;
           }
-          :global(.blob-body),
+          :global(.blob-body[data-body="shrink"]) {
+            animation: blob-sleep-breath ${SLEEP_BREATH_DURATION_S * 1.6}s ease-in-out infinite;
+          }
+          :global(.blob-body[data-body="lean"]),
+          :global(.blob-body[data-body="wake"]),
+          :global(.blob-body[data-body="bounce"]),
           :global(.blob-petals),
-          :global(.blob-leaf-left[data-leaves="wake"]),
-          :global(.blob-leaf-right[data-leaves="wake"]),
-          :global(.blob-shadow),
+          :global(.blob-features),
           :global(.blob-leaf),
+          :global(.blob-eyes-look),
           :global(.blob-eye),
           :global(.blob-sparkle-burst),
-          :global(.blob-zzz) {
+          :global(.blob-zzz-tier) {
             animation: none !important;
+            transition: none !important;
+          }
+          :global(.blob-eye[data-eye="closed"]) {
+            transform: scaleX(1);
+          }
+          /* Keep sleeping zzz visible (faint) so the state still reads. */
+          :global(.blob-zzz-tier) {
+            opacity: 0.6;
           }
         }
       `}</style>

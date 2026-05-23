@@ -35,7 +35,7 @@ export const BOOK_CONFIG: Record<BookCoverSize, BookSizeConfig> = {
     groove: { width: "0.52rem" },
     overlayLine: { left: "0.72rem", width: "0.16rem" },
     content: { marginBottom: "1.12rem" },
-    text: { titleSize: "0.875rem", subtitleSize: "0.7rem" },
+    text: { titleSize: "var(--text-sm)", subtitleSize: "var(--text-xs)" },
   },
   md: {
     container: "w-[9.5rem] h-[13rem]",
@@ -43,7 +43,7 @@ export const BOOK_CONFIG: Record<BookCoverSize, BookSizeConfig> = {
     groove: { width: "0.625rem" },
     overlayLine: { left: "0.875rem", width: "0.1875rem" },
     content: { marginBottom: "1.5rem" },
-    text: { titleSize: "1rem", subtitleSize: "0.8rem" },
+    text: { titleSize: "var(--text-md)", subtitleSize: "var(--text-xs)" },
   },
   smd: {
     container: "w-[10.5rem] h-[15rem]",
@@ -51,7 +51,7 @@ export const BOOK_CONFIG: Record<BookCoverSize, BookSizeConfig> = {
     groove: { width: "0.68rem" },
     overlayLine: { left: "0.98rem", width: "0.2rem" },
     content: { marginBottom: "1.68rem" },
-    text: { titleSize: "1.05rem", subtitleSize: "0.84rem" },
+    text: { titleSize: "var(--text-md)", subtitleSize: "var(--text-xs)" },
   },
   lg: {
     container: "w-[14.125rem] h-[19.875rem]",
@@ -59,7 +59,7 @@ export const BOOK_CONFIG: Record<BookCoverSize, BookSizeConfig> = {
     groove: { width: "0.8rem" },
     overlayLine: { left: "1.18rem", width: "0.24rem" },
     content: { marginBottom: "2.05rem" },
-    text: { titleSize: "1.35rem", subtitleSize: "0.98rem" },
+    text: { titleSize: "var(--text-lg)", subtitleSize: "var(--text-sm)" },
   },
   xl: {
     container: "w-[16.875rem] h-[23.75rem]",
@@ -67,7 +67,7 @@ export const BOOK_CONFIG: Record<BookCoverSize, BookSizeConfig> = {
     groove: { width: "0.92rem" },
     overlayLine: { left: "1.36rem", width: "0.275rem" },
     content: { marginBottom: "2.4rem" },
-    text: { titleSize: "1.55rem", subtitleSize: "1.1rem" },
+    text: { titleSize: "var(--text-lg)", subtitleSize: "var(--text-sm)" },
   },
   "2xl": {
     container: "w-[19.75rem] h-[27.75rem]",
@@ -75,7 +75,7 @@ export const BOOK_CONFIG: Record<BookCoverSize, BookSizeConfig> = {
     groove: { width: "1.04rem" },
     overlayLine: { left: "1.58rem", width: "0.31rem" },
     content: { marginBottom: "2.82rem" },
-    text: { titleSize: "1.8rem", subtitleSize: "1.25rem" },
+    text: { titleSize: "var(--text-xl)", subtitleSize: "var(--text-md)" },
   },
   "3xl": {
     container: "w-[22.5rem] h-[31.625rem]",
@@ -83,6 +83,6 @@ export const BOOK_CONFIG: Record<BookCoverSize, BookSizeConfig> = {
     groove: { width: "1.16rem" },
     overlayLine: { left: "1.8rem", width: "0.35rem" },
     content: { marginBottom: "3.2rem" },
-    text: { titleSize: "2rem", subtitleSize: "1.35rem" },
+    text: { titleSize: "var(--text-xl)", subtitleSize: "var(--text-md)" },
   },
 };

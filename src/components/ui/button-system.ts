@@ -28,7 +28,7 @@ export const buttonSize = {
   },
   lg: {
     iconButton: "h-10 w-10 p-0",
-    textButton: "h-10 px-4 gap-2 text-base font-medium whitespace-nowrap",
+    textButton: "h-10 px-4 gap-2 text-md font-medium whitespace-nowrap",
     icon: 20,
     stroke: 1.9,
   },

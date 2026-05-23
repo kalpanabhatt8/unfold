@@ -1,6 +1,24 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Typography scale — xs/sm/md = body text, lg/xl = headers */
+@theme inline {
+  --text-xs: 0.6875rem;
+  --text-xs--line-height: 1.5;
+
+  --text-sm: 0.75rem;
+  --text-sm--line-height: 1.5;
+
+  --text-md: 1rem;
+  --text-md--line-height: 1.6;
+
+  --text-lg: 1.25rem;
+  --text-lg--line-height: 1.3;
+
+  --text-xl: 1.75rem;
+  --text-xl--line-height: 1.2;
+}
+
 /* Keeps — Minimal calm journal foundation
    Light mode only, minimal tokens, minimal component CSS.
 */
@@ -20,15 +38,6 @@
   --gray-750: #434343;
   --gray-800: #323232;
   --gray-900: #121212;
-
-  /* Type scale */
-  --text-xs: 0.8125rem;
-  --text-sm: 0.9375rem;
-  --text-base: 1rem;
-  --text-lg: 1.125rem;
-  --text-xl: 1.25rem;
-  --text-2xl: 1.5rem;
-  --text-3xl: 1.875rem;
 
   /* Value scale (px) */
   --value-0: 0px;
@@ -143,8 +152,8 @@ body {
   /* color: var(--fg); */
   font-family: var(--font-manrope), system-ui, -apple-system, Segoe UI, Roboto,
     Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-  font-size: var(--text-base);
-  line-height: 1.6;
+  font-size: var(--text-md);
+  line-height: var(--text-md--line-height);
 }
 
 h1,
@@ -154,6 +163,21 @@ h4,
 h5,
 h6 {
   font-family: var(--font-bricolage), var(--font-manrope), system-ui, sans-serif;
+  letter-spacing: -0.01em;
+}
+
+/* Header scale — lg / xl with heading font */
+.header-lg {
+  font-family: var(--font-heading, var(--font-bricolage), var(--font-manrope), system-ui, sans-serif);
+  font-size: var(--text-lg);
+  line-height: var(--text-lg--line-height);
+  letter-spacing: -0.01em;
+}
+
+.header-xl {
+  font-family: var(--font-heading, var(--font-bricolage), var(--font-manrope), system-ui, sans-serif);
+  font-size: var(--text-xl);
+  line-height: var(--text-xl--line-height);
   letter-spacing: -0.01em;
 }
 
@@ -240,8 +264,8 @@ body {
   background: var(--surface-0);
   color: var(--fg);
   font-family: var(--font-body);
-  font-size: var(--text-base);
-  line-height: 1.6;
+  font-size: var(--text-md);
+  line-height: var(--text-md--line-height);
 }
 
 h1,
@@ -420,7 +444,7 @@ h6 {
 }
 
 button {
-  font-size: 1rem;
+  font-size: var(--text-md);
   /* padding: 0.75rem; */
 }
 
@@ -489,7 +513,7 @@ button:hover {
 }
 
 .starter-card__label {
-  font-size: 0.62rem;
+  font-size: var(--text-xs);
   letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--color-ink-muted);
@@ -508,7 +532,7 @@ button:hover {
   border-radius: var(--radius-pill);
   border: 1px solid var(--border);
   background: var(--surface-solid);
-  font-size: 0.65rem;
+  font-size: var(--text-xs);
   letter-spacing: 0.05em;
   /* text-transform: uppercase; */
   color: var(--color-ink);
@@ -649,7 +673,7 @@ input[type='number'] {
    "writing that hasn't loaded yet". Color matches the spec. */
 [data-block-element="text"] textarea::placeholder {
   font-family: var(--font-manrope), system-ui, -apple-system, sans-serif;
-  font-size: 16px;
+  font-size: var(--text-md);
   font-style: normal;
   color: #B0ABA6;
   opacity: 1;

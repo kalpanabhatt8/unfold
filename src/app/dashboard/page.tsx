@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { PencilRulerIcon } from "lucide-react";
 import { BookCover } from "@/components/book-cover";
 import { BOOK_CONFIG } from "@/components/book-cover-config";
@@ -11,6 +11,7 @@ import { coverBackgroundVar } from "@/data/cover-gradients";
 import {
   readRecentBooks,
   RECENT_BOOKS_STORAGE_KEY,
+  RECENTS_UPDATED_EVENT,
   type RecentBook,
 } from "@/lib/recent-books";
 
@@ -19,7 +20,15 @@ const CREATE_NEW_COVER_BG =
 
 const Dashboard = () => {
   const router = useRouter();
-  const [recentBooks, setRecentBooks] = useState<RecentBook[]>([]);
+  const pathname = usePathname();
+  const [recentBooks, setRecentBooks] = useState<RecentBook[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      return readRecentBooks();
+    } catch {
+      return [];
+    }
+  });
 
   const createDraftId = (prefix: string) =>
     `${prefix}-${Date.now().toString(36)}${Math.random()
@@ -39,7 +48,7 @@ const Dashboard = () => {
   }, [recentBooks]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || pathname !== "/dashboard") return;
 
     const loadRecents = () => {
       try {
@@ -59,8 +68,12 @@ const Dashboard = () => {
     };
 
     window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
-  }, []);
+    window.addEventListener(RECENTS_UPDATED_EVENT, loadRecents);
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener(RECENTS_UPDATED_EVENT, loadRecents);
+    };
+  }, [pathname]);
 
   const formatRelativeTime = (timestamp: number) => {
     const diff = Date.now() - timestamp;
@@ -105,7 +118,7 @@ const Dashboard = () => {
     <section className="flex flex-col gap-12 md:gap-20">
           {/* Row 1 — create new */}
           <section className="flex flex-col gap-4">
-            {/* <h2 className="text-[0.75rem] !tracking-[0.1em] uppercase text-ink-soft">
+            {/* <h2 className="text-sm !tracking-[0.1em] uppercase text-ink-soft">
               Create new
             </h2> */}
             <div className="flex flex-wrap items-start gap-12">
@@ -126,7 +139,7 @@ const Dashboard = () => {
 
           {/* Row 2 — recents (front) + starter templates */}
           <section className="flex flex-col gap-4 text-ink">
-            <h2 className="text-[0.75rem] uppercase !tracking-[0.1em] text-ink-soft">
+            <h2 className="text-sm uppercase !tracking-[0.1em] text-ink-soft">
               Starter library
             </h2>
 

@@ -485,7 +485,7 @@ const BookBuilderPage = () => {
           size={Math.max(title.length, 15)}
           placeholder="Untitled book"
           autoFocus={shouldAutoFocusTitle}
-          className="w-auto bg-[var(--gray-75)] rounded-md p-2 text-center text-[1.6rem] font-medium leading-tight tracking-[-0.01em] text-[var(--text-primary)] placeholder:text-black/35 outline-none"
+          className="header-xl w-auto rounded-md bg-[var(--gray-75)] p-2 text-center font-medium leading-tight tracking-[-0.01em] text-[var(--text-primary)] placeholder:text-black/35 outline-none"
           style={{
             fontFamily:
               "var(--font-bricolage), var(--font-manrope), system-ui, sans-serif",

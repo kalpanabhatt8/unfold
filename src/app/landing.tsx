@@ -10,11 +10,11 @@ export default function Landing() {
             {/* <h1 className=" text-5xl text-left leading-none tracking-[0em] select-none text-black/80 font-black flex gap-2 flex-col">
            <div>   KS{" "}</div> 
             </h1> */}
-            <h1 className="text-6xl text-left font-[500] leading-none select-none logo-font text-ink-strong">
+            <h1 className="header-xl text-left font-[500] leading-none select-none logo-font text-ink-strong">
               <span className="mr-[0.03em]">K</span>EEPS
             </h1>
             {/* <h2 className="!mb-0 text-4xl text-black/90 font-bold" >A page for every day. </h2> */}
-            <p className="text-[1.15rem] text-ink-soft mt-2 body-font font-light">
+            <p className="text-lg text-ink-soft mt-2 body-font font-light">
               Plan, rant, dream, or just collect pretty things.
             </p>
             <div className="flex flex-wrap items-center gap-8 mt-6">
