@@ -51,7 +51,6 @@ import BlobCharacter, {
   type BlobState,
   useBlobState,
 } from "@/components/canvas/blob-character";
-import { canvasSurfaceFromCover } from "@/lib/canvas-surface-from-cover";
 import { getTextareaCaretOffsetInTextareaPx } from "@/lib/textarea-caret-offset";
 
 /* -------------------------------------------------------------------------- */
@@ -108,16 +107,10 @@ export type CanvasSnapshot = {
 /*  Visual constants                                                          */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Writing surface — swap any pair below (all subtle, no green cast).
- *
- *  Blush paper (active)  #F8F5F2 / #F1EDE9  — soft peach-grey, matches cheek blush
- *  Sun ivory             #FAF8F5 / #F2EFE9  — golden-white, hugs yellow petals
- *  Cool stone            #F6F6F4 / #EEEDEA  — neutral grey, yellow pops more
- *  Warm linen            #F7F5F1 / #EFEBE6  — honey undertone (previous)
- */
-export const CANVAS_BACKGROUND = "#fafafa";
-export const CANVAS_RECESS = "#F6F6F6";
+/** Page + canvas — keep in sync with `--gray-25` / `--surface-0` in `global.css`. */
+export const CANVAS_BACKGROUND = "#FFFEFC";
+/** Polaroid column — slightly toned up from the page. */
+export const CANVAS_RECESS = "#FAF8F6";
 
 /** Width allotted to the writing zone per column count (CSS values). */
 const WRITING_WIDTH_CSS: Record<ColumnLayout, string> = {
@@ -524,10 +517,6 @@ type CanvasBoardProps = {
    * Falls back to a placeholder when empty so the strip is never blank.
    */
   title?: string;
-  /**
-   * Cover `background` from the book draft — toned down for the writing surface.
-   */
-  coverBackground?: string;
 };
 
 /**
@@ -546,7 +535,6 @@ function CanvasBoardInner(
     onSnapshotChange,
     onSave,
     title,
-    coverBackground,
   }: CanvasBoardProps,
   ref: React.ForwardedRef<CanvasBoardHandle>
 ) {
@@ -581,11 +569,6 @@ function CanvasBoardInner(
   /* ---------------------------- Blob companion ---------------------------- */
 
   const blob = useBlobState({ sleepAfterMs: 10_000 });
-
-  const surface = useMemo(
-    () => canvasSurfaceFromCover(coverBackground),
-    [coverBackground]
-  );
 
   /* ------------------------------ Hydration ------------------------------ */
 
@@ -1049,7 +1032,7 @@ function CanvasBoardInner(
       ref={outerRef}
       className="relative flex h-svh min-h-0 w-full flex-row overflow-x-hidden overflow-y-hidden transition-colors duration-500"
       style={{
-        background: surface.background,
+        background: CANVAS_BACKGROUND,
         color: WRITING_INK,
         caretColor: WRITING_INK,
       }}
@@ -1062,7 +1045,7 @@ function CanvasBoardInner(
         selectedImageId={selectedImageId}
         blobState={blob.state}
         blobHidden={blob.hidden}
-        recessBackground={surface.recess}
+        recessBackground={CANVAS_RECESS}
         onBlobWakeUp={blob.onCanvasInteraction}
         onSelect={(id) => {
           setSelectedImageId(id);

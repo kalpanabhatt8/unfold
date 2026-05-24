@@ -24,7 +24,7 @@
 */
 :root {
   /* Grayscale palette (single source of truth) */
-  --gray-25: #FAFAFA;
+  --gray-25: #FDFCFC;
   --gray-50: #FBFBFB;
   --gray-75: #F5F5F5;
   --gray-100: #f0f0f0;
@@ -109,6 +109,7 @@
 
   /* Color semantics - surfaces */
   --surface-0: var(--gray-25); /* page background */
+  --polaroid-recess: #FEFEFE; /* canvas polaroid column — slightly toned up from page */
   --surface-1: var(--gray-50); /* raised panels */
   --surface-2: var(--gray-100); /* cards + controls */
   --surface-3: var(--gray-200); /* cards + controls */

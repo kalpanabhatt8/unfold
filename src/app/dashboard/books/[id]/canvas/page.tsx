@@ -237,7 +237,7 @@ const CanvasPage = () => {
     if (isNavigatingBack) return;
     setIsNavigatingBack(true);
     const snapshot = boardRef.current?.captureForClose() ?? null;
-    router.push("/dashboard");
+    router.replace("/dashboard");
     if (!snapshot) return;
     // Defer the heavy stringify + localStorage work so navigation isn't blocked
     // by large canvas text.
@@ -271,7 +271,6 @@ const CanvasPage = () => {
         onSave={handleMilestoneSave}
         initialSnapshot={templateSnapshot}
         title={draft.title}
-        coverBackground={draft.background}
       />
     </main>
   );

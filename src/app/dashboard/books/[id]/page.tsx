@@ -381,7 +381,8 @@ const BookBuilderPage = () => {
     const tpl =
       sourceTemplateId ?? templateParam ?? (template ? template.id : "blank");
     const queryString = tpl ? `?template=${encodeURIComponent(tpl)}` : "";
-    router.push(`/dashboard/books/${draftId}/canvas${queryString}`);
+    // Replace so browser back from the canvas skips this one-time setup page.
+    router.replace(`/dashboard/books/${draftId}/canvas${queryString}`);
   };
 
   const goToDashboard = () => {
