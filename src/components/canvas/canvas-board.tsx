@@ -1410,7 +1410,7 @@ function ImageStack({
         />
       </div>
 
-      <aside
+      {/* <aside
         aria-label="Image column"
         className="w-full rounded-[22px]"
         style={{
@@ -1425,12 +1425,11 @@ function ImageStack({
             onSelect(null);
           }}
         >
-          {/* Fixed-height stack — never grows regardless of image count. */}
+        
           <div
             className="relative w-full shrink-0 overflow-visible"
             style={{ height: STACK_HEIGHT_PX, perspective: 1200 }}
           >
-          {/* Fixed slot order — reordering DOM on swap caused the click "shock". */}
           {POLAROID_SLOTS.map((slotIdx) => {
             const isFront = slotIdx === frontSlot;
             const tilt = isFront ? FRONT_TILT_DEG : BACK_TILT_DEG;
@@ -1481,7 +1480,7 @@ function ImageStack({
           })}
           </div>
         </div>
-      </aside>
+      </aside> */}
     </div>
   );
 }
