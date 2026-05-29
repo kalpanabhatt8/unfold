@@ -20,7 +20,7 @@ exports = {
           },
         },
         fontFamily: {
-          manrope: ["Manrope", "sans-serif"],
+          sans: ["var(--font-dm-sans)", "system-ui", "sans-serif"],
           poppins: ["Poppins", "sans-serif"],
           grotesk: ["Space Grotesk", "sans-serif"],
         },

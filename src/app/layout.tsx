@@ -4,7 +4,13 @@ import "./global.css";
 import "./book.css";
 
 // Google Fonts
-import { Bricolage_Grotesque, Manrope, Caveat, Lora } from "next/font/google";
+import {
+  Bricolage_Grotesque,
+  Caveat,
+  DM_Sans,
+  Figtree,
+  Lora,
+} from "next/font/google";
 
 const bricolageGrotesque = Bricolage_Grotesque({
   subsets: ["latin"],
@@ -13,11 +19,18 @@ const bricolageGrotesque = Bricolage_Grotesque({
   variable: "--font-bricolage",
 });
 
-const manrope = Manrope({
+const dmSans = DM_Sans({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700", "800"],
+  weight: ["300", "400", "500", "600", "700"],
   display: "swap",
-  variable: "--font-manrope",
+  variable: "--font-dm-sans",
+});
+
+const figtree = Figtree({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  display: "swap",
+  variable: "--font-figtree",
 });
 
 const caveat = Caveat({
@@ -51,19 +64,19 @@ export default function RootLayout({
         theme: "simple",
         variables: {
           colorPrimary: "var(--color-primary)",
-          fontFamily: `var(${manrope.variable}), sans-serif`,
+          fontFamily: `var(${dmSans.variable}), sans-serif`,
         },
         elements: {
           componentContainer: {
             border: "var(--popup-border)",
-            fontFamily: `var(${manrope.variable}), sans-serif !important`,
+            fontFamily: `var(${dmSans.variable}), sans-serif !important`,
           },
           developmentOrTestModeBox: {
             background: "var(--color-surface-raised)",
             border: "var(--popup-border)",
           },
           headerTitle: {
-            fontFamily: `var(${manrope.variable}), sans-serif !important`,
+            fontFamily: `var(${dmSans.variable}), sans-serif !important`,
           },
         },
       }}
@@ -71,10 +84,10 @@ export default function RootLayout({
       <html
         lang="en"
         className={`
-          ${bricolageGrotesque.variable} ${manrope.variable} ${caveat.variable} ${lora.variable}
+          ${bricolageGrotesque.variable} ${dmSans.variable} ${figtree.variable} ${caveat.variable} ${lora.variable}
         `}
       >
-        <body suppressHydrationWarning className={`${manrope.className} font-sans`}>
+        <body suppressHydrationWarning className={`${figtree.className} font-sans`}>
           {children}
         </body>
       </html>

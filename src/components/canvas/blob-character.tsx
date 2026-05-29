@@ -622,7 +622,7 @@ function Extras({ kind }: { kind: ExtrasKind }) {
 
 export default function BlobCharacter({
   state,
-  size = 120,
+  size = 140,
   className,
   hidden = false,
   onWakeUp,

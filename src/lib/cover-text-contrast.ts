@@ -70,6 +70,23 @@ function collectHexColors(css: string): string[] {
  * Luminance for each built-in cover slot (`book.css` / `--gradient-*` solids).
  * Kept in sync with the hex values there for title/subtitle contrast.
  */
+/** sRGB channels for each cover slot — mirrors `--gradient-*` in `book.css`. */
+export const COVER_GRADIENT_RGB: Record<
+  CoverGradientId,
+  { r: number; g: number; b: number }
+> = {
+  g1: { r: 246, g: 219, b: 178 },
+  g2: { r: 197, g: 212, b: 227 },
+  g3: { r: 230, g: 190, b: 181 },
+  g4: { r: 220, g: 210, b: 234 },
+  g5: { r: 191, g: 217, b: 201 },
+  g6: { r: 235, g: 230, b: 223 },
+  g7: { r: 61, g: 69, b: 85 },
+  g8: { r: 53, g: 72, b: 69 },
+  g9: { r: 66, g: 61, b: 79 },
+  g10: { r: 250, g: 248, b: 244 },
+};
+
 export const COVER_GRADIENT_LUMINANCE: Record<CoverGradientId, number> = {
   g1: relativeLuminance255(246, 219, 178),
   g2: relativeLuminance255(197, 212, 227),
@@ -82,6 +99,41 @@ export const COVER_GRADIENT_LUMINANCE: Record<CoverGradientId, number> = {
   g9: relativeLuminance255(66, 61, 79),
   g10: relativeLuminance255(250, 248, 244),
 };
+
+/** Resolve a cover background string to RGB for canvas tint overlays. */
+export function coverTintRgbFromBackground(
+  background: string | undefined | null,
+): { r: number; g: number; b: number } | null {
+  const fromVar = coverGradientIdFromBackground(background);
+  if (fromVar) return COVER_GRADIENT_RGB[fromVar];
+  if (typeof background === "string" && background.trim()) {
+    const solid = parseCssColorToRgb(background);
+    if (solid) return solid;
+    const hexes = collectHexColors(background);
+    if (hexes.length > 0) {
+      let r = 0;
+      let g = 0;
+      let b = 0;
+      let n = 0;
+      for (const hx of hexes) {
+        const rgb = parseHexTriplet(hx);
+        if (!rgb) continue;
+        r += rgb.r;
+        g += rgb.g;
+        b += rgb.b;
+        n += 1;
+      }
+      if (n > 0) {
+        return {
+          r: Math.round(r / n),
+          g: Math.round(g / n),
+          b: Math.round(b / n),
+        };
+      }
+    }
+  }
+  return COVER_GRADIENT_RGB.g1;
+}
 
 const DARK_BG_THRESHOLD = 0.45;
 

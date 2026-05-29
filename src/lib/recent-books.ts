@@ -22,10 +22,14 @@ export type RecentBook = {
   canvasOpened?: boolean;
   /**
    * Timestamp of the last time the canvas page was opened. Distinct from
-   * `updatedAt` (which tracks any save / autosave), so the canvas header
-   * can show "Last opened 2d ago" independently of typing activity.
+   * `lastEditedAt` (canvas header stamp) and `updatedAt` (recents ordering).
    */
   lastOpenedAt?: number;
+  /**
+   * Canvas header date/time — set when the user closes the book, shown on the
+   * next open. Frozen for the entire editing session.
+   */
+  lastEditedAt?: number;
   updatedAt: number;
 };
 
@@ -111,7 +115,30 @@ const normalizeRecentBook = (value: unknown): RecentBook | null => {
     normalized.lastOpenedAt = value.lastOpenedAt;
   }
 
+  if (
+    typeof value.lastEditedAt === "number" &&
+    Number.isFinite(value.lastEditedAt)
+  ) {
+    normalized.lastEditedAt = value.lastEditedAt;
+  }
+
   return normalized;
+};
+
+/** Read a single draft from `keeps-drafts` (canvas + cover share this record). */
+export const readDraftById = (id: string): RecentBook | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(DRAFTS_STORAGE_KEY);
+    if (!raw) return null;
+    const drafts = JSON.parse(raw) as Record<string, unknown>;
+    const entry = drafts[id];
+    if (!isRecord(entry)) return null;
+    return normalizeRecentBook({ ...entry, id });
+  } catch (error) {
+    console.error("Failed to read draft", error);
+    return null;
+  }
 };
 
 export const readRecentBooks = (): RecentBook[] => {
@@ -219,6 +246,13 @@ export const syncDraftsAndRecents = <T extends DraftLike>(
         fallback.lastOpenedAt = raw.lastOpenedAt as number;
       }
 
+      if (
+        typeof raw.lastEditedAt === "number" &&
+        Number.isFinite(raw.lastEditedAt)
+      ) {
+        fallback.lastEditedAt = raw.lastEditedAt as number;
+      }
+
       const normalizedBook = normalized ?? fallback;
 
       return {
@@ -259,6 +293,10 @@ export const syncDraftsAndRecents = <T extends DraftLike>(
           lastOpenedAt:
             typeof normalizedBook.lastOpenedAt === "number"
               ? normalizedBook.lastOpenedAt
+              : undefined,
+          lastEditedAt:
+            typeof normalizedBook.lastEditedAt === "number"
+              ? normalizedBook.lastEditedAt
               : undefined,
         } as T,
         normalized: normalizedBook,

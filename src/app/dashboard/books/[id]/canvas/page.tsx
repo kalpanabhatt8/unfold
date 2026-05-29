@@ -1,8 +1,15 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Palette } from "lucide-react";
 import { getTemplateById } from "@/data/book-templates";
 import { coverBackgroundVar } from "@/data/cover-gradients";
 import CanvasBoard, {
@@ -18,7 +25,13 @@ import {
   iconStroke,
 } from "@/components/ui/button-system";
 import {
+  claimCanvasSessionStamp,
+  endCanvasSession,
+} from "@/lib/canvas-session-stamp";
+import {
   DRAFTS_STORAGE_KEY,
+  readDraftById,
+  RECENTS_UPDATED_EVENT,
   syncDraftsAndRecents,
   type RecentBook,
 } from "@/lib/recent-books";
@@ -26,18 +39,36 @@ import {
 const blankDefaults = {
   id: "blank",
   variant: "solid" as const,
-  title: "Untitled Book",
+  title: "",
   subtitle: "Describe this notebook",
   background: "linear-gradient(135deg, #f8f7ff 0%, #ebe9ff 100%)",
 };
 
 type Draft = RecentBook;
 
+const readPersistedLastEditedAt = (bookId: string): number | undefined => {
+  if (typeof window === "undefined") return undefined;
+  try {
+    const raw = window.localStorage.getItem(DRAFTS_STORAGE_KEY);
+    if (!raw) return undefined;
+    const drafts = JSON.parse(raw) as Record<string, Draft>;
+    const ts = drafts[bookId]?.lastEditedAt;
+    return typeof ts === "number" && Number.isFinite(ts) ? ts : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
 const CanvasPage = () => {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const bookId = params?.id ?? "blank";
   const searchParams = useSearchParams();
+  const prevBookIdRef = useRef<string | null>(null);
+  if (prevBookIdRef.current !== null && prevBookIdRef.current !== bookId) {
+    endCanvasSession(prevBookIdRef.current);
+  }
+  prevBookIdRef.current = bookId;
   const boardRef = useRef<CanvasBoardHandle>(null);
   const [isNavigatingBack, setIsNavigatingBack] = useState(false);
   const templateParam = searchParams.get("template");
@@ -76,9 +107,20 @@ const CanvasPage = () => {
 
   const [draft, setDraft] = useState<Draft>(baseDraft);
   const [isDraftHydrated, setIsDraftHydrated] = useState(false);
+  /**
+   * Resolved only on the client (useLayoutEffect). Avoids SSR/hydration
+   * calling Date.now() and flashing wall-clock time before sessionStorage loads.
+   */
+  const [sessionEditedAt, setSessionEditedAt] = useState<number | null>(null);
   const draftRef = React.useRef<Draft>(baseDraft);
   const pendingSnapshotRef = React.useRef<CanvasSnapshot | null>(null);
   const isDraftHydratedRef = React.useRef(false);
+
+  useLayoutEffect(() => {
+    setSessionEditedAt(
+      claimCanvasSessionStamp(bookId, readPersistedLastEditedAt(bookId))
+    );
+  }, [bookId]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -90,6 +132,7 @@ const CanvasPage = () => {
         : {};
       const existing = drafts[bookId];
       const now = Date.now();
+
       // Reaching the canvas page is the moment a book "becomes real" for the
       // dashboard's Recents list; flip the flag here so customization-only
       // drafts stay hidden until the user actually opens them.
@@ -98,7 +141,6 @@ const CanvasPage = () => {
         ...(existing ?? {}),
         canvasOpened: true,
         lastOpenedAt: now,
-        updatedAt: now,
       };
       const updatedDrafts: Record<string, Draft> = {
         ...drafts,
@@ -114,20 +156,44 @@ const CanvasPage = () => {
       console.error("Failed to load draft", error);
       setIsDraftHydrated(true);
     }
-  }, [baseDraft, bookId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookId]);
 
   useEffect(() => {
     isDraftHydratedRef.current = isDraftHydrated;
   }, [isDraftHydrated]);
 
+  useEffect(() => {
+    if (!isDraftHydrated) return;
+
+    const syncTitleFromDraft = () => {
+      const stored = readDraftById(bookId);
+      if (!stored || typeof stored.title !== "string") return;
+      if (stored.title === draftRef.current.title) return;
+      const next = { ...draftRef.current, title: stored.title };
+      draftRef.current = next;
+      setDraft(next);
+    };
+
+    window.addEventListener(RECENTS_UPDATED_EVENT, syncTitleFromDraft);
+    return () =>
+      window.removeEventListener(RECENTS_UPDATED_EVENT, syncTitleFromDraft);
+  }, [bookId, isDraftHydrated]);
+
   const persistDraft = useCallback(
     (
       updates: Partial<Draft>,
-      updatedAtOverride?: number,
-      opts?: { skipRender?: boolean }
+      opts?: {
+        /** When set, also bumps draft `updatedAt` (recents ordering). */
+        updatedAt?: number;
+        skipRender?: boolean;
+      }
     ) => {
-      const updatedAt = updatedAtOverride ?? Date.now();
       const current = draftRef.current ?? baseDraft;
+      const updatedAt =
+        typeof opts?.updatedAt === "number"
+          ? opts.updatedAt
+          : current.updatedAt;
       const resolvedTemplateId =
         updates.sourceTemplateId ??
         current.sourceTemplateId ??
@@ -177,6 +243,13 @@ const CanvasPage = () => {
     [baseDraft, bookId, template, templateParam]
   );
 
+  const handleTitleChange = useCallback(
+    (title: string) => {
+      persistDraft({ title });
+    },
+    [persistDraft]
+  );
+
   const handleSnapshotChange = useCallback(
     (snapshot: CanvasSnapshot) => {
       if (!isDraftHydratedRef.current) {
@@ -184,7 +257,8 @@ const CanvasPage = () => {
         return;
       }
       pendingSnapshotRef.current = null;
-      persistDraft({}, snapshot.updatedAt);
+      // Mirror saves must not advance header or recents timestamps mid-session.
+      persistDraft({}, { skipRender: true });
     },
     [persistDraft]
   );
@@ -195,8 +269,8 @@ const CanvasPage = () => {
   // back to the draft. AI plumbing is not wired yet; once it lands, call it
   // from here and merge the returned title via `persistDraft({ title })`.
   const handleMilestoneSave = useCallback(
-    (snapshot: CanvasSnapshot) => {
-      persistDraft({}, snapshot.updatedAt);
+    (_snapshot: CanvasSnapshot) => {
+      persistDraft({}, { skipRender: true });
       // TODO(ai-title): trigger AI title generation from `snapshot.textColumns`
       // and call persistDraft({ title }) when it resolves. Keep this silent —
       // the product spec calls for "no confirmation dialogs — silent save".
@@ -208,7 +282,7 @@ const CanvasPage = () => {
     if (!isDraftHydrated || !pendingSnapshotRef.current) return;
     const snapshot = pendingSnapshotRef.current;
     pendingSnapshotRef.current = null;
-    persistDraft({}, snapshot.updatedAt);
+    persistDraft({}, { skipRender: true });
   }, [isDraftHydrated, persistDraft]);
 
   const boardStorageKey = useMemo(() => `keeps-board-${bookId}`, [bookId]);
@@ -216,6 +290,7 @@ const CanvasPage = () => {
   const persistBoardSnapshot = useCallback(
     (snapshot: CanvasSnapshot) => {
       if (typeof window === "undefined") return;
+      const closedAt = snapshot.updatedAt;
       try {
         window.localStorage.setItem(
           boardStorageKey,
@@ -224,7 +299,10 @@ const CanvasPage = () => {
       } catch (error) {
         console.error("Failed to persist board snapshot", error);
       }
-      persistDraft({}, snapshot.updatedAt, { skipRender: true });
+      persistDraft(
+        { lastEditedAt: closedAt },
+        { updatedAt: closedAt, skipRender: true }
+      );
     },
     [boardStorageKey, persistDraft]
   );
@@ -233,18 +311,44 @@ const CanvasPage = () => {
     router.prefetch("/dashboard");
   }, [router]);
 
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtml = html.style.overflow;
+    const prevBody = body.style.overflow;
+    html.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    return () => {
+      html.style.overflow = prevHtml;
+      body.style.overflow = prevBody;
+    };
+  }, []);
+
   const handleBack = useCallback(() => {
     if (isNavigatingBack) return;
     setIsNavigatingBack(true);
     const snapshot = boardRef.current?.captureForClose() ?? null;
-    router.replace("/dashboard");
-    if (!snapshot) return;
-    // Defer the heavy stringify + localStorage work so navigation isn't blocked
-    // by large canvas text.
-    window.requestAnimationFrame(() => {
+    if (snapshot) {
       persistBoardSnapshot(snapshot);
-    });
-  }, [isNavigatingBack, persistBoardSnapshot, router]);
+    }
+    endCanvasSession(bookId);
+    router.replace("/dashboard");
+  }, [bookId, isNavigatingBack, persistBoardSnapshot, router]);
+
+  const goToCoverEditor = useCallback(() => {
+    // Open the cover editor while keeping this draft's "canvas opened" flag.
+    // Passing `from=canvas` makes the editor's Back button return here.
+    const template = templateParam ?? "blank";
+    const snapshot = boardRef.current?.captureForClose() ?? null;
+    if (snapshot) {
+      persistBoardSnapshot(snapshot);
+    }
+    router.push(
+      `/dashboard/books/${bookId}?from=canvas&template=${encodeURIComponent(
+        template,
+      )}`,
+    );
+  }, [bookId, router, templateParam, persistBoardSnapshot]);
 
   return (
     <main className="relative h-svh min-h-0 w-full overflow-hidden">
@@ -264,14 +368,18 @@ const CanvasPage = () => {
         />
       </button>
 
-      <CanvasBoard
-        ref={boardRef}
-        storageKey={boardStorageKey}
-        onSnapshotChange={handleSnapshotChange}
-        onSave={handleMilestoneSave}
-        initialSnapshot={templateSnapshot}
-        title={draft.title}
-      />
+      {sessionEditedAt !== null && (
+        <CanvasBoard
+          ref={boardRef}
+          storageKey={boardStorageKey}
+          onSnapshotChange={handleSnapshotChange}
+          onSave={handleMilestoneSave}
+          initialSnapshot={templateSnapshot}
+          title={draft.title}
+          onTitleChange={handleTitleChange}
+          sessionEditedAt={sessionEditedAt}
+        />
+      )}
     </main>
   );
 };

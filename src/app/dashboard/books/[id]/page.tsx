@@ -35,6 +35,8 @@ import {
 } from "@/lib/cover-text-contrast";
 import {
   DRAFTS_STORAGE_KEY,
+  readDraftById,
+  RECENTS_UPDATED_EVENT,
   syncDraftsAndRecents,
   type RecentBook,
 } from "@/lib/recent-books";
@@ -205,48 +207,55 @@ const BookBuilderPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally only when opening
   }, [isColorPickerOpen]);
 
-  // Hydrate from any existing draft so reopening the customization page never
-  // forgets work in progress (cover image, background, edited title, etc.).
+  const applyDraftToCoverState = useCallback((existing: RecentBook | null) => {
+    if (!existing) return;
+    if (typeof existing.title === "string") setTitle(existing.title);
+    if (typeof existing.subtitle === "string") setSubtitle(existing.subtitle);
+    if (
+      typeof existing.coverImage === "string" ||
+      existing.coverImage === null
+    ) {
+      setCoverImage(existing.coverImage ?? null);
+    }
+    if (existing.background) {
+      setBackground(existing.background);
+      const parsedBg = cssColorToRgba(existing.background);
+      if (parsedBg) {
+        setPickerColor(parsedBg);
+        setHexInput(rgbaToHex(parsedBg));
+      }
+    }
+    if (typeof existing.sourceTemplateId === "string") {
+      setSourceTemplateId(existing.sourceTemplateId);
+    } else if (existing.sourceTemplateId === null) {
+      setSourceTemplateId(null);
+    }
+  }, []);
+
+  // Hydrate from draft; re-sync when canvas (or dashboard) updates the same draft.
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    try {
-      const raw = window.localStorage.getItem(DRAFTS_STORAGE_KEY);
-      const drafts = raw
-        ? (JSON.parse(raw) as Record<string, DraftPayload>)
-        : {};
-      const existing = drafts[draftId];
-
-      if (existing) {
-        if (typeof existing.title === "string") setTitle(existing.title);
-        if (typeof existing.subtitle === "string")
-          setSubtitle(existing.subtitle);
-        if (
-          typeof existing.coverImage === "string" ||
-          existing.coverImage === null
-        ) {
-          setCoverImage(existing.coverImage ?? null);
-        }
-        if (existing.background) {
-          setBackground(existing.background);
-          const parsedBg = cssColorToRgba(existing.background);
-          if (parsedBg) {
-            setPickerColor(parsedBg);
-            setHexInput(rgbaToHex(parsedBg));
-          }
-        }
-        if (typeof existing.sourceTemplateId === "string") {
-          setSourceTemplateId(existing.sourceTemplateId);
-        } else if (existing.sourceTemplateId === null) {
-          setSourceTemplateId(null);
-        }
+    const syncFromStorage = () => {
+      try {
+        applyDraftToCoverState(readDraftById(draftId));
+      } catch (error) {
+        console.error("Failed to load draft configuration", error);
       }
-    } catch (error) {
-      console.error("Failed to load draft configuration", error);
-    } finally {
-      setHydrated(true);
-    }
-  }, [draftId]);
+    };
+
+    syncFromStorage();
+    setHydrated(true);
+
+    window.addEventListener(RECENTS_UPDATED_EVENT, syncFromStorage);
+    const onPageShow = () => syncFromStorage();
+    window.addEventListener("pageshow", onPageShow);
+
+    return () => {
+      window.removeEventListener(RECENTS_UPDATED_EVENT, syncFromStorage);
+      window.removeEventListener("pageshow", onPageShow);
+    };
+  }, [applyDraftToCoverState, draftId]);
 
   const variant: BookCoverVariant = coverImage ? "image" : "solid";
 
@@ -312,7 +321,7 @@ const BookBuilderPage = () => {
         const drafts = draftsRaw
           ? (JSON.parse(draftsRaw) as Record<string, DraftPayload>)
           : {};
-        const existing = drafts[draftId];
+        const existing = drafts[draftId] ?? readDraftById(draftId) ?? undefined;
         drafts[draftId] = {
           ...existing,
           id: draftId,
@@ -489,7 +498,7 @@ const BookBuilderPage = () => {
           className="header-xl w-auto rounded-md bg-[var(--gray-75)] p-2 text-center font-medium leading-tight tracking-[-0.01em] text-[var(--text-primary)] placeholder:text-black/35 outline-none"
           style={{
             fontFamily:
-              "var(--font-bricolage), var(--font-manrope), system-ui, sans-serif",
+              "var(--font-heading)",
           }}
           spellCheck={false}
           aria-label="Book title"

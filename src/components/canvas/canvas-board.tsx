@@ -1,24 +1,15 @@
 "use client";
 
 /**
- * CanvasBoard — calm two-zone writing surface.
+ * CanvasBoard — full-width journal writing surface.
  *
  *  ┌─────────────────────────────────────────────────────────────┐
- *  │  blob                 │  Heading + meta strip               │
- *  │  ┌─ polaroids ─┐      │  ───────────────────────────────    │
- *  │  │ ▢  ▢        │      │  writing zone (≤ 600px)             │
- *  │  └─────────────┘      │  Lora 20px · single column          │
+ *  │  date · time (left)          title (right, same row as date) │
+ *  │  ─────────────────────────────────────────────────────────── │
+ *  │  centered writing column (Rethink Sans)                      │
+ *  │  signature (end)                                             │
+ *  │  🌻 fixed bottom-left                                        │
  *  └─────────────────────────────────────────────────────────────┘
- *
- * Image input model:
- *   - The left panel always shows at least three slots.
- *   - Empty slots are clickable placeholders that reveal an upload icon
- *     on hover and trigger the hidden multi-file picker.
- *   - Paste + drag/drop on the canvas still work as a fallback.
- *
- * Header strip (top of writing zone) is intentional anti-empty-state:
- *   - calendar date of last edit sits above the book title (journal feel)
- *   - book title acts as a calm "Heading"
  *
  * Save model:
  *   - Snapshot is mirrored to localStorage shortly after each change so the
@@ -100,6 +91,8 @@ export type CanvasSnapshot = {
   imageBlocks: JournalImage[];
   background: string;
   columns: ColumnLayout;
+  /** Author name / signature shown at the end of the page. */
+  signature?: string;
   updatedAt: number;
 };
 
@@ -108,29 +101,50 @@ export type CanvasSnapshot = {
 /* -------------------------------------------------------------------------- */
 
 /** Page + canvas — keep in sync with `--gray-25` / `--surface-0` in `global.css`. */
-export const CANVAS_BACKGROUND = "#FFFEFC";
+export const CANVAS_BACKGROUND = "#FEFDFC";
+/** Subtle warm gradient over the page (very slight yellow tint). */
+// const CANVAS_BACKGROUND_GRADIENT =
+//   "linear-gradient(180deg, #FFFEFC 0%, #FFFDF8 52%,rgb(255, 254, 253) 100%)";
 /** Polaroid column — slightly toned up from the page. */
 export const CANVAS_RECESS = "#FAF8F6";
 
-/** Width allotted to the writing zone per column count (CSS values). */
-const WRITING_WIDTH_CSS: Record<ColumnLayout, string> = {
-  1: "min(92vw, 720px)",
-  2: "min(92vw, 720px)",
-  3: "min(94vw, 900px)",
-};
+/** Centered writing column width. */
+const WRITING_COLUMN_MAX_WIDTH = "min(92vw, 700px)";
 
 const TEXT_COLUMN_GAP = 32;
 
-/** Nudge the centered writing block slightly left (toward the polaroid rail). */
-const WRITING_NUDGE_LEFT_PX = 20;
-
 /** Vertical breathing room at the top and bottom of the page. */
 const PAGE_PADDING_Y = 88;
+/** Keep active typing line comfortably above the viewport bottom. */
+const SCROLL_COMFORT_BOTTOM = 72;
 
-/** Writing typography (matches product spec). */
-const WRITING_LINE_HEIGHT = 1.7;
+/** Writing typography — Rethink Sans, 16px body size (breathable). */
+const WRITING_FONT_SIZE = "var(--text-md)";
+const WRITING_LINE_HEIGHT = 1.75;
+const WRITING_LETTER_SPACING = "0.005em";
+const WRITING_WORD_SPACING = "0.005em";
 const WRITING_INK = "#2C2C2A";
-const PLACEHOLDER_INK = "#B0ABA6";
+const WRITING_PLACEHOLDER = "Start writing…";
+
+/** Fixed journal slots — no ad-hoc blocks beyond this count. */
+const MAX_WRITING_BLOCKS = 7;
+
+const columnBlockCount = (col: JournalTextBlock[]) => col.length;
+
+const firstEmptyBlockInColumn = (
+  col: JournalTextBlock[]
+): JournalTextBlock | null =>
+  col.find((b) => b.text.length === 0) ?? null;
+
+/** Filled blocks plus one trailing empty slot — avoids painting padded empty slots. */
+const visibleBlocksInColumn = (col: JournalTextBlock[]): JournalTextBlock[] => {
+  let lastWithText = -1;
+  for (let i = 0; i < col.length; i++) {
+    if (col[i].text.length > 0) lastWithText = i;
+  }
+  const end = Math.min(col.length - 1, Math.max(lastWithText + 1, 0));
+  return col.slice(0, end + 1);
+};
 
 /** Polaroid frame visual constants (tuned for the narrow 200px column). */
 const POLAROID_PAD_X = 10;
@@ -168,6 +182,19 @@ const emptyParagraph = (): JournalTextBlock => ({
   text: "",
 });
 
+const createWritingSlots = (count = MAX_WRITING_BLOCKS): JournalTextBlock[] =>
+  Array.from({ length: count }, () => emptyParagraph());
+
+/** Pad a column up to the fixed slot count without removing existing blocks. */
+const padWritingSlots = (col: JournalTextBlock[]): JournalTextBlock[] => {
+  if (col.length >= MAX_WRITING_BLOCKS) return col;
+  const padded = col.slice();
+  while (padded.length < MAX_WRITING_BLOCKS) {
+    padded.push(emptyParagraph());
+  }
+  return padded;
+};
+
 /**
  * Adjust the column tracks to a new column count without redistributing
  * existing content.
@@ -183,11 +210,15 @@ const adjustColumns = (
 ): JournalTextBlock[][] => {
   const current = cols.length;
   if (current === target) {
-    return cols.map((c) => (c.length > 0 ? c : [emptyParagraph()]));
+    return cols.map((c) =>
+      c.length > 0 ? c : target === 1 ? createWritingSlots() : [emptyParagraph()]
+    );
   }
 
   if (target > current) {
-    const next = cols.map((c) => (c.length > 0 ? c : [emptyParagraph()]));
+    const next = cols.map((c) =>
+      c.length > 0 ? c : target === 1 ? createWritingSlots() : [emptyParagraph()]
+    );
     while (next.length < target) next.push([emptyParagraph()]);
     return next;
   }
@@ -195,7 +226,13 @@ const adjustColumns = (
   // target < current
   const kept = cols.slice(0, target - 1).map((c) => c.slice());
   const tailMerged = cols.slice(target - 1).flat();
-  kept.push(tailMerged.length > 0 ? tailMerged : [emptyParagraph()]);
+  kept.push(
+    tailMerged.length > 0
+      ? tailMerged
+      : target === 1
+        ? createWritingSlots()
+        : [emptyParagraph()]
+  );
   return kept;
 };
 
@@ -205,10 +242,11 @@ const adjustColumns = (
 
 export const emptySnapshot = (): CanvasSnapshot => ({
   version: CANVAS_SNAPSHOT_VERSION,
-  textColumns: [[emptyParagraph()]],
+  textColumns: [createWritingSlots()],
   imageBlocks: [],
   background: CANVAS_BACKGROUND,
   columns: 1,
+  signature: "",
   updatedAt: Date.now(),
 });
 
@@ -390,8 +428,11 @@ export function normalizeSnapshot(value: unknown): CanvasSnapshot | null {
   );
 
   textColumns = adjustColumns(
-    textColumns.length === 0 ? [[emptyParagraph()]] : textColumns,
+    textColumns.length === 0 ? [createWritingSlots()] : textColumns,
     columns
+  );
+  textColumns = textColumns.map((col, idx) =>
+    idx === 0 ? padWritingSlots(col) : col
   );
 
   const imageBlocks = arrayOrEmpty<unknown>(value.imageBlocks)
@@ -403,12 +444,16 @@ export function normalizeSnapshot(value: unknown): CanvasSnapshot | null {
       ? value.updatedAt
       : Date.now();
 
+  const signature =
+    typeof value.signature === "string" ? value.signature : undefined;
+
   return {
     version: CANVAS_SNAPSHOT_VERSION,
     textColumns,
     imageBlocks,
     background: CANVAS_BACKGROUND,
     columns,
+    signature,
     updatedAt,
   };
 }
@@ -512,11 +557,18 @@ type CanvasBoardProps = {
    * This is the right place to trigger AI title regeneration.
    */
   onSave?: (snapshot: CanvasSnapshot) => void;
-  /**
-   * Book title shown as the "Heading" at the top of the writing zone.
-   * Falls back to a placeholder when empty so the strip is never blank.
-   */
+  /** Book title — editable in the canvas header. */
   title?: string;
+  /** Persists a trimmed title; empty string keeps the “New book” placeholder. */
+  onTitleChange?: (title: string) => void;
+  /**
+   * Header date/time for this session — frozen from open until close. Parents
+   * pass the persisted `lastEditedAt` on return visits, or `Date.now()` on the
+   * first open when no prior close timestamp exists.
+   */
+  sessionEditedAt: number;
+  /** Book cover background (CSS) — used for a subtle 6% page tint. */
+  coverBackground?: string;
 };
 
 /**
@@ -535,18 +587,26 @@ function CanvasBoardInner(
     onSnapshotChange,
     onSave,
     title,
+    onTitleChange,
+    sessionEditedAt,
+    coverBackground,
   }: CanvasBoardProps,
   ref: React.ForwardedRef<CanvasBoardHandle>
 ) {
   const [textColumns, setTextColumns] = useState<JournalTextBlock[][]>(() => [
-    [emptyParagraph()],
+    createWritingSlots(),
   ]);
   const [imageBlocks, setImageBlocks] = useState<JournalImage[]>([]);
+  const [signature, setSignature] = useState("");
   // Column layout has been retired from the UI; we keep the snapshot field
   // for backward-compat (legacy notebooks still deserialize) but always
   // render as a single column going forward.
   const [columns] = useState<ColumnLayout>(1);
-  const [lastSavedAt, setLastSavedAt] = useState<number>(() => Date.now());
+  const [lastSavedAt, setLastSavedAt] = useState<number>(() => sessionEditedAt);
+  /** Snapshot `updatedAt` — frozen while editing; bumped only on close. */
+  const snapshotEditedAtRef = useRef<number>(sessionEditedAt);
+  /** Header stamp — frozen for this mount; never follows wall clock. */
+  const [headerDisplayedAt] = useState(() => sessionEditedAt);
 
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
   const [rangeAnchorId, setRangeAnchorId] = useState<string | null>(null);
@@ -563,7 +623,7 @@ function CanvasBoardInner(
   const hydratedRef = useRef(false);
   const focusAfterRender = useRef<{
     id: string;
-    position: "start" | "end";
+    position: "start" | "end" | number;
   } | null>(null);
 
   /* ---------------------------- Blob companion ---------------------------- */
@@ -579,9 +639,15 @@ function CanvasBoardInner(
     const apply = (snap: CanvasSnapshot) => {
       // Collapse any legacy multi-column snapshots down to a single track so
       // the UI matches the simplified spec without losing existing content.
-      setTextColumns(adjustColumns(snap.textColumns, 1));
+      setTextColumns(
+        adjustColumns(snap.textColumns, 1).map((col, idx) =>
+          idx === 0 ? padWritingSlots(col) : col
+        )
+      );
       setImageBlocks(snap.imageBlocks);
-      setLastSavedAt(snap.updatedAt);
+      setSignature(snap.signature ?? "");
+      snapshotEditedAtRef.current = sessionEditedAt;
+      setLastSavedAt(sessionEditedAt);
       const first = snap.textColumns[0]?.[0];
       if (first) {
         focusAfterRender.current = { id: first.id, position: "start" };
@@ -596,7 +662,6 @@ function CanvasBoardInner(
         const norm = normalizeSnapshot(parsed);
         if (norm) {
           apply(norm);
-          onSnapshotChange?.({ ...norm, updatedAt: Date.now() });
           return;
         }
       }
@@ -609,7 +674,6 @@ function CanvasBoardInner(
         } catch {
           /* noop */
         }
-        onSnapshotChange?.({ ...norm, updatedAt: Date.now() });
         return;
       }
 
@@ -636,9 +700,10 @@ function CanvasBoardInner(
       imageBlocks,
       background: CANVAS_BACKGROUND,
       columns,
-      updatedAt: Date.now(),
+      signature,
+      updatedAt: snapshotEditedAtRef.current,
     }),
-    [columns, imageBlocks, textColumns]
+    [columns, imageBlocks, signature, textColumns]
   );
 
   // Fast local mirror so a tab close never loses keystrokes. This is *not*
@@ -687,6 +752,7 @@ function CanvasBoardInner(
     () => ({
       captureForClose: () => {
         void blob.onClosing();
+        snapshotEditedAtRef.current = Date.now();
         return buildSnapshot();
       },
     }),
@@ -696,7 +762,7 @@ function CanvasBoardInner(
   /* --------------------------- Focus management --------------------------- */
 
   const focusBlock = useCallback(
-    (id: string, position: "start" | "end" = "end") => {
+    (id: string, position: "start" | "end" | number = "end") => {
       focusAfterRender.current = { id, position };
     },
     []
@@ -710,7 +776,12 @@ function CanvasBoardInner(
     if (!ta) return;
     ta.focus({ preventScroll: false });
     const len = ta.value.length;
-    const point = target.position === "start" ? 0 : len;
+    const point =
+      typeof target.position === "number"
+        ? clamp(target.position, 0, len)
+        : target.position === "start"
+          ? 0
+          : len;
     ta.setSelectionRange(point, point);
   });
 
@@ -909,18 +980,17 @@ function CanvasBoardInner(
 
   /* --------------------- Click on column whitespace ---------------------- */
 
-  const focusLastBlockOf = useCallback((columnIndex: number) => {
+  const focusSlotInColumn = useCallback((columnIndex: number) => {
     setTextColumns((cols) => {
       const col = cols[columnIndex];
       if (!col || col.length === 0) return cols;
-      const last = col[col.length - 1];
-      if (last.text.length === 0) {
-        focusAfterRender.current = { id: last.id, position: "end" };
-        return cols;
-      }
-      const tail = emptyParagraph();
-      focusAfterRender.current = { id: tail.id, position: "start" };
-      return cols.map((c, idx) => (idx === columnIndex ? [...c, tail] : c));
+      const target =
+        firstEmptyBlockInColumn(col) ?? col[col.length - 1];
+      focusAfterRender.current = {
+        id: target.id,
+        position: target.text.length === 0 ? "start" : "end",
+      };
+      return cols;
     });
   }, []);
 
@@ -1012,17 +1082,21 @@ function CanvasBoardInner(
       const target = e.target as HTMLElement | null;
       if (!target) return;
       if (target.closest("[data-block-element]")) return;
+      if (target.closest("[data-signature]")) return;
+      if (!target.closest("[data-writing-zone]")) return;
+
       const col = target.closest("[data-text-column]");
+      let columnIndex = 0;
       if (col instanceof HTMLElement) {
         const idx = Number(col.dataset.textColumn);
-        if (Number.isFinite(idx)) {
-          e.preventDefault();
-          focusLastBlockOf(idx);
-          setSelectedImageId(null);
-        }
+        if (Number.isFinite(idx)) columnIndex = idx;
       }
+
+      e.preventDefault();
+      focusSlotInColumn(columnIndex);
+      setSelectedImageId(null);
     },
-    [focusLastBlockOf]
+    [focusSlotInColumn]
   );
 
   /* ------------------------------- Render ------------------------------- */
@@ -1030,7 +1104,7 @@ function CanvasBoardInner(
   return (
     <div
       ref={outerRef}
-      className="relative flex h-svh min-h-0 w-full flex-row overflow-x-hidden overflow-y-hidden transition-colors duration-500"
+      className="relative flex h-svh min-h-0 w-full flex-col overflow-hidden transition-colors duration-500"
       style={{
         background: CANVAS_BACKGROUND,
         color: WRITING_INK,
@@ -1039,30 +1113,21 @@ function CanvasBoardInner(
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
-      {/* —————————— Left image column —————————— */}
-      <ImageStack
-        images={imageBlocks}
-        selectedImageId={selectedImageId}
-        blobState={blob.state}
-        blobHidden={blob.hidden}
-        recessBackground={CANVAS_RECESS}
-        onBlobWakeUp={blob.onCanvasInteraction}
-        onSelect={(id) => {
-          setSelectedImageId(id);
-          setShowTextCtx(false);
-        }}
-        onUpdate={updateImage}
-        onRemove={removeImage}
-        onAdd={() => imageFileInputRef.current?.click()}
-      />
-
-      {/* —————————— Centered writing area ——————————
-          `flex-1` claims the remaining horizontal space so the writing
-          column never slides underneath the photo zone. The inner div
-          centers the text columns (with `mx-auto`) and caps them at the
-          spec width per column count. */}
+      {/* Sunflower — fixed bottom-left, always on screen */}
       <div
-        className="relative flex min-h-0 flex-1 flex-col overflow-hidden"
+        className="pointer-events-auto fixed bottom-5 left-5 z-20"
+        onPointerDown={() => blob.onCanvasInteraction()}
+      >
+        <BlobCharacter
+          state={blob.state}
+          hidden={blob.hidden}
+          onWakeUp={blob.onCanvasInteraction}
+        />
+      </div>
+
+      {/* —————————— Full-width centered writing area —————————— */}
+      <div
+        className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden"
         ref={writingRef}
         onPointerDown={(e) => {
           blob.onCanvasInteraction();
@@ -1071,34 +1136,37 @@ function CanvasBoardInner(
       >
         <div
           ref={writingScrollRef}
-          className="relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-y-contain [scrollbar-gutter:stable]"
+          className="relative flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain"
           style={{
             paddingTop: PAGE_PADDING_Y,
             paddingBottom: PAGE_PADDING_Y,
+            scrollPaddingTop: PAGE_PADDING_Y,
+            scrollPaddingBottom: PAGE_PADDING_Y + SCROLL_COMFORT_BOTTOM,
           }}
         >
           <div
-            className="mx-auto w-full"
-            style={{
-              maxWidth: WRITING_WIDTH_CSS[columns],
-              transform: `translateX(-${WRITING_NUDGE_LEFT_PX}px)`,
-            }}
+            className="mx-auto flex w-full shrink-0 flex-col px-6"
+            style={{ maxWidth: WRITING_COLUMN_MAX_WIDTH }}
           >
-            <CanvasHeader title={title} lastEditedAt={lastSavedAt} />
+            <CanvasHeader
+              title={title}
+              editedAt={headerDisplayedAt}
+              onTitleChange={onTitleChange}
+            />
 
             <div
               ref={writingColumnRef}
-              className="relative flex w-full"
+              data-writing-zone
+              className="relative flex w-full shrink-0 flex-col"
               style={{ gap: TEXT_COLUMN_GAP }}
             >
           {textColumns.map((col, colIdx) => (
             <div
               key={colIdx}
               data-text-column={colIdx}
-              className="flex min-w-0 flex-1 flex-col gap-3"
-              style={{ minHeight: 240 }}
+              className="flex min-w-0 shrink-0 flex-col gap-3"
             >
-              {col.map((block) => (
+              {visibleBlocksInColumn(col).map((block) => (
                 <TextBlockView
                   key={block.id}
                   block={block}
@@ -1144,30 +1212,59 @@ function CanvasBoardInner(
                       });
                       return;
                     }
-                    const next: JournalTextBlock = {
-                      id: newId(),
-                      blockKind: block.blockKind,
-                      text: right,
-                      checked:
-                        block.blockKind === "checklist" ? false : undefined,
-                    };
-                    setTextColumns((cols) => {
-                      const loc = (() => {
-                        for (let c = 0; c < cols.length; c++) {
-                          const i = cols[c].findIndex(
-                            (b) => b.id === block.id
-                          );
-                          if (i !== -1) return { c, i };
-                        }
-                        return null;
-                      })();
-                      if (!loc) return cols;
-                      const updated = cols.map((c) => c.slice());
-                      updated[loc.c][loc.i] = { ...block, text: left };
-                      updated[loc.c].splice(loc.i + 1, 0, next);
-                      return updated;
-                    });
-                    focusBlock(next.id, "start");
+
+                    const loc = (() => {
+                      for (let c = 0; c < textColumns.length; c++) {
+                        const i = textColumns[c].findIndex(
+                          (b) => b.id === block.id
+                        );
+                        if (i !== -1) return { c, i };
+                      }
+                      return null;
+                    })();
+                    if (!loc) return;
+
+                    const col = textColumns[loc.c];
+                    const nextIdx = loc.i + 1;
+
+                    // Fixed slots: Enter moves to the next line (block below).
+                    if (nextIdx < col.length) {
+                      const below = col[nextIdx];
+                      setTextColumns((cols) => {
+                        const updated = cols.map((c) => c.slice());
+                        updated[loc.c][loc.i] = { ...block, text: left };
+                        updated[loc.c][nextIdx] = {
+                          ...below,
+                          text: right + below.text,
+                        };
+                        return updated;
+                      });
+                      focusBlock(below.id, right.length);
+                      return;
+                    }
+
+                    // Room for another slot — split into a new block.
+                    if (columnBlockCount(col) < MAX_WRITING_BLOCKS) {
+                      const next: JournalTextBlock = {
+                        id: newId(),
+                        blockKind: block.blockKind,
+                        text: right,
+                        checked:
+                          block.blockKind === "checklist" ? false : undefined,
+                      };
+                      setTextColumns((cols) => {
+                        const updated = cols.map((c) => c.slice());
+                        updated[loc.c][loc.i] = { ...block, text: left };
+                        updated[loc.c].splice(loc.i + 1, 0, next);
+                        return updated;
+                      });
+                      focusBlock(next.id, "start");
+                      return;
+                    }
+
+                    // Last slot — soft line break within the same field.
+                    updateTextBlock(block.id, { text: `${left}\n${right}` });
+                    focusBlock(block.id, splitAt + 1);
                   }}
                   onBackspaceAtStart={() => {
                     if (
@@ -1211,9 +1308,16 @@ function CanvasBoardInner(
             </div>
           ))}
             </div>
+
+            <CanvasSignature
+              value={signature}
+              onChange={(next) => {
+                setSignature(next);
+                blob.onActivity();
+              }}
+            />
           </div>
         </div>
-
       </div>
 
       {/* —————————— Hidden file input — driven by polaroid placeholder clicks —————————— */}
@@ -1243,7 +1347,7 @@ function CanvasBoardInner(
               className="flex items-center gap-0.5 rounded-xl border border-black/[0.06] bg-white/95 px-1.5 py-1 shadow-[0_4px_20px_rgba(15,15,15,0.10)] backdrop-blur-md"
               style={{
                 fontFamily:
-                  "var(--font-manrope), system-ui, -apple-system, sans-serif",
+                  "var(--font-body)",
               }}
             >
               {selectedBlockIds.length > 1 && (
@@ -1577,7 +1681,7 @@ function PolaroidImage({
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
           onFocus={onSelect}
-          className="w-full border-0 bg-transparent p-0 text-center text-xs italic tracking-tight text-black/55 outline-none placeholder:text-black/25"
+          className="w-full border-0 bg-transparent p-0 text-center text-xs italic tracking-tight text-[#4C5566] outline-none placeholder:text-[#6A7385]"
           style={{
             fontFamily: "var(--font-caveat), var(--font-lora), cursive",
           }}
@@ -1607,72 +1711,134 @@ function PolaroidImage({
 /*  Canvas header — last-edited date + heading                                   */
 /* -------------------------------------------------------------------------- */
 
-/** Calendar date for the journal-style line above the heading. */
-function formatEditedCalendarDate(ts: number): string {
-  const edited = new Date(ts);
-  const now = new Date();
-  const startOfToday = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate()
-  );
-  const startOfEdited = new Date(
-    edited.getFullYear(),
-    edited.getMonth(),
-    edited.getDate()
-  );
-  const dayDiff = Math.floor(
-    (startOfToday.getTime() - startOfEdited.getTime()) / 86_400_000
-  );
-
-  if (dayDiff === 0) return "Today";
-  if (dayDiff === 1) return "Yesterday";
-
-  const weekday = edited.toLocaleDateString(undefined, { weekday: "long" });
-  const monthDay = edited.toLocaleDateString(undefined, {
-    month: "long",
-    day: "numeric",
-  });
-  if (edited.getFullYear() === now.getFullYear()) {
-    return `${weekday}, ${monthDay}`;
-  }
-  return `${weekday}, ${monthDay}, ${edited.getFullYear()}`;
+/** Written date — e.g. "12 June 2026". */
+function formatWrittenDate(ts: number): string {
+  const d = new Date(ts);
+  const day = d.getDate();
+  const month = d.toLocaleDateString(undefined, { month: "long" });
+  const year = d.getFullYear();
+  return `${day} ${month} ${year}`;
 }
+
+function formatSessionTime(ts: number): string {
+  return new Date(ts).toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+/** Canvas-only placeholder — not persisted as the draft title. */
+const CANVAS_TITLE_PLACEHOLDER = "New book";
 
 type CanvasHeaderProps = {
   title?: string;
-  lastEditedAt: number;
+  /** Session-frozen stamp from the parent (last close, or now on first open). */
+  editedAt: number;
+  onTitleChange?: (title: string) => void;
 };
 
-function CanvasHeader({ title, lastEditedAt }: CanvasHeaderProps) {
-  const displayTitle =
-    typeof title === "string" && title.trim().length > 0
-      ? title.trim()
-      : "Heading";
+function CanvasHeader({ title, editedAt, onTitleChange }: CanvasHeaderProps) {
+  const committedTitle =
+    typeof title === "string" ? title.trim() : "";
+  const [value, setValue] = useState(committedTitle);
+  const hasTitle = value.trim().length > 0;
 
-  const calendarDate = formatEditedCalendarDate(lastEditedAt);
-  const isoDate = new Date(lastEditedAt).toISOString().slice(0, 10);
+  useEffect(() => {
+    setValue(committedTitle);
+  }, [committedTitle]);
+
+  const commitTitle = useCallback(() => {
+    const next = value.trim();
+    if (next !== committedTitle) {
+      onTitleChange?.(next);
+    }
+  }, [committedTitle, onTitleChange, value]);
+
+  useEffect(() => {
+    if (!onTitleChange) return;
+    const next = value.trim();
+    if (next === committedTitle) return;
+    const timer = window.setTimeout(() => onTitleChange(next), 400);
+    return () => window.clearTimeout(timer);
+  }, [committedTitle, onTitleChange, value]);
+
+  const writtenDate = useMemo(() => formatWrittenDate(editedAt), [editedAt]);
+  const sessionTime = useMemo(() => formatSessionTime(editedAt), [editedAt]);
+  const isoDate = useMemo(
+    () => new Date(editedAt).toISOString().slice(0, 10),
+    [editedAt]
+  );
 
   return (
     <header
-      className="w-full"
+      className="mb-14 grid w-full grid-cols-[1fr_auto] items-end gap-x-10 gap-y-1"
       style={{
-        marginBottom: 56,
         fontFamily:
-          "var(--font-manrope), system-ui, -apple-system, sans-serif",
+          "var(--font-body)",
       }}
     >
+      <input
+        type="text"
+        value={value}
+        onChange={(event) => setValue(event.target.value)}
+        onBlur={commitTitle}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.currentTarget.blur();
+          }
+        }}
+        placeholder={CANVAS_TITLE_PLACEHOLDER}
+        spellCheck={false}
+        aria-label="Book title"
+        className={clsx(
+          "header-lg col-start-1 row-start-1 w-full max-w-[55%] self-end border-0 bg-transparent p-0 text-left font-semibold tracking-tight outline-none focus:outline-none placeholder:text-[#6A7385]",
+          hasTitle ? "text-[#2C2C2A]" : "text-[#6A7385]"
+        )}
+        style={{ fontFamily: "var(--font-heading)" }}
+      />
       <time
         dateTime={isoDate}
-        className="block text-sm tracking-[0.01em] text-black/35"
-        style={{ lineHeight: 1.5, marginBottom: 6 }}
+        className="col-start-2 row-start-1 block text-right text-sm tracking-[0.01em] text-[#6A7385]"
+        style={{ lineHeight: 1.45 }}
       >
-        {calendarDate}
+        {writtenDate}
       </time>
-      <h1 className="header-lg font-semibold tracking-tight text-[#2C2C2A]">
-        {displayTitle}
-      </h1>
+      <time
+        dateTime={new Date(editedAt).toISOString()}
+        className="col-start-2 row-start-2 block text-right text-sm tracking-[0.01em] text-black/28"
+        style={{ lineHeight: 1.45 }}
+      >
+        {sessionTime}
+      </time>
     </header>
+  );
+}
+
+type CanvasSignatureProps = {
+  value: string;
+  onChange: (value: string) => void;
+};
+
+function CanvasSignature({ value, onChange }: CanvasSignatureProps) {
+  return (
+    <textarea
+      data-signature
+      rows={1}
+      spellCheck={false}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      aria-label="Signature"
+      className="mt-16 block w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-left text-lg text-black/55 outline-none focus:outline-none"
+      style={{
+        fontFamily: "var(--font-caveat), var(--font-lora), cursive",
+        lineHeight: 1.4,
+      }}
+      onInput={(e) => {
+        const ta = e.currentTarget;
+        ta.style.height = "auto";
+        ta.style.height = `${ta.scrollHeight}px`;
+      }}
+    />
   );
 }
 
@@ -1724,24 +1890,19 @@ function TextBlockView({
 
   const showMarker = block.blockKind !== "paragraph";
 
-  // Placeholder logic:
-  // - Bullet / checklist items always show their type hint.
-  // - Paragraphs only show "Start writing..." on the FOCUSED block AND only
-  //   while the block is empty. This is the "fades on first keystroke" rule
-  //   in the product spec — once the user has any text the placeholder is
-  //   gone for good.
   const placeholder =
-    block.blockKind === "bullet"
-      ? "List item"
-      : block.blockKind === "checklist"
-        ? "To-do"
-        : isActive && block.text.length === 0
-          ? "Start writing..."
-          : "";
+    !isActive || block.text.length > 0
+      ? ""
+      : block.blockKind === "bullet"
+        ? "List item"
+        : block.blockKind === "checklist"
+          ? "To-do"
+          : WRITING_PLACEHOLDER;
 
   return (
     <div
       data-block-element="text"
+      dir="ltr"
       className={clsx(
         "relative flex w-full items-start gap-3 rounded-md leading-relaxed transition-colors",
         isInRange && !isActive ? "bg-black/[0.04]" : ""
@@ -1795,6 +1956,7 @@ function TextBlockView({
 
       <textarea
         ref={setRefs}
+        dir="ltr"
         value={block.text}
         rows={1}
         spellCheck
@@ -1829,19 +1991,19 @@ function TextBlockView({
           }
         }}
         className={clsx(
-          "block w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-lg outline-none focus:outline-none",
+          "block w-full resize-none overflow-hidden border-0 bg-transparent p-0 outline-none focus:outline-none placeholder:text-[#6A7385]",
           block.blockKind === "checklist" && block.checked
-            ? "text-black/35 line-through decoration-black/30 decoration-[1.5px]"
+            ? "text-[#6A7385] line-through decoration-black/30 decoration-[1.5px]"
             : ""
         )}
         style={{
-          fontFamily:
-            "var(--font-lora), Georgia, 'Times New Roman', serif",
+          fontFamily: "var(--font-body)",
+          fontSize: WRITING_FONT_SIZE,
           lineHeight: WRITING_LINE_HEIGHT,
+          letterSpacing: WRITING_LETTER_SPACING,
+          wordSpacing: WRITING_WORD_SPACING,
           color: WRITING_INK,
-          // Placeholder color is set via CSS var so we don't fight Tailwind's preset.
-          // (We use a `::placeholder` style hook below in global.css.)
-          ["--placeholder-color" as string]: PLACEHOLDER_INK,
+          textAlign: "left",
         }}
       />
     </div>

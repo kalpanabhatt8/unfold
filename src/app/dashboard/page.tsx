@@ -96,7 +96,9 @@ const Dashboard = () => {
 
   const handleCreateNewBook = () => {
     const draftId = createDraftId("blank");
-    router.push(`/dashboard/books/${draftId}?template=blank`);
+    // Create the draft, then immediately take the user into writing.
+    // This marks the draft as "canvas opened" so it appears in Recents.
+    router.push(`/dashboard/books/${draftId}/canvas?template=blank`);
   };
 
   const handleTemplateSelect = (templateId: string) => {
@@ -189,7 +191,7 @@ const Dashboard = () => {
                 </div>
               ))}
 
-              {templatesAfterRecents.map((book) => (
+              {/* {templatesAfterRecents.map((book) => (
                 <div key={`template-${book.id}`} className="flex flex-col">
                   <div className="group flex flex-col items-center gap-2">
                     <div className="relative">
@@ -229,7 +231,7 @@ const Dashboard = () => {
                     </div>
                   </div>
                 </div>
-              ))}
+              ))} */}
             </div>
           </section>
         </section>

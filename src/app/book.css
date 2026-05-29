@@ -90,7 +90,8 @@
   position: absolute;
 } */
 
-.book-cover:hover {
+.book-cover:hover,
+.book-shadow-div:hover .book-cover {
 
   box-shadow:
 
@@ -275,7 +276,7 @@
 
 .book-cover__title {
   /* font-family: Georgia, "Times New Roman", serif; */
-  font-family: var(--font-bricolage), var(--font-manrope), system-ui, sans-serif;
+  font-family: var(--font-heading);
   font-weight: 400;
   /* color: rgba(255, 255, 255, 0.92); */
   margin: 0;
