@@ -12,6 +12,8 @@
 import React from "react";
 import BlobCharacter, {
   type BlobState,
+  type CompanionEmotion,
+  LONG_SLEEP_AFTER_MS,
   useBlobState,
 } from "@/components/canvas/blob-character";
 
@@ -21,6 +23,26 @@ const ALL_STATES: BlobState[] = [
   "sleeping",
   "waking",
   "saving",
+  "greeting",
+  "happy",
+  "heavy",
+  "neutral",
+  "anxious",
+  "angry",
+  "confused",
+  "tired",
+  "calm",
+];
+
+const EMOTION_BUTTONS: CompanionEmotion[] = [
+  "happy",
+  "heavy",
+  "neutral",
+  "anxious",
+  "angry",
+  "confused",
+  "tired",
+  "calm",
 ];
 
 const PASTELS = [
@@ -33,7 +55,7 @@ const PASTELS = [
 ];
 
 export default function BlobDevPage() {
-  const live = useBlobState();
+  const live = useBlobState({ sleepAfterMs: LONG_SLEEP_AFTER_MS });
   const [bg, setBg] = React.useState(PASTELS[0].value); // Canvas — matches writing page
   const [size, setSize] = React.useState(72);
   const [debugLayout, setDebugLayout] = React.useState(false);
@@ -52,7 +74,7 @@ export default function BlobDevPage() {
             Blob character
           </h1>
           <p className="text-sm text-black/55">
-            One cohesive SVG · 5 expression states · pure CSS animation.
+            One cohesive SVG · 14 expression states · pure CSS animation.
           </p>
         </header>
 
@@ -61,7 +83,7 @@ export default function BlobDevPage() {
           <h2 className="text-xs uppercase tracking-[0.18em] text-black/45">
             All states
           </h2>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-9">
             {ALL_STATES.map((s) => (
               <figure
                 key={s}
@@ -93,7 +115,7 @@ export default function BlobDevPage() {
             </div>
             <textarea
               onKeyDown={live.onActivity}
-              placeholder="Type here — character bobs while typing, sleeps after 20s…"
+              placeholder="Type here — bobs while typing, reacts at 15s pause, sleeps after 3 min…"
               rows={4}
               className="w-full max-w-xl resize-none rounded-xl border border-black/10 bg-white/70 px-4 py-3 text-md leading-relaxed outline-none placeholder:text-black/35"
               style={{ fontFamily: "Lora, Georgia, serif" }}
@@ -102,6 +124,21 @@ export default function BlobDevPage() {
               <span>
                 state: <code className="font-mono">{live.state}</code>
               </span>
+              {EMOTION_BUTTONS.map((emotion) => (
+                <button
+                  key={emotion}
+                  onClick={() => live.onEmotionReaction(emotion)}
+                  className="rounded-full border border-black/10 bg-white/80 px-3 py-1 hover:bg-white"
+                >
+                  {emotion}
+                </button>
+              ))}
+              <button
+                onClick={() => live.runGreeting()}
+                className="rounded-full border border-black/10 bg-white/80 px-3 py-1 hover:bg-white"
+              >
+                wave
+              </button>
               <button
                 onClick={() => live.onSave()}
                 className="rounded-full border border-black/10 bg-white/80 px-3 py-1 hover:bg-white"

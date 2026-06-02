@@ -32,12 +32,27 @@
 
 import React from "react";
 import clsx from "clsx";
+import { COMPANION_EMOTIONS, type CompanionEmotion } from "@/lib/companion-ai";
 
 /* ════════════════════════════════════════════════════════════════════════════
  *  PUBLIC API (don't rename — used by canvas-board.tsx and /dev/blob)
  * ════════════════════════════════════════════════════════════════════════════ */
 
-export type BlobState = "idle" | "typing" | "sleeping" | "waking" | "saving";
+/**
+ * Behavioural states (idle/typing/etc.) plus the 8 emotion-reaction states,
+ * which are exactly the {@link CompanionEmotion} values. Every emotion below
+ * must have a matching row in the STATES map.
+ */
+export type BlobState =
+  | "idle"
+  | "typing"
+  | "sleeping"
+  | "waking"
+  | "saving"
+  | "greeting"
+  | CompanionEmotion;
+
+export type { CompanionEmotion };
 
 export type BlobCharacterProps = {
   state: BlobState;
@@ -60,7 +75,6 @@ const PETAL = "#FAC666";
 const FACE_CREAM = "#FFF8E5";
 const LEAF = "#6D8759";
 const INK = "#68462A";
-/** Sleeping closed-eye lines — darker than open-state INK. */
 const CLOSED_EYE_INK = "#4A3528";
 const BLUSH = "#FEE1B2";
 const HIGHLIGHT = "#FFFFFF";
@@ -151,7 +165,7 @@ const LEFT_BLUSH_CX = 22.2;
 const RIGHT_BLUSH_CX = 37.8;
 const EYE_CY_TUNED = 25;
 const MOUTH_CY_TUNED = 29;
-const BLUSH_CY_TUNED = 28;
+const BLUSH_CY_TUNED = 29;
 /** Move whole face cluster on Y only. Try −1.5 to sit a bit higher on the face. */
 const FACE_FEATURES_Y_NUDGE = 0;
 
@@ -286,7 +300,14 @@ const SLEEP_BREATH_LIFT_PX = -0.6;
 
 type EyeKind = "open" | "open-blink" | "open-wake" | "closed" | "smile" | "wink";
 type MouthKind = "slight-smile" | "big-smile" ;
-type BodyKind = "bob" | "lean" | "shrink" | "wake" | "bounce";
+type BodyKind =
+  | "bob"
+  | "lean"
+  | "shrink"
+  | "wake"
+  | "bounce"
+  | "wave"
+  | "heavy-breath";
 type LeafKind = "still" | "sway" | "droop" | "perk" | "wake";
 type ExtrasKind = "none" | "zzz" | "sparkle-burst";
 
@@ -342,6 +363,94 @@ const STATES: Record<BlobState, StateConfig> = {
     body: "bounce",
     leaves: "perk",
     extras: "sparkle-burst",
+  },
+
+  // 👉 GREETING — one-shot wave when the canvas opens.
+  greeting: {
+    eye: "open-wake",
+    mouth: "big-smile",
+    body: "wave",
+    leaves: "perk",
+    extras: "none",
+  },
+
+  // 👉 HAPPY — bright reaction after AI reads joyful writing.
+  happy: {
+    eye: "smile",
+    mouth: "big-smile",
+    body: "bounce",
+    leaves: "perk",
+    extras: "sparkle-burst",
+  },
+
+  // 👉 HEAVY — gentle, slower presence for weighty writing.
+  heavy: {
+    eye: "open",
+    mouth: "slight-smile",
+    body: "heavy-breath",
+    leaves: "droop",
+    extras: "none",
+  },
+
+  // 👉 NEUTRAL — calm acknowledgment, understated.
+  neutral: {
+    eye: "open",
+    mouth: "slight-smile",
+    body: "bob",
+    leaves: "still",
+    extras: "none",
+  },
+
+  /* ───────────────────────────────────────────────────────────────────────
+   *  PLACEHOLDER emotion poses (anxious / angry / confused / tired / calm).
+   *  These reuse existing animations for now so the 8-emotion pipeline works
+   *  end-to-end. Real Figma poses get dropped in here later — just change the
+   *  values in each row, no other code touches these.
+   * ─────────────────────────────────────────────────────────────────────── */
+
+  // 👉 ANXIOUS — restless, quick blinks, leaves fidget. (placeholder)
+  anxious: {
+    eye: "open-blink",
+    mouth: "slight-smile",
+    body: "heavy-breath",
+    leaves: "sway",
+    extras: "none",
+  },
+
+  // 👉 ANGRY — taut, held breath. (placeholder)
+  angry: {
+    eye: "open",
+    mouth: "slight-smile",
+    body: "heavy-breath",
+    leaves: "still",
+    extras: "none",
+  },
+
+  // 👉 CONFUSED — gently unsettled, leaves drift. (placeholder)
+  confused: {
+    eye: "open",
+    mouth: "slight-smile",
+    body: "bob",
+    leaves: "sway",
+    extras: "none",
+  },
+
+  // 👉 TIRED — drooped, slow breath. (placeholder)
+  tired: {
+    eye: "open",
+    mouth: "slight-smile",
+    body: "heavy-breath",
+    leaves: "droop",
+    extras: "none",
+  },
+
+  // 👉 CALM — settled, soft and still. (placeholder)
+  calm: {
+    eye: "open",
+    mouth: "slight-smile",
+    body: "bob",
+    leaves: "still",
+    extras: "none",
   },
 };
 
@@ -885,6 +994,28 @@ export default function BlobCharacter({
           100% { transform: translateY(0) scale(1, 1); }
         }
 
+        /* GREETING — friendly side-to-side wave on canvas open. */
+        :global(.blob-body[data-body="wave"]) {
+          animation: blob-greeting-wave 1.35s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+        }
+        @keyframes blob-greeting-wave {
+          0%   { transform: rotate(0deg) translateY(0); }
+          18%  { transform: rotate(-5deg) translateY(-1px); }
+          38%  { transform: rotate(6deg) translateY(-1.5px); }
+          58%  { transform: rotate(-4deg) translateY(-0.5px); }
+          78%  { transform: rotate(2deg) translateY(0); }
+          100% { transform: rotate(0deg) translateY(0); }
+        }
+
+        /* HEAVY — slower, softer breath for weighty moments. */
+        :global(.blob-body[data-body="heavy-breath"]) {
+          animation: blob-heavy-breath 5.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes blob-heavy-breath {
+          0%, 100% { transform: translateY(0.4px) scale(0.985, 0.992); }
+          50%      { transform: translateY(-0.3px) scale(0.992, 0.988); }
+        }
+
         /* ── PETALS (data-body) — secondary motion on the petal ring ─── */
         :global(.blob-petals) {
           transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
@@ -931,6 +1062,22 @@ export default function BlobCharacter({
           66%  { transform: rotate(-2.5deg); }
           100% { transform: rotate(0); }
         }
+        :global(.blob-petals[data-body="wave"]) {
+          animation: blob-petals-greeting 1.35s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+        }
+        @keyframes blob-petals-greeting {
+          0%   { transform: rotate(0); }
+          25%  { transform: rotate(-3deg); }
+          55%  { transform: rotate(2.5deg); }
+          100% { transform: rotate(0); }
+        }
+        :global(.blob-petals[data-body="heavy-breath"]) {
+          animation: blob-petals-heavy 5.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes blob-petals-heavy {
+          0%, 100% { transform: rotate(-0.3deg); }
+          50%      { transform: rotate(0.3deg); }
+        }
 
         /* ── FEATURES (head cluster) — eyes+blush+mouth shift together
               for tiny "head" beats: looking down to read, lifting on a hop. */
@@ -956,6 +1103,20 @@ export default function BlobCharacter({
           32%  { transform: translateY(-0.7px); }
           66%  { transform: translateY(-0.3px); }
           100% { transform: translateY(0); }
+        }
+        :global(.blob-features[data-state="greeting"]) {
+          animation: blob-features-greeting 1.35s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+        }
+        @keyframes blob-features-greeting {
+          0%   { transform: translateY(0); }
+          35%  { transform: translateY(-0.5px); }
+          100% { transform: translateY(0); }
+        }
+        :global(.blob-features[data-state="happy"]) {
+          animation: blob-features-save 1.1s cubic-bezier(0.34, 1.4, 0.64, 1) forwards;
+        }
+        :global(.blob-features[data-state="heavy"]) {
+          transform: translateY(0.35px);
         }
 
         /* ── MOUTH — instant switch (no fade); both paths stay mounted. */
@@ -1269,21 +1430,33 @@ export default function BlobCharacter({
  *
  *  Lifecycle:
  *    - Mount → "idle", sleep timer starts
- *    - onActivity() → "typing" → "idle" after pause; sleep timer resets
- *    - sleepAfterMs with no activity → "sleeping" (stays until interaction)
+ *    - onActivity() → "typing" → "idle" after ~900ms pause; sleep timer resets
+ *    - 15s no typing → companion reacts (COMPANION_INACTIVITY_MS)
+ *    - sleepAfterMs (3 min on canvas) with no activity → "sleeping"
  *    - onCanvasInteraction() / onWakeUp() while sleeping → "waking" → "idle"
  *    - Typing while sleeping skips wake animation → "typing" directly
  *    - onSave() → "saving" → "idle"
  * ════════════════════════════════════════════════════════════════════════════ */
 
-/** Default inactivity before sleep (30s). Pass 45_000 in useBlobState to use 45s. */
+/** Dev playground default — quick sleep for iteration. */
 export const DEFAULT_SLEEP_AFTER_MS = 5_000;
+/** Canvas: 3 min idle after last keystroke before sleeping (thinking ≠ inactivity). */
+export const LONG_SLEEP_AFTER_MS = 180_000;
+export const GREETING_DURATION_MS = 1350;
+/** Match companion message total (1s in + 4s stay + 1s out) before returning to idle. */
+export const EMOTION_REACTION_MS = 6_000;
+
+const EMOTION_STATES: BlobState[] = [...COMPANION_EMOTIONS];
 
 export type UseBlobStateOptions = {
   typingRestoreMs?: number;
   sleepAfterMs?: number;
   wakeDurationMs?: number;
   saveDurationMs?: number;
+  greetingDurationMs?: number;
+  emotionDurationMs?: number;
+  /** When false, skip the mount greeting (dev grid previews). */
+  greetOnMount?: boolean;
 };
 
 export function useBlobState(opts: UseBlobStateOptions = {}) {
@@ -1292,6 +1465,9 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
     sleepAfterMs = DEFAULT_SLEEP_AFTER_MS,
     wakeDurationMs = WAKE_DURATION_MS,
     saveDurationMs = 1100,
+    greetingDurationMs = GREETING_DURATION_MS,
+    emotionDurationMs = EMOTION_REACTION_MS,
+    greetOnMount = true,
   } = opts;
 
   const [state, setState] = React.useState<BlobState>("idle");
@@ -1301,6 +1477,8 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
   const idleTimerRef = React.useRef<number | null>(null);
   const wakeTimerRef = React.useRef<number | null>(null);
   const saveTimerRef = React.useRef<number | null>(null);
+  const greetingTimerRef = React.useRef<number | null>(null);
+  const emotionTimerRef = React.useRef<number | null>(null);
   const closingRef = React.useRef(false);
   const stateRef = React.useRef<BlobState>("idle");
 
@@ -1320,13 +1498,22 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
     clearTimer(idleTimerRef);
     clearTimer(wakeTimerRef);
     clearTimer(saveTimerRef);
+    clearTimer(greetingTimerRef);
+    clearTimer(emotionTimerRef);
   }, []);
 
   const scheduleSleep = React.useCallback(() => {
     clearTimer(sleepTimerRef);
     sleepTimerRef.current = window.setTimeout(() => {
       if (closingRef.current) return;
-      if (stateRef.current === "sleeping" || stateRef.current === "waking") return;
+      if (
+        stateRef.current === "sleeping" ||
+        stateRef.current === "waking" ||
+        stateRef.current === "greeting"
+      ) {
+        return;
+      }
+      if (EMOTION_STATES.includes(stateRef.current)) return;
       clearTimer(idleTimerRef);
       setState("sleeping");
     }, sleepAfterMs);
@@ -1336,6 +1523,24 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
     scheduleSleep();
     return clearAll;
   }, [clearAll, scheduleSleep]);
+
+  const runGreeting = React.useCallback(() => {
+    if (closingRef.current) return;
+    clearTimer(greetingTimerRef);
+    clearTimer(emotionTimerRef);
+    setState("greeting");
+    greetingTimerRef.current = window.setTimeout(() => {
+      if (closingRef.current) return;
+      if (stateRef.current !== "greeting") return;
+      setState("idle");
+      scheduleSleep();
+    }, greetingDurationMs);
+  }, [greetingDurationMs, scheduleSleep]);
+
+  React.useEffect(() => {
+    if (!greetOnMount) return;
+    runGreeting();
+  }, [greetOnMount, runGreeting]);
 
   const onWakeUp = React.useCallback(() => {
     if (closingRef.current) return;
@@ -1361,6 +1566,8 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
     clearTimer(sleepTimerRef);
     clearTimer(idleTimerRef);
     clearTimer(wakeTimerRef);
+    clearTimer(greetingTimerRef);
+    clearTimer(emotionTimerRef);
 
     if (stateRef.current === "sleeping") {
       setState("typing");
@@ -1381,6 +1588,21 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
       scheduleSleep();
     }, typingRestoreMs);
   }, [scheduleSleep, typingRestoreMs]);
+
+  const onEmotionReaction = React.useCallback(
+    (emotion: CompanionEmotion) => {
+      if (closingRef.current) return;
+      clearAll();
+      setState(emotion);
+      emotionTimerRef.current = window.setTimeout(() => {
+        if (closingRef.current) return;
+        if (!EMOTION_STATES.includes(stateRef.current)) return;
+        setState("idle");
+        scheduleSleep();
+      }, emotionDurationMs);
+    },
+    [clearAll, emotionDurationMs, scheduleSleep]
+  );
 
   const onSave = React.useCallback(() => {
     if (closingRef.current) return;
@@ -1414,5 +1636,7 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
     onWakeUp,
     onSave,
     onClosing,
+    onEmotionReaction,
+    runGreeting,
   };
 }

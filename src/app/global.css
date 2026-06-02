@@ -109,9 +109,25 @@
   --primary: var(--gray-900);
   --primary-soft: var(--gray-300);
 
+  /* Canvas — peach + pink wash; warm stone text (complements, not competes) */
+  --canvas-bg: #ffffff;
+  --canvas-bg-gradient: linear-gradient(
+    to bottom left,
+    #fff5ef 0%,
+    #fffcfb 24%,
+    #ffffff 50%,
+    #fffbfc 76%,
+    #fff4f7 100%
+  );
+  --canvas-recess: #fafafa;
+  --canvas-ink: #3a3432;
+  --canvas-ink-secondary: #6f6764;
+  --canvas-placeholder: #b0a6a2;
+  --canvas-muted: #948a86;
+
   /* Color semantics - surfaces */
   --surface-0: var(--gray-25); /* page background */
-  --polaroid-recess: #FEFEFE; /* canvas polaroid column — slightly toned up from page */
+  --polaroid-recess: var(--canvas-recess);
   --surface-1: var(--gray-50); /* raised panels */
   --surface-2: var(--gray-100); /* cards + controls */
   --surface-3: var(--gray-200); /* cards + controls */
@@ -149,7 +165,6 @@
   --font-heading: var(--font-bricolage), system-ui, sans-serif;
   --font-accent: var(--font-caveat), var(--font-dm-sans), system-ui, sans-serif;
 }
-
 
 /* Base element styling */
 html,
@@ -691,7 +706,7 @@ input[type='number'] {
 }
 
 [data-block-element="text"] textarea::placeholder {
-  color: #B0ABA6;
+  color: var(--canvas-placeholder);
   opacity: 1;
 }
 

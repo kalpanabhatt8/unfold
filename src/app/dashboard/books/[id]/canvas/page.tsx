@@ -9,7 +9,7 @@ import React, {
   useState,
 } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Palette } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { getTemplateById } from "@/data/book-templates";
 import { coverBackgroundVar } from "@/data/cover-gradients";
 import CanvasBoard, {
@@ -263,7 +263,7 @@ const CanvasPage = () => {
     [persistDraft]
   );
 
-  // Milestone save handler — fires on the 30s autosave tick and on manual
+  // Milestone save handler — fires 15s after typing stops
   // save. This is the seam for AI title generation: read the latest snapshot,
   // ship the writing-column text to the title model, and persist the result
   // back to the draft. AI plumbing is not wired yet; once it lands, call it
@@ -371,6 +371,7 @@ const CanvasPage = () => {
       {sessionEditedAt !== null && (
         <CanvasBoard
           ref={boardRef}
+          bookId={bookId}
           storageKey={boardStorageKey}
           onSnapshotChange={handleSnapshotChange}
           onSave={handleMilestoneSave}

@@ -14,8 +14,8 @@
  * Save model:
  *   - Snapshot is mirrored to localStorage shortly after each change so the
  *     user never loses keystrokes if the tab dies.
- *   - Every 30s — and on any explicit save — `onSave` fires with the latest
- *     snapshot, which is the moment a parent can run AI title generation.
+ *   - After 15s of typing inactivity, `onSave` fires with the latest snapshot
+ *     (aligned with the companion trigger).
  */
 
 import React, {
@@ -40,8 +40,10 @@ import {
 import { iconStrokePx } from "@/components/ui/button-system";
 import BlobCharacter, {
   type BlobState,
+  LONG_SLEEP_AFTER_MS,
   useBlobState,
 } from "@/components/canvas/blob-character";
+import { useCompanion } from "@/hooks/use-companion";
 import { getTextareaCaretOffsetInTextareaPx } from "@/lib/textarea-caret-offset";
 
 /* -------------------------------------------------------------------------- */
@@ -100,13 +102,10 @@ export type CanvasSnapshot = {
 /*  Visual constants                                                          */
 /* -------------------------------------------------------------------------- */
 
-/** Page + canvas — keep in sync with `--gray-25` / `--surface-0` in `global.css`. */
-export const CANVAS_BACKGROUND = "#FEFDFC";
-/** Subtle warm gradient over the page (very slight yellow tint). */
-// const CANVAS_BACKGROUND_GRADIENT =
-//   "linear-gradient(180deg, #FFFEFC 0%, #FFFDF8 52%,rgb(255, 254, 253) 100%)";
+/** Page + canvas — tokens in `global.css`. */
+export const CANVAS_BACKGROUND = "var(--canvas-bg-gradient)";
 /** Polaroid column — slightly toned up from the page. */
-export const CANVAS_RECESS = "#FAF8F6";
+export const CANVAS_RECESS = "var(--canvas-recess)";
 
 /** Centered writing column width. */
 const WRITING_COLUMN_MAX_WIDTH = "min(92vw, 700px)";
@@ -123,7 +122,7 @@ const WRITING_FONT_SIZE = "var(--text-md)";
 const WRITING_LINE_HEIGHT = 1.75;
 const WRITING_LETTER_SPACING = "0.005em";
 const WRITING_WORD_SPACING = "0.005em";
-const WRITING_INK = "#2C2C2A";
+const WRITING_INK = "var(--canvas-ink)";
 const WRITING_PLACEHOLDER = "Start writing…";
 
 /** Fixed journal slots — no ad-hoc blocks beyond this count. */
@@ -153,9 +152,8 @@ const POLAROID_PAD_BOTTOM = 22;
 const POLAROID_GAP = 18;
 
 /** Save behaviour. Local mirror is fast (no data loss); milestone save fires
- *  the AI title hook at a calm 30s cadence (or on manual save). */
+ *  after 15s of typing inactivity (aligned with companion trigger). */
 const LOCAL_MIRROR_DEBOUNCE_MS = 600;
-const MILESTONE_SAVE_INTERVAL_MS = 30_000;
 
 /** Minimum selected-character count before the text format bar appears. */
 const TEXT_CTX_SELECTION_MIN = 4;
@@ -545,6 +543,8 @@ const caretOffsetInTextarea = (
 /* -------------------------------------------------------------------------- */
 
 type CanvasBoardProps = {
+  /** Book id — scopes companion once-per-session guard. */
+  bookId: string;
   storageKey: string;
   initialSnapshot?: CanvasSnapshot | null;
   /**
@@ -553,7 +553,7 @@ type CanvasBoardProps = {
    */
   onSnapshotChange?: (snapshot: CanvasSnapshot) => void;
   /**
-   * Fires on milestone saves: every 30s and on manual / before-close.
+   * Fires on milestone saves: 15s after typing stops.
    * This is the right place to trigger AI title regeneration.
    */
   onSave?: (snapshot: CanvasSnapshot) => void;
@@ -582,6 +582,7 @@ export type CanvasBoardHandle = {
 
 function CanvasBoardInner(
   {
+    bookId,
     storageKey,
     initialSnapshot,
     onSnapshotChange,
@@ -628,7 +629,7 @@ function CanvasBoardInner(
 
   /* ---------------------------- Blob companion ---------------------------- */
 
-  const blob = useBlobState({ sleepAfterMs: 10_000 });
+  const blob = useBlobState({ sleepAfterMs: LONG_SLEEP_AFTER_MS });
 
   /* ------------------------------ Hydration ------------------------------ */
 
@@ -693,18 +694,27 @@ function CanvasBoardInner(
 
   /* ----------------------- Snapshot mirroring + save ---------------------- */
 
-  const buildSnapshot = useCallback(
-    (): CanvasSnapshot => ({
+  const buildSnapshot = useCallback((): CanvasSnapshot => {
+    // Merge live textarea values so the companion always sees the latest
+    // keystroke (React state can lag one frame behind the DOM).
+    const liveTextColumns = textColumns.map((col) =>
+      col.map((block) => {
+        const el = textRefs.current[block.id];
+        if (!el || el.value === block.text) return block;
+        return { ...block, text: el.value };
+      })
+    );
+
+    return {
       version: CANVAS_SNAPSHOT_VERSION,
-      textColumns,
+      textColumns: liveTextColumns,
       imageBlocks,
       background: CANVAS_BACKGROUND,
       columns,
       signature,
       updatedAt: snapshotEditedAtRef.current,
-    }),
-    [columns, imageBlocks, signature, textColumns]
-  );
+    };
+  }, [columns, imageBlocks, signature, textColumns]);
 
   // Fast local mirror so a tab close never loses keystrokes. This is *not*
   // the "milestone" save (AI title regen) — that fires from a coarser timer
@@ -734,15 +744,12 @@ function CanvasBoardInner(
     onSave?.(snap);
   }, [buildSnapshot, onSave, storageKey]);
 
-  // 30-second milestone tick. Reset whenever anything materially changes so a
-  // burst of typing doesn't fire a save the moment the user pauses.
-  useEffect(() => {
-    const id = window.setInterval(
-      () => triggerMilestoneSave(),
-      MILESTONE_SAVE_INTERVAL_MS
-    );
-    return () => window.clearInterval(id);
-  }, [triggerMilestoneSave]);
+  const companion = useCompanion({
+    bookId,
+    buildSnapshot,
+    onMilestoneSave: triggerMilestoneSave,
+    blob,
+  });
 
   // Imperative seam used by the page-level back button: capture state in
   // memory and start the goodbye animation. The page navigates immediately
@@ -1104,7 +1111,7 @@ function CanvasBoardInner(
   return (
     <div
       ref={outerRef}
-      className="relative flex h-svh min-h-0 w-full flex-col overflow-hidden transition-colors duration-500"
+      className="relative flex h-svh min-h-0 w-full flex-col overflow-hidden"
       style={{
         background: CANVAS_BACKGROUND,
         color: WRITING_INK,
@@ -1115,9 +1122,27 @@ function CanvasBoardInner(
     >
       {/* Sunflower — fixed bottom-left, always on screen */}
       <div
-        className="pointer-events-auto fixed bottom-5 left-5 z-20"
+        className="pointer-events-auto fixed bottom-5 left-5 z-20 flex flex-col items-start gap-2"
         onPointerDown={() => blob.onCanvasInteraction()}
       >
+        {companion.warmLine ? (
+          <div
+            aria-live="polite"
+            className={clsx(
+              "max-w-[220px] rounded-2xl rounded-bl-sm px-3.5 py-2 text-[13px] leading-snug shadow-sm transition-all duration-1000",
+              companion.warmLineVisible
+                ? "translate-y-0 opacity-100"
+                : "translate-y-1 opacity-0"
+            )}
+            style={{
+              background: "#FFF8E5",
+              color: "#68462A",
+              border: "1px solid rgba(104, 70, 42, 0.12)",
+            }}
+          >
+            {companion.warmLine}
+          </div>
+        ) : null}
         <BlobCharacter
           state={blob.state}
           hidden={blob.hidden}
@@ -1158,13 +1183,16 @@ function CanvasBoardInner(
               ref={writingColumnRef}
               data-writing-zone
               className="relative flex w-full shrink-0 flex-col"
-              style={{ gap: TEXT_COLUMN_GAP }}
+              style={{
+                gap: TEXT_COLUMN_GAP,
+                ["--writing-rule-step" as string]: `calc(${WRITING_FONT_SIZE} * ${WRITING_LINE_HEIGHT})`,
+              }}
             >
           {textColumns.map((col, colIdx) => (
             <div
               key={colIdx}
               data-text-column={colIdx}
-              className="flex min-w-0 shrink-0 flex-col gap-3"
+              className="flex min-w-0 shrink-0 flex-col"
             >
               {visibleBlocksInColumn(col).map((block) => (
                 <TextBlockView
@@ -1194,12 +1222,13 @@ function CanvasBoardInner(
                   }}
                   onChange={(text) => {
                     updateTextBlock(block.id, { text });
-                    blob.onActivity();
+                    companion.onWritingActivity();
                   }}
                   onToggleCheck={() =>
                     updateTextBlock(block.id, { checked: !block.checked })
                   }
                   onEnter={(splitAt) => {
+                    companion.onWritingActivity();
                     const left = block.text.slice(0, splitAt);
                     const right = block.text.slice(splitAt);
                     if (
@@ -1267,6 +1296,7 @@ function CanvasBoardInner(
                     focusBlock(block.id, splitAt + 1);
                   }}
                   onBackspaceAtStart={() => {
+                    companion.onWritingActivity();
                     if (
                       block.blockKind !== "paragraph" &&
                       block.text.length === 0
@@ -1313,7 +1343,7 @@ function CanvasBoardInner(
               value={signature}
               onChange={(next) => {
                 setSignature(next);
-                blob.onActivity();
+                companion.onWritingActivity();
               }}
             />
           </div>
@@ -1681,7 +1711,7 @@ function PolaroidImage({
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
           onFocus={onSelect}
-          className="w-full border-0 bg-transparent p-0 text-center text-xs italic tracking-tight text-[#4C5566] outline-none placeholder:text-[#6A7385]"
+          className="w-full border-0 bg-transparent p-0 text-center text-xs italic tracking-tight text-[var(--canvas-ink-secondary)] outline-none placeholder:text-[var(--canvas-placeholder)]"
           style={{
             fontFamily: "var(--font-caveat), var(--font-lora), cursive",
           }}
@@ -1791,21 +1821,21 @@ function CanvasHeader({ title, editedAt, onTitleChange }: CanvasHeaderProps) {
         spellCheck={false}
         aria-label="Book title"
         className={clsx(
-          "header-lg col-start-1 row-start-1 w-full max-w-[55%] self-end border-0 bg-transparent p-0 text-left font-semibold tracking-tight outline-none focus:outline-none placeholder:text-[#6A7385]",
-          hasTitle ? "text-[#2C2C2A]" : "text-[#6A7385]"
+          "header-lg col-start-1 row-start-1 w-full max-w-[55%] self-end border-0 bg-transparent p-0 text-left font-semibold tracking-tight outline-none focus:outline-none placeholder:text-[var(--canvas-placeholder)]",
+          hasTitle ? "text-[var(--canvas-ink)]" : "text-[var(--canvas-placeholder)]"
         )}
         style={{ fontFamily: "var(--font-heading)" }}
       />
       <time
         dateTime={isoDate}
-        className="col-start-2 row-start-1 block text-right text-sm tracking-[0.01em] text-[#6A7385]"
+        className="col-start-2 row-start-1 block text-right text-sm tracking-[0.01em] text-[var(--canvas-muted)]"
         style={{ lineHeight: 1.45 }}
       >
         {writtenDate}
       </time>
       <time
         dateTime={new Date(editedAt).toISOString()}
-        className="col-start-2 row-start-2 block text-right text-sm tracking-[0.01em] text-black/28"
+        className="col-start-2 row-start-2 block text-right text-sm tracking-[0.01em] text-[var(--canvas-muted)]/45"
         style={{ lineHeight: 1.45 }}
       >
         {sessionTime}
@@ -1991,9 +2021,9 @@ function TextBlockView({
           }
         }}
         className={clsx(
-          "block w-full resize-none overflow-hidden border-0 bg-transparent p-0 outline-none focus:outline-none placeholder:text-[#6A7385]",
+          "block w-full resize-none overflow-hidden border-0 bg-transparent p-0 outline-none focus:outline-none placeholder:text-[var(--canvas-placeholder)]",
           block.blockKind === "checklist" && block.checked
-            ? "text-[#6A7385] line-through decoration-black/30 decoration-[1.5px]"
+            ? "text-[var(--canvas-muted)] line-through decoration-[color-mix(in_srgb,var(--canvas-ink)_30%,transparent)] decoration-[1.5px]"
             : ""
         )}
         style={{

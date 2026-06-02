@@ -4,6 +4,8 @@
  * - sessionStorage: survives page refresh in the same tab.
  */
 
+import { clearCompanionSession } from "@/lib/companion-session";
+
 const SESSION_HEADER_PREFIX = "keeps-canvas-header-";
 
 const calendarDayKey = (ts: number) => {
@@ -76,6 +78,7 @@ export const claimCanvasSessionStamp = (
   const stamp = stampForOpen(persistedLastEditedAt, Date.now());
   activeStamps.set(bookId, stamp);
   writeTabSessionStamp(bookId, stamp);
+  clearCompanionSession(bookId);
   return stamp;
 };
 
@@ -83,4 +86,5 @@ export const claimCanvasSessionStamp = (
 export const endCanvasSession = (bookId: string): void => {
   activeStamps.delete(bookId);
   clearTabSessionStamp(bookId);
+  clearCompanionSession(bookId);
 };
