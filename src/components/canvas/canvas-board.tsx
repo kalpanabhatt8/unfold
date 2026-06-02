@@ -1828,14 +1828,14 @@ function CanvasHeader({ title, editedAt, onTitleChange }: CanvasHeaderProps) {
       />
       <time
         dateTime={isoDate}
-        className="col-start-2 row-start-1 block text-right text-sm tracking-[0.01em] text-[var(--canvas-muted)]"
+        className="col-start-2 row-start-1 block text-right text-sm tracking-[0.01em] text-[var(--canvas-date)]"
         style={{ lineHeight: 1.45 }}
       >
         {writtenDate}
       </time>
       <time
         dateTime={new Date(editedAt).toISOString()}
-        className="col-start-2 row-start-2 block text-right text-sm tracking-[0.01em] text-[var(--canvas-muted)]/45"
+        className="col-start-2 row-start-2 block text-right text-sm tracking-[0.01em] text-[var(--canvas-time)]"
         style={{ lineHeight: 1.45 }}
       >
         {sessionTime}

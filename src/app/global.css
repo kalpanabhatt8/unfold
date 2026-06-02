@@ -111,19 +111,18 @@
 
   /* Canvas — peach + pink wash; warm stone text (complements, not competes) */
   --canvas-bg: #ffffff;
-  --canvas-bg-gradient: linear-gradient(
-    to bottom left,
-    #fff5ef 0%,
-    #fffcfb 24%,
-    #ffffff 50%,
-    #fffbfc 76%,
-    #fff4f7 100%
-  );
+  /* TL peach + BR pink only — TR and BL (sunflower) stay white */
+  --canvas-bg-gradient:
+    radial-gradient(ellipse 72% 52% at 0% 0%, #fffcfa 0%, #ffffff 62%),
+    radial-gradient(ellipse 72% 52% at 100% 100%, #fffbfc 0%, #ffffff 62%),
+    #ffffff;
   --canvas-recess: #fafafa;
   --canvas-ink: #3a3432;
   --canvas-ink-secondary: #6f6764;
-  --canvas-placeholder: #b0a6a2;
-  --canvas-muted: #948a86;
+  --canvas-placeholder: #a58f87;
+  --canvas-date: #7e675f;
+  --canvas-time: #c6b9b5;
+  --canvas-muted: #7e675f;
 
   /* Color semantics - surfaces */
   --surface-0: var(--gray-25); /* page background */
