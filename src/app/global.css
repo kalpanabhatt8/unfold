@@ -117,12 +117,13 @@
     radial-gradient(ellipse 72% 52% at 100% 100%, #fffbfc 0%, #ffffff 62%),
     #ffffff;
   --canvas-recess: #fafafa;
-  --canvas-ink: #3a3432;
-  --canvas-ink-secondary: #6f6764;
+  --canvas-brown: #7e675f;
+  --canvas-ink: #6e5f54;
+  --canvas-ink-secondary: #85766b;
   --canvas-placeholder: #a58f87;
   --canvas-date: #7e675f;
   --canvas-time: #c6b9b5;
-  --canvas-muted: #7e675f;
+  --canvas-muted: #85766b;
 
   /* Color semantics - surfaces */
   --surface-0: var(--gray-25); /* page background */
@@ -145,7 +146,7 @@
   --color-iconbutton: var(--gray-200);
   --color-iconbutton-hover: var(--gray-50);
   --color-iconborder-border: var(--gray-300);
-  --color-canvas-toolbar-icon: var(--gray-700);
+  --color-canvas-toolbar-icon: var(--canvas-brown);
   /** Segmented control track (column layout, view mode, etc.) */
   --color-segment-control-surface: var(--gray-300);
   --toolbar-button-border: 1px solid var(--color-border-subtle);

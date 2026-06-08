@@ -1136,8 +1136,8 @@ function CanvasBoardInner(
             )}
             style={{
               background: "#FFF8E5",
-              color: "#68462A",
-              border: "1px solid rgba(104, 70, 42, 0.12)",
+              color: "var(--canvas-ink-secondary)",
+              border: "1px solid color-mix(in srgb, var(--canvas-brown) 14%, transparent)",
             }}
           >
             {companion.warmLine}
