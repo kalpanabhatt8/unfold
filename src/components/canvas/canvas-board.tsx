@@ -552,6 +552,45 @@ const caretOffsetInTextarea = (
   };
 };
 
+/** Keep the caret inside the writing scrollport — avoids focus() jumping to block top. */
+const caretOffsetInScrollContent = (
+  scrollEl: HTMLDivElement,
+  ta: HTMLTextAreaElement,
+  caretIndex: number
+): number => {
+  const scrollRect = scrollEl.getBoundingClientRect();
+  const taRect = ta.getBoundingClientRect();
+  const caret = caretOffsetInTextarea(ta, caretIndex);
+  return scrollEl.scrollTop + (taRect.top - scrollRect.top) + caret.top;
+};
+
+const scrollCaretIntoWritingView = (
+  scrollEl: HTMLDivElement,
+  ta: HTMLTextAreaElement,
+  caretIndex: number
+) => {
+  const caret = caretOffsetInTextarea(ta, caretIndex);
+  const taRect = ta.getBoundingClientRect();
+  const scrollRect = scrollEl.getBoundingClientRect();
+  const cs = window.getComputedStyle(ta);
+  const lineHeight =
+    parseFloat(cs.lineHeight) ||
+    parseFloat(cs.fontSize) * WRITING_LINE_HEIGHT;
+
+  const caretTop = taRect.top + caret.top;
+  const caretBottom = caretTop + lineHeight;
+
+  const minTop = scrollRect.top + PAGE_PADDING_Y;
+  const maxBottom =
+    scrollRect.bottom - PAGE_PADDING_Y - SCROLL_COMFORT_BOTTOM;
+
+  if (caretBottom > maxBottom) {
+    scrollEl.scrollTop += caretBottom - maxBottom;
+  } else if (caretBottom < minTop) {
+    scrollEl.scrollTop -= minTop - caretTop;
+  }
+};
+
 /* -------------------------------------------------------------------------- */
 /*  Top-level component                                                       */
 /* -------------------------------------------------------------------------- */
@@ -643,6 +682,8 @@ function CanvasBoardInner(
     id: string;
     position: "start" | "end" | number;
   } | null>(null);
+  /** Caret Y inside the writing scrollport — preserved across Enter reflows. */
+  const scrollAnchorRef = useRef<number | null>(null);
 
   /* ---------------------------- Blob companion ---------------------------- */
 
@@ -820,13 +861,17 @@ function CanvasBoardInner(
     []
   );
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const target = focusAfterRender.current;
     if (!target) return;
     const ta = textRefs.current[target.id];
     if (!ta) return;
     focusAfterRender.current = null;
-    ta.focus({ preventScroll: false });
+
+    const scrollEl = writingScrollRef.current;
+    const scrollTopBefore = scrollEl?.scrollTop ?? 0;
+
+    ta.focus({ preventScroll: true });
     const len = ta.value.length;
     const point =
       typeof target.position === "number"
@@ -835,6 +880,23 @@ function CanvasBoardInner(
           ? 0
           : len;
     ta.setSelectionRange(point, point);
+
+    if (!scrollEl) return;
+
+    // setSelectionRange can still scroll the writing column — undo that first.
+    scrollEl.scrollTop = scrollTopBefore;
+
+    const anchor = scrollAnchorRef.current;
+    if (anchor != null) {
+      scrollAnchorRef.current = null;
+      const scrollRect = scrollEl.getBoundingClientRect();
+      const taRect = ta.getBoundingClientRect();
+      const caret = caretOffsetInTextarea(ta, point);
+      const offset = taRect.top - scrollRect.top + caret.top;
+      scrollEl.scrollTop = anchor - offset;
+    }
+
+    scrollCaretIntoWritingView(scrollEl, ta, point);
   });
 
   /* --------------------------- Block mutations --------------------------- */
@@ -1262,7 +1324,7 @@ function CanvasBoardInner(
                   onToggleCheck={() =>
                     updateTextBlock(block.id, { checked: !block.checked })
                   }
-                  onEnter={(splitAt) => {
+                  onEnter={(splitAt, ta) => {
                     companion.onWritingActivity();
                     const left = block.text.slice(0, splitAt);
                     const right = block.text.slice(splitAt);
@@ -1290,6 +1352,19 @@ function CanvasBoardInner(
 
                     const col = textColumns[loc.c];
                     const nextIdx = loc.i + 1;
+                    const movesToOtherBlock =
+                      nextIdx < col.length ||
+                      columnBlockCount(col) < MAX_WRITING_BLOCKS;
+                    const scrollEl = writingScrollRef.current;
+                    if (scrollEl && movesToOtherBlock) {
+                      scrollAnchorRef.current = caretOffsetInScrollContent(
+                        scrollEl,
+                        ta,
+                        splitAt
+                      );
+                    } else {
+                      scrollAnchorRef.current = null;
+                    }
 
                     // Fixed slots: Enter moves to the next line (block below).
                     if (nextIdx < col.length) {
@@ -1963,7 +2038,7 @@ type TextBlockViewProps = {
   onShiftFocus: () => void;
   onChange: (text: string) => void;
   onToggleCheck: () => void;
-  onEnter: (splitAt: number) => void;
+  onEnter: (splitAt: number, ta: HTMLTextAreaElement) => void;
   onBackspaceAtStart: () => void;
 };
 
@@ -2015,6 +2090,7 @@ function TextBlockView({
         "relative flex w-full items-start gap-3 rounded-md leading-relaxed transition-colors",
         isInRange && !isActive ? "bg-black/[0.04]" : ""
       )}
+      style={{ overflowAnchor: "none" }}
       onMouseDown={(e) => {
         if (e.shiftKey) {
           e.preventDefault();
@@ -2079,7 +2155,7 @@ function TextBlockView({
           ) {
             e.preventDefault();
             const ta = e.currentTarget;
-            onEnter(ta.selectionStart ?? ta.value.length);
+            onEnter(ta.selectionStart ?? ta.value.length, ta);
             return;
           }
           if (
