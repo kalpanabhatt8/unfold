@@ -52,7 +52,9 @@ export function coverBackgroundVar(id: CoverGradientId): string {
 export function resolveBookCoverBackground(
   background: string | undefined | null
 ): string {
-  const id = coverGradientIdFromBackground(background);
-  if (!id || id === "g10") return coverBackgroundVar("g1");
-  return background?.trim() ? background : coverBackgroundVar("g1");
+  const trimmed = background?.trim();
+  if (!trimmed) return coverBackgroundVar("g1");
+  const id = coverGradientIdFromBackground(trimmed);
+  if (id === "g10") return coverBackgroundVar("g1");
+  return trimmed;
 }

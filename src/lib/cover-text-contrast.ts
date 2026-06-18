@@ -76,10 +76,10 @@ export const COVER_GRADIENT_RGB: Record<
   { r: number; g: number; b: number }
 > = {
   g1: { r: 232, g: 208, b: 192 },
-  g2: { r: 237, g: 216, b: 206 },
-  g3: { r: 228, g: 201, b: 187 },
-  g4: { r: 219, g: 196, b: 176 },
-  g5: { r: 212, g: 184, b: 168 },
+  g2: { r: 196, g: 165, b: 212 },
+  g3: { r: 157, g: 184, b: 160 },
+  g4: { r: 232, g: 168, b: 124 },
+  g5: { r: 124, g: 184, b: 196 },
   g6: { r: 235, g: 232, b: 228 },
   g7: { r: 91, g: 81, b: 73 },
   g8: { r: 66, g: 16, b: 36 },
@@ -89,10 +89,10 @@ export const COVER_GRADIENT_RGB: Record<
 
 export const COVER_GRADIENT_LUMINANCE: Record<CoverGradientId, number> = {
   g1: relativeLuminance255(232, 208, 192),
-  g2: relativeLuminance255(237, 216, 206),
-  g3: relativeLuminance255(228, 201, 187),
-  g4: relativeLuminance255(219, 196, 176),
-  g5: relativeLuminance255(212, 184, 168),
+  g2: relativeLuminance255(196, 165, 212),
+  g3: relativeLuminance255(157, 184, 160),
+  g4: relativeLuminance255(232, 168, 124),
+  g5: relativeLuminance255(124, 184, 196),
   g6: relativeLuminance255(235, 232, 228),
   g7: relativeLuminance255(91, 81, 73),
   g8: relativeLuminance255(66, 16, 36),

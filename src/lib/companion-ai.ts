@@ -1,13 +1,11 @@
 import type { CanvasSnapshot } from "@/components/canvas/canvas-board";
 import {
   countWordsFromSnapshot,
-  extractJournalPlainText,
+  extractEmotionWindowFromSnapshot,
 } from "@/lib/canvas-word-count";
 
 /**
- * The eight tones the sunflower can notice. This is the single source of truth
- * — the local detector, the Gemini route, and the blob's animation states all
- * agree on exactly these values.
+ * The eight tones Gemini classifies. Shared by the client hook and API route.
  */
 export const COMPANION_EMOTIONS = [
   "heavy",
@@ -26,76 +24,102 @@ export const isCompanionEmotion = (value: unknown): value is CompanionEmotion =>
   typeof value === "string" &&
   (COMPANION_EMOTIONS as readonly string[]).includes(value);
 
-export type CompanionResponse = {
-  emotion: CompanionEmotion;
-  line: string;
+/** Words in the trailing window that drive emotion (and minimum canvas length). */
+export const COMPANION_EMOTION_WINDOW_WORDS = 40;
+/** @deprecated Use COMPANION_EMOTION_WINDOW_WORDS */
+export const COMPANION_MIN_WORDS = COMPANION_EMOTION_WINDOW_WORDS;
+/** First pause after typing before reading the canvas. */
+export const COMPANION_INACTIVITY_MS = 1_000;
+/** Pause once the companion has already reacted once (same cap). */
+export const COMPANION_SUBSEQUENT_INACTIVITY_MS = 1_000;
+
+const COMPANION_API_TIMEOUT_MS = 8_000;
+
+export type EmotionDetectionState = {
+  hasDetectedBefore: boolean;
+  /** Last classified trailing window — re-run when this changes (incl. deletes). */
+  lastClassifiedTail: string;
 };
 
-/** Enough words written to be worth a quiet reaction (strictly word-gated). */
-export const COMPANION_MIN_WORDS = 20;
-/** Trigger 1: pause after writing before the companion reacts (idle 0–15s). */
-export const COMPANION_INACTIVITY_MS = 15_000;
-/** Trigger 2: total session writing time before the companion checks in. */
-export const COMPANION_LONG_WRITING_MS = 10 * 60_000;
-/** Never interrupt mid-sentence — wait for this gap in typing before reacting. */
-export const COMPANION_TYPING_GAP_MS = 2_000;
-/** Past this, give up on the API and use the local keyword fallback instead. */
-const COMPANION_API_TIMEOUT_MS = 3_000;
-
-/**
- * Live reactions while typing — pure TypeScript keyword matching in
- * `companion-local.ts`. No API key required for the face or quick reply.
- */
-/** Pause after typing before the warm reply bubble appears (0.5–2s window). */
-export const LIVE_RESPONSE_DELAY_MS = 700;
-/** Face + reply analyze on each keystroke (leading edge), then reply after delay. */
-export const LIVE_EMOTION_LEADING_MS = 0;
-/** Minimum words before reacting (single emotional keyword counts immediately). */
-export const LIVE_EMOTION_MIN_WORDS = 1;
-/** Fade face back to neutral after a longer pause. */
-export const LIVE_EMOTION_IDLE_MS = 12_000;
-/** Minimum gap between live warm-line bubbles. */
-export const LIVE_WARM_LINE_COOLDOWN_MS = 4_000;
-
-export const meetsCompanionThreshold = (snapshot: CanvasSnapshot): boolean => {
-  const text = extractJournalPlainText(snapshot).trim();
-  if (!text) return false;
-  return countWordsFromSnapshot(snapshot) >= COMPANION_MIN_WORDS;
-};
-
-export const fetchCompanionResponse = async (
-  snapshot: CanvasSnapshot
-): Promise<CompanionResponse> => {
-  const text = extractJournalPlainText(snapshot);
-  const controller = new AbortController();
-  const timeoutId = window.setTimeout(
-    () => controller.abort(),
-    COMPANION_API_TIMEOUT_MS
+export const getEmotionWindowText = (snapshot: CanvasSnapshot): string =>
+  extractEmotionWindowFromSnapshot(
+    snapshot,
+    COMPANION_EMOTION_WINDOW_WORDS
   );
 
-  let res: Response;
-  try {
-    res = await fetch("/api/companion", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
-      signal: controller.signal,
-    });
-  } finally {
-    window.clearTimeout(timeoutId);
+export const meetsEmotionDetectionThreshold = (
+  snapshot: CanvasSnapshot,
+  state: EmotionDetectionState
+): boolean => {
+  const total = countWordsFromSnapshot(snapshot);
+  if (total < COMPANION_EMOTION_WINDOW_WORDS) return false;
+
+  const tail = getEmotionWindowText(snapshot);
+  if (!tail.trim()) return false;
+
+  if (!state.hasDetectedBefore) return true;
+  return tail !== state.lastClassifiedTail;
+};
+
+export const emotionDetectionPauseMs = (
+  hasDetectedBefore: boolean
+): number =>
+  hasDetectedBefore
+    ? COMPANION_SUBSEQUENT_INACTIVITY_MS
+    : COMPANION_INACTIVITY_MS;
+
+/** @deprecated Use meetsEmotionDetectionThreshold */
+export const meetsCompanionThreshold = (snapshot: CanvasSnapshot): boolean =>
+  meetsEmotionDetectionThreshold(snapshot, {
+    hasDetectedBefore: false,
+    lastClassifiedTail: "",
+  });
+
+/** Classify the trailing journal window (one automatic retry). */
+export const fetchCompanionEmotion = async (
+  emotionText: string
+): Promise<CompanionEmotion> => {
+  const text = emotionText.trim();
+  if (!text) {
+    throw new Error("Empty emotion window");
   }
 
-  if (!res.ok) {
-    throw new Error(`Companion API failed (${res.status})`);
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(
+      () => controller.abort(),
+      COMPANION_API_TIMEOUT_MS
+    );
+
+    try {
+      const res = await fetch("/api/companion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+        signal: controller.signal,
+      });
+
+      if (!res.ok) {
+        throw new Error(`Companion API failed (${res.status})`);
+      }
+
+      const data = (await res.json()) as { emotion?: unknown };
+      if (!isCompanionEmotion(data.emotion)) {
+        throw new Error("Invalid companion emotion");
+      }
+
+      return data.emotion;
+    } catch (error) {
+      lastError = error;
+      if (attempt === 0) {
+        await new Promise((r) => window.setTimeout(r, 400));
+      }
+    } finally {
+      window.clearTimeout(timeoutId);
+    }
   }
 
-  const data = (await res.json()) as CompanionResponse;
-  if (!isCompanionEmotion(data.emotion)) {
-    throw new Error("Invalid companion emotion");
-  }
-  if (typeof data.line !== "string" || !data.line.trim()) {
-    throw new Error("Invalid companion line");
-  }
-
-  return { emotion: data.emotion, line: data.line.trim() };
+  throw lastError;
 };

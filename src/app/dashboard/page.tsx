@@ -5,7 +5,15 @@ import { usePathname, useRouter } from "next/navigation";
 import { PencilRulerIcon } from "lucide-react";
 import { BookCover } from "@/components/book-cover";
 import { BOOK_CONFIG } from "@/components/book-cover-config";
-import { btnIcon, btnState, iconFixed, iconPx, iconStroke } from "@/components/ui/button-system";
+import {
+  btnIcon,
+  btnRadius,
+  btnState,
+  btnText,
+  iconFixed,
+  iconPx,
+  iconStroke,
+} from "@/components/ui/button-system";
 import { starterBookTemplates } from "@/data/book-templates";
 import { coverBackgroundVar, resolveBookCoverBackground } from "@/data/cover-gradients";
 import {
@@ -14,6 +22,7 @@ import {
   RECENTS_UPDATED_EVENT,
   type RecentBook,
 } from "@/lib/recent-books";
+import { hasBookTitle, resolveBookDisplayTitle } from "@/lib/book-title";
 
 const CREATE_NEW_COVER_BG = coverBackgroundVar("g1");
 
@@ -140,12 +149,27 @@ const Dashboard = () => {
 
           {/* Row 2 — recents (front) + starter templates */}
           <section className="flex flex-col gap-4 text-ink">
-            <h2 className="text-sm uppercase !tracking-[0.1em] text-ink-soft">
-              Starter library
-            </h2>
+            <div className="flex items-center justify-between gap-4">
+              <h2 className="text-sm uppercase !tracking-[0.1em] text-ink-soft">
+                Starter library
+              </h2>
+              {/* {recentBooks.length > 5 && (
+                <button
+                  type="button"
+                  onClick={() => router.push("/dashboard/shelf")}
+                  className={`shrink-0 px-3 ${btnRadius.pill} ${btnText("sm")} ${btnState.default} ${btnState.hover} ${btnState.active}`}
+                >
+                  See more
+                </button>
+              )} */}
+            </div>
 
             <div className="flex flex-wrap items-start gap-10">
-              {recentBooks.map((book) => (
+              {recentBooks.map((book) => {
+                const displayTitle = resolveBookDisplayTitle(book.title);
+                const titleIsPlaceholder = !hasBookTitle(book.title);
+
+                return (
                 <div key={`recent-${book.id}`} className="flex flex-col">
                   <div className="group flex flex-col items-center gap-2">
                     <div className="relative">
@@ -158,7 +182,8 @@ const Dashboard = () => {
                         <BookCover
                           size="md"
                           variant={book.coverImage ? "image" : "solid"}
-                          title={book.title}
+                          title={displayTitle}
+                          titleIsPlaceholder={titleIsPlaceholder}
                           // subtitle={book.subtitle || undefined}
                           coverImageUrl={book.coverImage ?? undefined}
                           className="h-full w-full"
@@ -176,7 +201,7 @@ const Dashboard = () => {
                               `/dashboard/books/${book.id}?from=dashboard`
                             );
                           }}
-                          aria-label={`Edit cover of ${book.title}`}
+                          aria-label={`Edit cover of ${displayTitle}`}
                           title="Edit cover"
                           className={`absolute right-2 bottom-2 z-10 opacity-0 backdrop-blur-md transition-[opacity] duration-200 ease-out focus-visible:opacity-100 group-hover:opacity-100 ${btnIcon("sm")} ${btnState.default} ${btnState.hover} ${btnState.active}`}
                         >
@@ -189,7 +214,8 @@ const Dashboard = () => {
                     </div>
                   </div>
                 </div>
-              ))}
+              );
+              })}
 
               {/* {templatesAfterRecents.map((book) => (
                 <div key={`template-${book.id}`} className="flex flex-col">

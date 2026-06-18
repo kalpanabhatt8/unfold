@@ -2,33 +2,39 @@
    BOOK COVER SOLIDS (slot palette; `--book-cover-gradient-g*` names unchanged)
    ========================================================= */
 
-   :root {
-    /* Warm cover palette — aligned with canvas (#fdfaf8) & sunflower tones */
-    --gradient-1: #e8d0c0;
-    --gradient-2: #edd8ce;
-    --gradient-3: #e4c9bb;
-    --gradient-4: #dbc4b0;
-    --gradient-5: #d4b8a8;
-    --gradient-6: #ebe8e4;
-    --gradient-7: #5b5149;
-    --gradient-8: #421024;
-    --gradient-9: #7e675f;
-    --gradient-10: #fdfaf8;
+:root {
+  /* Cover palette — default beige (g1) + varied journal tones (g2–g5) */
+  /* --gradient-1: #e8d0c0;
+    --gradient-2: #c4a5d4;
+    --gradient-3: #aad3af;
+    --gradient-4: #7c99e8; */
+    --gradient-1: #e8d0c0; /* peach */
+    --gradient-2: #b9a7e6; /* purple */
+    --gradient-3: #9ed2a0; /* green */
+    --gradient-4: #82a8f5; /* blue */
 
-    /* ---------- Stable public API ---------- */
+    --gradient-4: #7c99e8;
+  --gradient-5: #7cb8c4;
+  --gradient-6: #ebe8e4;
+  --gradient-7: #5b5149;
+  --gradient-8: #421024;
+  --gradient-9: #7e675f;
+  --gradient-10: #fdfaf8;
 
-    --book-cover-gradient-g1: var(--gradient-1);
-    --book-cover-gradient-g2: var(--gradient-2);
-    --book-cover-gradient-g3: var(--gradient-3);
-    --book-cover-gradient-g4: var(--gradient-4);
-    --book-cover-gradient-g5: var(--gradient-5);
+  /* ---------- Stable public API ---------- */
 
-    --book-cover-gradient-g6: var(--gradient-6);
-    --book-cover-gradient-g7: var(--gradient-7);
-    --book-cover-gradient-g8: var(--gradient-8);
-    --book-cover-gradient-g9: var(--gradient-9);
-    --book-cover-gradient-g10: var(--gradient-10);
-  }
+  --book-cover-gradient-g1: var(--gradient-1);
+  --book-cover-gradient-g2: var(--gradient-2);
+  --book-cover-gradient-g3: var(--gradient-3);
+  --book-cover-gradient-g4: var(--gradient-4);
+  --book-cover-gradient-g5: var(--gradient-5);
+
+  --book-cover-gradient-g6: var(--gradient-6);
+  --book-cover-gradient-g7: var(--gradient-7);
+  --book-cover-gradient-g8: var(--gradient-8);
+  --book-cover-gradient-g9: var(--gradient-9);
+  --book-cover-gradient-g10: var(--gradient-10);
+}
 
 .book-cover-stack {
   position: relative;
@@ -51,7 +57,7 @@
   display: none;
 }
 
-.book{
+.book {
   border-radius: 8px;
   overflow: hidden;
 }
@@ -68,7 +74,9 @@
   padding-top: var(--book-padding-top, var(--value-20));
   padding-bottom: var(--book-padding-bottom, var(--value-20));
   padding-right: var(--book-padding-right, var(--value-10));
-  transition: transform 160ms ease, box-shadow 200ms ease;
+  transition:
+    transform 160ms ease,
+    box-shadow 200ms ease;
   background: var(--book-cover-gradient-g1);
   background-size: cover;
   background-position: center;
@@ -76,11 +84,9 @@
   height: 100%;
   z-index: 1;
   border-color: var(--border);
-  border-radius:2px 12px 12px 2px;
+  border-radius: 2px 12px 12px 2px;
   border-right: 1.5px solid var(--gray-400);
   border-bottom: 0.75px solid var(--gray-400);
-
- 
 }
 
 /* .hardcover {
@@ -92,15 +98,11 @@
 
 .book-cover:hover,
 .book-shadow-div:hover .book-cover {
-
   box-shadow:
-
     0 12px 28px rgba(0, 0, 0, 0.07),
-
     0 4px 10px rgba(0, 0, 0, 0.05);
 
-  border-color: rgba(0, 0, 0, 0.10);
-
+  border-color: rgba(0, 0, 0, 0.1);
 }
 
 .book-cover-stack:focus-within .book-cover,
@@ -110,7 +112,7 @@
     0 6px 16px rgba(15, 23, 42, 0.12);
 }
 
-.book-overlay-line{
+.book-overlay-line {
   content: "";
   position: absolute;
   top: 0;
@@ -134,7 +136,8 @@
   height: 100%;
   pointer-events: none;
   z-index: 200000000;
-  background: radial-gradient(
+  background:
+    radial-gradient(
       circle at right center,
       rgba(0, 0, 0, 0.04),
       rgba(0, 0, 0, 0.02) 40%,
@@ -147,7 +150,7 @@
       rgba(0, 0, 0, 0.1),
       transparent
     );
-    /* background: linear-gradient(
+  /* background: linear-gradient(
   to right,
   rgba(217, 217, 217, 0.2) 0%,
   rgba(73, 73, 73, 0.12) 62%,
@@ -172,8 +175,17 @@
   width: 0.56rem;
   height: 100%;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.1) 100%),
-    linear-gradient(90deg, rgba(143, 71, 59, 0.42) 0%, rgba(210, 137, 107, 0.26) 52%, rgba(255, 209, 170, 0.6) 100%);
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.55) 0%,
+      rgba(255, 255, 255, 0.1) 100%
+    ),
+    linear-gradient(
+      90deg,
+      rgba(143, 71, 59, 0.42) 0%,
+      rgba(210, 137, 107, 0.26) 52%,
+      rgba(255, 209, 170, 0.6) 100%
+    );
   box-shadow:
     inset -1px 0 0 rgba(255, 255, 255, 0.4),
     inset -5px 0 8px rgba(255, 255, 255, 0.16),
@@ -188,7 +200,12 @@
   top: 0;
   width: 0.5rem;
   height: 100%;
-  background: radial-gradient(120% 62% at 0% 50%, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.18) 42%, rgba(255, 255, 255, 0) 82%);
+  background: radial-gradient(
+    120% 62% at 0% 50%,
+    rgba(255, 255, 255, 0.55) 0%,
+    rgba(255, 255, 255, 0.18) 42%,
+    rgba(255, 255, 255, 0) 82%
+  );
   pointer-events: none;
 }
 
@@ -240,13 +257,27 @@
 }
 
 .book-cover[data-variant="image"]::after {
-  background: linear-gradient(105deg, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0) 35%);
+  background: linear-gradient(
+    105deg,
+    rgba(0, 0, 0, 0.12),
+    rgba(0, 0, 0, 0) 35%
+  );
 }
 
 .book-cover[data-variant="image"]::before {
   background:
-    radial-gradient(130% 68% at 0% 50%, rgba(255, 255, 255, 0.25) 0%, rgba(255, 255, 255, 0.08) 38%, rgba(255, 255, 255, 0) 76%),
-    linear-gradient(90deg, rgba(0, 0, 0, 0.3) 0%, rgba(0, 0, 0, 0.08) 48%, rgba(0, 0, 0, 0) 100%);
+    radial-gradient(
+      130% 68% at 0% 50%,
+      rgba(255, 255, 255, 0.25) 0%,
+      rgba(255, 255, 255, 0.08) 38%,
+      rgba(255, 255, 255, 0) 76%
+    ),
+    linear-gradient(
+      90deg,
+      rgba(0, 0, 0, 0.3) 0%,
+      rgba(0, 0, 0, 0.08) 48%,
+      rgba(0, 0, 0, 0) 100%
+    );
 }
 
 .book-cover[data-variant="grid"] {
@@ -282,15 +313,13 @@
   margin: 0;
   text-align: left;
   line-height: 1.15;
-font-size: var(--book-title-size, var(--text-md));
+  font-size: var(--book-title-size, var(--text-md));
   letter-spacing: 0.01em;
   text-overflow: ellipsis;
   color: var(--text-secondary);
   /* text-shadow: 0 1px 8px rgba(120, 43, 43, 0.32); */
   white-space: nowrap;
   overflow: hidden;
-  
-
 }
 
 .book-cover__subtitle {
@@ -321,7 +350,6 @@ font-size: var(--book-title-size, var(--text-md));
   /* -webkit-clip-path: url(#bookPageClip);  */
 }
 
-
 .book-cover__tag {
   margin-top: auto;
   align-self: flex-start;
@@ -350,7 +378,9 @@ font-size: var(--book-title-size, var(--text-md));
   letter-spacing: 0.18em;
   text-transform: uppercase;
   font-size: var(--text-xs);
-  transition: border-color 180ms ease, color 180ms ease;
+  transition:
+    border-color 180ms ease,
+    color 180ms ease;
 }
 
 .book-tilted-hover:hover .empty-template-card {
@@ -358,26 +388,33 @@ font-size: var(--book-title-size, var(--text-md));
   color: var(--fg);
 }
 
-
 .book-shadow-div {
   box-shadow: none;
   /* border-radius: 0.2rem; */
 }
 
 .book-shadow-div {
-  transition: transform 220ms ease, box-shadow 220ms ease, filter 220ms ease;
+  transition:
+    transform 220ms ease,
+    box-shadow 220ms ease,
+    filter 220ms ease;
 }
 
 .book-shadow-div {
-  transition: transform 220ms ease, box-shadow 220ms ease, filter 220ms ease;
+  transition:
+    transform 220ms ease,
+    box-shadow 220ms ease,
+    filter 220ms ease;
 }
 
 .book-shadow-div {
   transform: perspective(900px) rotateX(0deg) rotateY(0deg);
-  transition: transform 240ms ease, box-shadow 240ms ease;
+  transition:
+    transform 240ms ease,
+    box-shadow 240ms ease;
 }
 
- .book-shadow-div:hover {
+.book-shadow-div:hover {
   transform: perspective(900px) rotateX(6deg) rotateY(-7deg) translateY(-8px);
   box-shadow: none;
 }

@@ -19,6 +19,8 @@ type BookCoverBaseProps = {
   size?: BookCoverSize;
   variant?: BookCoverVariant;
   title?: string;
+  /** Muted overlay style when `title` is a display placeholder (e.g. "New book"). */
+  titleIsPlaceholder?: boolean;
   subtitle?: string;
   coverImageUrl?: string | null;
   className?: string;
@@ -36,6 +38,7 @@ export function BookCover({
   size = "md",
   variant = "solid",
   title,
+  titleIsPlaceholder = false,
   subtitle,
   coverImageUrl,
   className,
@@ -155,7 +158,10 @@ export function BookCover({
           <div className="book-overlay-line" />
 
           <div className="book-cover__content">
-            <h3 className="book-cover__title" style={textChrome.title}>
+            <h3
+              className="book-cover__title"
+              style={titleIsPlaceholder ? textChrome.hint : textChrome.title}
+            >
               {title}
             </h3>
             {/* Subtitle temporarily hidden on book cover

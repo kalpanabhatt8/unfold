@@ -1,9 +1,9 @@
 "use client";
 
 import React from "react";
-import type { CompanionEmotion } from "@/lib/companion-ai";
 import type { BlobEmotion, BlobPose } from "./types";
 import { companionToBlobEmotion } from "./emotions";
+import type { CompanionEmotion } from "@/lib/companion-ai";
 import { pickEntranceGreeting } from "./entrance-greetings";
 import {
   ENTRANCE_DURATION_MS,
@@ -55,14 +55,21 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
   const slideTimerRef = React.useRef<number | null>(null);
   const greetingClearTimerRef = React.useRef<number | null>(null);
   const closingRef = React.useRef(false);
+  /** False until peek → slide → idle finishes; typing must not skip this. */
+  const entranceCompleteRef = React.useRef(!enterOnMount);
   const poseRef = React.useRef<BlobPose>(enterOnMount ? "peek" : "idle");
   const emotionRef = React.useRef<BlobEmotion>("neutral");
+  const awakeEmotionRef = React.useRef<BlobEmotion>("neutral");
+  const sleepingRef = React.useRef(false);
 
   React.useEffect(() => {
     poseRef.current = pose;
   }, [pose]);
   React.useEffect(() => {
     emotionRef.current = emotion;
+    if (emotion !== "sleep") {
+      awakeEmotionRef.current = emotion;
+    }
   }, [emotion]);
 
   const clearTimer = (ref: React.MutableRefObject<number | null>) => {
@@ -93,6 +100,7 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
   const runEnter = React.useCallback(() => {
     if (closingRef.current) return;
     clearEntranceTimers();
+    entranceCompleteRef.current = false;
 
     // Start hidden + framed in the peek pose so the first paint is correct.
     setHidden(true);
@@ -121,6 +129,7 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
           if (closingRef.current) return;
           if (poseRef.current !== "enter") return;
           setPose("idle");
+          entranceCompleteRef.current = true;
         }, enterDurationMs);
       }, peekHoldMs);
     }, peekDelayMs);
@@ -134,11 +143,9 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
 
   const onActivity = React.useCallback(() => {
     if (closingRef.current) return;
+    // Let peek → greeting → slide → idle finish before reacting to typing.
+    if (!entranceCompleteRef.current) return;
     clearTimer(idleTimerRef);
-    // Typing interrupts the entrance — drop the peek/greeting and lean in.
-    clearEntranceTimers();
-    setGreetingVisible(false);
-    setGreeting(null);
 
     if (poseRef.current !== "jump" && poseRef.current !== "bloom") {
       setPose("typing");
@@ -148,7 +155,7 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
       if (closingRef.current) return;
       setPose("idle");
     }, typingRestoreMs);
-  }, [clearEntranceTimers, typingRestoreMs]);
+  }, [typingRestoreMs]);
 
   const onEmotionReaction = React.useCallback(
     (next: BlobEmotion) => {
@@ -163,22 +170,35 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
     [emotionDurationMs]
   );
 
-  /** Live typing — swap face immediately, no auto-neutral timer. */
-  const onCompanionLiveReaction = React.useCallback(
-    (companionEmotion: CompanionEmotion, journalText?: string) => {
+  /** Sleep face — separate from journal emotion layer. */
+  const onEmotionFromWriting = React.useCallback((next: BlobEmotion) => {
+    if (closingRef.current) return;
+    if (next === "sleep") {
+      sleepingRef.current = true;
+      clearTimer(emotionTimerRef);
+      setEmotion("sleep");
+      return;
+    }
+    sleepingRef.current = false;
+    clearTimer(emotionTimerRef);
+    setEmotion(next);
+  }, []);
+
+  const onWakeFromSleep = React.useCallback(() => {
+    if (closingRef.current || !sleepingRef.current) return;
+    sleepingRef.current = false;
+    clearTimer(emotionTimerRef);
+    setEmotion(awakeEmotionRef.current);
+  }, []);
+
+  /** Gemini / local classification from journal text — updates on each idle pause. */
+  const onSessionEmotionDetected = React.useCallback(
+    (companion: CompanionEmotion, text: string) => {
       if (closingRef.current) return;
       clearTimer(emotionTimerRef);
-      setEmotion(companionToBlobEmotion(companionEmotion, journalText));
+      setEmotion(companionToBlobEmotion(companion, text));
     },
     []
-  );
-
-  /** Milestone check-in — holds the expression, then eases back to neutral. */
-  const onCompanionReaction = React.useCallback(
-    (companionEmotion: CompanionEmotion, journalText?: string) => {
-      onEmotionReaction(companionToBlobEmotion(companionEmotion, journalText));
-    },
-    [onEmotionReaction]
   );
 
   const onClosing = React.useCallback((): Promise<void> => {
@@ -203,8 +223,9 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
     greetingVisible,
     onActivity,
     onEmotionReaction,
-    onCompanionReaction,
-    onCompanionLiveReaction,
+    onEmotionFromWriting,
+    onWakeFromSleep,
+    onSessionEmotionDetected,
     onClosing,
     runEnter,
   };

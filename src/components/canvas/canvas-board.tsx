@@ -38,6 +38,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { iconStrokePx } from "@/components/ui/button-system";
+import { BOOK_TITLE_PLACEHOLDER } from "@/lib/book-title";
 import BlobCharacter, {
   type BlobEmotion,
   type BlobPose,
@@ -45,10 +46,6 @@ import BlobCharacter, {
 } from "@/components/canvas/blob-character";
 import { EntranceGreeting } from "@/components/canvas/blob/entrance-greeting";
 import { useCompanion } from "@/hooks/use-companion";
-import {
-  extractJournalPlainText,
-  mergeBlockTextOverride,
-} from "@/lib/canvas-word-count";
 import { getTextareaCaretOffsetInTextareaPx } from "@/lib/textarea-caret-offset";
 
 /* -------------------------------------------------------------------------- */
@@ -141,12 +138,22 @@ const firstEmptyBlockInColumn = (
   col.find((b) => b.text.length === 0) ?? null;
 
 /** Filled blocks plus one trailing empty slot — avoids painting padded empty slots. */
-const visibleBlocksInColumn = (col: JournalTextBlock[]): JournalTextBlock[] => {
+const visibleBlocksInColumn = (
+  col: JournalTextBlock[],
+  activeBlockId: string | null
+): JournalTextBlock[] => {
   let lastWithText = -1;
   for (let i = 0; i < col.length; i++) {
     if (col[i].text.length > 0) lastWithText = i;
   }
-  const end = Math.min(col.length - 1, Math.max(lastWithText + 1, 0));
+  const activeIdx =
+    activeBlockId != null
+      ? col.findIndex((b) => b.id === activeBlockId)
+      : -1;
+  const end = Math.min(
+    col.length - 1,
+    Math.max(lastWithText + 1, activeIdx >= 0 ? activeIdx + 1 : 0, 0)
+  );
   return col.slice(0, end + 1);
 };
 
@@ -631,6 +638,7 @@ function CanvasBoardInner(
   const imageFileInputRef = useRef<HTMLInputElement | null>(null);
   const textRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
   const hydratedRef = useRef(false);
+  const [isContentReady, setIsContentReady] = useState(false);
   const focusAfterRender = useRef<{
     id: string;
     position: "start" | "end" | number;
@@ -697,6 +705,8 @@ function CanvasBoardInner(
         const norm = normalizeSnapshot(initialSnapshot) ?? emptySnapshot();
         apply(norm);
       }
+    } finally {
+      setIsContentReady(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialSnapshot, onSnapshotChange, storageKey]);
@@ -775,10 +785,15 @@ function CanvasBoardInner(
   }, [buildSnapshot, onSave, storageKey]);
 
   const companion = useCompanion({
-    bookId,
     buildSnapshot,
     onMilestoneSave: triggerMilestoneSave,
-    blob,
+    isContentReady,
+    blob: {
+      onActivity: blob.onActivity,
+      onSessionEmotionDetected: blob.onSessionEmotionDetected,
+      onEmotionFromWriting: blob.onEmotionFromWriting,
+      onWakeFromSleep: blob.onWakeFromSleep,
+    },
   });
 
   // Imperative seam used by the page-level back button: capture state in
@@ -808,9 +823,9 @@ function CanvasBoardInner(
   useEffect(() => {
     const target = focusAfterRender.current;
     if (!target) return;
-    focusAfterRender.current = null;
     const ta = textRefs.current[target.id];
     if (!ta) return;
+    focusAfterRender.current = null;
     ta.focus({ preventScroll: false });
     const len = ta.value.length;
     const point =
@@ -1161,24 +1176,6 @@ function CanvasBoardInner(
             {blob.greeting}
           </EntranceGreeting>
         ) : null}
-        {companion.warmLine ? (
-          <div
-            aria-live="polite"
-            className={clsx(
-              "max-w-[220px] rounded-2xl rounded-bl-sm px-3.5 py-2 text-[13px] leading-snug shadow-sm transition-all duration-1000",
-              companion.warmLineVisible
-                ? "translate-y-0 opacity-100"
-                : "translate-y-1 opacity-0"
-            )}
-            style={{
-              background: "#FFF8E5",
-              color: "var(--canvas-ink-secondary)",
-              border: "1px solid color-mix(in srgb, var(--canvas-brown) 14%, transparent)",
-            }}
-          >
-            {companion.warmLine}
-          </div>
-        ) : null}
         <BlobCharacter
           pose={blob.pose}
           emotion={blob.emotion}
@@ -1191,12 +1188,14 @@ function CanvasBoardInner(
         className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden"
         ref={writingRef}
         onPointerDown={(e) => {
+          companion.onCanvasActivity();
           onWritingPointerDown(e);
         }}
       >
         <div
           ref={writingScrollRef}
           className="relative flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain"
+          onScroll={() => companion.onCanvasActivity()}
           style={{
             paddingTop: PAGE_PADDING_Y,
             paddingBottom: PAGE_PADDING_Y,
@@ -1230,7 +1229,7 @@ function CanvasBoardInner(
               data-text-column={colIdx}
               className="flex min-w-0 shrink-0 flex-col"
             >
-              {visibleBlocksInColumn(col).map((block) => (
+              {visibleBlocksInColumn(col, activeBlockId).map((block) => (
                 <TextBlockView
                   key={block.id}
                   block={block}
@@ -1258,11 +1257,7 @@ function CanvasBoardInner(
                   }}
                   onChange={(text) => {
                     updateTextBlock(block.id, { text });
-                    companion.onWritingActivity(
-                      extractJournalPlainText(
-                        mergeBlockTextOverride(buildSnapshot(), block.id, text)
-                      )
-                    );
+                    companion.onWritingActivity();
                   }}
                   onToggleCheck={() =>
                     updateTextBlock(block.id, { checked: !block.checked })
@@ -1383,12 +1378,7 @@ function CanvasBoardInner(
               value={signature}
               onChange={(next) => {
                 setSignature(next);
-                companion.onWritingActivity(
-                  extractJournalPlainText({
-                    ...buildSnapshot(),
-                    signature: next,
-                  })
-                );
+                companion.onWritingActivity();
               }}
             />
           </div>
@@ -1694,7 +1684,7 @@ function PolaroidPlaceholder() {
         aria-hidden
         className="mt-2 block w-full shrink-0 text-center text-xs italic text-black/20 transition-colors duration-200 group-hover:text-black/35"
         style={{
-          fontFamily: "var(--font-caveat), var(--font-lora), cursive",
+          fontFamily: "var(--font-body)",
         }}
       >
         add a memory
@@ -1758,7 +1748,7 @@ function PolaroidImage({
           onFocus={onSelect}
           className="w-full border-0 bg-transparent p-0 text-center text-xs italic tracking-tight text-[var(--canvas-ink-secondary)] outline-none placeholder:text-[var(--canvas-writing-placeholder)]"
           style={{
-            fontFamily: "var(--font-caveat), var(--font-lora), cursive",
+            fontFamily: "var(--font-body)",
           }}
         />
       </figcaption>
@@ -1822,9 +1812,6 @@ function formatEditedLabel(ts: number, now = Date.now()): string {
   }
   return `Edited ${day} ${month}`;
 }
-
-/** Canvas-only placeholder — not persisted as the draft title. */
-const CANVAS_TITLE_PLACEHOLDER = "New book";
 
 type CanvasHeaderProps = {
   title?: string;
@@ -1902,7 +1889,7 @@ function CanvasHeader({
             event.currentTarget.blur();
           }
         }}
-        placeholder={CANVAS_TITLE_PLACEHOLDER}
+        placeholder={BOOK_TITLE_PLACEHOLDER}
         spellCheck={false}
         aria-label="Book title"
         className={clsx(
@@ -1945,10 +1932,14 @@ function CanvasSignature({ value, onChange }: CanvasSignatureProps) {
       value={value}
       onChange={(e) => onChange(e.target.value)}
       aria-label="Signature"
-      className="mt-16 block w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-left text-lg text-black/55 outline-none focus:outline-none"
+      className="mt-16 block w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-left outline-none focus:outline-none"
       style={{
-        fontFamily: "var(--font-caveat), var(--font-lora), cursive",
-        lineHeight: 1.4,
+        fontFamily: "var(--font-body)",
+        fontSize: WRITING_FONT_SIZE,
+        lineHeight: WRITING_LINE_HEIGHT,
+        letterSpacing: WRITING_LETTER_SPACING,
+        wordSpacing: WRITING_WORD_SPACING,
+        color: WRITING_INK,
       }}
       onInput={(e) => {
         const ta = e.currentTarget;

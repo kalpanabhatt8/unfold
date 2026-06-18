@@ -204,7 +204,7 @@ export const syncDraftsAndRecents = <T extends DraftLike>(
       const fallback: RecentBook = {
         id,
         title:
-          typeof raw.title === "string" ? (raw.title as string) : "Untitled Book",
+          typeof raw.title === "string" ? (raw.title as string) : "",
         background:
           typeof raw.background === "string" ? (raw.background as string) : "",
         variant: variantValue,

@@ -11,7 +11,13 @@ export type BlobPose =
  * Face layer — each emotion folder only contains parts that differ from base.
  * Folders: /public/Images/character/{emotion}/
  */
-export type BlobEmotion = "love" | "neutral" | "sad" | "sleep" | "happy";
+export type BlobEmotion =
+  | "love"
+  | "neutral"
+  | "sad"
+  | "sleep"
+  | "happy"
+  | "confused";
 
 export type BloomLevel = 0 | 1 | 2 | 3;
 

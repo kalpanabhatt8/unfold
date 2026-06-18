@@ -696,14 +696,14 @@ input[type='number'] {
 [data-block-element="text"] textarea {
   direction: ltr;
   text-align: left;
-  font-family: var(--font-dm-sans), var(--font-body), system-ui, sans-serif;
+  font-family: var(--font-body), system-ui, sans-serif;
   font-size: var(--text-md);
   line-height: 1.65;
   letter-spacing: 0.02em;
 }
 
 [data-writing-zone] [data-signature] {
-  font-family: var(--font-dm-sans), var(--font-body), system-ui, sans-serif;
+  font-family: var(--font-body), system-ui, sans-serif;
 }
 
 [data-block-element="text"] textarea::placeholder {

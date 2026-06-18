@@ -27,6 +27,38 @@ export const countWordsFromSnapshot = (snapshot: CanvasSnapshot): number => {
   return joined.split(/\s+/).filter(Boolean).length;
 };
 
+/** Ordered word tokens from all writing blocks + signature (same basis as {@link countWordsFromSnapshot}). */
+export const collectJournalWordTokens = (
+  snapshot: CanvasSnapshot
+): string[] => {
+  const parts: string[] = [];
+
+  for (const col of snapshot.textColumns) {
+    for (const block of col) {
+      const stripped = stripBlockPrefix(block.text, block.blockKind).trim();
+      if (stripped) parts.push(stripped);
+    }
+  }
+
+  const sig = snapshot.signature?.trim();
+  if (sig) parts.push(sig);
+
+  const joined = parts.join(" ").trim();
+  if (!joined) return [];
+
+  return joined.split(/\s+/).filter(Boolean);
+};
+
+/** Trailing window used for emotion — most recent words, including after deletions. */
+export const extractEmotionWindowFromSnapshot = (
+  snapshot: CanvasSnapshot,
+  wordCount: number
+): string => {
+  const tokens = collectJournalWordTokens(snapshot);
+  if (tokens.length === 0) return "";
+  return tokens.slice(-wordCount).join(" ");
+};
+
 /** Apply in-flight textarea text before the next React render. */
 export function mergeBlockTextOverride(
   snapshot: CanvasSnapshot,

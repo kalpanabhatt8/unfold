@@ -45,11 +45,27 @@ export const FACE_POS = {
 };
 
 /** Floating hearts behind love emotion. */
-export const LOVE_BG_POS = { x: 8, y: -2 };
+export const LOVE_BG_SIZE = { w: 39, h: 17 };
+export const LOVE_BG_POS = {
+  x: BODY_CX - LOVE_BG_SIZE.w / 2,
+  y: -6,
+};
+/** Hearts drift upward — scales with the SVG at any character `size`. */
+export const LOVE_BG_RISE_DURATION_S = 4.2;
+/** Staggered copies — negative delays so one heart is visible on first frame. */
+export const LOVE_BG_STREAM_COUNT = 2;
 
-/** Zzz cluster on upper-right of face (sleep). */
-export const SLEEP_ZZZ_POS = { x: 38, y: 6 };
-export const SLEEP_ZZZ_SCALE = 1.35;
+/** Zzz spawn on upper-right of face (sleep) — one letter at a time. */
+export const SLEEP_ZZZ_POS = { x: 38, y: 10 };
+export const SLEEP_ZZZ_LETTER_SCALE = 1.35;
+/** Full loop before the first z repeats. */
+export const SLEEP_ZZZ_CYCLE_S = 4.2;
+export const SLEEP_ZZZ_LETTER_COUNT = 3;
+/** Delay between each z — keeps a short trail without overlapping clusters. */
+export const SLEEP_ZZZ_STAGGER_S = SLEEP_ZZZ_CYCLE_S / SLEEP_ZZZ_LETTER_COUNT;
+
+/** Nudge eyes / mouth / blush down while sleeping — closed eyes feel heavy. */
+export const SLEEP_FACE_OFFSET_Y = 2.5;
 
 /** Pivot while peeking — bottom-left matches the idle anchor (no vertical jump). */
 export const PEEK_TRANSFORM_ORIGIN = "left bottom";
@@ -80,7 +96,7 @@ export const ENTRANCE_DURATION_MS = ENTRANCE_DURATION_S * 1000;
 /** Wait after the canvas opens before the flower peeks in. */
 export const PEEK_DELAY_MS = 1000;
 /** How long the flower holds the peek (tilt + greeting) before sliding in. */
-export const PEEK_HOLD_MS = 2000;
+export const PEEK_HOLD_MS = 1400;
 
 /** Sunflower peek greeting — tune size/color/position here (canvas + /dev/blob). */
 export const GREETING_FONT_SIZE_PX = 16;
@@ -101,3 +117,6 @@ export const TYPING_LEAN_ROTATE_DEG = 2;
 export const TYPING_LEAN_FLOAT_PX = -0.75;
 export const TYPING_LEAF_SWAY_DURATION_S = 1.9;
 export const TYPING_LEAF_SWAY_DEG = 2;
+
+/** Smooth ease when the mouth expression swaps — gentle, not snappy. */
+export const MOUTH_CHANGE_DURATION_S = 1;

@@ -23,6 +23,7 @@ export function mouthSize(emotion: BlobEmotion) {
   if (emotion === "love") return ASSET_SIZE.mouth.love;
   if (emotion === "happy") return ASSET_SIZE.mouth.happy;
   if (emotion === "sleep") return ASSET_SIZE.mouth.sleep;
+  if (emotion === "confused") return ASSET_SIZE.mouth.confused;
   return ASSET_SIZE.mouth.neutral;
 }
 
@@ -33,6 +34,7 @@ export function eyeSize(emotion: BlobEmotion, side: "left" | "right") {
 
 const LOVE_WORDS = /\b(love|loved|loving|heart|hearts|adore|adored)\b/i;
 
+/** Map Gemini companion tones onto character asset folders. */
 export function companionToBlobEmotion(
   emotion: CompanionEmotion,
   text?: string
@@ -45,14 +47,15 @@ export function companionToBlobEmotion(
     case "happy":
       return "happy";
     case "tired":
-      return "sleep";
+      return "sad";
     case "heavy":
     case "angry":
     case "anxious":
       return "sad";
+    case "confused":
+      return "confused";
     case "neutral":
     case "calm":
-    case "confused":
     default:
       return "neutral";
   }
@@ -64,6 +67,7 @@ export const BLOB_EMOTIONS = [
   "sad",
   "sleep",
   "happy",
+  "confused",
 ] as const satisfies readonly BlobEmotion[];
 
 export const BLOB_POSES = [

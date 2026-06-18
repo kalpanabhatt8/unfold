@@ -3,7 +3,7 @@
 import React from "react";
 import clsx from "clsx";
 import type { BlobCharacterProps, BlobEmotion, BloomLevel } from "./types";
-import { ASSET_SIZE, BASE, EMOTION_ASSETS } from "./assets";
+import { ASSET_SIZE, BASE, EMOTION_ASSETS, SLEEP_Z_LETTER } from "./assets";
 import {
   BODY_CX,
   BODY_CY,
@@ -17,6 +17,8 @@ import {
   LEFT_BLUSH_CX,
   LEFT_EYE_CX,
   LOVE_BG_POS,
+  LOVE_BG_RISE_DURATION_S,
+  LOVE_BG_STREAM_COUNT,
   MOUTH_CX,
   MOUTH_CY,
   PEEK_LIFT_PCT,
@@ -38,8 +40,13 @@ import {
   TYPING_LEAN_ROTATE_DEG,
   TYPING_LEAF_SWAY_DURATION_S,
   TYPING_LEAF_SWAY_DEG,
+  SLEEP_ZZZ_CYCLE_S,
+  SLEEP_ZZZ_LETTER_COUNT,
+  SLEEP_ZZZ_LETTER_SCALE,
   SLEEP_ZZZ_POS,
-  SLEEP_ZZZ_SCALE,
+  SLEEP_ZZZ_STAGGER_S,
+  SLEEP_FACE_OFFSET_Y,
+  MOUTH_CHANGE_DURATION_S,
 } from "./layout";
 import { POSES } from "./poses";
 import {
@@ -47,8 +54,8 @@ import {
   mouthSize,
   resolveBodySrc,
   resolveEyeSrc,
+  resolveMouthSrc,
 } from "./emotions";
-import { useMouthSrc } from "./use-mouth-src";
 
 const GLOW = "#FFD27A";
 const SPARKLE = "#F0B654";
@@ -101,6 +108,22 @@ function Sparkle({
   );
 }
 
+function MouthImage({ emotion }: { emotion: BlobEmotion }) {
+  const mouth = mouthSize(emotion);
+  return (
+    <image
+      key={emotion}
+      href={resolveMouthSrc(emotion)}
+      x={MOUTH_CX - mouth.w / 2}
+      y={MOUTH_CY - mouth.h / 2}
+      width={mouth.w}
+      height={mouth.h}
+      className="blob-mouth-image blob-mouth-change"
+      preserveAspectRatio="xMidYMid meet"
+    />
+  );
+}
+
 export default function BlobCharacter({
   pose,
   emotion = "neutral",
@@ -121,8 +144,6 @@ export default function BlobCharacter({
 
   const cfg = POSES[pose];
   const mouthEmotion = cfg.mouthEmotion ?? emotion;
-  const mouthSrc = useMouthSrc(mouthEmotion);
-  const mouth = mouthSize(mouthEmotion);
 
   const reactId = React.useId();
   const faceClipId = `blob-face-clip-${reactId.replace(/:/g, "")}`;
@@ -139,7 +160,6 @@ export default function BlobCharacter({
   const rightEye = eyeSize(emotion, "right");
 
   const loveBg = EMOTION_ASSETS.love.lovebg;
-  const sleepZzz = EMOTION_ASSETS.sleep.sleepZzz;
 
   const isJump = pose === "jump";
   const isPeek = pose === "peek";
@@ -228,14 +248,28 @@ export default function BlobCharacter({
         </g>
 
         {emotion === "love" && loveBg ? (
-          <image
-            href={loveBg}
-            x={LOVE_BG_POS.x}
-            y={LOVE_BG_POS.y}
-            width={ASSET_SIZE.lovebg.w}
-            height={ASSET_SIZE.lovebg.h}
-            preserveAspectRatio="xMidYMid meet"
-          />
+          <g transform={`translate(${LOVE_BG_POS.x} ${LOVE_BG_POS.y})`}>
+            {Array.from({ length: LOVE_BG_STREAM_COUNT }, (_, i) => (
+              <g
+                key={i}
+                className="blob-love-bg"
+                style={
+                  {
+                    animationDelay: `${-((LOVE_BG_RISE_DURATION_S / LOVE_BG_STREAM_COUNT) * i)}s`,
+                  } as React.CSSProperties
+                }
+              >
+                <image
+                  href={loveBg}
+                  x={0}
+                  y={0}
+                  width={ASSET_SIZE.lovebg.w}
+                  height={ASSET_SIZE.lovebg.h}
+                  preserveAspectRatio="xMidYMid meet"
+                />
+              </g>
+            ))}
+          </g>
         ) : null}
 
         <g className="blob-body" data-body={cfg.body} style={{ transformOrigin: "30px 46px" }}>
@@ -275,10 +309,17 @@ export default function BlobCharacter({
             )}
 
             <g clipPath={`url(#${faceClipId})`}>
-              <g className="blob-features">
+              <g
+                className="blob-features"
+                transform={
+                  emotion === "sleep"
+                    ? `translate(0 ${SLEEP_FACE_OFFSET_Y})`
+                    : undefined
+                }
+              >
                 <g
                   className="blob-eyes"
-                  data-eye-blink={cfg.eyeBlink}
+                  data-eye-blink={emotion === "sleep" ? "none" : cfg.eyeBlink}
                 >
                   {centeredImage(
                     leftEyeSrc,
@@ -316,33 +357,31 @@ export default function BlobCharacter({
                 )}
 
                 <g className="blob-mouth" data-emotion={mouthEmotion}>
-                  <image
-                    href={mouthSrc}
-                    x={MOUTH_CX - mouth.w / 2}
-                    y={MOUTH_CY - mouth.h / 2}
-                    width={mouth.w}
-                    height={mouth.h}
-                    className="blob-mouth-image"
-                    preserveAspectRatio="xMidYMid meet"
-                  />
+                  <MouthImage emotion={mouthEmotion} />
                 </g>
               </g>
             </g>
           </g>
 
-          {emotion === "sleep" && sleepZzz ? (
-            <g
-              transform={`translate(${SLEEP_ZZZ_POS.x} ${SLEEP_ZZZ_POS.y}) scale(${SLEEP_ZZZ_SCALE})`}
-            >
-              <image
-                href={sleepZzz}
-                x={0}
-                y={0}
-                width={ASSET_SIZE.sleepZzz.w}
-                height={ASSET_SIZE.sleepZzz.h}
-                className="blob-sleep-zzz"
-                preserveAspectRatio="xMidYMid meet"
-              />
+          {emotion === "sleep" ? (
+            <g transform={`translate(${SLEEP_ZZZ_POS.x} ${SLEEP_ZZZ_POS.y})`}>
+              {Array.from({ length: SLEEP_ZZZ_LETTER_COUNT }, (_, i) => (
+                <g
+                  key={i}
+                  className="blob-sleep-z"
+                  style={
+                    {
+                      animationDelay: `${i * SLEEP_ZZZ_STAGGER_S}s`,
+                    } as React.CSSProperties
+                  }
+                >
+                  <g
+                    transform={`translate(${-SLEEP_Z_LETTER.anchor.x * SLEEP_ZZZ_LETTER_SCALE} ${-SLEEP_Z_LETTER.anchor.y * SLEEP_ZZZ_LETTER_SCALE}) scale(${SLEEP_ZZZ_LETTER_SCALE})`}
+                  >
+                    <path d={SLEEP_Z_LETTER.d} fill={SLEEP_Z_LETTER.fill} />
+                  </g>
+                </g>
+              ))}
             </g>
           ) : null}
 
@@ -547,7 +586,26 @@ export default function BlobCharacter({
         }
 
         :global(.blob-mouth-image) {
-          transition: opacity 0.2s ease;
+          transform-box: fill-box;
+          transform-origin: center center;
+          pointer-events: none;
+        }
+        :global(.blob-mouth-change) {
+          animation: blob-mouth-change ${MOUTH_CHANGE_DURATION_S}s cubic-bezier(0.22, 0.9, 0.3, 1) both;
+        }
+        @keyframes blob-mouth-change {
+          0% {
+            transform: scale(0.96, 0.92);
+            opacity: 0.35;
+          }
+          40% {
+            transform: scale(0.99, 0.97);
+            opacity: 0.72;
+          }
+          100% {
+            transform: scale(1, 1);
+            opacity: 1;
+          }
         }
 
         /* ── ENTRANCE — slide left→right and straighten into place ───── */
@@ -589,12 +647,52 @@ export default function BlobCharacter({
           100% { opacity: 0; transform: scale(0.5); }
         }
 
-        :global(.blob-sleep-zzz) {
-          animation: blob-zzz-float 3.6s ease-in-out infinite;
+        :global(.blob-love-bg) {
+          transform-box: fill-box;
+          transform-origin: center center;
+          animation: blob-love-hearts-rise ${LOVE_BG_RISE_DURATION_S}s linear infinite both;
         }
-        @keyframes blob-zzz-float {
-          0%, 100% { opacity: 0.3; transform: translateY(0); }
-          50%      { opacity: 1; transform: translateY(-2px); }
+        @keyframes blob-love-hearts-rise {
+          0% {
+            opacity: 0.25;
+            transform: translateY(10px);
+          }
+          80% {
+            opacity: 0.9;
+            transform: translateY(-6px);
+          }
+          100% {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+        }
+
+        :global(.blob-sleep-z) {
+          transform-box: fill-box;
+          transform-origin: center bottom;
+          animation: blob-z-rise ${SLEEP_ZZZ_CYCLE_S}s linear infinite both;
+        }
+        @keyframes blob-z-rise {
+          0% {
+            opacity: 0;
+            transform: translate(0, 5px) scale(1);
+          }
+          10% {
+            opacity: 0.95;
+            transform: translate(0, 3px) scale(1);
+          }
+          55% {
+            opacity: 0.85;
+            transform: translate(2px, -4px) scale(0.78);
+          }
+          85% {
+            opacity: 0.3;
+            transform: translate(4px, -9px) scale(0.55);
+          }
+          100% {
+            opacity: 0;
+            transform: translate(5px, -12px) scale(0.42);
+          }
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -603,8 +701,10 @@ export default function BlobCharacter({
           :global(.blob-leaf),
           :global(.blob-entering),
           :global(.blob-leaf-mount),
-          :global(.blob-sleep-zzz),
-          :global(.blob-sparkle-burst) {
+          :global(.blob-love-bg),
+          :global(.blob-sleep-z),
+          :global(.blob-sparkle-burst),
+          :global(.blob-mouth-change) {
             animation: none !important;
           }
         }

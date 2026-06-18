@@ -34,6 +34,7 @@ import {
   estimateBackgroundLuminance,
   sampleCoverImageFromUrl,
 } from "@/lib/cover-text-contrast";
+import { BOOK_TITLE_PLACEHOLDER } from "@/lib/book-title";
 import {
   DRAFTS_STORAGE_KEY,
   readDraftById,
@@ -492,7 +493,7 @@ const BookBuilderPage = () => {
           value={title}
           onChange={(event) => setTitle(event.target.value)}
           size={Math.max(title.length, 15)}
-          placeholder="Untitled book"
+          placeholder={BOOK_TITLE_PLACEHOLDER}
           autoFocus={shouldAutoFocusTitle}
           className="header-xl w-auto rounded-md bg-[var(--gray-75)] p-2 text-center font-medium leading-tight tracking-[-0.01em] text-[var(--text-primary)] placeholder:text-black/35 outline-none"
           style={{
