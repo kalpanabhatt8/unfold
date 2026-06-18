@@ -27,6 +27,20 @@ export const countWordsFromSnapshot = (snapshot: CanvasSnapshot): number => {
   return joined.split(/\s+/).filter(Boolean).length;
 };
 
+/** Apply in-flight textarea text before the next React render. */
+export function mergeBlockTextOverride(
+  snapshot: CanvasSnapshot,
+  blockId: string,
+  text: string
+): CanvasSnapshot {
+  return {
+    ...snapshot,
+    textColumns: snapshot.textColumns.map((col) =>
+      col.map((block) => (block.id === blockId ? { ...block, text } : block))
+    ),
+  };
+}
+
 export const extractJournalPlainText = (snapshot: CanvasSnapshot): string => {
   const lines: string[] = [];
 

@@ -1,5 +1,6 @@
 import {
   COMPANION_EMOTIONS,
+  LIVE_EMOTION_MIN_WORDS,
   type CompanionEmotion,
   type CompanionResponse,
 } from "@/lib/companion-ai";
@@ -148,6 +149,39 @@ const scoreWords = (tokenCounts: Map<string, number>, lexicon: string[]): number
   return score;
 };
 
+const buildTokenCounts = (text: string): Map<string, number> => {
+  const tokenCounts = new Map<string, number>();
+  for (const token of tokenize(text)) {
+    tokenCounts.set(token, (tokenCounts.get(token) ?? 0) + 1);
+  }
+  return tokenCounts;
+};
+
+/** Fast local tone classification — sync, no API. */
+export function detectCompanionEmotion(text: string): CompanionEmotion {
+  const trimmed = text.trim();
+  if (!trimmed) return "neutral";
+
+  const tokenCounts = buildTokenCounts(trimmed);
+  let emotion: CompanionEmotion = "neutral";
+  let best = 0;
+  for (const candidate of PRIORITY) {
+    const score = scoreWords(tokenCounts, LEXICONS[candidate]);
+    if (score > best) {
+      best = score;
+      emotion = candidate;
+    }
+  }
+  return emotion;
+}
+
+export function meetsLiveEmotionThreshold(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+  if (tokenize(trimmed).length >= LIVE_EMOTION_MIN_WORDS) return true;
+  return detectCompanionEmotion(trimmed) !== "neutral";
+}
+
 const pickLine = (lines: string[], text: string): string => {
   let hash = 0;
   for (let i = 0; i < text.length; i++) {
@@ -159,22 +193,7 @@ const pickLine = (lines: string[], text: string): string => {
 /** Infer one of 8 emotions + a warm line from journal text — no API required. */
 export const analyzeJournalLocally = (text: string): CompanionResponse => {
   const trimmed = text.trim();
-  const tokens = tokenize(trimmed);
-
-  const tokenCounts = new Map<string, number>();
-  for (const token of tokens) {
-    tokenCounts.set(token, (tokenCounts.get(token) ?? 0) + 1);
-  }
-
-  let emotion: CompanionEmotion = "neutral";
-  let best = 0;
-  for (const candidate of PRIORITY) {
-    const score = scoreWords(tokenCounts, LEXICONS[candidate]);
-    if (score > best) {
-      best = score;
-      emotion = candidate;
-    }
-  }
+  const emotion = detectCompanionEmotion(trimmed);
 
   return {
     emotion,

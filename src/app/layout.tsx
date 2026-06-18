@@ -5,6 +5,7 @@ import "./book.css";
 
 // Google Fonts
 import {
+  Balsamiq_Sans,
   Bricolage_Grotesque,
   Caveat,
   DM_Sans,
@@ -50,6 +51,13 @@ const lora = Lora({
   variable: "--font-lora",
 });
 
+const balsamiqSans = Balsamiq_Sans({
+  subsets: ["latin"],
+  weight: ["400", "700"],
+  display: "swap",
+  variable: "--font-balsamiq-sans",
+});
+
 export const metadata: Metadata = {
   title: "Keeps",
   description: "A private, playful scrapbook to plan, rant, dream, and collect pretty things.",
@@ -83,9 +91,7 @@ export default function RootLayout({
     >
       <html
         lang="en"
-        className={`
-          ${bricolageGrotesque.variable} ${dmSans.variable} ${figtree.variable} ${caveat.variable} ${lora.variable}
-        `}
+        className={`${bricolageGrotesque.variable} ${dmSans.variable} ${figtree.variable} ${caveat.variable} ${lora.variable} ${balsamiqSans.variable}`}
       >
         <body suppressHydrationWarning className={`${figtree.className} font-sans`}>
           {children}

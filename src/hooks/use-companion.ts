@@ -7,11 +7,18 @@ import {
   COMPANION_INACTIVITY_MS,
   COMPANION_LONG_WRITING_MS,
   COMPANION_TYPING_GAP_MS,
+  LIVE_EMOTION_IDLE_MS,
+  LIVE_RESPONSE_DELAY_MS,
+  LIVE_WARM_LINE_COOLDOWN_MS,
   fetchCompanionResponse,
   meetsCompanionThreshold,
   type CompanionResponse,
 } from "@/lib/companion-ai";
-import { analyzeJournalLocally } from "@/lib/companion-local";
+import {
+  analyzeJournalLocally,
+  detectCompanionEmotion,
+  meetsLiveEmotionThreshold,
+} from "@/lib/companion-local";
 import { extractJournalPlainText } from "@/lib/canvas-word-count";
 
 /** Message bubble: 1s in → 4s hold → 1s out → removed from DOM (6s total). */
@@ -23,7 +30,16 @@ export const WARM_LINE_TOTAL_MS =
 
 type BlobCompanionApi = {
   onActivity: () => void;
-  onEmotionReaction: (emotion: CompanionEmotion) => void;
+  /** Instant face while typing — no API, no auto-neutral timer. */
+  onCompanionLiveReaction: (
+    emotion: CompanionEmotion,
+    journalText?: string
+  ) => void;
+  /** Milestone check-in — holds expression then fades to neutral. */
+  onCompanionReaction: (
+    emotion: CompanionEmotion,
+    journalText?: string
+  ) => void;
 };
 
 type UseCompanionOptions = {
@@ -45,14 +61,14 @@ export function useCompanion({
   const [warmLineVisible, setWarmLineVisible] = useState(false);
 
   const inactivityTimerRef = useRef<number | null>(null);
-  // Trigger 2: timestamp of the first keystroke this session — NEVER reset
-  // until the hook remounts (canvas reopen / refresh = fresh session).
   const firstKeystrokeAtRef = useRef<number | null>(null);
-  // Trigger 2: the "wait for a 2s gap" timer, armed once past the long-writing
-  // threshold and reset on every keystroke so we never interrupt mid-sentence.
   const longWritingGapTimerRef = useRef<number | null>(null);
   const warmLineTimerRef = useRef<number | null>(null);
-  // One reaction per session, held in memory so it resets on every mount.
+  const liveReplyTimerRef = useRef<number | null>(null);
+  const liveEmotionIdleRef = useRef<number | null>(null);
+  const lastLiveEmotionRef = useRef<CompanionEmotion | null>(null);
+  const lastWarmLineAtRef = useRef(0);
+  const latestJournalTextRef = useRef("");
   const hasRespondedRef = useRef(false);
   const pendingCompanionRef = useRef(false);
   const buildSnapshotRef = useRef(buildSnapshot);
@@ -72,6 +88,20 @@ export function useCompanion({
     if (longWritingGapTimerRef.current !== null) {
       window.clearTimeout(longWritingGapTimerRef.current);
       longWritingGapTimerRef.current = null;
+    }
+  }, []);
+
+  const clearLiveReplyTimer = useCallback(() => {
+    if (liveReplyTimerRef.current !== null) {
+      window.clearTimeout(liveReplyTimerRef.current);
+      liveReplyTimerRef.current = null;
+    }
+  }, []);
+
+  const clearLiveEmotionIdle = useCallback(() => {
+    if (liveEmotionIdleRef.current !== null) {
+      window.clearTimeout(liveEmotionIdleRef.current);
+      liveEmotionIdleRef.current = null;
     }
   }, []);
 
@@ -99,9 +129,63 @@ export function useCompanion({
     [hideWarmLine]
   );
 
+  const applyLiveFace = useCallback(
+    (plainText: string) => {
+      if (!meetsLiveEmotionThreshold(plainText)) {
+        if (lastLiveEmotionRef.current !== null) {
+          lastLiveEmotionRef.current = null;
+          blob.onCompanionLiveReaction("neutral", plainText);
+        }
+        return;
+      }
+
+      const emotion = detectCompanionEmotion(plainText);
+      if (emotion === lastLiveEmotionRef.current) return;
+
+      lastLiveEmotionRef.current = emotion;
+      blob.onCompanionLiveReaction(emotion, plainText);
+    },
+    [blob]
+  );
+
+  const maybeShowLiveWarmLine = useCallback(
+    (plainText: string) => {
+      if (!enabled || !meetsLiveEmotionThreshold(plainText)) return;
+
+      const result = analyzeJournalLocally(plainText);
+      if (result.emotion === "neutral") return;
+
+      const now = Date.now();
+      if (now - lastWarmLineAtRef.current < LIVE_WARM_LINE_COOLDOWN_MS) return;
+
+      lastWarmLineAtRef.current = now;
+      blob.onCompanionLiveReaction(result.emotion, plainText);
+      showWarmLine(result.line);
+    },
+    [blob, enabled, showWarmLine]
+  );
+
+  const scheduleLiveReply = useCallback(
+    (plainText: string) => {
+      clearLiveReplyTimer();
+      liveReplyTimerRef.current = window.setTimeout(() => {
+        maybeShowLiveWarmLine(latestJournalTextRef.current || plainText);
+      }, LIVE_RESPONSE_DELAY_MS);
+    },
+    [clearLiveReplyTimer, maybeShowLiveWarmLine]
+  );
+
+  const scheduleLiveEmotionIdle = useCallback(() => {
+    clearLiveEmotionIdle();
+    liveEmotionIdleRef.current = window.setTimeout(() => {
+      lastLiveEmotionRef.current = null;
+      blob.onCompanionLiveReaction("neutral");
+    }, LIVE_EMOTION_IDLE_MS);
+  }, [blob, clearLiveEmotionIdle]);
+
   const showReaction = useCallback(
-    (result: CompanionResponse) => {
-      blob.onEmotionReaction(result.emotion);
+    (result: CompanionResponse, journalText: string) => {
+      blob.onCompanionReaction(result.emotion, journalText);
       showWarmLine(result.line);
     },
     [blob, showWarmLine]
@@ -112,7 +196,6 @@ export function useCompanion({
       if (!enabled) return;
       if (hasRespondedRef.current || pendingCompanionRef.current) return;
 
-      // Edge case: fewer than the minimum words → no reaction, either trigger.
       if (!meetsCompanionThreshold(snapshot)) return;
 
       pendingCompanionRef.current = true;
@@ -120,9 +203,6 @@ export function useCompanion({
       clearLongWritingGapTimer();
       const plainText = extractJournalPlainText(snapshot);
 
-      // Prefer the API for real context understanding; fall back to local
-      // keyword detection if the key is missing, it errors, or it times out
-      // (>3s). We wait for one result so the sunflower reacts exactly once.
       let result: CompanionResponse;
       try {
         result = await fetchCompanionResponse(snapshot);
@@ -130,20 +210,18 @@ export function useCompanion({
         result = analyzeJournalLocally(plainText);
       }
 
-      // Guard again — a parallel path may have responded while we awaited.
       if (hasRespondedRef.current) {
         pendingCompanionRef.current = false;
         return;
       }
 
-      showReaction(result);
+      showReaction(result, plainText);
       hasRespondedRef.current = true;
       pendingCompanionRef.current = false;
     },
     [enabled, showReaction, clearInactivityTimer, clearLongWritingGapTimer]
   );
 
-  // ── Trigger 1: stopped typing for 15s ──────────────────────────────────
   const onInactivityElapsed = useCallback(() => {
     const snapshot = buildSnapshotRef.current();
     onMilestoneSave(snapshot);
@@ -158,10 +236,8 @@ export function useCompanion({
     );
   }, [clearInactivityTimer, onInactivityElapsed]);
 
-  // ── Trigger 2: 10+ min of writing this session, react on the next 2s gap ─
   const onLongWritingGapElapsed = useCallback(() => {
-    const snapshot = buildSnapshotRef.current();
-    void maybeTriggerCompanion(snapshot);
+    void maybeTriggerCompanion(buildSnapshotRef.current());
   }, [maybeTriggerCompanion]);
 
   const scheduleLongWritingGapTimer = useCallback(() => {
@@ -172,36 +248,60 @@ export function useCompanion({
     );
   }, [clearLongWritingGapTimer, onLongWritingGapElapsed]);
 
-  const onWritingActivity = useCallback(() => {
-    blob.onActivity();
+  const onWritingActivity = useCallback(
+    (journalText?: string) => {
+      blob.onActivity();
 
-    const now = Date.now();
-    // First keystroke starts the long-writing clock (idle-from-start → never).
-    if (firstKeystrokeAtRef.current === null) {
-      firstKeystrokeAtRef.current = now;
-    }
+      const plainText =
+        journalText ?? extractJournalPlainText(buildSnapshotRef.current());
+      latestJournalTextRef.current = plainText;
 
-    // Trigger 1: reset the inactivity countdown on every keystroke.
-    scheduleInactivityTimer();
+      const now = Date.now();
+      if (firstKeystrokeAtRef.current === null) {
+        firstKeystrokeAtRef.current = now;
+      }
 
-    // Trigger 2: once we're past the long-writing threshold while still
-    // actively typing, arm the 2s-gap timer (reset each keystroke) so the
-    // check-in lands on the next natural pause, not mid-sentence.
-    if (
-      !hasRespondedRef.current &&
-      now - firstKeystrokeAtRef.current >= COMPANION_LONG_WRITING_MS
-    ) {
-      scheduleLongWritingGapTimer();
-    }
-  }, [blob, scheduleInactivityTimer, scheduleLongWritingGapTimer]);
+      scheduleInactivityTimer();
+
+      // Instant local face reaction (TypeScript keywords — no API).
+      applyLiveFace(plainText);
+      scheduleLiveReply(plainText);
+      clearLiveEmotionIdle();
+      scheduleLiveEmotionIdle();
+
+      if (
+        !hasRespondedRef.current &&
+        now - firstKeystrokeAtRef.current >= COMPANION_LONG_WRITING_MS
+      ) {
+        scheduleLongWritingGapTimer();
+      }
+    },
+    [
+      applyLiveFace,
+      blob,
+      clearLiveEmotionIdle,
+      scheduleInactivityTimer,
+      scheduleLiveEmotionIdle,
+      scheduleLiveReply,
+      scheduleLongWritingGapTimer,
+    ]
+  );
 
   useEffect(() => {
     return () => {
       clearInactivityTimer();
       clearLongWritingGapTimer();
+      clearLiveReplyTimer();
+      clearLiveEmotionIdle();
       hideWarmLine();
     };
-  }, [clearInactivityTimer, clearLongWritingGapTimer, hideWarmLine]);
+  }, [
+    clearInactivityTimer,
+    clearLongWritingGapTimer,
+    clearLiveReplyTimer,
+    clearLiveEmotionIdle,
+    hideWarmLine,
+  ]);
 
   return {
     warmLine,

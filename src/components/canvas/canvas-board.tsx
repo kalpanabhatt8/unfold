@@ -39,11 +39,16 @@ import {
 } from "lucide-react";
 import { iconStrokePx } from "@/components/ui/button-system";
 import BlobCharacter, {
-  type BlobState,
-  LONG_SLEEP_AFTER_MS,
+  type BlobEmotion,
+  type BlobPose,
   useBlobState,
 } from "@/components/canvas/blob-character";
+import { EntranceGreeting } from "@/components/canvas/blob/entrance-greeting";
 import { useCompanion } from "@/hooks/use-companion";
+import {
+  extractJournalPlainText,
+  mergeBlockTextOverride,
+} from "@/lib/canvas-word-count";
 import { getTextareaCaretOffsetInTextareaPx } from "@/lib/textarea-caret-offset";
 
 /* -------------------------------------------------------------------------- */
@@ -633,7 +638,7 @@ function CanvasBoardInner(
 
   /* ---------------------------- Blob companion ---------------------------- */
 
-  const blob = useBlobState({ sleepAfterMs: LONG_SLEEP_AFTER_MS });
+  const blob = useBlobState();
 
   /* ------------------------------ Hydration ------------------------------ */
 
@@ -1146,10 +1151,16 @@ function CanvasBoardInner(
       onDrop={handleDrop}
     >
       {/* Sunflower — fixed bottom-left, always on screen */}
-      <div
-        className="pointer-events-auto fixed bottom-5 left-5 z-20 flex flex-col items-start gap-2"
-        onPointerDown={() => blob.onCanvasInteraction()}
-      >
+      <div className="pointer-events-auto fixed bottom-5 left-5 z-20 flex flex-col items-start gap-2 overflow-visible">
+        {/* Entrance greeting — sits to the right of the peeking flower. */}
+        {blob.greeting ? (
+          <EntranceGreeting
+            visible={blob.greetingVisible}
+            peeking={blob.pose === "peek"}
+          >
+            {blob.greeting}
+          </EntranceGreeting>
+        ) : null}
         {companion.warmLine ? (
           <div
             aria-live="polite"
@@ -1169,9 +1180,9 @@ function CanvasBoardInner(
           </div>
         ) : null}
         <BlobCharacter
-          state={blob.state}
+          pose={blob.pose}
+          emotion={blob.emotion}
           hidden={blob.hidden}
-          onWakeUp={blob.onCanvasInteraction}
         />
       </div>
 
@@ -1180,7 +1191,6 @@ function CanvasBoardInner(
         className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden"
         ref={writingRef}
         onPointerDown={(e) => {
-          blob.onCanvasInteraction();
           onWritingPointerDown(e);
         }}
       >
@@ -1248,7 +1258,11 @@ function CanvasBoardInner(
                   }}
                   onChange={(text) => {
                     updateTextBlock(block.id, { text });
-                    companion.onWritingActivity();
+                    companion.onWritingActivity(
+                      extractJournalPlainText(
+                        mergeBlockTextOverride(buildSnapshot(), block.id, text)
+                      )
+                    );
                   }}
                   onToggleCheck={() =>
                     updateTextBlock(block.id, { checked: !block.checked })
@@ -1369,7 +1383,12 @@ function CanvasBoardInner(
               value={signature}
               onChange={(next) => {
                 setSignature(next);
-                companion.onWritingActivity();
+                companion.onWritingActivity(
+                  extractJournalPlainText({
+                    ...buildSnapshot(),
+                    signature: next,
+                  })
+                );
               }}
             />
           </div>
@@ -1477,10 +1496,10 @@ export default CanvasBoard;
 type ImageStackProps = {
   images: JournalImage[];
   selectedImageId: string | null;
-  blobState: BlobState;
+  blobPose: BlobPose;
+  blobEmotion: BlobEmotion;
   blobHidden: boolean;
   recessBackground: string;
-  onBlobWakeUp: () => void;
   onSelect: (id: string | null) => void;
   onUpdate: (id: string, patch: Partial<JournalImage>) => void;
   onRemove: (id: string) => void;
@@ -1503,10 +1522,10 @@ const POLAROID_SLOTS = [0, 1] as const;
 function ImageStack({
   images,
   selectedImageId,
-  blobState,
+  blobPose,
+  blobEmotion,
   blobHidden,
   recessBackground,
-  onBlobWakeUp,
   onSelect,
   onUpdate,
   onRemove,
@@ -1564,9 +1583,9 @@ function ImageStack({
     >
       <div className="pointer-events-auto flex w-full justify-left">
         <BlobCharacter
-          state={blobState}
+          pose={blobPose}
+          emotion={blobEmotion}
           hidden={blobHidden}
-          onWakeUp={onBlobWakeUp}
         />
       </div>
 

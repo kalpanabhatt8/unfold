@@ -42,6 +42,21 @@ export const COMPANION_TYPING_GAP_MS = 2_000;
 /** Past this, give up on the API and use the local keyword fallback instead. */
 const COMPANION_API_TIMEOUT_MS = 3_000;
 
+/**
+ * Live reactions while typing — pure TypeScript keyword matching in
+ * `companion-local.ts`. No API key required for the face or quick reply.
+ */
+/** Pause after typing before the warm reply bubble appears (0.5–2s window). */
+export const LIVE_RESPONSE_DELAY_MS = 700;
+/** Face + reply analyze on each keystroke (leading edge), then reply after delay. */
+export const LIVE_EMOTION_LEADING_MS = 0;
+/** Minimum words before reacting (single emotional keyword counts immediately). */
+export const LIVE_EMOTION_MIN_WORDS = 1;
+/** Fade face back to neutral after a longer pause. */
+export const LIVE_EMOTION_IDLE_MS = 12_000;
+/** Minimum gap between live warm-line bubbles. */
+export const LIVE_WARM_LINE_COOLDOWN_MS = 4_000;
+
 export const meetsCompanionThreshold = (snapshot: CanvasSnapshot): boolean => {
   const text = extractJournalPlainText(snapshot).trim();
   if (!text) return false;

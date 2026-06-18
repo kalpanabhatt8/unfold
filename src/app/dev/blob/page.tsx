@@ -2,63 +2,35 @@
 
 /**
  * Dev playground for BlobCharacter.
- *
  * Open at: /dev/blob
- *
- * Not linked from the app — purely a visual sandbox to iterate on the
- * character before wiring it into the canvas redesign.
  */
 
 import React from "react";
 import BlobCharacter, {
-  type BlobState,
-  type CompanionEmotion,
-  LONG_SLEEP_AFTER_MS,
+  BLOB_EMOTIONS,
+  BLOB_POSES,
+  type BlobEmotion,
+  type BlobPose,
   useBlobState,
 } from "@/components/canvas/blob-character";
-
-const ALL_STATES: BlobState[] = [
-  "idle",
-  "typing",
-  "sleeping",
-  "waking",
-  "saving",
-  "greeting",
-  "happy",
-  "heavy",
-  "neutral",
-  "anxious",
-  "angry",
-  "confused",
-  "tired",
-  "calm",
-];
-
-const EMOTION_BUTTONS: CompanionEmotion[] = [
-  "happy",
-  "heavy",
-  "neutral",
-  "anxious",
-  "angry",
-  "confused",
-  "tired",
-  "calm",
-];
+import { EntranceGreeting } from "@/components/canvas/blob/entrance-greeting";
 
 const PASTELS = [
-  { id: "canvas",   label: "Canvas",  value: "#F8F5F2" },
-  { id: "blush",    label: "Blush",   value: "#F2E8E4" },
-  { id: "ivory",    label: "Ivory",   value: "#FBF8F1" },
-  { id: "sage",     label: "Sage",    value: "#E8EFE8" },
-  { id: "mist",     label: "Mist",    value: "#E8EEF3" },
+  { id: "canvas", label: "Canvas", value: "#F8F5F2" },
+  { id: "blush", label: "Blush", value: "#F2E8E4" },
+  { id: "ivory", label: "Ivory", value: "#FBF8F1" },
+  { id: "sage", label: "Sage", value: "#E8EFE8" },
+  { id: "mist", label: "Mist", value: "#E8EEF3" },
   { id: "lavender", label: "Lavender", value: "#EEEBF3" },
 ];
 
 export default function BlobDevPage() {
-  const live = useBlobState({ sleepAfterMs: LONG_SLEEP_AFTER_MS });
-  const [bg, setBg] = React.useState(PASTELS[0].value); // Canvas — matches writing page
+  const live = useBlobState();
+  const [bg, setBg] = React.useState(PASTELS[0].value);
   const [size, setSize] = React.useState(72);
   const [debugLayout, setDebugLayout] = React.useState(false);
+  const [previewPose, setPreviewPose] = React.useState<BlobPose>("idle");
+  const [previewEmotion, setPreviewEmotion] = React.useState<BlobEmotion>("neutral");
 
   return (
     <main
@@ -74,57 +46,109 @@ export default function BlobDevPage() {
             Blob character
           </h1>
           <p className="text-sm text-black/55">
-            One cohesive SVG · 14 expression states · pure CSS animation.
+            Asset-driven SVG · pose + emotion layers · folders in /public/Images/character/
           </p>
         </header>
 
-        {/* ── State grid ───────────────────────────────────────────── */}
         <section className="flex flex-col gap-4">
           <h2 className="text-xs uppercase tracking-[0.18em] text-black/45">
-            All states
+            Pose × emotion grid
           </h2>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-9">
-            {ALL_STATES.map((s) => (
-              <figure
-                key={s}
-                className="flex flex-col items-center gap-2 rounded-2xl border border-black/[0.05] bg-white/55 p-5 backdrop-blur-sm"
+          <div className="flex flex-wrap gap-2 text-xs">
+            {BLOB_POSES.map((p) => (
+              <button
+                key={p}
+                onClick={() => setPreviewPose(p)}
+                className={`rounded-full border px-3 py-1 ${
+                  previewPose === p
+                    ? "border-black/30 bg-white"
+                    : "border-black/10 bg-white/70"
+                }`}
               >
-                <div className="flex h-24 w-24 items-center justify-center">
-                  <BlobCharacter state={s} size={size} debugLayout={debugLayout} />
-                </div>
-                <figcaption className="text-xs text-black/60">{s}</figcaption>
+                {p}
+              </button>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-2 text-xs">
+            {BLOB_EMOTIONS.map((e) => (
+              <button
+                key={e}
+                onClick={() => setPreviewEmotion(e)}
+                className={`rounded-full border px-3 py-1 ${
+                  previewEmotion === e
+                    ? "border-black/30 bg-white"
+                    : "border-black/10 bg-white/70"
+                }`}
+              >
+                {e}
+              </button>
+            ))}
+          </div>
+          <div className="flex h-28 items-center justify-center rounded-2xl border border-black/[0.05] bg-white/55">
+            <BlobCharacter
+              pose={previewPose}
+              emotion={previewEmotion}
+              size={size}
+              debugLayout={debugLayout}
+            />
+          </div>
+        </section>
+
+        <section className="flex flex-col gap-4">
+          <h2 className="text-xs uppercase tracking-[0.18em] text-black/45">
+            All emotions (idle pose)
+          </h2>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-5">
+            {BLOB_EMOTIONS.map((e) => (
+              <figure
+                key={e}
+                className="flex flex-col items-center gap-2 rounded-2xl border border-black/[0.05] bg-white/55 p-5"
+              >
+                <BlobCharacter pose="idle" emotion={e} size={size} debugLayout={debugLayout} />
+                <figcaption className="text-xs text-black/60">{e}</figcaption>
               </figure>
             ))}
           </div>
         </section>
 
-        {/* ── Live state machine ──────────────────────────────────── */}
         <section className="flex flex-col gap-4">
           <h2 className="text-xs uppercase tracking-[0.18em] text-black/45">
-            Live (typing-driven · hover the sleeping character to wake)
+            Live state machine
           </h2>
-          <div className="flex flex-col items-center gap-4 rounded-2xl border border-black/[0.05] bg-white/55 p-6 backdrop-blur-sm">
-            <div className="flex h-24 w-24 items-center justify-center">
+          <div className="flex flex-col items-center gap-4 rounded-2xl border border-black/[0.05] bg-white/55 p-6">
+            <div className="relative flex items-center justify-center">
               <BlobCharacter
-                state={live.state}
+                pose={live.pose}
+                emotion={live.emotion}
                 size={size}
                 hidden={live.hidden}
-                onWakeUp={live.onWakeUp}
                 debugLayout={debugLayout}
               />
+              {live.greeting ? (
+                <EntranceGreeting
+                  as="span"
+                  visible={live.greetingVisible}
+                  peeking={live.pose === "peek"}
+                >
+                  {live.greeting}
+                </EntranceGreeting>
+              ) : null}
             </div>
             <textarea
               onKeyDown={live.onActivity}
-              placeholder="Type here — bobs while typing, reacts at 15s pause, sleeps after 3 min…"
+              placeholder="Type here — typing pose while active, then idle…"
               rows={4}
               className="w-full max-w-xl resize-none rounded-xl border border-black/10 bg-white/70 px-4 py-3 text-md leading-relaxed outline-none placeholder:text-black/35"
               style={{ fontFamily: "Lora, Georgia, serif" }}
             />
             <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-black/65">
               <span>
-                state: <code className="font-mono">{live.state}</code>
+                pose: <code className="font-mono">{live.pose}</code>
               </span>
-              {EMOTION_BUTTONS.map((emotion) => (
+              <span>
+                emotion: <code className="font-mono">{live.emotion}</code>
+              </span>
+              {BLOB_EMOTIONS.map((emotion) => (
                 <button
                   key={emotion}
                   onClick={() => live.onEmotionReaction(emotion)}
@@ -134,39 +158,29 @@ export default function BlobDevPage() {
                 </button>
               ))}
               <button
-                onClick={() => live.runGreeting()}
+                onClick={() => live.runEnter()}
                 className="rounded-full border border-black/10 bg-white/80 px-3 py-1 hover:bg-white"
               >
-                wave
+                replay entrance
               </button>
               <button
-                onClick={() => live.onSave()}
+                onClick={() => live.setPose("peek")}
                 className="rounded-full border border-black/10 bg-white/80 px-3 py-1 hover:bg-white"
               >
-                trigger save
-              </button>
-              <button
-                onClick={() => live.setState("sleeping")}
-                className="rounded-full border border-black/10 bg-white/80 px-3 py-1 hover:bg-white"
-              >
-                force sleep
+                peek
               </button>
               <button
                 onClick={() => live.onClosing()}
                 className="rounded-full border border-black/10 bg-white/80 px-3 py-1 hover:bg-white"
               >
-                trigger goodbye
+                goodbye
               </button>
             </div>
           </div>
         </section>
 
-        {/* ── Controls ────────────────────────────────────────────── */}
         <section className="flex flex-col gap-4">
-          <h2 className="text-xs uppercase tracking-[0.18em] text-black/45">
-            Controls
-          </h2>
-
+          <h2 className="text-xs uppercase tracking-[0.18em] text-black/45">Controls</h2>
           <div className="flex flex-wrap items-center gap-2">
             {PASTELS.map((p) => (
               <button
@@ -181,9 +195,7 @@ export default function BlobDevPage() {
                 style={{ background: p.value }}
               />
             ))}
-            <span className="ml-2 text-xs text-black/55">background</span>
           </div>
-
           <label className="flex items-center gap-3 text-xs text-black/65">
             <span className="w-20">size</span>
             <input
@@ -192,25 +204,18 @@ export default function BlobDevPage() {
               max={120}
               value={size}
               onChange={(e) => setSize(Number(e.target.value))}
-              className="flex-1 max-w-xs"
+              className="max-w-xs flex-1"
             />
             <span className="font-mono">{size}px</span>
           </label>
-
           <label className="flex cursor-pointer items-center gap-2 text-xs text-black/65">
             <input
               type="checkbox"
               checked={debugLayout}
               onChange={(e) => setDebugLayout(e.target.checked)}
             />
-            Show Y-alignment guides (face center vs eyes+mouth block)
+            Show alignment guides
           </label>
-          {debugLayout ? (
-            <p className="text-xs text-black/50">
-              Blue = cream face vertical center. Green = eyes+mouth bbox center
-              (should sit on blue). Dashed red = face bounds.
-            </p>
-          ) : null}
         </section>
       </div>
     </main>
