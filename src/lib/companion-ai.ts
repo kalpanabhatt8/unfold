@@ -5,13 +5,14 @@ import {
 } from "@/lib/canvas-word-count";
 
 /**
- * The eight tones Gemini classifies. Shared by the client hook and API route.
+ * The nine tones Gemini classifies. Shared by the client hook and API route.
  */
 export const COMPANION_EMOTIONS = [
   "heavy",
   "anxious",
   "angry",
   "confused",
+  "shocked",
   "tired",
   "happy",
   "calm",

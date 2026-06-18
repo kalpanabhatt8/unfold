@@ -1,6 +1,7 @@
 import type { BlobEmotion } from "./types";
 import { ASSET_SIZE, BASE, EMOTION_ASSETS } from "./assets";
 import type { CompanionEmotion } from "@/lib/companion-ai";
+import { MOUTH_CX, MOUTH_CY, MOUTH_EMOTION_OFFSET } from "./layout";
 
 export function resolveBodySrc(emotion: BlobEmotion): string {
   return EMOTION_ASSETS[emotion].body ?? BASE.body;
@@ -24,7 +25,18 @@ export function mouthSize(emotion: BlobEmotion) {
   if (emotion === "happy") return ASSET_SIZE.mouth.happy;
   if (emotion === "sleep") return ASSET_SIZE.mouth.sleep;
   if (emotion === "confused") return ASSET_SIZE.mouth.confused;
+  if (emotion === "shocked") return ASSET_SIZE.mouth.shocked;
   return ASSET_SIZE.mouth.neutral;
+}
+
+/** Top-left corner for the mouth image — matches neutral smile anchor. */
+export function mouthPosition(emotion: BlobEmotion) {
+  const mouth = mouthSize(emotion);
+  const off = MOUTH_EMOTION_OFFSET[emotion] ?? { dx: 0, dy: 0 };
+  return {
+    x: MOUTH_CX - mouth.w / 2 + off.dx,
+    y: MOUTH_CY - mouth.h / 2 + off.dy,
+  };
 }
 
 export function eyeSize(emotion: BlobEmotion, side: "left" | "right") {
@@ -33,6 +45,8 @@ export function eyeSize(emotion: BlobEmotion, side: "left" | "right") {
 }
 
 const LOVE_WORDS = /\b(love|loved|loving|heart|hearts|adore|adored)\b/i;
+const SHOCKED_WORDS =
+  /\b(shocked|shock|surprised|surprise|surprising|stunned|startled|unexpected|unbelievable|gasped|astounded|speechless|wow|whoa)\b/i;
 
 /** Map Gemini companion tones onto character asset folders. */
 export function companionToBlobEmotion(
@@ -41,6 +55,10 @@ export function companionToBlobEmotion(
 ): BlobEmotion {
   if (emotion === "happy" && text && LOVE_WORDS.test(text)) {
     return "love";
+  }
+
+  if (text && SHOCKED_WORDS.test(text)) {
+    return "shocked";
   }
 
   switch (emotion) {
@@ -54,6 +72,8 @@ export function companionToBlobEmotion(
       return "sad";
     case "confused":
       return "confused";
+    case "shocked":
+      return "shocked";
     case "neutral":
     case "calm":
     default:
@@ -68,6 +88,7 @@ export const BLOB_EMOTIONS = [
   "sleep",
   "happy",
   "confused",
+  "shocked",
 ] as const satisfies readonly BlobEmotion[];
 
 export const BLOB_POSES = [

@@ -24,6 +24,11 @@ const LEXICONS: Record<Exclude<CompanionEmotion, "neutral">, string[]> = {
     "puzzled", "conflicted", "torn", "stuck", "questioning", "baffled",
     "unsettled", "doubting", "muddled", "indecisive",
   ],
+  shocked: [
+    "shocked", "shock", "surprise", "surprised", "surprising", "stunned",
+    "startled", "startling", "unexpected", "unbelievable", "gasp", "gasped",
+    "astounded", "speechless", "wow", "whoa", "omg", "jaw", "dropped",
+  ],
   tired: [
     "tired", "exhausted", "exhaustion", "drained", "sleepy", "weary",
     "fatigue", "fatigued", "burnout", "depleted", "drowsy", "sluggish",

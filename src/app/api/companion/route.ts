@@ -9,6 +9,7 @@ export type CompanionEmotion =
   | "anxious"
   | "angry"
   | "confused"
+  | "shocked"
   | "tired"
   | "happy"
   | "calm"
@@ -23,6 +24,7 @@ const EMOTIONS: CompanionEmotion[] = [
   "anxious",
   "angry",
   "confused",
+  "shocked",
   "tired",
   "happy",
   "calm",
@@ -72,11 +74,12 @@ export async function POST(request: Request) {
 Read their most recent writing (the last ~40 words they wrote) and respond with JSON only — no markdown, no extra keys.
 
 Rules:
-- Classify the overall emotional tone as exactly one of: heavy, anxious, angry, confused, tired, happy, calm, neutral
+- Classify the overall emotional tone as exactly one of: heavy, anxious, angry, confused, shocked, tired, happy, calm, neutral
 - "heavy"    = grief, sadness, loss, loneliness, weight
 - "anxious"  = worry, fear, nervousness, feeling overwhelmed
 - "angry"    = anger, frustration, resentment, feeling wronged
 - "confused" = uncertainty, feeling torn, stuck, or unclear
+- "shocked"  = surprise, disbelief, sudden realization, being caught off guard
 - "tired"    = exhaustion, depletion, burnout, low energy
 - "happy"    = joy, gratitude, excitement, lightness, celebration
 - "calm"     = peace, ease, contentment, steadiness
@@ -84,7 +87,7 @@ Rules:
 - Pick the single most dominant tone. When genuinely unclear, use "neutral".
 
 Respond with this exact JSON shape:
-{"emotion":"<one of the eight>"}
+{"emotion":"<one of the nine>"}
 
 Journal excerpt (most recent words):
 """

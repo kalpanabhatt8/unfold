@@ -52,6 +52,7 @@ import { POSES } from "./poses";
 import {
   eyeSize,
   mouthSize,
+  mouthPosition,
   resolveBodySrc,
   resolveEyeSrc,
   resolveMouthSrc,
@@ -110,12 +111,13 @@ function Sparkle({
 
 function MouthImage({ emotion }: { emotion: BlobEmotion }) {
   const mouth = mouthSize(emotion);
+  const pos = mouthPosition(emotion);
   return (
     <image
       key={emotion}
       href={resolveMouthSrc(emotion)}
-      x={MOUTH_CX - mouth.w / 2}
-      y={MOUTH_CY - mouth.h / 2}
+      x={pos.x}
+      y={pos.y}
       width={mouth.w}
       height={mouth.h}
       className="blob-mouth-image blob-mouth-change"

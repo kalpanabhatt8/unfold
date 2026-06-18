@@ -52,6 +52,9 @@ export const EMOTION_ASSETS: Record<
   confused: {
     mouth: `${CHAR}/confused/mouth.svg`,
   },
+  shocked: {
+    mouth: `${CHAR}/shocked/mouth.svg`,
+  },
 };
 
 /** Intrinsic SVG sizes (width × height from each file's viewBox). */
@@ -69,6 +72,7 @@ export const ASSET_SIZE = {
     sad: { w: 3, h: 1 },
     sleep: { w: 4, h: 2 },
     confused: { w: 4, h: 2 },
+    shocked: { w: 4, h: 2 },
   },
   lovebg: { w: 39, h: 17 },
   sleepZzz: { w: 5, h: 8 },

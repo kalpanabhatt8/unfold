@@ -1,5 +1,7 @@
 /** Master viewBox and feature anchors (60×60). Tune in /dev/blob. */
 
+import type { BlobEmotion } from "./types";
+
 export const VIEW_SIZE = 60;
 
 export const BODY_CX = 30;
@@ -18,6 +20,13 @@ export const BLUSH_CY = 29;
 
 export const MOUTH_CX = BODY_CX;
 export const MOUTH_CY = 29;
+
+/** Fine-tune mouth placement per emotion (viewBox units). Tune in /dev/blob. */
+export const MOUTH_EMOTION_OFFSET: Partial<
+  Record<BlobEmotion, { dx: number; dy: number }>
+> = {
+  shocked: { dx: 0, dy: 0 },
+};
 
 /** Petal ring offset inside viewBox. */
 export const BODY_TX = 5;

@@ -17,7 +17,8 @@ export type BlobEmotion =
   | "sad"
   | "sleep"
   | "happy"
-  | "confused";
+  | "confused"
+  | "shocked";
 
 export type BloomLevel = 0 | 1 | 2 | 3;
 
