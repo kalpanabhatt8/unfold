@@ -47,3 +47,12 @@ export function coverBackgroundVar(id: CoverGradientId): string {
   const normalized = normalizeCoverGradientId(id);
   return `var(--book-cover-gradient-${normalized ?? "g1"})`;
 }
+
+/** g10 matches the canvas page — use g1 on covers so they don't disappear into the bg. */
+export function resolveBookCoverBackground(
+  background: string | undefined | null
+): string {
+  const id = coverGradientIdFromBackground(background);
+  if (!id || id === "g10") return coverBackgroundVar("g1");
+  return background?.trim() ? background : coverBackgroundVar("g1");
+}

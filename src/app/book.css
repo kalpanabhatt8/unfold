@@ -3,17 +3,17 @@
    ========================================================= */
 
    :root {
-    /* Implementation layer: flat fills (also referenced if needed elsewhere). */
-    --gradient-1: #f6dbb2;
-    --gradient-2: #c5d4e3;
-    --gradient-3: #e6beb5;
-    --gradient-4: #dcd2ea;
-    --gradient-5: #bfd9c9;
-    --gradient-6: #ebe6df;
-    --gradient-7: #3d4555;
-    --gradient-8: #354845;
-    --gradient-9: #423d4f;
-    --gradient-10: #faf8f4;
+    /* Warm cover palette — aligned with canvas (#fdfaf8) & sunflower tones */
+    --gradient-1: #e8d0c0;
+    --gradient-2: #edd8ce;
+    --gradient-3: #e4c9bb;
+    --gradient-4: #dbc4b0;
+    --gradient-5: #d4b8a8;
+    --gradient-6: #ebe8e4;
+    --gradient-7: #5b5149;
+    --gradient-8: #421024;
+    --gradient-9: #7e675f;
+    --gradient-10: #fdfaf8;
 
     /* ---------- Stable public API ---------- */
 
@@ -383,5 +383,5 @@ font-size: var(--book-title-size, var(--text-md));
 }
 
 .create-new-notebook .book-cover {
-  background: linear-gradient(to bottom, #EBEDF0 0%, #E3E8EC 100%) !important;
+  background: var(--book-cover-gradient-g1) !important;
 }

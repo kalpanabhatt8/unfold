@@ -4,7 +4,7 @@
  * CanvasBoard — full-width journal writing surface.
  *
  *  ┌─────────────────────────────────────────────────────────────┐
- *  │  date · time (left)          title (right, same row as date) │
+ *  │  title (left)                edited · saving? (right)        │
  *  │  ─────────────────────────────────────────────────────────── │
  *  │  centered writing column (Rethink Sans)                      │
  *  │  signature (end)                                             │
@@ -154,6 +154,8 @@ const POLAROID_GAP = 18;
 /** Save behaviour. Local mirror is fast (no data loss); milestone save fires
  *  after 15s of typing inactivity (aligned with companion trigger). */
 const LOCAL_MIRROR_DEBOUNCE_MS = 600;
+/** Only surface "saving" when a mirror is still pending past the debounce. */
+const SAVING_LABEL_DELAY_MS = 800;
 
 /** Minimum selected-character count before the text format bar appears. */
 const TEXT_CTX_SELECTION_MIN = 4;
@@ -604,6 +606,8 @@ function CanvasBoardInner(
   // render as a single column going forward.
   const [columns] = useState<ColumnLayout>(1);
   const [lastSavedAt, setLastSavedAt] = useState<number>(() => sessionEditedAt);
+  const [showSavingLabel, setShowSavingLabel] = useState(false);
+  const savingLabelTimerRef = useRef<number | null>(null);
   /** Snapshot `updatedAt` — frozen while editing; bumped only on close. */
   const snapshotEditedAtRef = useRef<number>(sessionEditedAt);
   /** Header stamp — frozen for this mount; never follows wall clock. */
@@ -716,10 +720,22 @@ function CanvasBoardInner(
     };
   }, [columns, imageBlocks, signature, textColumns]);
 
+  const clearSavingLabelTimer = useCallback(() => {
+    if (savingLabelTimerRef.current !== null) {
+      window.clearTimeout(savingLabelTimerRef.current);
+      savingLabelTimerRef.current = null;
+    }
+    setShowSavingLabel(false);
+  }, []);
+
   // Fast local mirror so a tab close never loses keystrokes. This is *not*
   // the "milestone" save (AI title regen) — that fires from a coarser timer
   // and the manual button, below.
   useEffect(() => {
+    savingLabelTimerRef.current = window.setTimeout(() => {
+      setShowSavingLabel(true);
+    }, SAVING_LABEL_DELAY_MS);
+
     const timer = window.setTimeout(() => {
       const snap = buildSnapshot();
       try {
@@ -728,10 +744,19 @@ function CanvasBoardInner(
         onSnapshotChange?.(snap);
       } catch {
         /* noop */
+      } finally {
+        clearSavingLabelTimer();
       }
     }, LOCAL_MIRROR_DEBOUNCE_MS);
-    return () => window.clearTimeout(timer);
-  }, [buildSnapshot, onSnapshotChange, storageKey]);
+
+    return () => {
+      window.clearTimeout(timer);
+      if (savingLabelTimerRef.current !== null) {
+        window.clearTimeout(savingLabelTimerRef.current);
+        savingLabelTimerRef.current = null;
+      }
+    };
+  }, [buildSnapshot, clearSavingLabelTimer, onSnapshotChange, storageKey]);
 
   const triggerMilestoneSave = useCallback(() => {
     const snap = buildSnapshot();
@@ -1176,6 +1201,7 @@ function CanvasBoardInner(
             <CanvasHeader
               title={title}
               editedAt={headerDisplayedAt}
+              showSaving={showSavingLabel}
               onTitleChange={onTitleChange}
             />
 
@@ -1711,7 +1737,7 @@ function PolaroidImage({
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
           onFocus={onSelect}
-          className="w-full border-0 bg-transparent p-0 text-center text-xs italic tracking-tight text-[var(--canvas-ink-secondary)] outline-none placeholder:text-[var(--canvas-placeholder)]"
+          className="w-full border-0 bg-transparent p-0 text-center text-xs italic tracking-tight text-[var(--canvas-ink-secondary)] outline-none placeholder:text-[var(--canvas-writing-placeholder)]"
           style={{
             fontFamily: "var(--font-caveat), var(--font-lora), cursive",
           }}
@@ -1741,20 +1767,41 @@ function PolaroidImage({
 /*  Canvas header — last-edited date + heading                                   */
 /* -------------------------------------------------------------------------- */
 
-/** Written date — e.g. "12 June 2026". */
-function formatWrittenDate(ts: number): string {
+const isSameCalendarMonth = (ts: number, now: number) => {
+  const d = new Date(ts);
+  const n = new Date(now);
+  return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth();
+};
+
+/** Header stamp — e.g. "Edited 12 min" (this month) or "Edited 26 Mar". */
+function formatEditedLabel(ts: number, now = Date.now()): string {
+  if (isSameCalendarMonth(ts, now)) {
+    const diff = Math.max(0, now - ts);
+    const minute = 60_000;
+    const hour = 60 * minute;
+    const day = 24 * hour;
+
+    if (diff < minute) return "Edited just now";
+    if (diff < hour) {
+      const mins = Math.round(diff / minute);
+      return `Edited ${mins} min`;
+    }
+    if (diff < day) {
+      const hours = Math.round(diff / hour);
+      return `Edited ${hours} hr`;
+    }
+    const days = Math.round(diff / day);
+    return `Edited ${days} day${days === 1 ? "" : "s"}`;
+  }
+
   const d = new Date(ts);
   const day = d.getDate();
-  const month = d.toLocaleDateString(undefined, { month: "long" });
+  const month = d.toLocaleDateString(undefined, { month: "short" });
   const year = d.getFullYear();
-  return `${day} ${month} ${year}`;
-}
-
-function formatSessionTime(ts: number): string {
-  return new Date(ts).toLocaleTimeString(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
-  });
+  if (year !== new Date(now).getFullYear()) {
+    return `Edited ${day} ${month} ${year}`;
+  }
+  return `Edited ${day} ${month}`;
 }
 
 /** Canvas-only placeholder — not persisted as the draft title. */
@@ -1764,10 +1811,16 @@ type CanvasHeaderProps = {
   title?: string;
   /** Session-frozen stamp from the parent (last close, or now on first open). */
   editedAt: number;
+  showSaving?: boolean;
   onTitleChange?: (title: string) => void;
 };
 
-function CanvasHeader({ title, editedAt, onTitleChange }: CanvasHeaderProps) {
+function CanvasHeader({
+  title,
+  editedAt,
+  showSaving = false,
+  onTitleChange,
+}: CanvasHeaderProps) {
   const committedTitle =
     typeof title === "string" ? title.trim() : "";
   const [value, setValue] = useState(committedTitle);
@@ -1792,8 +1845,21 @@ function CanvasHeader({ title, editedAt, onTitleChange }: CanvasHeaderProps) {
     return () => window.clearTimeout(timer);
   }, [committedTitle, onTitleChange, value]);
 
-  const writtenDate = useMemo(() => formatWrittenDate(editedAt), [editedAt]);
-  const sessionTime = useMemo(() => formatSessionTime(editedAt), [editedAt]);
+  const relativeTickActive = useMemo(
+    () => isSameCalendarMonth(editedAt, Date.now()),
+    [editedAt]
+  );
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!relativeTickActive) return;
+    const id = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(id);
+  }, [relativeTickActive]);
+
+  const editedLabel = useMemo(
+    () => formatEditedLabel(editedAt, now),
+    [editedAt, now]
+  );
   const isoDate = useMemo(
     () => new Date(editedAt).toISOString().slice(0, 10),
     [editedAt]
@@ -1821,8 +1887,8 @@ function CanvasHeader({ title, editedAt, onTitleChange }: CanvasHeaderProps) {
         spellCheck={false}
         aria-label="Book title"
         className={clsx(
-          "header-lg col-start-1 row-start-1 w-full max-w-[55%] self-end border-0 bg-transparent p-0 text-left font-semibold tracking-tight outline-none focus:outline-none placeholder:text-[var(--canvas-placeholder)]",
-          hasTitle ? "text-[var(--canvas-ink)]" : "text-[var(--canvas-placeholder)]"
+          "header-lg col-start-1 row-start-1 w-full max-w-[55%] self-end border-0 bg-transparent p-0 text-left font-semibold tracking-tight outline-none focus:outline-none placeholder:text-[var(--canvas-title-placeholder)]",
+          hasTitle ? "text-[var(--canvas-title-ink)]" : "text-[var(--canvas-title-placeholder)]"
         )}
         style={{ fontFamily: "var(--font-heading)" }}
       />
@@ -1831,15 +1897,17 @@ function CanvasHeader({ title, editedAt, onTitleChange }: CanvasHeaderProps) {
         className="col-start-2 row-start-1 block text-right text-sm tracking-[0.01em] text-[var(--canvas-date)]"
         style={{ lineHeight: 1.45 }}
       >
-        {writtenDate}
+        {editedLabel}
       </time>
-      <time
-        dateTime={new Date(editedAt).toISOString()}
-        className="col-start-2 row-start-2 block text-right text-sm tracking-[0.01em] text-[var(--canvas-time)]"
-        style={{ lineHeight: 1.45 }}
-      >
-        {sessionTime}
-      </time>
+      {showSaving ? (
+        <p
+          aria-live="polite"
+          className="col-start-2 row-start-2 block text-right text-sm tracking-[0.01em] text-[var(--canvas-time)]"
+          style={{ lineHeight: 1.45 }}
+        >
+          saving
+        </p>
+      ) : null}
     </header>
   );
 }
@@ -2021,7 +2089,7 @@ function TextBlockView({
           }
         }}
         className={clsx(
-          "block w-full resize-none overflow-hidden border-0 bg-transparent p-0 outline-none focus:outline-none placeholder:text-[var(--canvas-placeholder)]",
+          "block w-full resize-none overflow-hidden border-0 bg-transparent p-0 outline-none focus:outline-none placeholder:text-[var(--canvas-writing-placeholder)]",
           block.blockKind === "checklist" && block.checked
             ? "text-[var(--canvas-muted)] line-through decoration-[color-mix(in_srgb,var(--canvas-ink)_30%,transparent)] decoration-[1.5px]"
             : ""

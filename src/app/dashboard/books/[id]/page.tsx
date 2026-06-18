@@ -27,6 +27,7 @@ import { bookCoverSamples, getTemplateById } from "@/data/book-templates";
 import {
   coverBackgroundVar,
   coverGradientIdFromBackground,
+  resolveBookCoverBackground,
 } from "@/data/cover-gradients";
 import {
   coverOverlayTextStyles,
@@ -170,7 +171,9 @@ const BookBuilderPage = () => {
   );
   const [hexInput, setHexInput] = useState("8BA9CF");
   const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
-  const [background, setBackground] = useState<string>(defaultBackground);
+  const [background, setBackground] = useState<string>(() =>
+    resolveBookCoverBackground(defaultBackground),
+  );
   const [hydrated, setHydrated] = useState(false);
   const [sourceTemplateId, setSourceTemplateId] = useState<string | null>(
     templateParam ?? null,
@@ -218,8 +221,9 @@ const BookBuilderPage = () => {
       setCoverImage(existing.coverImage ?? null);
     }
     if (existing.background) {
-      setBackground(existing.background);
-      const parsedBg = cssColorToRgba(existing.background);
+      const resolved = resolveBookCoverBackground(existing.background);
+      setBackground(resolved);
+      const parsedBg = cssColorToRgba(resolved);
       if (parsedBg) {
         setPickerColor(parsedBg);
         setHexInput(rgbaToHex(parsedBg));
@@ -328,7 +332,7 @@ const BookBuilderPage = () => {
           title: title.trim(),
           subtitle: subtitle.trim() ? subtitle.trim() : undefined,
           coverImage: coverImage ?? null,
-          background,
+          background: resolveBookCoverBackground(background),
           variant,
           // Cover title/subtitle colors are derived automatically from the cover.
           titleColor: null,
@@ -455,7 +459,7 @@ const BookBuilderPage = () => {
             aria-label="Book subtitle"
           /> */}
         </div>
-        <div className="flex w-full max-w-md flex-col items-center gap-3 mb-4">
+        <div className="mb-4 flex w-full max-w-md flex-col items-center gap-3">
           <button
             type="button"
             onClick={handlePrimary}
@@ -470,15 +474,10 @@ const BookBuilderPage = () => {
               subtitle={subtitle || undefined}
               coverImageUrl={coverImage}
               className="h-full w-full"
-              style={{ background }}
+              style={{
+                background: resolveBookCoverBackground(background),
+              }}
             />
-            {/* <span
-              aria-hidden
-              className="pointer-events-none absolute inset-x-2 bottom-4 z-[40] text-center text-xs leading-none tracking-[0.04em]"
-              style={journalHintStyle}
-            >
-               Click to open canvas
-            </span> */}
           </button>
           <span
             aria-hidden

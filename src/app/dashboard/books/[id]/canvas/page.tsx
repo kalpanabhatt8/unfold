@@ -41,7 +41,7 @@ const blankDefaults = {
   variant: "solid" as const,
   title: "",
   subtitle: "Describe this notebook",
-  background: "linear-gradient(135deg, #f8f7ff 0%, #ebe9ff 100%)",
+  background: coverBackgroundVar("g1"),
 };
 
 type Draft = RecentBook;

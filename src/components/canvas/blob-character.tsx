@@ -50,9 +50,21 @@ export type BlobState =
   | "waking"
   | "saving"
   | "greeting"
+  // Spec states C / E / D / H — quiet presence reactions:
+  | "waiting" // blank page: soft glow nudge after a few idle seconds
+  | "pause" // gentle acknowledgment when typing briefly stops
+  | "bloom" // word-milestone growth pop (writing nourishes the flower)
+  | "completion" // finished: full bloom + raised leaves (high-five ready)
   | CompanionEmotion;
 
 export type { CompanionEmotion };
+
+/**
+ * Persistent growth level — the core product metaphor (words = water).
+ * Climbs as the writer crosses word milestones and stays put for the session:
+ *   0 = bud · 1 = ~50 words · 2 = ~100 words · 3 = ~200 words (full bloom).
+ */
+export type BloomLevel = 0 | 1 | 2 | 3;
 
 export type BlobCharacterProps = {
   state: BlobState;
@@ -63,6 +75,19 @@ export type BlobCharacterProps = {
   hidden?: boolean;
   /** Called when the user hovers the character while it is sleeping. */
   onWakeUp?: () => void;
+  /**
+   * Persistent bloom growth (0–3). Scales the petal ring + warm glow so the
+   * flower visibly grows as the writer adds words. Independent of `state`.
+   */
+  bloomLevel?: BloomLevel;
+  /** Slide-in from the left for the entrance (State A). Pair with `greeting`. */
+  entering?: boolean;
+  /**
+   * Called when the user taps the flower during `completion` — the one and
+   * only major direct interaction (the high-five). Fires at most once per
+   * completion window.
+   */
+  onHighFive?: () => void;
   /** Dev only: draw face center + feature-block guides to check Y alignment. */
   debugLayout?: boolean;
 };
@@ -71,15 +96,14 @@ export type BlobCharacterProps = {
  *  1. COLORS
  * ════════════════════════════════════════════════════════════════════════════ */
 
-const PETAL = "#FAC666";
-const FACE_CREAM = "#FFF8E5";
-const LEAF = "#6D8759";
 const INK = "#68462A";
 const CLOSED_EYE_INK = "#4A3528";
 const BLUSH = "#FEE1B2";
 const HIGHLIGHT = "#FFFFFF";
 const SPARKLE = "#F0B654";
 const ZZZ = "#68462A"; // sleeping-sign-zzz.svg
+const HEART = "#E8788A"; // soft pink heart for gentle acknowledgments
+const GLOW = "#FFD27A"; // warm radial glow that grows with the bloom
 
 /* ════════════════════════════════════════════════════════════════════════════
  *  2. SVG PATHS — copied verbatim from /public/Images/character/*.svg
@@ -87,29 +111,46 @@ const ZZZ = "#68462A"; // sleeping-sign-zzz.svg
  *     translates+scales it into the master 60×60 viewBox.
  * ════════════════════════════════════════════════════════════════════════════ */
 
-// sunflower-leaf.svg  (50 × 50) — yellow scalloped petal ring
+// face.svg  (32 × 32 viewBox, path 31.4213 × 31.4213) — cream disc + radial fill
+const FACE_PATH =
+  "M0 15.7106C0 7.03389 7.03389 0 15.7106 0V0C24.3874 0 31.4213 7.03389 31.4213 15.7106V15.7106C31.4213 24.3874 24.3874 31.4213 15.7106 31.4213V31.4213C7.03389 31.4213 0 24.3874 0 15.7106V15.7106Z";
+const FACE_GRAD_TRANSFORM =
+  "translate(15.7106 15.7106) rotate(90) scale(17.6639)";
+
+// sunflower-leaf.svg  (50 × 50) — yellow scalloped petal ring + radial fill
 const SUNFLOWER_PATH =
-  "M22.1844 1.76522C22.2854 1.82385 22.4135 1.8088 22.4982 1.72848C24.2891 0.0315996 26.9988 -0.519715 29.3906 0.541992C30.4307 1.00372 31.2828 1.71513 31.9092 2.57312C31.9781 2.66748 32.1015 2.70527 32.2114 2.66579C34.5439 1.82823 37.2552 2.41861 39.0166 4.36914C39.7794 5.21394 40.2681 6.20895 40.4905 7.2462C40.515 7.36052 40.6124 7.44534 40.729 7.45398C43.1984 7.63693 45.436 9.27414 46.249 11.7686C46.6011 12.8488 46.6409 13.9557 46.4207 14.993C46.3964 15.1076 46.451 15.225 46.5543 15.2803C48.7357 16.4488 50.1127 18.8522 49.8379 21.4609C49.7188 22.5906 49.3038 23.6178 48.6793 24.4762C48.6103 24.5711 48.6125 24.7007 48.6845 24.7934C50.2022 26.746 50.4779 29.5002 49.1621 31.7725C48.5923 32.7564 47.7941 33.5267 46.8736 34.0578C46.7721 34.1164 46.7213 34.2355 46.7493 34.3494C47.3395 36.7499 46.4659 39.376 44.3389 40.917C43.4169 41.5849 42.3728 41.9658 41.3145 42.0778C41.1982 42.0901 41.1036 42.1781 41.0827 42.2931C40.6412 44.7257 38.7703 46.7712 36.2031 47.3154C35.0893 47.5515 33.9797 47.4752 32.9664 47.1475C32.8553 47.1115 32.7332 47.1534 32.6674 47.2499C31.2721 49.2946 28.7274 50.4055 26.1592 49.8613C25.0458 49.6254 24.0634 49.1062 23.2716 48.3964C23.1846 48.3184 23.0561 48.3071 22.9568 48.3685C20.8491 49.6712 18.0731 49.6547 15.9453 48.1133C15.0232 47.4452 14.3377 46.5728 13.9039 45.6036C13.8562 45.4969 13.7433 45.4343 13.6275 45.45C11.1732 45.7838 8.6447 44.6467 7.3291 42.375C6.75912 41.3907 6.48824 40.3157 6.48722 39.2549C6.48711 39.1379 6.40939 39.0345 6.297 39.0018C3.92017 38.3107 2.07184 36.246 1.79688 33.6377C1.67771 32.5072 1.86957 31.4153 2.30201 30.4457C2.34978 30.3386 2.32079 30.2123 2.23115 30.1366C0.341044 28.5413 -0.504336 25.9058 0.308594 23.4111C0.660463 22.3316 1.27954 21.4132 2.06836 20.7032C2.15554 20.6247 2.18038 20.4975 2.12923 20.392C1.05102 18.1668 1.3572 15.4168 3.11816 13.4668C3.88106 12.6221 4.82261 12.0333 5.83398 11.7044C5.9453 11.6682 6.01962 11.5624 6.01604 11.4454C5.94054 8.97498 7.34409 6.58754 9.74316 5.52246C10.7746 5.06456 11.8652 4.90675 12.9158 5.01125C13.032 5.02282 13.1425 4.95604 13.1864 4.84774C14.1206 2.54275 16.3897 0.916048 19.0273 0.916016C20.1766 0.916016 21.2552 1.22591 22.1844 1.76522Z";
+  "M22.0958 1.85106C23.8609 0.0618517 26.6163 -0.54403 29.0479 0.538558C30.1412 1.02532 31.0236 1.79014 31.6515 2.71141C33.9968 1.7815 36.7735 2.34667 38.5606 4.33153C39.3617 5.22122 39.8571 6.27903 40.0558 7.37645C42.5767 7.48076 44.8837 9.12622 45.7091 11.6665C46.079 12.8051 46.1009 13.9728 45.836 15.0561C48.0965 16.1768 49.5351 18.6176 49.256 21.2739C49.1307 22.4648 48.6751 23.5403 47.9923 24.4223C49.6016 26.3656 49.9235 29.1805 48.588 31.4936C47.9892 32.5307 47.1351 33.3279 46.1524 33.8559C46.8324 36.2858 45.9814 38.988 43.8204 40.5581C42.8518 41.2617 41.748 41.6432 40.6358 41.7261C40.2684 44.2221 38.3928 46.3445 35.7804 46.8999C34.6086 47.1489 33.4439 47.0486 32.3936 46.6714C31.0428 48.8022 28.4661 49.9776 25.8536 49.4223C24.6823 49.1733 23.6595 48.6088 22.8536 47.8374C20.7529 49.2345 17.9206 49.2607 15.7599 47.6909C14.7909 46.9869 14.0856 46.0547 13.6632 45.022C11.1761 45.4433 8.57846 44.3151 7.24326 42.0024C6.64457 40.9654 6.38016 39.8274 6.41415 38.7124C3.97039 38.086 2.05668 35.9983 1.77744 33.3423C1.65226 32.1513 1.87193 31.0034 2.35654 29.9985C0.379272 28.4322 -0.519445 25.7462 0.305756 23.2065C0.675673 22.0681 1.34352 21.1099 2.19443 20.3891C1.02481 18.154 1.29616 15.3348 3.0831 13.3501C3.88435 12.4602 4.88428 11.8557 5.95517 11.5434C5.79611 9.02609 7.19065 6.56132 9.62998 5.47508C10.7147 4.99213 11.8641 4.84463 12.961 4.98875C13.8342 2.60778 16.1222 0.909679 18.8058 0.909652C20.0141 0.909652 21.1412 1.25502 22.0958 1.85106Z";
+const PETAL_GRAD_TRANSFORM =
+  "translate(24.7105 24.7797) rotate(90) scale(38.146 38.0396)";
 
 // leaf-left.svg  (22 × 23) — stem-tip at upper-right (~19, 5)
 const LEAF_LEFT_PATH =
   "M2.8855 13.975L7.57314 15.5213C12.6422 17.1933 18.0333 14.061 19.0912 8.82918L18.9881 8.52462C14.9369 4.86856 8.59143 5.62462 5.51273 10.1302L2.8855 13.975Z";
+const LEAF_LEFT_GRAD_TRANSFORM =
+  "translate(9.0502 13.6087) rotate(-26.9845) scale(21.5338 21.5338)";
 
 // leaf-right.svg  (22 × 23) — stem-tip at upper-left (~3, 8.5)
 const LEAF_RIGHT_PATH =
   "M18.988 13.975L14.3004 15.5213C9.23136 17.1933 3.84023 14.061 2.78237 8.82918L2.88546 8.52462C6.93661 4.86856 13.2821 5.62462 16.3608 10.1302L18.988 13.975Z";
+const LEAF_RIGHT_GRAD_TRANSFORM =
+  "translate(12.8233 13.6087) rotate(-153.016) scale(21.5338 21.5338)";
 
-// eye-left.svg / eye-right.svg  (~1.94 × 2.25) — open teardrop dot
+// eye-left.svg / eye-right.svg  (2 × 3 viewBox) — open oval
 const OPEN_EYE_LEFT_PATH =
   "M1.93922 1.19201C1.93922 1.81218 1.49407 2.24583 0.9625 2.24583C0.430926 2.24583 0 1.9352 0 1.31503C0 0.694863 0.430926 0 0.9625 0C1.49407 0 1.93922 0.571836 1.93922 1.19201Z";
 const OPEN_EYE_RIGHT_PATH =
   "M0.000231862 1.19201C0.000231862 1.81218 0.445379 2.24583 0.976953 2.24583C1.50853 2.24583 1.93945 1.9352 1.93945 1.31503C1.93945 0.694863 1.50853 0 0.976953 0C0.445379 0 0.000231862 0.571836 0.000231862 1.19201Z";
+const OPEN_EYE_W = 1.93922;
+const OPEN_EYE_H = 2.24583;
+/** Anchor at path center so open ovals sit on the face anchors (not viewBox corner). */
+const OPEN_EYE_CX = OPEN_EYE_W / 2;
+const OPEN_EYE_CY = OPEN_EYE_H / 2;
 
-// eye-{left,right}-smilling.svg  (~4.06 × 2.28) — deep happy U
+// eye-{left,right}-smilling.svg  (3 × 1 viewBox) — happy squint curve
 const SMILE_EYE_PATH =
-  "M0 0.25C0 0.111929 0.111929 0 0.25 0C0.388071 0 0.5 0.111929 0.5 0.25C0.5 1.09596 1.18627 1.78223 2.03223 1.78223C2.87796 1.78196 3.56348 1.09579 3.56348 0.25C3.56348 0.111929 3.67541 0 3.81348 0C3.95155 0 4.06348 0.111929 4.06348 0.25C4.06348 1.37194 3.1541 2.28196 2.03223 2.28223C0.910128 2.28223 0 1.3721 0 0.25Z";
+  "M2.19632 0.791925C2.30792 0.873078 2.46469 0.84873 2.54593 0.737238C2.62714 0.62557 2.60194 0.468831 2.49027 0.387628C2.15516 0.144006 1.74253 -4.53414e-05 1.29691 -6.70552e-05C0.851162 -6.70552e-05 0.437745 0.143897 0.102573 0.387628C-0.00883789 0.468893 -0.0332446 0.62567 0.0478851 0.737238C0.12915 0.848648 0.285927 0.873055 0.397494 0.791925C0.650027 0.608382 0.960453 0.499933 1.29691 0.499933C1.63338 0.499955 1.94379 0.608342 2.19632 0.791925Z";
 
-// sleeping-{left,right}-eye.svg  (~2.55 × 0.84) — shallow closed line
+// sleeping-{left,right}-eye.svg  (3 × 1 viewBox) — shallow closed line
 const SLEEPING_EYE_PATH =
   "M2.19632 0.0479186C2.30792 -0.0332344 2.46469 -0.00888619 2.54593 0.102606C2.62714 0.214274 2.60194 0.371013 2.49027 0.452215C2.15516 0.695838 1.74253 0.839889 1.29691 0.839911C0.851162 0.839911 0.437745 0.695946 0.102573 0.452215C-0.00883789 0.37095 -0.0332446 0.214173 0.0478851 0.102606C0.12915 -0.0088044 0.285927 -0.0332111 0.397494 0.0479186C0.650027 0.231462 0.960453 0.339911 1.29691 0.339911C1.63338 0.339889 1.94379 0.231502 2.19632 0.0479186Z";
 
@@ -129,6 +170,11 @@ const ZZZ_PATH_LARGE =
 const BIG_SMILE_PATH =
   "M0 0.25C0 0.111929 0.111929 0 0.25 0C0.388071 0 0.5 0.111929 0.5 0.25C0.5 1.09596 1.18627 1.78223 2.03223 1.78223C2.87796 1.78196 3.56348 1.09579 3.56348 0.25C3.56348 0.111929 3.67541 0 3.81348 0C3.95155 0 4.06348 0.111929 4.06348 0.25C4.06348 1.37194 3.1541 2.28196 2.03223 2.28223C0.910128 2.28223 0 1.3721 0 0.25Z";
 
+// Tiny heart (unit ~16×16) — floats up on gentle acknowledgments / positive moods.
+const HEART_PATH =
+  "M8 14.5C8 14.5 1 9.9 1 5.2C1 2.9 2.8 1.2 5 1.2C6.3 1.2 7.4 1.8 8 2.8C8.6 1.8 9.7 1.2 11 1.2C13.2 1.2 15 2.9 15 5.2C15 9.9 8 14.5 8 14.5Z";
+const HEART_SOURCE = 16;
+
 /* ════════════════════════════════════════════════════════════════════════════
  *  3. LAYOUT NUMBERS — move features on the face by editing these.
  *     Coordinate system: SVG viewBox is 0 0 60 60. (0,0) = top-left.
@@ -141,12 +187,10 @@ const BIG_SMILE_PATH =
 const BODY_SIZE = 50;
 const FACE_SVG_SIZE = 31.4213; // from face.svg rect width/height
 const FACE_SVG_RX = 15.7106; // from face.svg rect rx
-// Oval figma eyes (paused — using minimal dots for open states):
-// const VIEWBOX_PER_SCREEN_PX = 60 / 120;
-// const EYE_TARGET_W = 1.9 + VIEWBOX_PER_SCREEN_PX;
-// const EYE_TARGET_H = 2.24 + VIEWBOX_PER_SCREEN_PX;
-/** Minimal open eye: plain ink circle at each EYE_CY anchor. */
+/** Open-eye anchor radius (tuned with LEFT_EYE_CX / EYE_CY). */
 const DOT_EYE_R = 1.05;
+const CLOSED_EYE_W = 2.55;
+const CLOSED_EYE_H = 0.84;
 const BLUSH_SIZE = 3;
 const SMILE_TARGET_W = 4.06;
 const SMILE_TARGET_H = 2.28;
@@ -178,8 +222,6 @@ const SCREEN_PX_TO_VIEWBOX = 60 / 120;
 /** Eyes sit ~1px lower on the face than idle (more gap from face top). */
 const SLEEP_EYE_Y_OFFSET = SCREEN_PX_TO_VIEWBOX;
 const CLOSED_EYE_SCALE = 1;
-const CLOSED_EYE_W = 2.55;
-const CLOSED_EYE_H = 0.84;
 const FACE_TOP_Y = BODY_CY - FACE_SVG_SIZE / 2;
 
 function getFaceLayout(isSleeping: boolean) {
@@ -249,6 +291,8 @@ const SHADOW_OPACITY = 0.1;
 // Edit these, save, reload /dev/blob → sleep → hover to wake.
 /** How long the `waking` state lasts before returning to idle (ms). */
 export const WAKE_DURATION_MS = 550;
+/** Greeting one-shot length — keep in sync with GREETING_DURATION_MS. */
+const GREETING_DURATION_S = 1.35;
 /** Body jolt length in seconds. Higher = slower. */
 const WAKE_BODY_DURATION_S = 0.55;
 /** Body scale at the peak of the jolt (1 = full size). Try 1.02–1.05. */
@@ -284,6 +328,22 @@ const SLEEP_BREATH_SCALE_MAX = 0.992;
 /** Lift on inhale in viewBox px (negative = up). Try 0 to −1. */
 const SLEEP_BREATH_LIFT_PX = -0.6;
 
+// ── Bloom growth (words = water) ─────────────────────────────────────────
+/** Extra petal scale per bloom level. 0→1, 3→1+3*step (full bloom). */
+const BLOOM_SCALE_STEP = 0.028;
+/** Warm glow opacity per bloom level (base, before any state pulse). */
+const BLOOM_GLOW_STEP = 0.05;
+/** Radius of the warm glow disc behind the flower (viewBox units). */
+const GLOW_RADIUS = 30;
+/** Completion pushes the flower past its word-bloom to a fully open peak. */
+const COMPLETION_SCALE_BONUS = 0.02;
+
+// ── Entrance (State A) — slide in from the left, then settle ─────────────
+/** Entrance slide duration in seconds. */
+const ENTRANCE_DURATION_S = 0.9;
+/** How far left the flower starts, in px (screen space on the container). */
+const ENTRANCE_OFFSET_PX = 46;
+
 /* ════════════════════════════════════════════════════════════════════════════
  *  4. STATES MAP — the ONE place that decides what each state looks like.
  *
@@ -294,7 +354,7 @@ const SLEEP_BREATH_LIFT_PX = -0.6;
  *    eye    : "open" | "open-blink" | "open-wake" | "closed" | "smile" | "wink"
  *    mouth  : "slight-smile" | "big-smile" | "small-o"
  *    body   : "bob" | "lean" | "shrink" | "wake" | "bounce"
- *    leaves : "still" | "sway" | "droop" | "perk" | "wake"
+ *    leaves : "still" | "sway" | "droop" | "perk" | "wake" | "greeting"
  *    extras : "none" | "zzz" | "sparkle-burst"
  * ════════════════════════════════════════════════════════════════════════════ */
 
@@ -308,8 +368,15 @@ type BodyKind =
   | "bounce"
   | "wave"
   | "heavy-breath";
-type LeafKind = "still" | "sway" | "droop" | "perk" | "wake";
-type ExtrasKind = "none" | "zzz" | "sparkle-burst";
+type LeafKind =
+  | "still"
+  | "sway"
+  | "droop"
+  | "perk"
+  | "wake"
+  | "greeting"
+  | "highfive"; // raised + inviting (completion); claps on tap
+type ExtrasKind = "none" | "zzz" | "sparkle-burst" | "heart";
 
 type StateConfig = {
   eye: EyeKind;
@@ -365,13 +432,49 @@ const STATES: Record<BlobState, StateConfig> = {
     extras: "sparkle-burst",
   },
 
-  // 👉 GREETING — one-shot wave when the canvas opens.
+  // 👉 GREETING — soft bounce when the canvas / book opens.
   greeting: {
-    eye: "open-wake",
+    eye: "open",
     mouth: "big-smile",
     body: "wave",
-    leaves: "perk",
+    leaves: "greeting",
     extras: "none",
+  },
+
+  // 👉 WAITING (State C) — blank page: still + soft glow, never pushy.
+  waiting: {
+    eye: "open",
+    mouth: "slight-smile",
+    body: "bob",
+    leaves: "still",
+    extras: "none",
+  },
+
+  // 👉 PAUSE (State E) — quiet "I'm listening": one tiny heart drifts up.
+  pause: {
+    eye: "open",
+    mouth: "slight-smile",
+    body: "bob",
+    leaves: "still",
+    extras: "heart",
+  },
+
+  // 👉 BLOOM (State D) — a word milestone landed: brief proud open + sparkle.
+  bloom: {
+    eye: "smile",
+    mouth: "big-smile",
+    body: "bounce",
+    leaves: "perk",
+    extras: "sparkle-burst",
+  },
+
+  // 👉 COMPLETION (State H) — fully bloomed, leaves raised for a high-five.
+  completion: {
+    eye: "smile",
+    mouth: "big-smile",
+    body: "bounce",
+    leaves: "highfive",
+    extras: "sparkle-burst",
   },
 
   // 👉 HAPPY — bright reaction after AI reads joyful writing.
@@ -486,27 +589,23 @@ function Eye({
   );
 }
 
-/** Minimal open eye — centered on the anchor set by <Eye />. */
-function MinimalDotEye() {
-  return <circle cx={0} cy={0} r={DOT_EYE_R} fill={INK} />;
+/** Open oval eye from eye-{left,right}.svg — centered on the face anchor like the old dot. */
+function OpenOvalEye({ side }: { side: "left" | "right" }) {
+  const path = side === "left" ? OPEN_EYE_LEFT_PATH : OPEN_EYE_RIGHT_PATH;
+  return (
+    <g transform={`translate(${-OPEN_EYE_CX} ${-OPEN_EYE_CY})`}>
+      <path d={path} fill={INK} />
+    </g>
+  );
 }
 
 function renderEyeShape(kind: EyeKind, side: "left" | "right") {
   switch (kind) {
-    // Open — plain dots (idle, typing blink, waking snap).
     case "open":
     case "open-blink":
     case "open-wake":
-      return <MinimalDotEye />;
-
-    /* Figma oval + pupil (swap back by replacing cases above):
-    case "open":
-    case "open-blink":
-    case "open-wake": {
-      const path = side === "left" ? OPEN_EYE_LEFT_PATH : OPEN_EYE_RIGHT_PATH;
-      ...
-    }
-    */
+    case "wink":
+      return <OpenOvalEye side={side} />;
 
     // Sleeping eye — shallow closed curve (darker ink).
     case "closed": {
@@ -519,21 +618,16 @@ function renderEyeShape(kind: EyeKind, side: "left" | "right") {
       );
     }
 
-    // Saving eye — deeper happy U curve.
+    // Saving eye — happy squint from eye-{left,right}-smilling.svg.
     case "smile": {
-      const scale = 0.8;
-      const nw = 4.06;
-      const nh = 2.28;
       return (
-        <g transform={`translate(${(-nw * scale) / 2} ${(-nh * scale) / 2}) scale(${scale})`}>
+        <g
+          transform={`translate(${(-CLOSED_EYE_W * CLOSED_EYE_SCALE) / 2} ${(-CLOSED_EYE_H * CLOSED_EYE_SCALE) / 2}) scale(${CLOSED_EYE_SCALE})`}
+        >
           <path d={SMILE_EYE_PATH} fill={INK} />
         </g>
       );
     }
-
-    // Wink — both eyes squash together (waking state).
-    case "wink":
-      return <MinimalDotEye />;
   }
 }
 
@@ -561,31 +655,26 @@ function mouthDisplay(kind: MouthKind): MouthDisplay {
   return kind === "big-smile" ? "big" : "slight";
 }
 
-/** One smile path at a time — avoids a double-mouth flash before styled-jsx hydrates. */
+/** Both smile paths stay mounted — CSS crossfades between them on state change. */
 function Mouth({ kind, mouthCy }: { kind: MouthKind; mouthCy: number }) {
   const t = mouthTransforms(mouthCy);
   const display = mouthDisplay(kind);
 
-  if (display === "big") {
-    return (
-      <g className="blob-mouth" data-mouth-display="big">
-        <g
-          transform={`translate(${t.bigTx} ${t.bigTy}) scale(${t.bigSx} ${t.bigSy})`}
-          className="blob-mouth-big"
-        >
-          <path d={BIG_SMILE_PATH} fill={INK} />
-        </g>
-      </g>
-    );
-  }
-
   return (
-    <g className="blob-mouth" data-mouth-display="slight">
+    <g className="blob-mouth" data-mouth-display={display}>
       <g
         transform={`translate(${t.slightTx} ${t.slightTy}) scale(${t.slightSx} ${t.slightSy})`}
         className="blob-mouth-slight"
+        opacity={display === "slight" ? 1 : 0}
       >
         <path d={SLIGHT_SMILE_PATH} fill={INK} />
+      </g>
+      <g
+        transform={`translate(${t.bigTx} ${t.bigTy}) scale(${t.bigSx} ${t.bigSy})`}
+        className="blob-mouth-big"
+        opacity={display === "big" ? 1 : 0}
+      >
+        <path d={BIG_SMILE_PATH} fill={INK} />
       </g>
     </g>
   );
@@ -707,6 +796,27 @@ function SleepZzz() {
   );
 }
 
+/** One small heart that drifts up from the petals and fades. */
+function FloatingHeart() {
+  const scale = 0.42;
+  const w = HEART_SOURCE * scale;
+  // Sit just above the upper-right petals, like a soft thought.
+  const x = 41;
+  const y = 9;
+  return (
+    <g transform={`translate(${x} ${y}) scale(${scale})`}>
+      <g
+        className="blob-heart"
+        style={{ transformOrigin: `${HEART_SOURCE / 2}px ${HEART_SOURCE / 2}px` }}
+      >
+        <path d={HEART_PATH} fill={HEART} />
+      </g>
+      {/* keep w referenced so future layouts can center off the heart width */}
+      <g aria-hidden data-heart-w={w} />
+    </g>
+  );
+}
+
 /** Pick the right extras layer for the given config. */
 function Extras({ kind }: { kind: ExtrasKind }) {
   if (kind === "sparkle-burst") {
@@ -718,7 +828,41 @@ function Extras({ kind }: { kind: ExtrasKind }) {
       </g>
     );
   }
+  if (kind === "heart") {
+    return <FloatingHeart />;
+  }
   return null;
+}
+
+/**
+ * Warm radial glow behind the flower. Base opacity grows with the bloom level
+ * (words = water); `state` adds a slow breathing pulse during the quiet
+ * reaction states so the glow reads as "warmth", never a flashing alert.
+ */
+function Glow({
+  bloomLevel,
+  state,
+  gradId,
+}: {
+  bloomLevel: BloomLevel;
+  state: BlobState;
+  gradId: string;
+}) {
+  const base = bloomLevel * BLOOM_GLOW_STEP;
+  return (
+    <g
+      className="blob-glow"
+      data-glow-state={state}
+      style={{ ["--blob-glow-base" as string]: base } as React.CSSProperties}
+    >
+      <circle
+        cx={BODY_CX}
+        cy={BODY_CY}
+        r={GLOW_RADIUS}
+        fill={`url(#${gradId})`}
+      />
+    </g>
+  );
 }
 
 /* ════════════════════════════════════════════════════════════════════════════
@@ -731,10 +875,13 @@ function Extras({ kind }: { kind: ExtrasKind }) {
 
 export default function BlobCharacter({
   state,
-  size = 140,
+  size = 200,
   className,
   hidden = false,
   onWakeUp,
+  bloomLevel = 0,
+  entering = false,
+  onHighFive,
   debugLayout = false,
 }: BlobCharacterProps) {
   // styled-jsx injects after first paint; gate visibility so animations /
@@ -744,12 +891,44 @@ export default function BlobCharacter({
     setPaintReady(true);
   }, []);
 
+  // High-five is a one-shot per completion window: tapping the raised leaves
+  // plays a quick clap and notifies the parent exactly once.
+  const [highFived, setHighFived] = React.useState(false);
+  React.useEffect(() => {
+    if (state !== "completion") setHighFived(false);
+  }, [state]);
+
   const cfg = STATES[state];
   const face = getFaceLayout(state === "sleeping");
   const reactId = React.useId();
   const faceClipId = `blob-face-clip-${reactId.replace(/:/g, "")}`;
+  const petalGradId = `blob-petal-grad-${reactId.replace(/:/g, "")}`;
+  const faceGradId = `blob-face-grad-${reactId.replace(/:/g, "")}`;
+  const leafLeftGradId = `blob-leaf-left-grad-${reactId.replace(/:/g, "")}`;
+  const leafRightGradId = `blob-leaf-right-grad-${reactId.replace(/:/g, "")}`;
+  const glowGradId = `blob-glow-grad-${reactId.replace(/:/g, "")}`;
   const faceX = BODY_CX - FACE_SVG_SIZE / 2;
   const faceY = BODY_CY - FACE_SVG_SIZE / 2;
+
+  // Persistent growth — petals open a touch more at each milestone, and the
+  // completion peak nudges it just past full bloom.
+  const clampedBloom = Math.max(0, Math.min(3, Math.round(bloomLevel))) as BloomLevel;
+  const bloomScale =
+    1 +
+    clampedBloom * BLOOM_SCALE_STEP +
+    (state === "completion" ? COMPLETION_SCALE_BONUS : 0);
+
+  const isCompletion = state === "completion";
+
+  const handlePointerEnterWake = React.useCallback(() => {
+    if (state === "sleeping") onWakeUp?.();
+  }, [state, onWakeUp]);
+
+  const handleHighFive = React.useCallback(() => {
+    if (state !== "completion" || highFived) return;
+    setHighFived(true);
+    onHighFive?.();
+  }, [state, highFived, onHighFive]);
 
   // Per-mount seed (0..1) derived from React's stable useId so multiple
   // companions on a page don't loop in lockstep, but SSR/CSR stay matched.
@@ -762,20 +941,21 @@ export default function BlobCharacter({
     return ((h >>> 0) % 1000) / 1000;
   }, [reactId]);
 
-  const handlePointerEnter = React.useCallback(() => {
-    if (state === "sleeping") onWakeUp?.();
-  }, [state, onWakeUp]);
-
   return (
     <div
       data-blob-state={state}
-      aria-hidden="true"
-      onPointerEnter={handlePointerEnter}
+      data-entering={entering ? "true" : undefined}
+      aria-hidden={isCompletion ? undefined : "true"}
+      role={isCompletion ? "button" : undefined}
+      aria-label={isCompletion ? "High-five the flower" : undefined}
+      onPointerEnter={handlePointerEnterWake}
+      onClick={isCompletion ? handleHighFive : undefined}
       className={clsx(
         "select-none",
         !paintReady || hidden ? "opacity-0" : "opacity-100",
         hidden && paintReady && "transition-opacity duration-300",
-        state === "sleeping" ? "cursor-pointer" : "cursor-default",
+        entering && "blob-entering",
+        state === "sleeping" || isCompletion ? "cursor-pointer" : "cursor-default",
         className
       )}
       style={
@@ -798,54 +978,99 @@ export default function BlobCharacter({
           <clipPath id={faceClipId}>
             <circle cx={BODY_CX} cy={BODY_CY} r={FACE_SVG_RX} />
           </clipPath>
+          <radialGradient
+            id={glowGradId}
+            cx="0"
+            cy="0"
+            r="1"
+            gradientUnits="userSpaceOnUse"
+            gradientTransform={`translate(${BODY_CX} ${BODY_CY}) scale(${GLOW_RADIUS})`}
+          >
+            <stop stopColor={GLOW} stopOpacity="0.9" />
+            <stop offset="0.55" stopColor={GLOW} stopOpacity="0.35" />
+            <stop offset="1" stopColor={GLOW} stopOpacity="0" />
+          </radialGradient>
         </defs>
 
-        {/* Body group — bobs/tilts/bounces depending on cfg.body. */}
+        {/* Warm glow — behind everything; grows with bloom + breathes on reactions. */}
+        <Glow bloomLevel={clampedBloom} state={state} gradId={glowGradId} />
+
+        {/* Body group — face, petals, and leaves move together. */}
         <g
           className="blob-body"
           data-body={cfg.body}
           style={{ transformOrigin: "30px 46px" }}
         >
-          {/* Yellow scalloped petal ring — blooms on wake. */}
+          {/* Yellow scalloped petal ring — blooms on wake + grows with words. */}
           <g transform={`translate(${SUNFLOWER_TX} ${SUNFLOWER_TY})`}>
+            <defs>
+              <radialGradient
+                id={petalGradId}
+                cx="0"
+                cy="0"
+                r="1"
+                gradientUnits="userSpaceOnUse"
+                gradientTransform={PETAL_GRAD_TRANSFORM}
+              >
+                <stop stopColor="#F7B235" />
+                <stop offset="0.478259" stopColor="#F7B235" />
+                <stop offset="1" stopColor="#E35061" />
+              </radialGradient>
+            </defs>
             <g
               className="blob-petals"
               data-body={cfg.body}
               style={{ transformOrigin: "25px 25px" }}
             >
-              <path d={SUNFLOWER_PATH} fill={PETAL} />
+              {/* Persistent bloom scale composes with the petal rotate above. */}
+              <g
+                className="blob-bloom-scale"
+                style={{
+                  transformOrigin: "25px 25px",
+                  transform: `scale(${bloomScale})`,
+                }}
+              >
+                <path d={SUNFLOWER_PATH} fill={`url(#${petalGradId})`} />
+              </g>
             </g>
           </g>
 
-          {/* Cream face from face.svg (exact rect + corner radius). */}
-          <rect
-            x={faceX}
-            y={faceY}
-            width={FACE_SVG_SIZE}
-            height={FACE_SVG_SIZE}
-            rx={FACE_SVG_RX}
-            fill={FACE_CREAM}
-          />
-          {/* Face features clipped to cream circle.
-              `.blob-features` lets the whole face cluster nudge for "head"
-              beats (gaze drop while typing, lift on a save hop) independently
-              from the body. `.blob-eyes-look` lets both eyes glance together
-              without disturbing the per-eye blink scaleY. */}
-          <g clipPath={`url(#${faceClipId})`}>
-            <g
-              className="blob-features"
-              data-state={state}
-              style={{ transformOrigin: `${BODY_CX}px ${BODY_CY}px` }}
-            >
-              <g className="blob-eyes-look" data-eye={cfg.eye}>
-                <Eye kind={cfg.eye} side="left" eyeCy={face.eyeCy} />
-                <Eye kind={cfg.eye} side="right" eyeCy={face.eyeCy} />
+          {/* Face cluster — cream disc + features move together on head beats. */}
+          <g
+            className="blob-face-cluster"
+            data-state={state}
+            style={{ transformOrigin: `${BODY_CX}px ${BODY_CY}px` }}
+          >
+            <g transform={`translate(${faceX} ${faceY})`}>
+              <defs>
+                <radialGradient
+                  id={faceGradId}
+                  cx="0"
+                  cy="0"
+                  r="1"
+                  gradientUnits="userSpaceOnUse"
+                  gradientTransform={FACE_GRAD_TRANSFORM}
+                >
+                  <stop offset="0.0718464" stopColor="#FFF8EB" />
+                  <stop offset="0.809758" stopColor="#FFF8EB" />
+                  <stop offset="1" stopColor="#964707" />
+                </radialGradient>
+              </defs>
+              <path d={FACE_PATH} fill={`url(#${faceGradId})`} />
+            </g>
+
+            <g clipPath={`url(#${faceClipId})`}>
+              <g className="blob-features">
+                <g className="blob-eyes-look" data-eye={cfg.eye}>
+                  <Eye kind={cfg.eye} side="left" eyeCy={face.eyeCy} />
+                  <Eye kind={cfg.eye} side="right" eyeCy={face.eyeCy} />
+                </g>
+                <Blush blushCy={face.blushCy} />
+                <Mouth kind={cfg.mouth} mouthCy={face.mouthCy} />
               </g>
-              <Blush blushCy={face.blushCy} />
-              <Mouth kind={cfg.mouth} mouthCy={face.mouthCy} />
             </g>
           </g>
-          {/* Zzz sits on face + petal edge (upper-right), like Figma reference. */}
+
           {cfg.extras === "zzz" ? <SleepZzz /> : null}
           {debugLayout ? <FaceLayoutGuides /> : null}
 
@@ -864,29 +1089,56 @@ export default function BlobCharacter({
 
           {/* Leaves last so they paint on top of the yellow petals. */}
           <g transform={`translate(${LEAF_LEFT_X} ${LEAF_LEFT_Y}) scale(${LEAF_SCALE})`}>
+            <defs>
+              <radialGradient
+                id={leafLeftGradId}
+                cx="0"
+                cy="0"
+                r="1"
+                gradientUnits="userSpaceOnUse"
+                gradientTransform={LEAF_LEFT_GRAD_TRANSFORM}
+              >
+                <stop stopColor="#59702D" />
+                <stop offset="1" stopColor="#8FB645" />
+              </radialGradient>
+            </defs>
             <g
               className="blob-leaf blob-leaf-left"
               data-leaves={cfg.leaves}
+              data-highfive={highFived ? "clap" : undefined}
               style={{ transformOrigin: `${LEAF_STEM_LEFT_X}px ${LEAF_STEM_Y}px` }}
             >
-              <path d={LEAF_LEFT_PATH} fill={LEAF} />
+              <path d={LEAF_LEFT_PATH} fill={`url(#${leafLeftGradId})`} />
             </g>
           </g>
           <g transform={`translate(${LEAF_RIGHT_X} ${LEAF_RIGHT_Y}) scale(${LEAF_SCALE})`}>
+            <defs>
+              <radialGradient
+                id={leafRightGradId}
+                cx="0"
+                cy="0"
+                r="1"
+                gradientUnits="userSpaceOnUse"
+                gradientTransform={LEAF_RIGHT_GRAD_TRANSFORM}
+              >
+                <stop stopColor="#59702D" />
+                <stop offset="1" stopColor="#8FB645" />
+              </radialGradient>
+            </defs>
             <g
               className="blob-leaf blob-leaf-right"
               data-leaves={cfg.leaves}
+              data-highfive={highFived ? "clap" : undefined}
               style={{ transformOrigin: `${LEAF_STEM_RIGHT_X}px ${LEAF_STEM_Y}px` }}
             >
-              <path d={LEAF_RIGHT_PATH} fill={LEAF} />
+              <path d={LEAF_RIGHT_PATH} fill={`url(#${leafRightGradId})`} />
             </g>
           </g>
         </g>
 
-        {/* Sparkles live outside the body group so the body bob doesn't move them. */}
-        <Extras
-          kind={cfg.extras === "sparkle-burst" ? "sparkle-burst" : "none"}
-        />
+        {/* Particle extras (sparkles / heart) live outside the body group so
+            the body bob doesn't drag them around. */}
+        <Extras kind={cfg.extras} />
       </svg>
 
       <style jsx>{`
@@ -896,8 +1148,8 @@ export default function BlobCharacter({
          *  Design rules (read before editing):
          *    • Every state layers ≥ 2 animations on different elements with
          *      mismatched periods so the loop never feels like one big GIF.
-         *    • Per-mount randomness via --blob-seed phases blinks / sways /
-         *      glances so multiple companions on a page don't lockstep.
+         *    • Per-mount randomness via --blob-seed phases blinks / sways
+         *      so multiple companions on a page don't lockstep.
          *    • Body, petals, leaves, features, eyes each animate on
          *      DIFFERENT cycle lengths — that mismatch is what feels alive.
          *    • Custom cubic-beziers (never linear) for organic ease.
@@ -994,17 +1246,18 @@ export default function BlobCharacter({
           100% { transform: translateY(0) scale(1, 1); }
         }
 
-        /* GREETING — friendly side-to-side wave on canvas open. */
+        /* GREETING — soft bounce + tiny sway when the book / canvas opens. */
         :global(.blob-body[data-body="wave"]) {
-          animation: blob-greeting-wave 1.35s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+          animation: blob-greeting-wave ${GREETING_DURATION_S}s cubic-bezier(0.34, 1.28, 0.64, 1) forwards;
         }
         @keyframes blob-greeting-wave {
-          0%   { transform: rotate(0deg) translateY(0); }
-          18%  { transform: rotate(-5deg) translateY(-1px); }
-          38%  { transform: rotate(6deg) translateY(-1.5px); }
-          58%  { transform: rotate(-4deg) translateY(-0.5px); }
-          78%  { transform: rotate(2deg) translateY(0); }
-          100% { transform: rotate(0deg) translateY(0); }
+          0%   { transform: rotate(0deg) translateY(0) scale(1, 1); }
+          14%  { transform: rotate(-1.5deg) translateY(0.8px) scale(1.035, 0.97); }
+          32%  { transform: rotate(2deg) translateY(-2.8px) scale(0.98, 1.045); }
+          52%  { transform: rotate(-1.2deg) translateY(-1.2px) scale(1.02, 0.985); }
+          72%  { transform: rotate(0.8deg) translateY(-0.4px) scale(0.995, 1.01); }
+          88%  { transform: rotate(-0.4deg) translateY(0.15px) scale(1.006, 0.994); }
+          100% { transform: rotate(0deg) translateY(0) scale(1, 1); }
         }
 
         /* HEAVY — slower, softer breath for weighty moments. */
@@ -1063,12 +1316,12 @@ export default function BlobCharacter({
           100% { transform: rotate(0); }
         }
         :global(.blob-petals[data-body="wave"]) {
-          animation: blob-petals-greeting 1.35s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+          animation: blob-petals-greeting ${GREETING_DURATION_S}s cubic-bezier(0.34, 1.28, 0.64, 1) forwards;
         }
         @keyframes blob-petals-greeting {
           0%   { transform: rotate(0); }
-          25%  { transform: rotate(-3deg); }
-          55%  { transform: rotate(2.5deg); }
+          28%  { transform: rotate(-2deg); }
+          55%  { transform: rotate(1.8deg); }
           100% { transform: rotate(0); }
         }
         :global(.blob-petals[data-body="heavy-breath"]) {
@@ -1079,55 +1332,63 @@ export default function BlobCharacter({
           50%      { transform: rotate(0.3deg); }
         }
 
-        /* ── FEATURES (head cluster) — eyes+blush+mouth shift together
-              for tiny "head" beats: looking down to read, lifting on a hop. */
-        :global(.blob-features) {
+        /* ── FACE CLUSTER — cream disc + eyes + mouth move as one unit ─── */
+        :global(.blob-face-cluster) {
           transition: transform 0.45s cubic-bezier(0.34, 1.18, 0.64, 1);
         }
-        :global(.blob-features[data-state="typing"]) {
+        :global(.blob-face-cluster[data-state="typing"]) {
           transform: translateY(0.45px);
         }
-        :global(.blob-features[data-state="waking"]) {
-          animation: blob-features-wake ${WAKE_BODY_DURATION_S}s cubic-bezier(0.34, 1.4, 0.64, 1) forwards;
+        :global(.blob-face-cluster[data-state="waking"]) {
+          animation: blob-face-cluster-wake ${WAKE_BODY_DURATION_S}s cubic-bezier(0.34, 1.4, 0.64, 1) forwards;
         }
-        @keyframes blob-features-wake {
+        @keyframes blob-face-cluster-wake {
           0%   { transform: translateY(0.4px); }
           40%  { transform: translateY(-0.6px); }
           100% { transform: translateY(0); }
         }
-        :global(.blob-features[data-state="saving"]) {
-          animation: blob-features-save 1.1s cubic-bezier(0.34, 1.4, 0.64, 1) forwards;
+        :global(.blob-face-cluster[data-state="saving"]) {
+          animation: blob-face-cluster-save 1.1s cubic-bezier(0.34, 1.4, 0.64, 1) forwards;
         }
-        @keyframes blob-features-save {
+        @keyframes blob-face-cluster-save {
           0%   { transform: translateY(0); }
           32%  { transform: translateY(-0.7px); }
           66%  { transform: translateY(-0.3px); }
           100% { transform: translateY(0); }
         }
-        :global(.blob-features[data-state="greeting"]) {
-          animation: blob-features-greeting 1.35s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+        :global(.blob-face-cluster[data-state="greeting"]) {
+          animation: blob-face-cluster-greeting ${GREETING_DURATION_S}s cubic-bezier(0.34, 1.28, 0.64, 1) forwards;
         }
-        @keyframes blob-features-greeting {
+        @keyframes blob-face-cluster-greeting {
           0%   { transform: translateY(0); }
-          35%  { transform: translateY(-0.5px); }
+          32%  { transform: translateY(-0.9px); }
+          58%  { transform: translateY(-0.35px); }
           100% { transform: translateY(0); }
         }
-        :global(.blob-features[data-state="happy"]) {
-          animation: blob-features-save 1.1s cubic-bezier(0.34, 1.4, 0.64, 1) forwards;
+        :global(.blob-face-cluster[data-state="happy"]) {
+          animation: blob-face-cluster-save 1.1s cubic-bezier(0.34, 1.4, 0.64, 1) forwards;
         }
-        :global(.blob-features[data-state="heavy"]) {
+        :global(.blob-face-cluster[data-state="heavy"]) {
           transform: translateY(0.35px);
         }
 
-        /* ── MOUTH — instant switch (no fade); both paths stay mounted. */
+        /* ── MOUTH — crossfade + gentle scale between slight / big smile ─ */
+        :global(.blob-mouth-slight),
+        :global(.blob-mouth-big) {
+          transition:
+            opacity 0.42s cubic-bezier(0.4, 0, 0.2, 1),
+            transform 0.42s cubic-bezier(0.34, 1.15, 0.64, 1);
+        }
         :global(.blob-mouth[data-mouth-display="slight"] .blob-mouth-slight) {
           opacity: 1;
         }
         :global(.blob-mouth[data-mouth-display="slight"] .blob-mouth-big) {
           opacity: 0;
+          transform: scale(0.92);
         }
         :global(.blob-mouth[data-mouth-display="big"] .blob-mouth-slight) {
           opacity: 0;
+          transform: scale(0.88);
         }
         :global(.blob-mouth[data-mouth-display="big"] .blob-mouth-big) {
           opacity: 1;
@@ -1238,9 +1499,30 @@ export default function BlobCharacter({
           100% { transform: rotate(14deg); }
         }
 
+        /* GREETING — leaves sway with the bounce, settle back to neutral. */
+        :global(.blob-leaf-left[data-leaves="greeting"]) {
+          animation: blob-leaf-greeting-l ${GREETING_DURATION_S}s cubic-bezier(0.34, 1.28, 0.64, 1) forwards;
+        }
+        :global(.blob-leaf-right[data-leaves="greeting"]) {
+          animation: blob-leaf-greeting-r ${GREETING_DURATION_S}s cubic-bezier(0.34, 1.28, 0.64, 1) forwards;
+        }
+        @keyframes blob-leaf-greeting-l {
+          0%   { transform: rotate(0deg); }
+          28%  { transform: rotate(-7deg) translateY(-0.35px); }
+          52%  { transform: rotate(4.5deg) translateY(-0.2px); }
+          76%  { transform: rotate(-2.5deg); }
+          100% { transform: rotate(0deg); }
+        }
+        @keyframes blob-leaf-greeting-r {
+          0%   { transform: rotate(0deg); }
+          28%  { transform: rotate(7deg) translateY(-0.35px); }
+          52%  { transform: rotate(-4.5deg) translateY(-0.2px); }
+          76%  { transform: rotate(2.5deg); }
+          100% { transform: rotate(0deg); }
+        }
+
         /* ── EYES ─────────────────────────────────────────────────────── */
-        /* Each <Eye> CSS-animates scaleY (blink). Wrapper .blob-eyes-look
-           handles gaze translation so the two channels never collide. */
+        /* Eyes ride with the body/face. Per-eye motion is blink only (scaleY). */
 
         /* IDLE — natural slow blink + a much rarer "double-blink" beat. */
         :global(.blob-eye[data-eye="open"]) {
@@ -1251,20 +1533,6 @@ export default function BlobCharacter({
           0%, 53%, 56%, 86%, 90%, 100% { transform: scaleY(1); }
           54.5%                         { transform: scaleY(0.08); }
           88%                           { transform: scaleY(0.08); }
-        }
-
-        /* IDLE — eyes drift left, hold, return; later drift right, hold,
-           return. Mostly idle at 0 — the rarity is what makes it cute. */
-        :global(.blob-eyes-look[data-eye="open"]) {
-          animation: blob-idle-glance 13s cubic-bezier(0.5, 0, 0.5, 1) infinite;
-          animation-delay: calc(var(--blob-seed, 0) * -8s);
-        }
-        @keyframes blob-idle-glance {
-          0%, 18%   { transform: translateX(0) translateY(0); }
-          22%, 30%  { transform: translateX(-0.55px) translateY(-0.05px); }
-          34%, 62%  { transform: translateX(0) translateY(0); }
-          66%, 74%  { transform: translateX(0.6px) translateY(0); }
-          78%, 100% { transform: translateX(0) translateY(0); }
         }
 
         /* TYPING — quicker, more attentive blinks with an occasional double. */
@@ -1289,18 +1557,12 @@ export default function BlobCharacter({
           100% { transform: scaleY(1); }
         }
 
-        /* SLEEPING — closed line very occasionally twitches (REM). */
+        /* SLEEPING — closed eyes stay fixed (no twitch). */
         :global(.blob-eye[data-eye="closed"]) {
-          animation: blob-sleep-twitch 7.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-          animation-delay: calc(var(--blob-seed, 0) * -3s);
-        }
-        @keyframes blob-sleep-twitch {
-          0%, 86%, 92%, 100% { transform: scaleX(1) translateX(0); }
-          88%                { transform: scaleX(0.88) translateX(0.18px); }
-          90%                { transform: scaleX(0.92) translateX(-0.12px); }
+          transform: none;
         }
 
-        /* SAVING — happy U eyes squint in with overshoot. */
+        /* SAVING — happy squint pop-in. */
         :global(.blob-eye[data-eye="smile"]) {
           animation: blob-smile-pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
         }
@@ -1402,8 +1664,9 @@ export default function BlobCharacter({
           :global(.blob-body[data-body="lean"]),
           :global(.blob-body[data-body="wake"]),
           :global(.blob-body[data-body="bounce"]),
+          :global(.blob-body[data-body="wave"]),
           :global(.blob-petals),
-          :global(.blob-features),
+          :global(.blob-face-cluster),
           :global(.blob-leaf),
           :global(.blob-eyes-look),
           :global(.blob-eye),
@@ -1470,7 +1733,9 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
     greetOnMount = true,
   } = opts;
 
-  const [state, setState] = React.useState<BlobState>("idle");
+  const [state, setState] = React.useState<BlobState>(() =>
+    greetOnMount ? "greeting" : "idle"
+  );
   const [hidden, setHidden] = React.useState(false);
 
   const sleepTimerRef = React.useRef<number | null>(null);
@@ -1480,7 +1745,7 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
   const greetingTimerRef = React.useRef<number | null>(null);
   const emotionTimerRef = React.useRef<number | null>(null);
   const closingRef = React.useRef(false);
-  const stateRef = React.useRef<BlobState>("idle");
+  const stateRef = React.useRef<BlobState>(greetOnMount ? "greeting" : "idle");
 
   React.useEffect(() => {
     stateRef.current = state;

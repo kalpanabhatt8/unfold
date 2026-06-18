@@ -7,7 +7,7 @@ import { BookCover } from "@/components/book-cover";
 import { BOOK_CONFIG } from "@/components/book-cover-config";
 import { btnIcon, btnState, iconFixed, iconPx, iconStroke } from "@/components/ui/button-system";
 import { starterBookTemplates } from "@/data/book-templates";
-import { coverBackgroundVar } from "@/data/cover-gradients";
+import { coverBackgroundVar, resolveBookCoverBackground } from "@/data/cover-gradients";
 import {
   readRecentBooks,
   RECENT_BOOKS_STORAGE_KEY,
@@ -15,8 +15,7 @@ import {
   type RecentBook,
 } from "@/lib/recent-books";
 
-const CREATE_NEW_COVER_BG =
-  "linear-gradient(to bottom, #EBEDF0 0%, #E3E8EC 100%)";
+const CREATE_NEW_COVER_BG = coverBackgroundVar("g1");
 
 const Dashboard = () => {
   const router = useRouter();
@@ -164,8 +163,9 @@ const Dashboard = () => {
                           coverImageUrl={book.coverImage ?? undefined}
                           className="h-full w-full"
                           style={{
-                            background:
-                              book.background || coverBackgroundVar("g1"),
+                            background: resolveBookCoverBackground(
+                              book.background
+                            ),
                           }}
                         />
                         <button
