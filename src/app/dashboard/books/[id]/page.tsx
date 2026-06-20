@@ -181,6 +181,10 @@ const BookBuilderPage = () => {
   );
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const colorPickerRef = useRef<HTMLDivElement | null>(null);
+  const titleRef = useRef(title);
+  titleRef.current = title;
+  const subtitleRef = useRef(subtitle);
+  subtitleRef.current = subtitle;
 
   useEffect(() => {
     if (!templateParam) return;
@@ -213,8 +217,20 @@ const BookBuilderPage = () => {
 
   const applyDraftToCoverState = useCallback((existing: RecentBook | null) => {
     if (!existing) return;
-    if (typeof existing.title === "string") setTitle(existing.title);
-    if (typeof existing.subtitle === "string") setSubtitle(existing.subtitle);
+    // Skip title/subtitle when storage matches what the user is typing — avoids
+    // debounced saves (which used to trim) clobbering leading/trailing spaces.
+    if (
+      typeof existing.title === "string" &&
+      existing.title !== titleRef.current
+    ) {
+      setTitle(existing.title);
+    }
+    if (
+      typeof existing.subtitle === "string" &&
+      existing.subtitle !== subtitleRef.current
+    ) {
+      setSubtitle(existing.subtitle);
+    }
     if (
       typeof existing.coverImage === "string" ||
       existing.coverImage === null
@@ -312,7 +328,7 @@ const BookBuilderPage = () => {
     return [...basePresets, { id: "custom-last", value: normalizedCurrent }];
   }, [background]);
   const sampleImages = useMemo(() => {
-    const baseImages = bookCoverSamples.slice(0, 4);
+    const baseImages = bookCoverSamples;
     if (!coverImage || baseImages.includes(coverImage)) return baseImages;
     return [...baseImages, coverImage];
   }, [coverImage]);
@@ -330,8 +346,8 @@ const BookBuilderPage = () => {
         drafts[draftId] = {
           ...existing,
           id: draftId,
-          title: title.trim(),
-          subtitle: subtitle.trim() ? subtitle.trim() : undefined,
+          title,
+          subtitle: subtitle || undefined,
           coverImage: coverImage ?? null,
           background: resolveBookCoverBackground(background),
           variant,

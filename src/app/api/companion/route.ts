@@ -71,12 +71,13 @@ export async function POST(request: Request) {
   }
 
   const prompt = `You are a quiet sunflower companion watching someone journal privately.
-Read their most recent writing (the last ~40 words they wrote) and respond with JSON only — no markdown, no extra keys.
+Read their most recent writing (up to the last 24 words — the excerpt may be shorter) and respond with JSON only — no markdown, no extra keys.
 
 Rules:
 - Classify the overall emotional tone as exactly one of: heavy, anxious, angry, confused, shocked, tired, happy, calm, neutral
-- "heavy"    = grief, sadness, loss, loneliness, weight
-- "anxious"  = worry, fear, nervousness, feeling overwhelmed
+- Read for meaning and context — do NOT rely on specific keywords being present
+- "heavy"    = grief, sadness, loss, loneliness, emotional weight
+- "anxious"  = worry, fear, nervousness, dread, rumination, catastrophizing, feeling overwhelmed or on edge — even when the writer never says "anxious" or "worried"
 - "angry"    = anger, frustration, resentment, feeling wronged
 - "confused" = uncertainty, feeling torn, stuck, or unclear
 - "shocked"  = surprise, disbelief, sudden realization, being caught off guard
@@ -85,6 +86,13 @@ Rules:
 - "calm"     = peace, ease, contentment, steadiness
 - "neutral"  = everyday reflection or mixed tone with no clear emotion
 - Pick the single most dominant tone. When genuinely unclear, use "neutral".
+
+Examples (tone → label):
+- "I keep thinking about what might go wrong. Every small thing feels like it could spiral." → anxious
+- "My chest is tight before every meeting. I replay conversations for hours." → anxious
+- "I feel so grateful for the people around me. Someone did something small that meant everything." → happy
+- "I miss her so much. The house feels empty without her." → heavy
+- "I slept ten hours and still feel hollow." → tired
 
 Respond with this exact JSON shape:
 {"emotion":"<one of the nine>"}

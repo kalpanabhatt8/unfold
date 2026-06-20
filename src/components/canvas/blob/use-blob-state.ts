@@ -10,6 +10,8 @@ import {
   GREETING_DURATION_S,
   PEEK_DELAY_MS,
   PEEK_HOLD_MS,
+  WAKE_DURATION_MS,
+  WAKE_SURPRISE_MS,
 } from "./layout";
 
 export const GREETING_DURATION_MS = GREETING_DURATION_S * 1000;
@@ -18,6 +20,8 @@ export const EMOTION_REACTION_MS = 6_000;
 const GREETING_FADE_MS = 450;
 
 export type UseBlobStateOptions = {
+  /** Scopes entrance greetings to first vs returning visits for this book. */
+  bookId?: string;
   typingRestoreMs?: number;
   enterDurationMs?: number;
   emotionDurationMs?: number;
@@ -31,6 +35,7 @@ export type UseBlobStateOptions = {
 
 export function useBlobState(opts: UseBlobStateOptions = {}) {
   const {
+    bookId = "default",
     typingRestoreMs = 900,
     enterDurationMs = ENTRANCE_DURATION_MS,
     emotionDurationMs = EMOTION_REACTION_MS,
@@ -51,6 +56,8 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
   const idleTimerRef = React.useRef<number | null>(null);
   const enterTimerRef = React.useRef<number | null>(null);
   const emotionTimerRef = React.useRef<number | null>(null);
+  const wakeTimerRef = React.useRef<number | null>(null);
+  const wakeSettleTimerRef = React.useRef<number | null>(null);
   const peekTimerRef = React.useRef<number | null>(null);
   const slideTimerRef = React.useRef<number | null>(null);
   const greetingClearTimerRef = React.useRef<number | null>(null);
@@ -89,6 +96,8 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
   const clearAll = React.useCallback(() => {
     clearTimer(idleTimerRef);
     clearTimer(emotionTimerRef);
+    clearTimer(wakeTimerRef);
+    clearTimer(wakeSettleTimerRef);
     clearEntranceTimers();
   }, [clearEntranceTimers]);
 
@@ -113,7 +122,7 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
       // Peek in: appear at the edge, tilted, with the greeting.
       setHidden(false);
       setPose("peek");
-      setGreeting(pickEntranceGreeting());
+      setGreeting(pickEntranceGreeting(bookId));
       setGreetingVisible(true);
 
       slideTimerRef.current = window.setTimeout(() => {
@@ -133,7 +142,7 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
         }, enterDurationMs);
       }, peekHoldMs);
     }, peekDelayMs);
-  }, [clearEntranceTimers, enterDurationMs, peekDelayMs, peekHoldMs]);
+  }, [bookId, clearEntranceTimers, enterDurationMs, peekDelayMs, peekHoldMs]);
 
   React.useEffect(() => {
     if (!enterOnMount) return;
@@ -146,6 +155,8 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
     // Let peek → greeting → slide → idle finish before reacting to typing.
     if (!entranceCompleteRef.current) return;
     clearTimer(idleTimerRef);
+    clearTimer(wakeTimerRef);
+    clearTimer(wakeSettleTimerRef);
 
     if (poseRef.current !== "jump" && poseRef.current !== "bloom") {
       setPose("typing");
@@ -184,19 +195,51 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
     setEmotion(next);
   }, []);
 
-  const onWakeFromSleep = React.useCallback(() => {
-    if (closingRef.current || !sleepingRef.current) return;
-    sleepingRef.current = false;
-    clearTimer(emotionTimerRef);
-    setEmotion(awakeEmotionRef.current);
-  }, []);
+  const onWakeFromSleep = React.useCallback(
+    (opts?: { typing?: boolean }): boolean => {
+      if (closingRef.current || !sleepingRef.current) return false;
+      sleepingRef.current = false;
+      clearTimer(emotionTimerRef);
+      clearTimer(wakeTimerRef);
+      clearTimer(wakeSettleTimerRef);
+      setEmotion("shocked");
+
+      wakeSettleTimerRef.current = window.setTimeout(() => {
+        if (closingRef.current) return;
+        setEmotion("neutral");
+      }, WAKE_SURPRISE_MS);
+
+      if (opts?.typing) {
+        wakeTimerRef.current = window.setTimeout(() => {
+          if (closingRef.current) return;
+          setEmotion(awakeEmotionRef.current);
+        }, WAKE_DURATION_MS);
+        return true;
+      }
+
+      clearTimer(idleTimerRef);
+      setPose("wake");
+      wakeTimerRef.current = window.setTimeout(() => {
+        if (closingRef.current) return;
+        setPose("idle");
+        setEmotion(awakeEmotionRef.current);
+      }, WAKE_DURATION_MS);
+      return true;
+    },
+    []
+  );
 
   /** Gemini / local classification from journal text — updates on each idle pause. */
   const onSessionEmotionDetected = React.useCallback(
     (companion: CompanionEmotion, text: string) => {
       if (closingRef.current) return;
+      const next = companionToBlobEmotion(companion, text);
+      if (sleepingRef.current) {
+        awakeEmotionRef.current = next;
+        return;
+      }
       clearTimer(emotionTimerRef);
-      setEmotion(companionToBlobEmotion(companion, text));
+      setEmotion(next);
     },
     []
   );

@@ -12,6 +12,7 @@ import {
   estimateBackgroundLuminance,
   sampleCoverImageFromUrl,
 } from "@/lib/cover-text-contrast";
+import { hasBookTitle } from "@/lib/book-title";
 
 type BookCoverVariant = "solid" | "image";
 
@@ -132,6 +133,9 @@ export function BookCover({
     [effectiveLuminance, variant, coverImageUrl],
   );
 
+  const showTitle =
+    !coverImageUrl || (!titleIsPlaceholder && hasBookTitle(title));
+
   return (
     <>
       <div className={clsx("book-cover-stack", className)} {...rest}>
@@ -157,21 +161,23 @@ export function BookCover({
 
           <div className="book-overlay-line" />
 
-          <div className="book-cover__content">
-            <h3
-              className="book-cover__title"
-              style={titleIsPlaceholder ? textChrome.hint : textChrome.title}
-            >
-              {title}
-            </h3>
-            {/* Subtitle temporarily hidden on book cover
+          {showTitle ? (
+            <div className="book-cover__content">
+              <h3
+                className="book-cover__title"
+                style={titleIsPlaceholder ? textChrome.hint : textChrome.title}
+              >
+                {title}
+              </h3>
+              {/* Subtitle temporarily hidden on book cover
             {subtitle ? (
               <p className="book-cover__subtitle" style={textChrome.subtitle}>
                 {subtitle}
               </p>
             ) : null}
             */}
-          </div>
+            </div>
+          ) : null}
         </div>
       </div>
     </>

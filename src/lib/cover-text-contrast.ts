@@ -76,9 +76,9 @@ export const COVER_GRADIENT_RGB: Record<
   { r: number; g: number; b: number }
 > = {
   g1: { r: 232, g: 208, b: 192 },
-  g2: { r: 196, g: 165, b: 212 },
-  g3: { r: 157, g: 184, b: 160 },
-  g4: { r: 232, g: 168, b: 124 },
+  g2: { r: 185, g: 167, b: 230 },
+  g3: { r: 158, g: 210, b: 160 },
+  g4: { r: 148, g: 185, b: 234 },
   g5: { r: 124, g: 184, b: 196 },
   g6: { r: 235, g: 232, b: 228 },
   g7: { r: 91, g: 81, b: 73 },
@@ -89,9 +89,9 @@ export const COVER_GRADIENT_RGB: Record<
 
 export const COVER_GRADIENT_LUMINANCE: Record<CoverGradientId, number> = {
   g1: relativeLuminance255(232, 208, 192),
-  g2: relativeLuminance255(196, 165, 212),
-  g3: relativeLuminance255(157, 184, 160),
-  g4: relativeLuminance255(232, 168, 124),
+  g2: relativeLuminance255(185, 167, 230),
+  g3: relativeLuminance255(158, 210, 160),
+  g4: relativeLuminance255(148, 185, 234),
   g5: relativeLuminance255(124, 184, 196),
   g6: relativeLuminance255(235, 232, 228),
   g7: relativeLuminance255(91, 81, 73),
@@ -135,7 +135,8 @@ export function coverTintRgbFromBackground(
   return COVER_GRADIENT_RGB.g1;
 }
 
-const DARK_BG_THRESHOLD = 0.45;
+/** Pastels like g2 (0.44) and g5 (0.43) sit below 0.45 but still need dark ink. */
+const DARK_BG_THRESHOLD = 0.42;
 
 export function isDarkCoverBackground(luminance: number): boolean {
   return luminance < DARK_BG_THRESHOLD;
@@ -174,11 +175,6 @@ export function estimateBackgroundLuminance(
   return COVER_GRADIENT_LUMINANCE.g1;
 }
 
-const IMAGE_TEXT_SHADOW_LIGHT =
-  "0 1px 2px rgba(0,0,0,0.55), 0 0 14px rgba(0,0,0,0.35)";
-const IMAGE_TEXT_SHADOW_DARK =
-  "0 1px 2px rgba(255,255,255,0.45), 0 0 12px rgba(0,0,0,0.18)";
-
 export type CoverOverlayTextStyles = {
   title: CSSProperties;
   subtitle: CSSProperties;
@@ -191,23 +187,18 @@ export function coverOverlayTextStyles(opts: {
   onImage: boolean;
 }): CoverOverlayTextStyles {
   const darkBg = isDarkCoverBackground(opts.luminance);
-  const shadow = opts.onImage
-    ? darkBg
-      ? IMAGE_TEXT_SHADOW_LIGHT
-      : IMAGE_TEXT_SHADOW_DARK
-    : undefined;
 
   if (darkBg) {
     return {
-      title: { color: "rgba(255,255,255,0.94)", textShadow: shadow },
-      subtitle: { color: "rgba(255,255,255,0.78)", textShadow: shadow },
-      hint: { color: "rgba(255,255,255,0.5)", textShadow: shadow },
+      title: { color: "rgba(255,255,255,0.94)" },
+      subtitle: { color: "rgba(255,255,255,0.78)" },
+      hint: { color: "rgba(255,255,255,0.5)" },
     };
   }
   return {
-    title: { color: "rgba(15,23,42,0.92)", textShadow: shadow },
-    subtitle: { color: "rgba(15,23,42,0.68)", textShadow: shadow },
-    hint: { color: "rgba(15,23,42,0.45)", textShadow: shadow },
+    title: { color: "rgba(15,23,42,0.92)" },
+    subtitle: { color: "rgba(15,23,42,0.68)" },
+    hint: { color: "rgba(15,23,42,0.45)" },
   };
 }
 

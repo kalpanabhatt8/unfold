@@ -3,7 +3,7 @@
 import React from "react";
 import clsx from "clsx";
 import type { BlobCharacterProps, BlobEmotion, BloomLevel } from "./types";
-import { ASSET_SIZE, BASE, EMOTION_ASSETS, SLEEP_Z_LETTER } from "./assets";
+import { ASSET_SIZE, BASE, EMOTION_ASSETS } from "./assets";
 import {
   BODY_CX,
   BODY_CY,
@@ -41,12 +41,27 @@ import {
   TYPING_LEAF_SWAY_DURATION_S,
   TYPING_LEAF_SWAY_DEG,
   SLEEP_ZZZ_CYCLE_S,
-  SLEEP_ZZZ_LETTER_COUNT,
   SLEEP_ZZZ_LETTER_SCALE,
   SLEEP_ZZZ_POS,
-  SLEEP_ZZZ_STAGGER_S,
   SLEEP_FACE_OFFSET_Y,
+  SLEEP_BLUSH_CY,
+  SLEEP_LEFT_BLUSH_CX,
+  SLEEP_RIGHT_BLUSH_CX,
+  SLEEP_BREATH_DURATION_S,
+  SLEEP_BREATH_SCALE_MIN,
+  SLEEP_BREATH_SCALE_MAX,
+  SLEEP_BREATH_LIFT_PX,
+  WAKE_BODY_DURATION_S,
+  WAKE_BODY_SCALE_PEAK,
+  WAKE_BODY_LIFT_PX,
+  WAKE_LEAF_DURATION_S,
+  WAKE_LEAF_LIFT_PX,
+  WAKE_LEAF_ROTATE_LIFT,
   MOUTH_CHANGE_DURATION_S,
+  MOUTH_CHANGE_EXPAND_DURATION_S,
+  MOUTH_CHANGE_CONTRACT_DURATION_S,
+  MOUTH_WAKE_SETTLE_DURATION_S,
+  MOUTH_SHOCKED_OPEN_SCALE_Y,
 } from "./layout";
 import { POSES } from "./poses";
 import {
@@ -109,18 +124,119 @@ function Sparkle({
   );
 }
 
+/** Smiles share the same anchor — scale between sizes instead of crossfading. */
+const SMILE_EMOTIONS = new Set<BlobEmotion>([
+  "neutral",
+  "happy",
+  "love",
+  "excited",
+]);
+
+function mouthArea(size: { w: number; h: number }) {
+  return size.w * size.h;
+}
+
 function MouthImage({ emotion }: { emotion: BlobEmotion }) {
+  const imgRef = React.useRef<SVGImageElement>(null);
+  const animRef = React.useRef<Animation | null>(null);
+  const prevEmotionRef = React.useRef(emotion);
   const mouth = mouthSize(emotion);
   const pos = mouthPosition(emotion);
+
+  React.useLayoutEffect(() => {
+    const img = imgRef.current;
+    if (!img) return;
+
+    const prev = prevEmotionRef.current;
+    if (prev === emotion) return;
+
+    const prevSize = mouthSize(prev);
+    const nextSize = mouthSize(emotion);
+    const sx = prevSize.w / nextSize.w;
+    const sy = prevSize.h / nextSize.h;
+    const smileTransition =
+      SMILE_EMOTIONS.has(prev) && SMILE_EMOTIONS.has(emotion);
+
+    prevEmotionRef.current = emotion;
+    animRef.current?.cancel();
+
+    const shockedSettle =
+      prev === "shocked" &&
+      (emotion === "neutral" || SMILE_EMOTIONS.has(emotion));
+
+    if (shockedSettle) {
+      img.style.opacity = "1";
+      img.style.transition = "none";
+      const startSy = Math.max(sy, MOUTH_SHOCKED_OPEN_SCALE_Y);
+      animRef.current = img.animate(
+        [
+          { transform: `scale(${sx}, ${startSy})` },
+          { transform: "scale(1, 1)" },
+        ],
+        {
+          duration: MOUTH_WAKE_SETTLE_DURATION_S * 1000,
+          easing: "cubic-bezier(0.25, 0.85, 0.35, 1)",
+          fill: "forwards",
+        }
+      );
+      animRef.current.onfinish = () => {
+        img.style.transform = "scale(1, 1)";
+      };
+      return;
+    }
+
+    if (smileTransition) {
+      img.style.opacity = "1";
+      img.style.transition = "none";
+      const expanding = mouthArea(nextSize) > mouthArea(prevSize);
+      const frames: Keyframe[] = expanding
+        ? [
+            { transform: `scale(${sx}, ${sy})` },
+            { transform: "scale(1.028, 1.055)", offset: 0.74 },
+            { transform: "scale(1, 1)" },
+          ]
+        : [
+            { transform: `scale(${sx}, ${sy})` },
+            { transform: "scale(1, 1)" },
+          ];
+
+      animRef.current = img.animate(frames, {
+        duration:
+          (expanding
+            ? MOUTH_CHANGE_EXPAND_DURATION_S
+            : MOUTH_CHANGE_CONTRACT_DURATION_S) * 1000,
+        easing: expanding
+          ? "cubic-bezier(0.34, 1.32, 0.64, 1)"
+          : "cubic-bezier(0.25, 0.85, 0.35, 1)",
+        fill: "forwards",
+      });
+      animRef.current.onfinish = () => {
+        img.style.transform = "scale(1, 1)";
+      };
+      return;
+    }
+
+    const ease = `transform ${MOUTH_CHANGE_DURATION_S}s cubic-bezier(0.22, 0.9, 0.3, 1)`;
+    img.style.transition = "none";
+    img.style.opacity = "0.35";
+    img.style.transform = "scale(0.96, 0.92)";
+    void img.getBoundingClientRect();
+    img.style.transition = `${ease}, opacity ${MOUTH_CHANGE_DURATION_S * 0.55}s ease`;
+    img.style.opacity = "1";
+    img.style.transform = "scale(1, 1)";
+  }, [emotion]);
+
+  React.useEffect(() => () => animRef.current?.cancel(), []);
+
   return (
     <image
-      key={emotion}
+      ref={imgRef}
       href={resolveMouthSrc(emotion)}
       x={pos.x}
       y={pos.y}
       width={mouth.w}
       height={mouth.h}
-      className="blob-mouth-image blob-mouth-change"
+      className="blob-mouth-image"
       preserveAspectRatio="xMidYMid meet"
     />
   );
@@ -134,6 +250,7 @@ export default function BlobCharacter({
   hidden = false,
   bloomLevel = 0,
   onHighFive,
+  onWake,
   debugLayout = false,
 }: BlobCharacterProps) {
   const [paintReady, setPaintReady] = React.useState(false);
@@ -145,7 +262,18 @@ export default function BlobCharacter({
   }, [pose]);
 
   const cfg = POSES[pose];
+  const isSleeping = emotion === "sleep" && pose === "idle";
+  const bodyKind = isSleeping ? "shrink" : cfg.body;
+  const leavesKind = isSleeping ? "droop" : cfg.leaves;
   const mouthEmotion = cfg.mouthEmotion ?? emotion;
+  const eyeBlink = (() => {
+    if (emotion === "sleep") return "none";
+    if (emotion === "shocked" && (pose === "wake" || pose === "typing")) {
+      return "wake";
+    }
+    if (pose === "wake") return "wake-settle";
+    return cfg.eyeBlink;
+  })();
 
   const reactId = React.useId();
   const faceClipId = `blob-face-clip-${reactId.replace(/:/g, "")}`;
@@ -172,6 +300,11 @@ export default function BlobCharacter({
     setHighFived(true);
     onHighFive?.();
   }, [highFived, isJump, onHighFive]);
+
+  const handleWake = React.useCallback(() => {
+    if (!isSleeping) return;
+    onWake?.();
+  }, [isSleeping, onWake]);
 
   const seed = React.useMemo(() => {
     let h = 2166136261;
@@ -201,14 +334,21 @@ export default function BlobCharacter({
     <div
       data-blob-pose={pose}
       data-blob-emotion={emotion}
-      aria-hidden={isJump ? undefined : "true"}
-      role={isJump ? "button" : undefined}
-      aria-label={isJump ? "High-five the flower" : undefined}
-      onClick={isJump ? handleHighFive : undefined}
+      aria-hidden={isJump || isSleeping ? undefined : "true"}
+      role={isJump ? "button" : isSleeping ? "button" : undefined}
+      aria-label={
+        isJump
+          ? "High-five the flower"
+          : isSleeping
+            ? "Wake the flower"
+            : undefined
+      }
+      onClick={isJump ? handleHighFive : isSleeping ? handleWake : undefined}
+      onPointerEnter={isSleeping ? handleWake : undefined}
       className={clsx(
         "select-none transition-opacity duration-300",
         !paintReady || hidden ? "opacity-0" : "opacity-100",
-        isJump ? "cursor-pointer" : "cursor-default",
+        isJump || isSleeping ? "cursor-pointer" : "cursor-default",
         className
       )}
       style={
@@ -274,11 +414,11 @@ export default function BlobCharacter({
           </g>
         ) : null}
 
-        <g className="blob-body" data-body={cfg.body} style={{ transformOrigin: "30px 46px" }}>
+        <g className="blob-body" data-body={bodyKind} style={{ transformOrigin: "30px 46px" }}>
           <g transform={`translate(${BODY_TX} ${BODY_TY})`}>
             <g
               className="blob-petals"
-              data-body={cfg.body}
+              data-body={bodyKind}
               style={{ transformOrigin: "25px 25px" }}
             >
               <g
@@ -321,7 +461,7 @@ export default function BlobCharacter({
               >
                 <g
                   className="blob-eyes"
-                  data-eye-blink={emotion === "sleep" ? "none" : cfg.eyeBlink}
+                  data-eye-blink={eyeBlink}
                 >
                   {centeredImage(
                     leftEyeSrc,
@@ -343,16 +483,16 @@ export default function BlobCharacter({
 
                 {centeredImage(
                   BASE.leftBlush,
-                  LEFT_BLUSH_CX,
-                  BLUSH_CY,
+                  emotion === "sleep" ? SLEEP_LEFT_BLUSH_CX : LEFT_BLUSH_CX,
+                  emotion === "sleep" ? SLEEP_BLUSH_CY : BLUSH_CY,
                   ASSET_SIZE.leftBlush.w,
                   ASSET_SIZE.leftBlush.h,
                   "blush-l"
                 )}
                 {centeredImage(
                   BASE.rightBlush,
-                  RIGHT_BLUSH_CX,
-                  BLUSH_CY,
+                  emotion === "sleep" ? SLEEP_RIGHT_BLUSH_CX : RIGHT_BLUSH_CX,
+                  emotion === "sleep" ? SLEEP_BLUSH_CY : BLUSH_CY,
                   ASSET_SIZE.leftBlush.w,
                   ASSET_SIZE.leftBlush.h,
                   "blush-r"
@@ -365,29 +505,37 @@ export default function BlobCharacter({
             </g>
           </g>
 
-          {emotion === "sleep" ? (
+          {emotion === "sleep" && EMOTION_ASSETS.sleep.sleepZzz ? (
             <g transform={`translate(${SLEEP_ZZZ_POS.x} ${SLEEP_ZZZ_POS.y})`}>
-              {Array.from({ length: SLEEP_ZZZ_LETTER_COUNT }, (_, i) => (
-                <g
-                  key={i}
-                  className="blob-sleep-z"
-                  style={
-                    {
-                      animationDelay: `${i * SLEEP_ZZZ_STAGGER_S}s`,
-                    } as React.CSSProperties
-                  }
-                >
-                  <g
-                    transform={`translate(${-SLEEP_Z_LETTER.anchor.x * SLEEP_ZZZ_LETTER_SCALE} ${-SLEEP_Z_LETTER.anchor.y * SLEEP_ZZZ_LETTER_SCALE}) scale(${SLEEP_ZZZ_LETTER_SCALE})`}
-                  >
-                    <path d={SLEEP_Z_LETTER.d} fill={SLEEP_Z_LETTER.fill} />
-                  </g>
-                </g>
-              ))}
+              <g className="blob-sleep-zzz">
+                <animate
+                  attributeName="opacity"
+                  values="0;0;0.95;0.85;0;0"
+                  keyTimes="0;0.08;0.22;0.58;0.78;1"
+                  dur={`${SLEEP_ZZZ_CYCLE_S}s`}
+                  repeatCount="indefinite"
+                />
+                <animateTransform
+                  attributeName="transform"
+                  type="translate"
+                  values="0 0.6; 0 0.6; 0 0; 0.8 -2; 1.2 -3.5; 1.2 -3.5"
+                  keyTimes="0;0.02;0.22;0.58;0.78;1"
+                  dur={`${SLEEP_ZZZ_CYCLE_S}s`}
+                  repeatCount="indefinite"
+                />
+                <image
+                  href={EMOTION_ASSETS.sleep.sleepZzz}
+                  x={0}
+                  y={0}
+                  width={ASSET_SIZE.sleepZzz.w * SLEEP_ZZZ_LETTER_SCALE}
+                  height={ASSET_SIZE.sleepZzz.h * SLEEP_ZZZ_LETTER_SCALE}
+                  preserveAspectRatio="xMidYMid meet"
+                />
+              </g>
             </g>
           ) : null}
 
-          {cfg.leaves !== "hidden" ? (
+          {leavesKind !== "hidden" ? (
             <>
               <g
                 transform={`translate(${LEAF_LEFT_POS.x} ${LEAF_LEFT_POS.y}) scale(${LEAF_SCALE})`}
@@ -395,7 +543,7 @@ export default function BlobCharacter({
                 <g className="blob-leaf-mount">
                   <g
                     className="blob-leaf blob-leaf-left"
-                    data-leaves={cfg.leaves}
+                    data-leaves={leavesKind}
                     data-highfive={highFived ? "clap" : undefined}
                     style={{
                       transformBox: "fill-box",
@@ -419,7 +567,7 @@ export default function BlobCharacter({
                 <g className="blob-leaf-mount">
                   <g
                     className="blob-leaf blob-leaf-right"
-                    data-leaves={cfg.leaves}
+                    data-leaves={leavesKind}
                     data-highfive={highFived ? "clap" : undefined}
                     style={{
                       transformBox: "fill-box",
@@ -503,8 +651,54 @@ export default function BlobCharacter({
           32%  { transform: rotate(2deg) translateY(-2.8px); }
           100% { transform: rotate(0deg) translateY(0); }
         }
+        :global(.blob-body[data-body="shrink"]) {
+          animation: blob-sleep-breath ${SLEEP_BREATH_DURATION_S}s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes blob-sleep-breath {
+          0%, 100% {
+            transform: scale(${SLEEP_BREATH_SCALE_MIN}, ${SLEEP_BREATH_SCALE_MIN - 0.005}) translateY(0.55px);
+          }
+          45% {
+            transform: scale(${SLEEP_BREATH_SCALE_MAX}, ${SLEEP_BREATH_SCALE_MAX - 0.012})
+                       translateY(${SLEEP_BREATH_LIFT_PX}px);
+          }
+          58% {
+            transform: scale(${(SLEEP_BREATH_SCALE_MAX + SLEEP_BREATH_SCALE_MIN) / 2 + 0.003},
+                             ${(SLEEP_BREATH_SCALE_MAX + SLEEP_BREATH_SCALE_MIN) / 2 - 0.005})
+                       translateY(${SLEEP_BREATH_LIFT_PX * 0.55}px);
+          }
+        }
+        :global(.blob-body[data-body="wake"]) {
+          animation: blob-wake-body ${WAKE_BODY_DURATION_S}s cubic-bezier(0.34, 1.36, 0.64, 1) forwards;
+        }
+        @keyframes blob-wake-body {
+          0%   { transform: scale(0.965, 0.97) translateY(0.6px); }
+          18%  { transform: scale(0.95, 1.06) translateY(-0.4px); }
+          42%  {
+            transform: scale(${WAKE_BODY_SCALE_PEAK + 0.01}, ${WAKE_BODY_SCALE_PEAK - 0.05})
+                       translateY(${WAKE_BODY_LIFT_PX}px);
+          }
+          62%  { transform: scale(0.99, 1.015) translateY(-0.2px); }
+          100% { transform: scale(1, 1) translateY(0); }
+        }
 
         :global(.blob-petals) { transition: transform 0.5s ease; }
+        :global(.blob-petals[data-body="shrink"]) {
+          animation: blob-petals-sleep ${SLEEP_BREATH_DURATION_S}s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes blob-petals-sleep {
+          0%, 100% { transform: rotate(-0.5deg); }
+          50%      { transform: rotate(0.5deg); }
+        }
+        :global(.blob-petals[data-body="wake"]) {
+          animation: blob-petals-wake ${WAKE_BODY_DURATION_S}s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        @keyframes blob-petals-wake {
+          0%   { transform: rotate(-0.4deg); }
+          25%  { transform: rotate(-2.6deg); }
+          55%  { transform: rotate(2deg); }
+          100% { transform: rotate(0); }
+        }
         :global(.blob-petals[data-body="bob"]) {
           animation: blob-petals-drift 7.4s ease-in-out infinite;
         }
@@ -564,6 +758,45 @@ export default function BlobCharacter({
         :global(.blob-leaf-right[data-leaves="highfive"]) {
           transform: rotate(18deg);
         }
+        :global(.blob-leaf-left[data-leaves="droop"]) {
+          animation: blob-leaf-droop-l ${SLEEP_BREATH_DURATION_S}s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        :global(.blob-leaf-right[data-leaves="droop"]) {
+          animation: blob-leaf-droop-r ${SLEEP_BREATH_DURATION_S}s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes blob-leaf-droop-l {
+          0%, 100% { transform: rotate(-6deg) translateY(0.7px); }
+          50%      { transform: rotate(-4.5deg) translateY(0.3px); }
+        }
+        @keyframes blob-leaf-droop-r {
+          0%, 100% { transform: rotate(6deg) translateY(0.7px); }
+          50%      { transform: rotate(4.5deg) translateY(0.3px); }
+        }
+        :global(.blob-leaf-left[data-leaves="wake"]) {
+          animation: blob-leaf-wake-l ${WAKE_LEAF_DURATION_S}s cubic-bezier(0.34, 1.4, 0.64, 1) forwards;
+        }
+        :global(.blob-leaf-right[data-leaves="wake"]) {
+          animation: blob-leaf-wake-r ${WAKE_LEAF_DURATION_S}s cubic-bezier(0.34, 1.4, 0.64, 1) forwards;
+        }
+        @keyframes blob-leaf-wake-l {
+          0%   { transform: rotate(-6deg) translateY(0.6px); }
+          32%  { transform: rotate(${-6 + WAKE_LEAF_ROTATE_LIFT + 2}deg) translateY(${WAKE_LEAF_LIFT_PX}px); }
+          100% { transform: rotate(0deg) translateY(0); }
+        }
+        @keyframes blob-leaf-wake-r {
+          0%   { transform: rotate(6deg) translateY(0.6px); }
+          32%  { transform: rotate(${6 - WAKE_LEAF_ROTATE_LIFT - 2}deg) translateY(${WAKE_LEAF_LIFT_PX}px); }
+          100% { transform: rotate(0deg) translateY(0); }
+        }
+
+        :global(.blob-face-cluster[data-pose="wake"]) {
+          animation: blob-face-cluster-wake ${WAKE_BODY_DURATION_S}s cubic-bezier(0.34, 1.4, 0.64, 1) forwards;
+        }
+        @keyframes blob-face-cluster-wake {
+          0%   { transform: translateY(0.4px); }
+          40%  { transform: translateY(-0.6px); }
+          100% { transform: translateY(0); }
+        }
 
         :global(.blob-eyes[data-eye-blink="idle"] image) {
           transform-box: fill-box;
@@ -575,6 +808,28 @@ export default function BlobCharacter({
           transform-box: fill-box;
           transform-origin: center;
           animation: blob-typing-blink 2.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+        }
+        :global(.blob-eyes[data-eye-blink="wake"] image) {
+          transform-box: fill-box;
+          transform-origin: center;
+          animation: blob-eye-wake-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        @keyframes blob-eye-wake-pop {
+          0%   { transform: scaleY(0.05); }
+          35%  { transform: scaleY(1.22); }
+          65%  { transform: scaleY(0.92); }
+          100% { transform: scaleY(1); }
+        }
+        :global(.blob-eyes[data-eye-blink="wake-settle"] image) {
+          transform-box: fill-box;
+          transform-origin: center;
+          animation: blob-wake-settle-blink 1.35s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+        }
+        @keyframes blob-wake-settle-blink {
+          0%, 18%, 21%, 42%, 45%, 68%, 71%, 100% { transform: scaleY(1); }
+          19.5%                                  { transform: scaleY(0.1); }
+          43.5%                                  { transform: scaleY(0.1); }
+          69.5%                                  { transform: scaleY(0.1); }
         }
         @keyframes blob-idle-blink {
           0%, 53%, 56%, 86%, 90%, 100% { transform: scaleY(1); }
@@ -589,25 +844,9 @@ export default function BlobCharacter({
 
         :global(.blob-mouth-image) {
           transform-box: fill-box;
-          transform-origin: center center;
+          /* Pivot on the lip line — width grows sideways, height opens downward. */
+          transform-origin: 50% 30%;
           pointer-events: none;
-        }
-        :global(.blob-mouth-change) {
-          animation: blob-mouth-change ${MOUTH_CHANGE_DURATION_S}s cubic-bezier(0.22, 0.9, 0.3, 1) both;
-        }
-        @keyframes blob-mouth-change {
-          0% {
-            transform: scale(0.96, 0.92);
-            opacity: 0.35;
-          }
-          40% {
-            transform: scale(0.99, 0.97);
-            opacity: 0.72;
-          }
-          100% {
-            transform: scale(1, 1);
-            opacity: 1;
-          }
         }
 
         /* ── ENTRANCE — slide left→right and straighten into place ───── */
@@ -669,34 +908,6 @@ export default function BlobCharacter({
           }
         }
 
-        :global(.blob-sleep-z) {
-          transform-box: fill-box;
-          transform-origin: center bottom;
-          animation: blob-z-rise ${SLEEP_ZZZ_CYCLE_S}s linear infinite both;
-        }
-        @keyframes blob-z-rise {
-          0% {
-            opacity: 0;
-            transform: translate(0, 5px) scale(1);
-          }
-          10% {
-            opacity: 0.95;
-            transform: translate(0, 3px) scale(1);
-          }
-          55% {
-            opacity: 0.85;
-            transform: translate(2px, -4px) scale(0.78);
-          }
-          85% {
-            opacity: 0.3;
-            transform: translate(4px, -9px) scale(0.55);
-          }
-          100% {
-            opacity: 0;
-            transform: translate(5px, -12px) scale(0.42);
-          }
-        }
-
         @media (prefers-reduced-motion: reduce) {
           :global(.blob-body),
           :global(.blob-petals),
@@ -704,10 +915,9 @@ export default function BlobCharacter({
           :global(.blob-entering),
           :global(.blob-leaf-mount),
           :global(.blob-love-bg),
-          :global(.blob-sleep-z),
           :global(.blob-sparkle-burst),
-          :global(.blob-mouth-change) {
-            animation: none !important;
+          :global(.blob-mouth-image) {
+            transition: none !important;
           }
         }
       `}</style>

@@ -5,15 +5,15 @@ import type { CanvasSnapshot } from "@/components/canvas/canvas-board";
 import type { BlobEmotion } from "@/components/canvas/blob/types";
 import type { CompanionEmotion } from "@/lib/companion-ai";
 import {
+  COMPANION_BULK_PASTE_INACTIVITY_MS,
+  COMPANION_BULK_PASTE_WORD_DELTA,
   emotionDetectionPauseMs,
   fetchCompanionEmotion,
   getEmotionWindowText,
   meetsEmotionDetectionThreshold,
 } from "@/lib/companion-ai";
-import {
-  detectCompanionEmotion,
-  shouldPreferLocalEmotion,
-} from "@/lib/companion-local";
+import { countWordsFromSnapshot } from "@/lib/canvas-word-count";
+import { detectCompanionEmotion } from "@/lib/companion-local";
 import { SLEEP_CANVAS_IDLE_MS } from "@/lib/blob-emotion-detect";
 
 /** Coarser pause before milestone save / title regen — separate from face reaction. */
@@ -32,7 +32,7 @@ type UseCompanionOptions = {
     ) => void;
     /** Sleep animation layer — separate from session emotion (for now). */
     onEmotionFromWriting: (emotion: BlobEmotion) => void;
-    onWakeFromSleep: () => void;
+    onWakeFromSleep: (opts?: { typing?: boolean }) => boolean;
   };
 };
 
@@ -51,6 +51,9 @@ export function useCompanion({
   const queuedEmotionRef = useRef(false);
   const hasDetectedOnceRef = useRef(false);
   const lastClassifiedTailRef = useRef("");
+  const lastWordCountRef = useRef(0);
+  const detectionGenRef = useRef(0);
+  const hydratedEmotionCheckRef = useRef(false);
   const emotionTimerRef = useRef<number | null>(null);
   const saveTimerRef = useRef<number | null>(null);
   const sleepTimerRef = useRef<number | null>(null);
@@ -93,27 +96,35 @@ export function useCompanion({
     if (!meetsEmotionDetectionThreshold(snapshot, getDetectionState())) return;
 
     pendingEmotionRef.current = true;
+    const generation = ++detectionGenRef.current;
     const emotionText = getEmotionWindowText(snapshot);
 
-    const localEmotion = detectCompanionEmotion(emotionText);
-    applyEmotion(localEmotion, emotionText);
+    const commitResult = (emotion: CompanionEmotion): boolean => {
+      if (generation !== detectionGenRef.current) return false;
+
+      const currentTail = getEmotionWindowText(buildSnapshotRef.current());
+      if (currentTail !== emotionText) return false;
+
+      applyEmotion(emotion, emotionText);
+      hasDetectedOnceRef.current = true;
+      lastClassifiedTailRef.current = emotionText;
+      return true;
+    };
 
     try {
-      const remoteEmotion = await fetchCompanionEmotion(emotionText);
-      if (
-        remoteEmotion !== localEmotion &&
-        !shouldPreferLocalEmotion(localEmotion, remoteEmotion)
-      ) {
-        applyEmotion(remoteEmotion, emotionText);
+      const emotion = await fetchCompanionEmotion(emotionText);
+      if (!commitResult(emotion)) {
+        queuedEmotionRef.current = true;
       }
     } catch (error) {
       console.warn(
-        "Companion emotion API failed after retries; keeping local result",
+        "Companion emotion API failed after retries; falling back to local word match",
         error
       );
+      if (!commitResult(detectCompanionEmotion(emotionText))) {
+        queuedEmotionRef.current = true;
+      }
     } finally {
-      hasDetectedOnceRef.current = true;
-      lastClassifiedTailRef.current = emotionText;
       pendingEmotionRef.current = false;
 
       if (queuedEmotionRef.current) {
@@ -123,13 +134,18 @@ export function useCompanion({
     }
   }, [applyEmotion, getDetectionState]);
 
-  const scheduleEmotionCheck = useCallback(() => {
-    clearTimer(emotionTimerRef);
-    const pauseMs = emotionDetectionPauseMs(hasDetectedOnceRef.current);
-    emotionTimerRef.current = window.setTimeout(() => {
-      void runSessionEmotionDetection();
-    }, pauseMs);
-  }, [runSessionEmotionDetection]);
+  const scheduleEmotionCheck = useCallback(
+    (opts?: { urgent?: boolean }) => {
+      clearTimer(emotionTimerRef);
+      const pauseMs = opts?.urgent
+        ? COMPANION_BULK_PASTE_INACTIVITY_MS
+        : emotionDetectionPauseMs(hasDetectedOnceRef.current);
+      emotionTimerRef.current = window.setTimeout(() => {
+        void runSessionEmotionDetection();
+      }, pauseMs);
+    },
+    [runSessionEmotionDetection]
+  );
 
   const scheduleMilestoneSave = useCallback(() => {
     clearTimer(saveTimerRef);
@@ -154,22 +170,31 @@ export function useCompanion({
   }, [scheduleSleepIdle]);
 
   const onWritingActivity = useCallback(() => {
-    blobRef.current?.onWakeFromSleep();
+    blobRef.current?.onWakeFromSleep({ typing: true });
     blobRef.current?.onActivity();
     isDirtyRef.current = true;
 
+    const snapshot = buildSnapshotRef.current();
+    const wordCount = countWordsFromSnapshot(snapshot);
+    const delta = Math.max(0, wordCount - lastWordCountRef.current);
+    lastWordCountRef.current = wordCount;
+    const isBulkPaste = delta >= COMPANION_BULK_PASTE_WORD_DELTA;
+
     scheduleSleepIdle();
-    scheduleEmotionCheck();
+    scheduleEmotionCheck({ urgent: isBulkPaste });
     scheduleMilestoneSave();
   }, [scheduleEmotionCheck, scheduleMilestoneSave, scheduleSleepIdle]);
 
   useEffect(() => {
     if (!isContentReady) return;
+    lastWordCountRef.current = countWordsFromSnapshot(buildSnapshotRef.current());
     scheduleSleepIdle();
   }, [isContentReady, scheduleSleepIdle]);
 
   useEffect(() => {
-    if (!isContentReady) return;
+    if (!isContentReady || hydratedEmotionCheckRef.current) return;
+    hydratedEmotionCheckRef.current = true;
+
     const snapshot = buildSnapshotRef.current();
     if (!meetsEmotionDetectionThreshold(snapshot, getDetectionState())) return;
     scheduleEmotionCheck();

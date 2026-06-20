@@ -64,17 +64,19 @@ export const LOVE_BG_RISE_DURATION_S = 4.2;
 /** Staggered copies — negative delays so one heart is visible on first frame. */
 export const LOVE_BG_STREAM_COUNT = 2;
 
-/** Zzz spawn on upper-right of face (sleep) — one letter at a time. */
-export const SLEEP_ZZZ_POS = { x: 38, y: 10 };
-export const SLEEP_ZZZ_LETTER_SCALE = 1.35;
-/** Full loop before the first z repeats. */
+/** Zzz cluster on upper-right petal (sleep) — matches sleep/sleepzz.svg layout. */
+export const SLEEP_ZZZ_POS = { x: 38, y: 14 };
+export const SLEEP_ZZZ_LETTER_SCALE = 1.5;
+/** Full loop before the zzz cluster repeats. */
 export const SLEEP_ZZZ_CYCLE_S = 4.2;
-export const SLEEP_ZZZ_LETTER_COUNT = 3;
-/** Delay between each z — keeps a short trail without overlapping clusters. */
-export const SLEEP_ZZZ_STAGGER_S = SLEEP_ZZZ_CYCLE_S / SLEEP_ZZZ_LETTER_COUNT;
 
 /** Nudge eyes / mouth / blush down while sleeping — closed eyes feel heavy. */
-export const SLEEP_FACE_OFFSET_Y = 2.5;
+export const SLEEP_FACE_OFFSET_Y = 3.0;
+
+/** Blush on the cheek while sleeping — slightly out from the eyes (viewBox units). */
+export const SLEEP_LEFT_BLUSH_CX = 22;
+export const SLEEP_RIGHT_BLUSH_CX = 38;
+export const SLEEP_BLUSH_CY = 27;
 
 /** Pivot while peeking — bottom-left matches the idle anchor (no vertical jump). */
 export const PEEK_TRANSFORM_ORIGIN = "left bottom";
@@ -105,7 +107,7 @@ export const ENTRANCE_DURATION_MS = ENTRANCE_DURATION_S * 1000;
 /** Wait after the canvas opens before the flower peeks in. */
 export const PEEK_DELAY_MS = 1000;
 /** How long the flower holds the peek (tilt + greeting) before sliding in. */
-export const PEEK_HOLD_MS = 1400;
+export const PEEK_HOLD_MS = 2000;
 
 /** Sunflower peek greeting — tune size/color/position here (canvas + /dev/blob). */
 export const GREETING_FONT_SIZE_PX = 16;
@@ -127,5 +129,30 @@ export const TYPING_LEAN_FLOAT_PX = -0.75;
 export const TYPING_LEAF_SWAY_DURATION_S = 1.9;
 export const TYPING_LEAF_SWAY_DEG = 2;
 
-/** Smooth ease when the mouth expression swaps — gentle, not snappy. */
-export const MOUTH_CHANGE_DURATION_S = 1;
+/** Smile expand — slightly longer with a soft bloom at the end. */
+export const MOUTH_CHANGE_EXPAND_DURATION_S = 0.82;
+/** Smile settle back — quicker, no overshoot. */
+export const MOUTH_CHANGE_CONTRACT_DURATION_S = 0.58;
+/** Non-smile expression swaps (sad, confused, …). */
+export const MOUTH_CHANGE_DURATION_S = 0.68;
+/** Shocked O-mouth closing into a smile after wake — gentle vertical settle. */
+export const MOUTH_WAKE_SETTLE_DURATION_S = 0.88;
+/** Initial vertical scale when an open shocked mouth closes into neutral. */
+export const MOUTH_SHOCKED_OPEN_SCALE_Y = 1.2;
+
+/** Sleep breathing — body shrinks/grows while the face is in sleep emotion. */
+export const SLEEP_BREATH_DURATION_S = 4;
+export const SLEEP_BREATH_SCALE_MIN = 0.962;
+export const SLEEP_BREATH_SCALE_MAX = 0.992;
+export const SLEEP_BREATH_LIFT_PX = -0.6;
+
+/** Startled wake — gasp, stretch, eyes pop wide (pairs with `wake` pose). */
+/** Sudden shocked pop, then mouth/eyes settle before returning to idle. */
+export const WAKE_SURPRISE_MS = 680;
+export const WAKE_DURATION_MS = 1_800;
+export const WAKE_BODY_DURATION_S = 0.55;
+export const WAKE_BODY_SCALE_PEAK = 1.025;
+export const WAKE_BODY_LIFT_PX = -1.25;
+export const WAKE_LEAF_DURATION_S = 0.58;
+export const WAKE_LEAF_LIFT_PX = -2;
+export const WAKE_LEAF_ROTATE_LIFT = 6;

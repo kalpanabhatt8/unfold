@@ -44,9 +44,18 @@ const coverImageContext = require.context(
   /\.(png|jpe?g|webp)$/
 );
 
+/** CoverImage.png first, then CoverImage1 … CoverImageN in numeric order. */
+const coverImageOrderKey = (path: string): number => {
+  const name = path.replace("./", "");
+  if (/^CoverImage\.png$/i.test(name)) return 0;
+  const match = name.match(/^CoverImage(\d+)\.png$/i);
+  if (match) return Number(match[1]);
+  return 1000;
+};
+
 const coverImagePaths: string[] = coverImageContext
   .keys()
-  .sort((a: string, b: string) => a.localeCompare(b, undefined, { numeric: true }))
+  .sort((a: string, b: string) => coverImageOrderKey(a) - coverImageOrderKey(b))
   .map((path: string) => `/Images/cover-images/${path.replace("./", "")}`);
 
 const getCoverImage = (index: number) => {
@@ -65,7 +74,19 @@ const createSnapshot = (
   ...overrides,
 });
 
-const templates: BookTemplate[] = [
+const coverTemplates: BookTemplate[] = coverImagePaths.map(
+  (coverImage, index) => ({
+    id: `cover-${index}`,
+    category: "tone1",
+    variant: "image",
+    title: "",
+    coverImage,
+    coverGradientId: "g2",
+    canvas: createSnapshot({}),
+  }),
+);
+
+const contentTemplates: BookTemplate[] = [
   {
     id: "tone1-focus",
     category: "tone1",
@@ -210,7 +231,10 @@ const cloneCanvas = (
 ): TemplateCanvasSnapshot =>
   JSON.parse(JSON.stringify(snapshot)) as TemplateCanvasSnapshot;
 
-export const starterBookTemplates: BookTemplate[] = templates;
+export const starterBookTemplates: BookTemplate[] = [
+  ...coverTemplates,
+  ...contentTemplates,
+];
 export const bookCoverSamples: string[] = coverImagePaths;
 
 export function getTemplateById(id: string): BookTemplate | null {

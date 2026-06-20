@@ -12,7 +12,10 @@ const LEXICONS: Record<Exclude<CompanionEmotion, "neutral">, string[]> = {
     "anxious", "anxiety", "worried", "worry", "worrying", "nervous", "scared",
     "afraid", "fear", "fearful", "panic", "panicking", "dread", "stress",
     "stressed", "overwhelming", "overwhelmed", "tense", "uneasy", "restless",
-    "terrified", "frightened", "insecure", "frantic",
+    "terrified", "frightened", "insecure", "frantic", "spiral", "spiraling",
+    "overthink", "overthinking", "catastrophe", "catastrophic", "catastrophizing",
+    "ruminate", "ruminating", "rumination", "jitters", "jittery", "paranoid",
+    "hypervigilant",
   ],
   angry: [
     "angry", "anger", "mad", "furious", "fury", "rage", "raging", "hate",
@@ -50,6 +53,10 @@ const PRIORITY = COMPANION_EMOTIONS.filter(
   (e): e is Exclude<CompanionEmotion, "neutral"> => e !== "neutral"
 );
 
+/** Phrases that read as worry even without explicit anxious vocabulary. */
+const ANXIOUS_PHRASES =
+  /\b(go wrong|worst case|what if|can't stop|cannot stop|mind racing|on edge|spiraling out)\b/i;
+
 const tokenize = (text: string): string[] =>
   text
     .toLowerCase()
@@ -73,6 +80,8 @@ export function detectCompanionEmotion(text: string): CompanionEmotion {
   const trimmed = text.trim();
   if (!trimmed) return "neutral";
 
+  if (ANXIOUS_PHRASES.test(trimmed)) return "anxious";
+
   const tokenCounts = new Map<string, number>();
   for (const token of tokenize(trimmed)) {
     tokenCounts.set(token, (tokenCounts.get(token) ?? 0) + 1);
@@ -88,14 +97,4 @@ export function detectCompanionEmotion(text: string): CompanionEmotion {
     }
   }
   return emotion;
-}
-
-/** Local found a clear tone — don't let Gemini downgrade to neutral/calm. */
-export function shouldPreferLocalEmotion(
-  local: CompanionEmotion,
-  remote: CompanionEmotion
-): boolean {
-  if (local === remote) return false;
-  if (local === "neutral" || local === "calm") return false;
-  return remote === "neutral" || remote === "calm";
 }

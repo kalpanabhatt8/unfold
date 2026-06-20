@@ -687,7 +687,7 @@ function CanvasBoardInner(
 
   /* ---------------------------- Blob companion ---------------------------- */
 
-  const blob = useBlobState();
+  const blob = useBlobState({ bookId });
 
   /* ------------------------------ Hydration ------------------------------ */
 
@@ -1242,6 +1242,7 @@ function CanvasBoardInner(
           pose={blob.pose}
           emotion={blob.emotion}
           hidden={blob.hidden}
+          onWake={companion.onCanvasActivity}
         />
       </div>
 

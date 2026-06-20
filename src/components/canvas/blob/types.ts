@@ -5,7 +5,8 @@ export type BlobPose =
   | "typing"
   | "peek"
   | "jump"
-  | "bloom";
+  | "bloom"
+  | "wake";
 
 /**
  * Face layer — each emotion folder only contains parts that differ from base.
@@ -13,8 +14,10 @@ export type BlobPose =
  */
 export type BlobEmotion =
   | "love"
+  | "excited"
   | "neutral"
   | "sad"
+  | "anxious"
   | "sleep"
   | "happy"
   | "confused"
@@ -31,5 +34,7 @@ export type BlobCharacterProps = {
   bloomLevel?: BloomLevel;
   /** Tap raised leaves during `jump` pose (high-five). */
   onHighFive?: () => void;
+  /** Hover / tap while `emotion === "sleep"` — startled wake. */
+  onWake?: () => void;
   debugLayout?: boolean;
 };

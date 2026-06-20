@@ -22,6 +22,7 @@ export function resolveMouthSrc(emotion: BlobEmotion): string {
 export function mouthSize(emotion: BlobEmotion) {
   if (emotion === "sad") return ASSET_SIZE.mouth.sad;
   if (emotion === "love") return ASSET_SIZE.mouth.love;
+  if (emotion === "excited") return ASSET_SIZE.mouth.excited;
   if (emotion === "happy") return ASSET_SIZE.mouth.happy;
   if (emotion === "sleep") return ASSET_SIZE.mouth.sleep;
   if (emotion === "confused") return ASSET_SIZE.mouth.confused;
@@ -45,6 +46,8 @@ export function eyeSize(emotion: BlobEmotion, side: "left" | "right") {
 }
 
 const LOVE_WORDS = /\b(love|loved|loving|heart|hearts|adore|adored)\b/i;
+const EXCITED_WORDS =
+  /\b(excited|exciting|thrilled|thrilling|pumped|hyped|ecstatic|elated|yay|woohoo)\b/i;
 const SHOCKED_WORDS =
   /\b(shocked|shock|surprised|surprise|surprising|stunned|startled|unexpected|unbelievable|gasped|astounded|speechless|wow|whoa)\b/i;
 
@@ -55,6 +58,10 @@ export function companionToBlobEmotion(
 ): BlobEmotion {
   if (emotion === "happy" && text && LOVE_WORDS.test(text)) {
     return "love";
+  }
+
+  if (emotion === "happy" && text && EXCITED_WORDS.test(text)) {
+    return "excited";
   }
 
   if (text && SHOCKED_WORDS.test(text)) {
@@ -83,6 +90,7 @@ export function companionToBlobEmotion(
 
 export const BLOB_EMOTIONS = [
   "love",
+  "excited",
   "neutral",
   "sad",
   "sleep",
@@ -98,4 +106,5 @@ export const BLOB_POSES = [
   "peek",
   "jump",
   "bloom",
+  "wake",
 ] as const;

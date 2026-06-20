@@ -1,9 +1,17 @@
 import type { BlobEmotion, BlobPose } from "./types";
 
-export type BodyKind = "bob" | "still" | "lean" | "bounce" | "wave";
-export type LeafKind = "still" | "sway" | "perk" | "greeting" | "highfive" | "hidden";
+export type BodyKind = "bob" | "still" | "lean" | "bounce" | "wave" | "shrink" | "wake";
+export type LeafKind =
+  | "still"
+  | "sway"
+  | "perk"
+  | "greeting"
+  | "highfive"
+  | "hidden"
+  | "droop"
+  | "wake";
 export type ExtrasKind = "none" | "sparkle-burst";
-export type EyeBlink = "idle" | "typing" | "none";
+export type EyeBlink = "idle" | "typing" | "none" | "wake" | "wake-settle";
 
 export type PoseConfig = {
   body: BodyKind;
@@ -51,5 +59,11 @@ export const POSES: Record<BlobPose, PoseConfig> = {
     leaves: "perk",
     extras: "sparkle-burst",
     eyeBlink: "none",
+  },
+  wake: {
+    body: "wake",
+    leaves: "wake",
+    extras: "none",
+    eyeBlink: "wake",
   },
 };
