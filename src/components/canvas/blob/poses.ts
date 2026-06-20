@@ -41,6 +41,12 @@ export const POSES: Record<BlobPose, PoseConfig> = {
     extras: "none",
     eyeBlink: "typing",
   },
+  listening: {
+    body: "lean",
+    leaves: "perk",
+    extras: "none",
+    eyeBlink: "idle",
+  },
   peek: {
     body: "still",
     leaves: "hidden",

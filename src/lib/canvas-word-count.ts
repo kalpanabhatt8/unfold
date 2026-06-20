@@ -49,7 +49,7 @@ export const collectJournalWordTokens = (
   return joined.split(/\s+/).filter(Boolean);
 };
 
-/** Trailing window used for emotion — most recent words, including after deletions. */
+/** @deprecated Use extractCompanionContext from @/lib/companion-analysis */
 export const extractEmotionWindowFromSnapshot = (
   snapshot: CanvasSnapshot,
   wordCount: number

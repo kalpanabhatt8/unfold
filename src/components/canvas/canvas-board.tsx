@@ -46,6 +46,7 @@ import BlobCharacter, {
 } from "@/components/canvas/blob-character";
 import { EntranceGreeting } from "@/components/canvas/blob/entrance-greeting";
 import { useCompanion } from "@/hooks/use-companion";
+import { EMOTION_COOLDOWN_MS } from "@/lib/companion-pause";
 import { getTextareaCaretOffsetInTextareaPx } from "@/lib/textarea-caret-offset";
 
 /* -------------------------------------------------------------------------- */
@@ -687,7 +688,14 @@ function CanvasBoardInner(
 
   /* ---------------------------- Blob companion ---------------------------- */
 
-  const blob = useBlobState({ bookId });
+  const emotionCooldownUntilRef = useRef(0);
+
+  const blob = useBlobState({
+    bookId,
+    onEmotionApplied: () => {
+      emotionCooldownUntilRef.current = Date.now() + EMOTION_COOLDOWN_MS;
+    },
+  });
 
   /* ------------------------------ Hydration ------------------------------ */
 
@@ -829,13 +837,68 @@ function CanvasBoardInner(
     buildSnapshot,
     onMilestoneSave: triggerMilestoneSave,
     isContentReady,
+    emotionCooldownUntilRef,
     blob: {
-      onActivity: blob.onActivity,
-      onSessionEmotionDetected: blob.onSessionEmotionDetected,
+      onCompanionPhase: blob.onCompanionPhase,
+      onCompanionAnalysis: blob.onCompanionAnalysis,
       onEmotionFromWriting: blob.onEmotionFromWriting,
       onWakeFromSleep: blob.onWakeFromSleep,
     },
   });
+
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "development") return;
+    const api = {
+      resetSession: () => {
+        emotionCooldownUntilRef.current = 0;
+        companion.resetSession();
+        blob.resetCompanionState();
+      },
+      resetAnalysis: () => companion.resetSession(),
+      resetEmotion: () => blob.resetCompanionState(),
+      status: () => ({
+        ...companion.getSessionMeta(),
+        emotion: blob.emotion,
+        emotionCooldownRemainingMs: Math.max(
+          0,
+          emotionCooldownUntilRef.current - Date.now()
+        ),
+      }),
+      clearCanvasAndReload: () => {
+        try {
+          window.localStorage.removeItem(storageKey);
+        } catch {
+          /* noop */
+        }
+        window.location.reload();
+      },
+      /** Classify arbitrary text without writing on canvas — for dev testing. */
+      testClassify: async (text: string) => {
+        const { fetchCompanionAnalysis } = await import("@/lib/companion-fetch");
+        const { detectCompanionAnalysis } = await import("@/lib/companion-local");
+        const { companionAnalysisToBlob } = await import(
+          "@/lib/companion-analysis"
+        );
+        try {
+          const api = await fetchCompanionAnalysis(text);
+          const mapped = companionAnalysisToBlob(api);
+          console.log("testClassify API:", api, "→", mapped);
+          return { ...api, mapped, source: "api" as const };
+        } catch (error) {
+          const local = detectCompanionAnalysis(text);
+          const mapped = companionAnalysisToBlob(local);
+          console.log("testClassify local:", local, "→", mapped);
+          return { ...local, mapped, source: "local" as const, error };
+        }
+      },
+    };
+    (window as Window & { __keepsCompanion?: typeof api }).__keepsCompanion =
+      api;
+    return () => {
+      delete (window as Window & { __keepsCompanion?: typeof api })
+        .__keepsCompanion;
+    };
+  }, [blob, companion, storageKey]);
 
   // Imperative seam used by the page-level back button: capture state in
   // memory and start the goodbye animation. The page navigates immediately
@@ -849,7 +912,7 @@ function CanvasBoardInner(
         return buildSnapshot();
       },
     }),
-    [buildSnapshot, blob]
+    [buildSnapshot, blob, companion]
   );
 
   /* --------------------------- Focus management --------------------------- */

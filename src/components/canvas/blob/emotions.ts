@@ -21,12 +21,15 @@ export function resolveMouthSrc(emotion: BlobEmotion): string {
 
 export function mouthSize(emotion: BlobEmotion) {
   if (emotion === "sad") return ASSET_SIZE.mouth.sad;
+  if (emotion === "anxious") return ASSET_SIZE.mouth.anxious;
+  if (emotion === "tired") return ASSET_SIZE.mouth.tired;
   if (emotion === "love") return ASSET_SIZE.mouth.love;
   if (emotion === "excited") return ASSET_SIZE.mouth.excited;
   if (emotion === "happy") return ASSET_SIZE.mouth.happy;
   if (emotion === "sleep") return ASSET_SIZE.mouth.sleep;
   if (emotion === "confused") return ASSET_SIZE.mouth.confused;
   if (emotion === "shocked") return ASSET_SIZE.mouth.shocked;
+  if (emotion === "smart") return ASSET_SIZE.mouth.smart;
   return ASSET_SIZE.mouth.neutral;
 }
 
@@ -45,44 +48,22 @@ export function eyeSize(emotion: BlobEmotion, side: "left" | "right") {
   return side === "left" ? ASSET_SIZE.leftEye : ASSET_SIZE.rightEye;
 }
 
-const LOVE_WORDS = /\b(love|loved|loving|heart|hearts|adore|adored)\b/i;
-const EXCITED_WORDS =
-  /\b(excited|exciting|thrilled|thrilling|pumped|hyped|ecstatic|elated|yay|woohoo)\b/i;
-const SHOCKED_WORDS =
-  /\b(shocked|shock|surprised|surprise|surprising|stunned|startled|unexpected|unbelievable|gasped|astounded|speechless|wow|whoa)\b/i;
-
-/** Map Gemini companion tones onto character asset folders. */
-export function companionToBlobEmotion(
-  emotion: CompanionEmotion,
-  text?: string
-): BlobEmotion {
-  if (emotion === "happy" && text && LOVE_WORDS.test(text)) {
-    return "love";
-  }
-
-  if (emotion === "happy" && text && EXCITED_WORDS.test(text)) {
-    return "excited";
-  }
-
-  if (text && SHOCKED_WORDS.test(text)) {
-    return "shocked";
-  }
-
+/** Map companion classifier labels onto character faces (1:1). */
+export function companionToBlobEmotion(emotion: CompanionEmotion): BlobEmotion {
   switch (emotion) {
+    case "love":
+      return "love";
+    case "excited":
+      return "excited";
     case "happy":
       return "happy";
-    case "tired":
-      return "sad";
-    case "heavy":
-    case "angry":
-    case "anxious":
+    case "sad":
       return "sad";
     case "confused":
       return "confused";
     case "shocked":
       return "shocked";
     case "neutral":
-    case "calm":
     default:
       return "neutral";
   }
@@ -92,17 +73,21 @@ export const BLOB_EMOTIONS = [
   "love",
   "excited",
   "neutral",
-  "sad",
-  "sleep",
   "happy",
+  "sad",
+  "anxious",
+  "tired",
+  "sleep",
   "confused",
   "shocked",
+  "smart",
 ] as const satisfies readonly BlobEmotion[];
 
 export const BLOB_POSES = [
   "idle",
   "enter",
   "typing",
+  "listening",
   "peek",
   "jump",
   "bloom",

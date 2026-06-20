@@ -3,34 +3,48 @@
 import { useCallback, useEffect, useRef } from "react";
 import type { CanvasSnapshot } from "@/components/canvas/canvas-board";
 import type { BlobEmotion } from "@/components/canvas/blob/types";
-import type { CompanionEmotion } from "@/lib/companion-ai";
 import {
-  COMPANION_BULK_PASTE_INACTIVITY_MS,
-  COMPANION_BULK_PASTE_WORD_DELTA,
-  emotionDetectionPauseMs,
-  fetchCompanionEmotion,
-  getEmotionWindowText,
-  meetsEmotionDetectionThreshold,
+  COMPANION_MIN_WORD_DELTA,
+  COMPANION_PAUSE_REACTING_MS,
+  COMPANION_PAUSE_REFLECTING_MS,
+  COMPANION_PAUSE_WRITING_MS,
+  countCompanionClassifyWords,
+  countCompanionContextWords,
+  countCompanionDeltaWords,
+  countCompanionSessionWords,
+  extractCompanionClassifyContext,
+  meetsCompanionDeltaWordThreshold,
+  type CompanionAnalysis,
 } from "@/lib/companion-ai";
-import { countWordsFromSnapshot } from "@/lib/canvas-word-count";
-import { detectCompanionEmotion } from "@/lib/companion-local";
+import { collectJournalWordTokens } from "@/lib/canvas-word-count";
+import { fetchCompanionAnalysis, warmCompanionRoute } from "@/lib/companion-fetch";
+import { detectCompanionAnalysis } from "@/lib/companion-local";
 import { SLEEP_CANVAS_IDLE_MS } from "@/lib/blob-emotion-detect";
+import {
+  logCompanionAnalysisStart,
+  logCompanionRawResponse,
+  logCompanionSessionReset,
+  logCompanionSkipped,
+} from "@/lib/companion-debug";
+import { COMPANION_MIN_WORDS } from "@/lib/companion-pause";
+import type { CompanionSessionMeta } from "@/lib/companion-analysis";
 
-/** Coarser pause before milestone save / title regen — separate from face reaction. */
-export const WRITING_SAVE_INACTIVITY_MS = 15_000;
+/** Coarser pause before milestone save — aligned with long-pause tier. */
+export const WRITING_SAVE_INACTIVITY_MS = COMPANION_PAUSE_REFLECTING_MS;
 
 type UseCompanionOptions = {
   buildSnapshot: () => CanvasSnapshot;
   onMilestoneSave?: () => void;
-  /** True after canvas text has hydrated from storage. */
   isContentReady?: boolean;
+  /** Timestamp (ms) until which face emotion updates are blocked. */
+  emotionCooldownUntilRef?: React.MutableRefObject<number>;
   blob?: {
-    onActivity: () => void;
-    onSessionEmotionDetected: (
-      emotion: CompanionEmotion,
-      text: string
+    onCompanionPhase: (phase: "writing" | "listening" | "idle") => void;
+    onCompanionAnalysis: (
+      analysis: CompanionAnalysis,
+      text: string,
+      sessionMeta?: CompanionSessionMeta
     ) => void;
-    /** Sleep animation layer — separate from session emotion (for now). */
     onEmotionFromWriting: (emotion: BlobEmotion) => void;
     onWakeFromSleep: (opts?: { typing?: boolean }) => boolean;
   };
@@ -40,6 +54,7 @@ export function useCompanion({
   buildSnapshot,
   onMilestoneSave,
   isContentReady = true,
+  emotionCooldownUntilRef,
   blob,
 }: UseCompanionOptions) {
   const buildSnapshotRef = useRef(buildSnapshot);
@@ -47,14 +62,19 @@ export function useCompanion({
   const blobRef = useRef(blob);
 
   const isDirtyRef = useRef(false);
-  const pendingEmotionRef = useRef(false);
-  const queuedEmotionRef = useRef(false);
-  const hasDetectedOnceRef = useRef(false);
-  const lastClassifiedTailRef = useRef("");
-  const lastWordCountRef = useRef(0);
+  const pendingAnalysisRef = useRef(false);
+  const queuedAnalysisRef = useRef(false);
+  const lastDeltaContextRef = useRef("");
+  const hasAnalyzedRef = useRef(false);
+  /** Tokens on canvas when this visit started — excludes pre-visit saved text. */
+  const sessionBaselineTokenCountRef = useRef(0);
+  /** Tokens on canvas after the last successful classification — delta starts here. */
+  const analysisBaselineTokenCountRef = useRef(0);
   const detectionGenRef = useRef(0);
-  const hydratedEmotionCheckRef = useRef(false);
-  const emotionTimerRef = useRef<number | null>(null);
+  const hydratedPauseRef = useRef(false);
+  const writingTimerRef = useRef<number | null>(null);
+  const listeningTimerRef = useRef<number | null>(null);
+  const milestoneTimerRef = useRef<number | null>(null);
   const saveTimerRef = useRef<number | null>(null);
   const sleepTimerRef = useRef<number | null>(null);
 
@@ -71,81 +91,216 @@ export function useCompanion({
     }
   };
 
-  const getDetectionState = useCallback(
-    () => ({
-      hasDetectedBefore: hasDetectedOnceRef.current,
-      lastClassifiedTail: lastClassifiedTailRef.current,
-    }),
-    []
-  );
+  const clearPauseTimers = useCallback(() => {
+    clearTimer(writingTimerRef);
+    clearTimer(listeningTimerRef);
+    clearTimer(milestoneTimerRef);
+  }, []);
 
-  const applyEmotion = useCallback(
-    (emotion: CompanionEmotion, text: string) => {
-      blobRef.current?.onSessionEmotionDetected(emotion, text);
+  const getAnalysisMeta = useCallback(
+    (snapshot: CanvasSnapshot): CompanionSessionMeta => {
+      const sessionBaseline = sessionBaselineTokenCountRef.current;
+      const analysisBaseline = analysisBaselineTokenCountRef.current;
+      return {
+        deltaTextWords: countCompanionDeltaWords(snapshot, analysisBaseline),
+        classifyTextWords: countCompanionClassifyWords(
+          snapshot,
+          analysisBaseline
+        ),
+        classificationStrategy: "delta-chunk" as const,
+        sessionTextWords: countCompanionSessionWords(snapshot, sessionBaseline),
+        totalTextWords: countCompanionContextWords(snapshot),
+        sessionBaselineTokenCount: sessionBaseline,
+        analysisBaselineTokenCount: analysisBaseline,
+      };
     },
     []
   );
 
-  const runSessionEmotionDetection = useCallback(async () => {
-    if (pendingEmotionRef.current) {
-      queuedEmotionRef.current = true;
+  const getClassifyContext = useCallback((snapshot: CanvasSnapshot): string => {
+    return extractCompanionClassifyContext(
+      snapshot,
+      analysisBaselineTokenCountRef.current
+    );
+  }, []);
+
+  const shouldAnalyze = useCallback(
+    (snapshot: CanvasSnapshot, logSkips = false): boolean => {
+      const analysisBaseline = analysisBaselineTokenCountRef.current;
+      const sessionBaseline = sessionBaselineTokenCountRef.current;
+      const isFirst = !hasAnalyzedRef.current;
+      const deltaWords = countCompanionDeltaWords(snapshot, analysisBaseline);
+      const sessionWordCount = countCompanionSessionWords(
+        snapshot,
+        sessionBaseline
+      );
+      const totalWordCount = countCompanionContextWords(snapshot);
+
+      if (
+        !meetsCompanionDeltaWordThreshold(snapshot, analysisBaseline, isFirst)
+      ) {
+        if (logSkips) {
+          logCompanionSkipped("below_word_threshold", {
+            deltaWords,
+            sessionWordCount,
+            totalWordCount,
+            isFirstAnalysis: isFirst,
+            minWords: isFirst ? COMPANION_MIN_WORDS : COMPANION_MIN_WORD_DELTA,
+          });
+        }
+        return false;
+      }
+
+      const context = getClassifyContext(snapshot);
+
+      if (context === lastDeltaContextRef.current) {
+        if (logSkips) {
+          logCompanionSkipped("duplicate_context", {
+            deltaWords,
+            contextLength: context.length,
+          });
+        }
+        return false;
+      }
+
+      return true;
+    },
+    [getClassifyContext]
+  );
+
+  const runAnalysis = useCallback(async () => {
+    if (pendingAnalysisRef.current) {
+      queuedAnalysisRef.current = true;
+      logCompanionSkipped("analysis_in_flight");
+      return;
+    }
+
+    const cooldownUntil = emotionCooldownUntilRef?.current ?? 0;
+    if (Date.now() < cooldownUntil) {
+      logCompanionSkipped("emotion_cooldown", {
+        remainingMs: cooldownUntil - Date.now(),
+      });
       return;
     }
 
     const snapshot = buildSnapshotRef.current();
-    if (!meetsEmotionDetectionThreshold(snapshot, getDetectionState())) return;
+    if (!shouldAnalyze(snapshot, true)) return;
 
-    pendingEmotionRef.current = true;
+    pendingAnalysisRef.current = true;
     const generation = ++detectionGenRef.current;
-    const emotionText = getEmotionWindowText(snapshot);
+    const contextText = getClassifyContext(snapshot);
+    const meta = getAnalysisMeta(snapshot);
 
-    const commitResult = (emotion: CompanionEmotion): boolean => {
-      if (generation !== detectionGenRef.current) return false;
+    const closeDebugGroup = logCompanionAnalysisStart(contextText, {
+      strategy: meta.classificationStrategy,
+      deltaTextWords: meta.deltaTextWords,
+      classifyTextWords: meta.classifyTextWords,
+      sessionTextWords: meta.sessionTextWords,
+      totalWordCount: meta.totalTextWords,
+      analysisBaselineTokenCount: meta.analysisBaselineTokenCount,
+    });
 
-      const currentTail = getEmotionWindowText(buildSnapshotRef.current());
-      if (currentTail !== emotionText) return false;
+    const commit = (analysis: CompanionAnalysis): boolean => {
+      if (generation !== detectionGenRef.current) {
+        logCompanionSkipped("stale_generation", { generation });
+        return false;
+      }
+      const currentContext = getClassifyContext(buildSnapshotRef.current());
+      if (currentContext !== contextText) {
+        logCompanionSkipped("context_changed_during_request", {
+          sentLength: contextText.length,
+          currentLength: currentContext.length,
+        });
+        return false;
+      }
 
-      applyEmotion(emotion, emotionText);
-      hasDetectedOnceRef.current = true;
-      lastClassifiedTailRef.current = emotionText;
+      blobRef.current?.onCompanionAnalysis(analysis, contextText, meta);
+
+      const tokenCount = collectJournalWordTokens(
+        buildSnapshotRef.current()
+      ).length;
+      analysisBaselineTokenCountRef.current = tokenCount;
+      lastDeltaContextRef.current = contextText;
+      hasAnalyzedRef.current = true;
       return true;
     };
 
     try {
-      const emotion = await fetchCompanionEmotion(emotionText);
-      if (!commitResult(emotion)) {
-        queuedEmotionRef.current = true;
+      const analysis = await fetchCompanionAnalysis(contextText);
+      if (!commit(analysis)) {
+        queuedAnalysisRef.current = true;
+        closeDebugGroup();
       }
     } catch (error) {
       console.warn(
-        "Companion emotion API failed after retries; falling back to local word match",
+        "Companion analysis failed; falling back to local detection",
         error
       );
-      if (!commitResult(detectCompanionEmotion(emotionText))) {
-        queuedEmotionRef.current = true;
+      const local = detectCompanionAnalysis(contextText);
+      logCompanionRawResponse(local, "local");
+      if (!commit(local)) {
+        queuedAnalysisRef.current = true;
+        closeDebugGroup();
       }
     } finally {
-      pendingEmotionRef.current = false;
-
-      if (queuedEmotionRef.current) {
-        queuedEmotionRef.current = false;
-        queueMicrotask(() => void runSessionEmotionDetection());
+      pendingAnalysisRef.current = false;
+      if (queuedAnalysisRef.current) {
+        queuedAnalysisRef.current = false;
+        queueMicrotask(() => void runAnalysis());
       }
     }
-  }, [applyEmotion, getDetectionState]);
+  }, [emotionCooldownUntilRef, getClassifyContext, getAnalysisMeta, shouldAnalyze]);
 
-  const scheduleEmotionCheck = useCallback(
-    (opts?: { urgent?: boolean }) => {
-      clearTimer(emotionTimerRef);
-      const pauseMs = opts?.urgent
-        ? COMPANION_BULK_PASTE_INACTIVITY_MS
-        : emotionDetectionPauseMs(hasDetectedOnceRef.current);
-      emotionTimerRef.current = window.setTimeout(() => {
-        void runSessionEmotionDetection();
-      }, pauseMs);
-    },
-    [runSessionEmotionDetection]
-  );
+  const initSessionBaseline = useCallback(() => {
+    const snapshot = buildSnapshotRef.current();
+    const tokenCount = collectJournalWordTokens(snapshot).length;
+    sessionBaselineTokenCountRef.current = tokenCount;
+    analysisBaselineTokenCountRef.current = tokenCount;
+    lastDeltaContextRef.current = "";
+    hasAnalyzedRef.current = false;
+  }, []);
+
+  const resetSession = useCallback(() => {
+    clearPauseTimers();
+    clearTimer(saveTimerRef);
+    pendingAnalysisRef.current = false;
+    queuedAnalysisRef.current = false;
+    detectionGenRef.current += 1;
+
+    const snapshot = buildSnapshotRef.current();
+    const prevAnalysisBaseline = analysisBaselineTokenCountRef.current;
+    initSessionBaseline();
+
+    logCompanionSessionReset({
+      previousAnalysisBaseline: prevAnalysisBaseline,
+      newAnalysisBaseline: analysisBaselineTokenCountRef.current,
+      totalCanvasWords: countCompanionContextWords(snapshot),
+      sessionWordsNow: countCompanionSessionWords(
+        snapshot,
+        sessionBaselineTokenCountRef.current
+      ),
+    });
+  }, [clearPauseTimers, initSessionBaseline]);
+
+  const schedulePauseTiers = useCallback(() => {
+    clearPauseTimers();
+
+    writingTimerRef.current = window.setTimeout(() => {
+      blobRef.current?.onCompanionPhase("listening");
+    }, COMPANION_PAUSE_WRITING_MS);
+
+    listeningTimerRef.current = window.setTimeout(() => {
+      blobRef.current?.onCompanionPhase("idle");
+      void runAnalysis();
+    }, COMPANION_PAUSE_REACTING_MS);
+
+    milestoneTimerRef.current = window.setTimeout(() => {
+      if (isDirtyRef.current) {
+        onMilestoneSaveRef.current?.();
+        isDirtyRef.current = false;
+      }
+    }, COMPANION_PAUSE_REFLECTING_MS);
+  }, [clearPauseTimers, runAnalysis]);
 
   const scheduleMilestoneSave = useCallback(() => {
     clearTimer(saveTimerRef);
@@ -171,43 +326,49 @@ export function useCompanion({
 
   const onWritingActivity = useCallback(() => {
     blobRef.current?.onWakeFromSleep({ typing: true });
-    blobRef.current?.onActivity();
+    blobRef.current?.onCompanionPhase("writing");
     isDirtyRef.current = true;
 
-    const snapshot = buildSnapshotRef.current();
-    const wordCount = countWordsFromSnapshot(snapshot);
-    const delta = Math.max(0, wordCount - lastWordCountRef.current);
-    lastWordCountRef.current = wordCount;
-    const isBulkPaste = delta >= COMPANION_BULK_PASTE_WORD_DELTA;
-
     scheduleSleepIdle();
-    scheduleEmotionCheck({ urgent: isBulkPaste });
+    schedulePauseTiers();
     scheduleMilestoneSave();
-  }, [scheduleEmotionCheck, scheduleMilestoneSave, scheduleSleepIdle]);
+  }, [scheduleMilestoneSave, schedulePauseTiers, scheduleSleepIdle]);
 
   useEffect(() => {
     if (!isContentReady) return;
-    lastWordCountRef.current = countWordsFromSnapshot(buildSnapshotRef.current());
+    initSessionBaseline();
     scheduleSleepIdle();
-  }, [isContentReady, scheduleSleepIdle]);
+    void warmCompanionRoute();
+  }, [isContentReady, initSessionBaseline, scheduleSleepIdle]);
 
   useEffect(() => {
-    if (!isContentReady || hydratedEmotionCheckRef.current) return;
-    hydratedEmotionCheckRef.current = true;
-
-    const snapshot = buildSnapshotRef.current();
-    if (!meetsEmotionDetectionThreshold(snapshot, getDetectionState())) return;
-    scheduleEmotionCheck();
-  }, [getDetectionState, isContentReady, scheduleEmotionCheck]);
+    if (!isContentReady || hydratedPauseRef.current) return;
+    hydratedPauseRef.current = true;
+    if (
+      !meetsCompanionDeltaWordThreshold(
+        buildSnapshotRef.current(),
+        analysisBaselineTokenCountRef.current,
+        !hasAnalyzedRef.current
+      )
+    ) {
+      return;
+    }
+    schedulePauseTiers();
+  }, [isContentReady, schedulePauseTiers]);
 
   useEffect(
     () => () => {
-      clearTimer(emotionTimerRef);
+      clearPauseTimers();
       clearTimer(saveTimerRef);
       clearTimer(sleepTimerRef);
     },
-    []
+    [clearPauseTimers]
   );
 
-  return { onWritingActivity, onCanvasActivity };
+  return {
+    onWritingActivity,
+    onCanvasActivity,
+    resetSession,
+    getSessionMeta: () => getAnalysisMeta(buildSnapshotRef.current()),
+  };
 }

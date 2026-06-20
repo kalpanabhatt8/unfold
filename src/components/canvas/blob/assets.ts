@@ -41,12 +41,15 @@ export const EMOTION_ASSETS: Record<
     mouth: `${CHAR}/neutral/mouth.svg`,
   },
   sad: {
-    body: `${CHAR}/sad/body.svg`,
     mouth: `${CHAR}/sad/mouth.svg`,
   },
   anxious: {
     body: `${CHAR}/anxious/body.svg`,
     mouth: `${CHAR}/anxious/mouth.svg`,
+  },
+  tired: {
+    body: `${CHAR}/tired/body.svg`,
+    mouth: `${CHAR}/tired/mouth.svg`,
   },
   sleep: {
     mouth: `${CHAR}/sleep/mouth.svg`,
@@ -62,6 +65,9 @@ export const EMOTION_ASSETS: Record<
   },
   shocked: {
     mouth: `${CHAR}/shocked/mouth.svg`,
+  },
+  smart: {
+    mouth: `${CHAR}/smart/face.svg`,
   },
 };
 
@@ -80,9 +86,11 @@ export const ASSET_SIZE = {
     happy: { w: 5, h: 3 },
     sad: { w: 3, h: 1 },
     anxious: { w: 4, h: 1 },
+    tired: { w: 3, h: 1 },
     sleep: { w: 4, h: 2 },
     confused: { w: 4, h: 2 },
     shocked: { w: 4, h: 2 },
+    smart: { w: 4, h: 2 },
   },
   lovebg: { w: 39, h: 17 },
   sleepZzz: { w: 5, h: 8 },

@@ -135,8 +135,8 @@ export default function BlobDevPage() {
               ) : null}
             </div>
             <textarea
-              onKeyDown={live.onActivity}
-              placeholder="Type here — typing pose while active, then idle…"
+              onKeyDown={() => live.onCompanionPhase("writing")}
+              placeholder="Type here — typing pose while active, listening at 3s pause…"
               rows={4}
               className="w-full max-w-xl resize-none rounded-xl border border-black/10 bg-white/70 px-4 py-3 text-md leading-relaxed outline-none placeholder:text-black/35"
               style={{ fontFamily: "Lora, Georgia, serif" }}

@@ -2,9 +2,19 @@
 
 import React from "react";
 import type { BlobEmotion, BlobPose } from "./types";
-import { companionToBlobEmotion } from "./emotions";
-import type { CompanionEmotion } from "@/lib/companion-ai";
+import {
+  companionAnalysisToBlob,
+  needsNeutralTransition,
+  type CompanionAnalysis,
+} from "@/lib/companion-analysis";
+import type { CompanionSessionMeta } from "@/lib/companion-analysis";
+import {
+  logCompanionApplyDecision,
+  logCompanionEmotionChange,
+  logCompanionEmotionOverride,
+} from "@/lib/companion-debug";
 import { pickEntranceGreeting } from "./entrance-greetings";
+import { COMPANION_EMOTION_TRANSITION_MS } from "@/lib/companion-pause";
 import {
   ENTRANCE_DURATION_MS,
   GREETING_DURATION_S,
@@ -16,53 +26,52 @@ import {
 
 export const GREETING_DURATION_MS = GREETING_DURATION_S * 1000;
 export const EMOTION_REACTION_MS = 6_000;
-/** Greeting fade-out length when the flower starts sliding in. */
 const GREETING_FADE_MS = 450;
 
 export type UseBlobStateOptions = {
-  /** Scopes entrance greetings to first vs returning visits for this book. */
   bookId?: string;
   typingRestoreMs?: number;
   enterDurationMs?: number;
   emotionDurationMs?: number;
-  /** Delay after canvas open before the flower peeks in. */
   peekDelayMs?: number;
-  /** How long the peek (tilt + greeting) holds before sliding in. */
   peekHoldMs?: number;
-  /** When false, skip the peek→slide entrance (dev grid). */
   enterOnMount?: boolean;
+  /** Fired when the face emotion actually changes (not blocked / same face). */
+  onEmotionApplied?: (emotion: BlobEmotion) => void;
 };
 
 export function useBlobState(opts: UseBlobStateOptions = {}) {
   const {
     bookId = "default",
-    typingRestoreMs = 900,
     enterDurationMs = ENTRANCE_DURATION_MS,
-    emotionDurationMs = EMOTION_REACTION_MS,
     peekDelayMs = PEEK_DELAY_MS,
     peekHoldMs = PEEK_HOLD_MS,
     enterOnMount = true,
+    onEmotionApplied,
   } = opts;
+
+  const onEmotionAppliedRef = React.useRef(onEmotionApplied);
+  React.useEffect(() => {
+    onEmotionAppliedRef.current = onEmotionApplied;
+  }, [onEmotionApplied]);
 
   const [pose, setPose] = React.useState<BlobPose>(() =>
     enterOnMount ? "peek" : "idle"
   );
   const [emotion, setEmotion] = React.useState<BlobEmotion>("neutral");
-  // Stay invisible until the peek begins (after the 1s delay).
   const [hidden, setHidden] = React.useState(enterOnMount);
   const [greeting, setGreeting] = React.useState<string | null>(null);
   const [greetingVisible, setGreetingVisible] = React.useState(false);
 
-  const idleTimerRef = React.useRef<number | null>(null);
-  const enterTimerRef = React.useRef<number | null>(null);
   const emotionTimerRef = React.useRef<number | null>(null);
+  const transitionTimerRef = React.useRef<number | null>(null);
+  const enterTimerRef = React.useRef<number | null>(null);
   const wakeTimerRef = React.useRef<number | null>(null);
   const wakeSettleTimerRef = React.useRef<number | null>(null);
   const peekTimerRef = React.useRef<number | null>(null);
   const slideTimerRef = React.useRef<number | null>(null);
   const greetingClearTimerRef = React.useRef<number | null>(null);
   const closingRef = React.useRef(false);
-  /** False until peek → slide → idle finishes; typing must not skip this. */
   const entranceCompleteRef = React.useRef(!enterOnMount);
   const poseRef = React.useRef<BlobPose>(enterOnMount ? "peek" : "idle");
   const emotionRef = React.useRef<BlobEmotion>("neutral");
@@ -94,24 +103,62 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
   }, []);
 
   const clearAll = React.useCallback(() => {
-    clearTimer(idleTimerRef);
     clearTimer(emotionTimerRef);
+    clearTimer(transitionTimerRef);
     clearTimer(wakeTimerRef);
     clearTimer(wakeSettleTimerRef);
     clearEntranceTimers();
   }, [clearEntranceTimers]);
 
-  /**
-   * Entrance choreography:
-   *   open → (1s) → peek from left (tilt + greeting)
-   *        → hold → slide left→right, straighten → idle.
-   */
+  const applyBlobEmotion = React.useCallback(
+    (next: BlobEmotion, source = "applyBlobEmotion") => {
+      if (sleepingRef.current) {
+        if (awakeEmotionRef.current !== next) {
+          logCompanionEmotionChange(source, awakeEmotionRef.current, next);
+        }
+        awakeEmotionRef.current = next;
+        return;
+      }
+      const prev = emotionRef.current;
+      if (prev !== next) {
+        logCompanionEmotionChange(source, prev, next);
+      }
+      clearTimer(emotionTimerRef);
+      clearTimer(transitionTimerRef);
+      emotionRef.current = next;
+      setEmotion(next);
+    },
+    []
+  );
+
+  const applyBlobEmotionSmooth = React.useCallback(
+    (
+      next: BlobEmotion
+    ): { applied: BlobEmotion | null; viaNeutral: boolean } => {
+      const current = emotionRef.current;
+      if (current === next) return { applied: null, viaNeutral: false };
+
+      if (needsNeutralTransition(current, next)) {
+        emotionRef.current = "neutral";
+        setEmotion("neutral");
+        logCompanionEmotionChange("transition-via-neutral", current, "neutral");
+        transitionTimerRef.current = window.setTimeout(() => {
+          applyBlobEmotion(next, "transition-complete");
+        }, COMPANION_EMOTION_TRANSITION_MS);
+        return { applied: next, viaNeutral: true };
+      }
+
+      applyBlobEmotion(next, "applyBlobEmotionSmooth");
+      return { applied: next, viaNeutral: false };
+    },
+    [applyBlobEmotion]
+  );
+
   const runEnter = React.useCallback(() => {
     if (closingRef.current) return;
     clearEntranceTimers();
     entranceCompleteRef.current = false;
 
-    // Start hidden + framed in the peek pose so the first paint is correct.
     setHidden(true);
     setPose("peek");
     setGreeting(null);
@@ -119,7 +166,6 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
 
     peekTimerRef.current = window.setTimeout(() => {
       if (closingRef.current) return;
-      // Peek in: appear at the edge, tilted, with the greeting.
       setHidden(false);
       setPose("peek");
       setGreeting(pickEntranceGreeting(bookId));
@@ -127,7 +173,6 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
 
       slideTimerRef.current = window.setTimeout(() => {
         if (closingRef.current) return;
-        // Slide in and straighten; fade the greeting out as it moves.
         setPose("enter");
         setGreetingVisible(false);
         greetingClearTimerRef.current = window.setTimeout(() => {
@@ -150,56 +195,43 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
     return clearAll;
   }, [clearAll, enterOnMount, runEnter]);
 
-  const onActivity = React.useCallback(() => {
-    if (closingRef.current) return;
-    // Let peek → greeting → slide → idle finish before reacting to typing.
-    if (!entranceCompleteRef.current) return;
-    clearTimer(idleTimerRef);
-    clearTimer(wakeTimerRef);
-    clearTimer(wakeSettleTimerRef);
+  /** Pause-tier pose — writing, listening (lean-in), or idle. */
+  const onCompanionPhase = React.useCallback(
+    (phase: "writing" | "listening" | "idle") => {
+      if (closingRef.current || !entranceCompleteRef.current) return;
+      if (poseRef.current === "jump" || poseRef.current === "bloom") return;
 
-    if (poseRef.current !== "jump" && poseRef.current !== "bloom") {
-      setPose("typing");
-    }
-
-    idleTimerRef.current = window.setTimeout(() => {
-      if (closingRef.current) return;
-      setPose("idle");
-    }, typingRestoreMs);
-  }, [typingRestoreMs]);
-
-  const onEmotionReaction = React.useCallback(
-    (next: BlobEmotion) => {
-      if (closingRef.current) return;
-      clearTimer(emotionTimerRef);
-      setEmotion(next);
-      emotionTimerRef.current = window.setTimeout(() => {
-        if (closingRef.current) return;
-        setEmotion("neutral");
-      }, emotionDurationMs);
+      if (phase === "writing") setPose("typing");
+      else if (phase === "listening") setPose("listening");
+      else setPose("idle");
     },
-    [emotionDurationMs]
+    []
   );
 
-  /** Sleep face — separate from journal emotion layer. */
+  const onEmotionReaction = React.useCallback((next: BlobEmotion) => {
+    if (closingRef.current) return;
+    applyBlobEmotionSmooth(next);
+  }, [applyBlobEmotionSmooth]);
+
   const onEmotionFromWriting = React.useCallback((next: BlobEmotion) => {
     if (closingRef.current) return;
     if (next === "sleep") {
       sleepingRef.current = true;
       clearTimer(emotionTimerRef);
+      clearTimer(transitionTimerRef);
       setEmotion("sleep");
       return;
     }
     sleepingRef.current = false;
-    clearTimer(emotionTimerRef);
-    setEmotion(next);
-  }, []);
+    applyBlobEmotion(next);
+  }, [applyBlobEmotion]);
 
   const onWakeFromSleep = React.useCallback(
     (opts?: { typing?: boolean }): boolean => {
       if (closingRef.current || !sleepingRef.current) return false;
       sleepingRef.current = false;
       clearTimer(emotionTimerRef);
+      clearTimer(transitionTimerRef);
       clearTimer(wakeTimerRef);
       clearTimer(wakeSettleTimerRef);
       setEmotion("shocked");
@@ -217,7 +249,6 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
         return true;
       }
 
-      clearTimer(idleTimerRef);
       setPose("wake");
       wakeTimerRef.current = window.setTimeout(() => {
         if (closingRef.current) return;
@@ -229,19 +260,147 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
     []
   );
 
-  /** Gemini / local classification from journal text — updates on each idle pause. */
-  const onSessionEmotionDetected = React.useCallback(
-    (companion: CompanionEmotion, text: string) => {
-      if (closingRef.current) return;
-      const next = companionToBlobEmotion(companion, text);
-      if (sleepingRef.current) {
-        awakeEmotionRef.current = next;
-        return;
+  const verifyEmotionAfterUpdate = React.useCallback(
+    (expected: BlobEmotion, viaNeutral: boolean) => {
+      const readActive = () => emotionRef.current;
+      queueMicrotask(() => {
+        const actual = readActive();
+        if (viaNeutral && actual === "neutral") return;
+        if (actual !== expected) {
+          logCompanionEmotionOverride(expected, actual, "immediate-after-update");
+        }
+      });
+      if (viaNeutral) {
+        window.setTimeout(() => {
+          const actual = readActive();
+          if (actual !== expected) {
+            logCompanionEmotionOverride(expected, actual, "after-neutral-transition");
+          }
+        }, COMPANION_EMOTION_TRANSITION_MS + 50);
       }
-      clearTimer(emotionTimerRef);
-      setEmotion(next);
     },
     []
+  );
+
+  const logApplyDecision = React.useCallback(
+    (
+      decision: Omit<
+        Parameters<typeof logCompanionApplyDecision>[0],
+        "emotionAfterUpdate"
+      >,
+      applied: BlobEmotion | null,
+      viaNeutral: boolean
+    ) => {
+      logCompanionApplyDecision({
+        ...decision,
+        emotionAfterUpdate: emotionRef.current,
+      });
+      if (applied) verifyEmotionAfterUpdate(applied, viaNeutral);
+    },
+    [verifyEmotionAfterUpdate]
+  );
+
+  const resetCompanionState = React.useCallback(() => {
+    sleepingRef.current = false;
+    clearTimer(emotionTimerRef);
+    clearTimer(transitionTimerRef);
+    clearTimer(wakeTimerRef);
+    clearTimer(wakeSettleTimerRef);
+    const prev = emotionRef.current;
+    if (prev !== "neutral") {
+      logCompanionEmotionChange("resetCompanionState", prev, "neutral");
+    }
+    setEmotion("neutral");
+    awakeEmotionRef.current = "neutral";
+  }, []);
+
+  const onCompanionAnalysis = React.useCallback(
+    (
+      analysis: CompanionAnalysis,
+      text: string,
+      sessionMeta?: CompanionSessionMeta
+    ) => {
+      if (closingRef.current) return;
+
+      const currentEmotion = emotionRef.current;
+      const mappedEmotion = companionAnalysisToBlob(analysis);
+      const confidenceGatePassed = analysis.confidence === "high";
+      const sameEmotion = currentEmotion === mappedEmotion;
+
+      const baseDecision = {
+        contextSent: text,
+        rawResponse: analysis,
+        mappedEmotion,
+        currentEmotion,
+        sessionTextWords: sessionMeta?.deltaTextWords ?? sessionMeta?.sessionTextWords,
+        totalTextWords: sessionMeta?.totalTextWords,
+        baselineTokenCount:
+          sessionMeta?.analysisBaselineTokenCount ??
+          sessionMeta?.sessionBaselineTokenCount,
+      };
+
+      if (!confidenceGatePassed) {
+        logApplyDecision(
+          {
+            ...baseDecision,
+            confidenceGatePassed: false,
+            transitionViaNeutral: false,
+            transitionAllowed: false,
+            finalEmotionApplied: null,
+            blockedReason: `confidence gate (${analysis.confidence})`,
+          },
+          null,
+          false
+        );
+        return;
+      }
+
+      if (sameEmotion) {
+        logApplyDecision(
+          {
+            ...baseDecision,
+            confidenceGatePassed: true,
+            transitionViaNeutral: false,
+            transitionAllowed: false,
+            finalEmotionApplied: null,
+            blockedReason: "already showing mapped emotion",
+          },
+          null,
+          false
+        );
+        return;
+      }
+
+      const { applied, viaNeutral } = applyBlobEmotionSmooth(mappedEmotion);
+
+      logApplyDecision(
+        {
+          ...baseDecision,
+          confidenceGatePassed: true,
+          transitionViaNeutral: viaNeutral,
+          transitionAllowed: applied !== null,
+          finalEmotionApplied: applied,
+        },
+        applied,
+        viaNeutral
+      );
+
+      if (applied) {
+        onEmotionAppliedRef.current?.(applied);
+      }
+    },
+    [applyBlobEmotionSmooth, logApplyDecision]
+  );
+
+  /** @deprecated Use onCompanionAnalysis */
+  const onSessionEmotionDetected = React.useCallback(
+    (companion: CompanionAnalysis["emotion"], text: string) => {
+      onCompanionAnalysis(
+        { emotion: companion, confidence: "high" },
+        text
+      );
+    },
+    [onCompanionAnalysis]
   );
 
   const onClosing = React.useCallback((): Promise<void> => {
@@ -264,12 +423,14 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
     hidden,
     greeting,
     greetingVisible,
-    onActivity,
+    onCompanionPhase,
+    onCompanionAnalysis,
     onEmotionReaction,
     onEmotionFromWriting,
     onWakeFromSleep,
     onSessionEmotionDetected,
     onClosing,
     runEnter,
+    resetCompanionState,
   };
 }

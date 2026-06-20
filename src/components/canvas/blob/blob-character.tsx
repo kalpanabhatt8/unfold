@@ -130,6 +130,7 @@ const SMILE_EMOTIONS = new Set<BlobEmotion>([
   "happy",
   "love",
   "excited",
+  "smart",
 ]);
 
 function mouthArea(size: { w: number; h: number }) {

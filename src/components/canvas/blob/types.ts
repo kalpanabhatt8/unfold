@@ -3,6 +3,7 @@ export type BlobPose =
   | "idle"
   | "enter"
   | "typing"
+  | "listening"
   | "peek"
   | "jump"
   | "bloom"
@@ -18,10 +19,12 @@ export type BlobEmotion =
   | "neutral"
   | "sad"
   | "anxious"
+  | "tired"
   | "sleep"
   | "happy"
   | "confused"
-  | "shocked";
+  | "shocked"
+  | "smart";
 
 export type BloomLevel = 0 | 1 | 2 | 3;
 
