@@ -20,4 +20,4 @@ export {
   companionToBlobEmotion,
 } from "./blob/emotions";
 
-export type { CompanionEmotion } from "@/lib/companion-ai";
+export type { CompanionEmotion } from "@/lib/companion-emotions";

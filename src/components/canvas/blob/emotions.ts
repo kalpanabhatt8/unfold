@@ -1,6 +1,6 @@
 import type { BlobEmotion } from "./types";
 import { ASSET_SIZE, BASE, EMOTION_ASSETS } from "./assets";
-import type { CompanionEmotion } from "@/lib/companion-ai";
+import type { CompanionEmotion } from "@/lib/companion-emotions";
 import { MOUTH_CX, MOUTH_CY, MOUTH_EMOTION_OFFSET } from "./layout";
 
 export function resolveBodySrc(emotion: BlobEmotion): string {
@@ -51,18 +51,22 @@ export function eyeSize(emotion: BlobEmotion, side: "left" | "right") {
 /** Map companion classifier labels onto character faces (1:1). */
 export function companionToBlobEmotion(emotion: CompanionEmotion): BlobEmotion {
   switch (emotion) {
-    case "love":
-      return "love";
+    case "anxious":
+      return "anxious";
+    case "confused":
+      return "confused";
     case "excited":
       return "excited";
     case "happy":
       return "happy";
+    case "love":
+      return "love";
     case "sad":
       return "sad";
-    case "confused":
-      return "confused";
     case "shocked":
       return "shocked";
+    case "tired":
+      return "tired";
     case "neutral":
     default:
       return "neutral";

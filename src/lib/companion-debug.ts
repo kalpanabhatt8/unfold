@@ -15,23 +15,14 @@ export const isCompanionDebugEnabled = (): boolean => {
   return process.env.NODE_ENV === "development";
 };
 
-export type CompanionDebugSkipReason =
-  | "below_word_threshold"
-  | "duplicate_context"
-  | "insufficient_word_delta"
-  | "analysis_in_flight"
-  | "stale_generation"
-  | "context_changed_during_request"
-  | "emotion_cooldown";
-
-export type CompanionAnalysisSource = "gemini" | "local" | "api_fallback";
+export type CompanionAnalysisSource = "claude" | "unavailable";
 
 export type CompanionRawResponse = CompanionAnalysis & {
   _debug?: {
     source?: CompanionAnalysisSource;
-    rawGemini?: string;
+    rawClaude?: string;
     fallbackReason?: string;
-    geminiStatus?: number;
+    claudeStatus?: number;
   };
 };
 
@@ -45,37 +36,8 @@ export type CompanionApplyDecision = {
   transitionAllowed: boolean;
   finalEmotionApplied: BlobEmotion | null;
   blockedReason?: string;
-  sessionTextWords?: number;
   totalTextWords?: number;
-  baselineTokenCount?: number;
   emotionAfterUpdate?: BlobEmotion;
-};
-
-export const logCompanionSkipped = (
-  reason: CompanionDebugSkipReason,
-  details?: Record<string, unknown>
-) => {
-  if (!isCompanionDebugEnabled()) return;
-  console.groupCollapsed("%c🌻 Companion classify skipped", "color:#888");
-  console.log("Reason:", reason);
-  if (details) console.log("Details:", details);
-  console.groupEnd();
-};
-
-export const logCompanionAnalysisStart = (
-  contextSent: string,
-  details?: Record<string, unknown>
-): (() => void) => {
-  if (!isCompanionDebugEnabled()) return () => {};
-  console.group("%c🌻 Companion classify started", "color:#c9a227;font-weight:bold");
-  console.log("Strategy: delta-chunk (new text since last react, max 50 words)");
-  console.log("Delta chunk sent:", contextSent);
-  if (details) {
-    for (const [key, value] of Object.entries(details)) {
-      console.log(`${key}:`, value);
-    }
-  }
-  return () => console.groupEnd();
 };
 
 export const logCompanionRawResponse = (
@@ -87,32 +49,18 @@ export const logCompanionRawResponse = (
   console.log("LLM response:", llmFields);
   console.log("Source:", source);
   if (raw._debug?.fallbackReason) {
-    const reason = raw._debug.fallbackReason;
-    if (reason === "gemini_quota_exceeded") {
-      console.warn(
-        "%c🌻 Gemini quota exceeded (429) — using local classifier. Set COMPANION_FORCE_LOCAL=true in .env.local to skip Gemini calls during dev.",
-        "color:#c0392b;font-weight:bold"
-      );
-    } else {
-      console.warn("Fallback reason:", reason);
-    }
+    console.warn("Classification fallback:", raw._debug.fallbackReason);
   }
-  if (raw._debug?.geminiStatus) {
-    console.warn("Gemini HTTP status:", raw._debug.geminiStatus);
+  if (raw._debug?.claudeStatus) {
+    console.warn("Claude HTTP status:", raw._debug.claudeStatus);
   }
-  if (raw._debug?.rawGemini) console.log("Raw Gemini text:", raw._debug.rawGemini);
+  if (raw._debug?.rawClaude) console.log("Raw Claude text:", raw._debug.rawClaude);
 };
 
 export const logCompanionApplyDecision = (decision: CompanionApplyDecision) => {
   if (!isCompanionDebugEnabled()) return;
-  if (decision.sessionTextWords !== undefined) {
-    console.log("Delta text words:", decision.sessionTextWords);
-  }
   if (decision.totalTextWords !== undefined) {
     console.log("Total canvas words:", decision.totalTextWords);
-  }
-  if (decision.baselineTokenCount !== undefined) {
-    console.log("Session baseline tokens:", decision.baselineTokenCount);
   }
   console.log("LLM emotion label:", decision.rawResponse.emotion);
   console.log("Mapped emotion:", decision.mappedEmotion);
@@ -148,15 +96,6 @@ export const logCompanionEmotionOverride = (
   console.warn(
     `[companion emotion] override detected (${source}): expected ${expected}, active ${actual}`
   );
-};
-
-export const logCompanionSessionReset = (details: Record<string, unknown>) => {
-  if (!isCompanionDebugEnabled()) return;
-  console.group("%c🌻 Companion session reset", "color:#6b8e23;font-weight:bold");
-  for (const [key, value] of Object.entries(details)) {
-    console.log(`${key}:`, value);
-  }
-  console.groupEnd();
 };
 
 export const logCompanionServer = (

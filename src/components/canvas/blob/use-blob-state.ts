@@ -6,14 +6,15 @@ import {
   companionAnalysisToBlob,
   needsNeutralTransition,
   type CompanionAnalysis,
+  type CompanionSessionMeta,
 } from "@/lib/companion-analysis";
-import type { CompanionSessionMeta } from "@/lib/companion-analysis";
 import {
   logCompanionApplyDecision,
   logCompanionEmotionChange,
   logCompanionEmotionOverride,
 } from "@/lib/companion-debug";
 import { pickEntranceGreeting } from "./entrance-greetings";
+import { pickWhisper } from "./whispers";
 import { COMPANION_EMOTION_TRANSITION_MS } from "@/lib/companion-pause";
 import {
   ENTRANCE_DURATION_MS,
@@ -30,13 +31,10 @@ const GREETING_FADE_MS = 450;
 
 export type UseBlobStateOptions = {
   bookId?: string;
-  typingRestoreMs?: number;
   enterDurationMs?: number;
-  emotionDurationMs?: number;
   peekDelayMs?: number;
   peekHoldMs?: number;
   enterOnMount?: boolean;
-  /** Fired when the face emotion actually changes (not blocked / same face). */
   onEmotionApplied?: (emotion: BlobEmotion) => void;
 };
 
@@ -62,9 +60,11 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
   const [hidden, setHidden] = React.useState(enterOnMount);
   const [greeting, setGreeting] = React.useState<string | null>(null);
   const [greetingVisible, setGreetingVisible] = React.useState(false);
+  const [whisper, setWhisper] = React.useState<string | null>(null);
+  const [whisperVisible, setWhisperVisible] = React.useState(false);
 
-  const emotionTimerRef = React.useRef<number | null>(null);
   const transitionTimerRef = React.useRef<number | null>(null);
+  const whisperTimerRef = React.useRef<number | null>(null);
   const enterTimerRef = React.useRef<number | null>(null);
   const wakeTimerRef = React.useRef<number | null>(null);
   const wakeSettleTimerRef = React.useRef<number | null>(null);
@@ -103,10 +103,10 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
   }, []);
 
   const clearAll = React.useCallback(() => {
-    clearTimer(emotionTimerRef);
     clearTimer(transitionTimerRef);
     clearTimer(wakeTimerRef);
     clearTimer(wakeSettleTimerRef);
+    clearTimer(whisperTimerRef);
     clearEntranceTimers();
   }, [clearEntranceTimers]);
 
@@ -122,8 +122,8 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
       const prev = emotionRef.current;
       if (prev !== next) {
         logCompanionEmotionChange(source, prev, next);
+        console.log(`[🌻 blob] 🎭 emotion: "${prev}" → "${next}" (${source})`);
       }
-      clearTimer(emotionTimerRef);
       clearTimer(transitionTimerRef);
       emotionRef.current = next;
       setEmotion(next);
@@ -153,6 +153,17 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
     },
     [applyBlobEmotion]
   );
+
+  const showWhisper = React.useCallback((emotion: BlobEmotion) => {
+    const phrase = pickWhisper(emotion);
+    if (!phrase) return;
+    clearTimer(whisperTimerRef);
+    setWhisper(phrase);
+    setWhisperVisible(true);
+    whisperTimerRef.current = window.setTimeout(() => {
+      setWhisperVisible(false);
+    }, EMOTION_REACTION_MS);
+  }, []);
 
   const runEnter = React.useCallback(() => {
     if (closingRef.current) return;
@@ -195,7 +206,7 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
     return clearAll;
   }, [clearAll, enterOnMount, runEnter]);
 
-  /** Pause-tier pose — writing, listening (lean-in), or idle. */
+  /** UI pose while writing — typing, listening (attentive), or idle. */
   const onCompanionPhase = React.useCallback(
     (phase: "writing" | "listening" | "idle") => {
       if (closingRef.current || !entranceCompleteRef.current) return;
@@ -208,17 +219,13 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
     []
   );
 
-  const onEmotionReaction = React.useCallback((next: BlobEmotion) => {
-    if (closingRef.current) return;
-    applyBlobEmotionSmooth(next);
-  }, [applyBlobEmotionSmooth]);
-
   const onEmotionFromWriting = React.useCallback((next: BlobEmotion) => {
     if (closingRef.current) return;
     if (next === "sleep") {
       sleepingRef.current = true;
-      clearTimer(emotionTimerRef);
       clearTimer(transitionTimerRef);
+      clearTimer(whisperTimerRef);
+      setWhisperVisible(false);
       setEmotion("sleep");
       return;
     }
@@ -230,7 +237,6 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
     (opts?: { typing?: boolean }): boolean => {
       if (closingRef.current || !sleepingRef.current) return false;
       sleepingRef.current = false;
-      clearTimer(emotionTimerRef);
       clearTimer(transitionTimerRef);
       clearTimer(wakeTimerRef);
       clearTimer(wakeSettleTimerRef);
@@ -262,9 +268,8 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
 
   const verifyEmotionAfterUpdate = React.useCallback(
     (expected: BlobEmotion, viaNeutral: boolean) => {
-      const readActive = () => emotionRef.current;
       queueMicrotask(() => {
-        const actual = readActive();
+        const actual = emotionRef.current;
         if (viaNeutral && actual === "neutral") return;
         if (actual !== expected) {
           logCompanionEmotionOverride(expected, actual, "immediate-after-update");
@@ -272,7 +277,7 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
       });
       if (viaNeutral) {
         window.setTimeout(() => {
-          const actual = readActive();
+          const actual = emotionRef.current;
           if (actual !== expected) {
             logCompanionEmotionOverride(expected, actual, "after-neutral-transition");
           }
@@ -302,10 +307,11 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
 
   const resetCompanionState = React.useCallback(() => {
     sleepingRef.current = false;
-    clearTimer(emotionTimerRef);
     clearTimer(transitionTimerRef);
     clearTimer(wakeTimerRef);
     clearTimer(wakeSettleTimerRef);
+    clearTimer(whisperTimerRef);
+    setWhisperVisible(false);
     const prev = emotionRef.current;
     if (prev !== "neutral") {
       logCompanionEmotionChange("resetCompanionState", prev, "neutral");
@@ -324,7 +330,13 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
 
       const currentEmotion = emotionRef.current;
       const mappedEmotion = companionAnalysisToBlob(analysis);
-      const confidenceGatePassed = analysis.confidence === "high";
+      // Full-context reclassifies (deletion + initial resumed-draft load) read
+      // the whole canvas, so trust them even at low confidence.
+      const isFullCanvas =
+        sessionMeta?.classificationStrategy === "deletion" ||
+        sessionMeta?.classificationStrategy === "initial";
+      const confidenceGatePassed =
+        analysis.confidence !== "low" || isFullCanvas;
       const sameEmotion = currentEmotion === mappedEmotion;
 
       const baseDecision = {
@@ -332,11 +344,7 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
         rawResponse: analysis,
         mappedEmotion,
         currentEmotion,
-        sessionTextWords: sessionMeta?.deltaTextWords ?? sessionMeta?.sessionTextWords,
         totalTextWords: sessionMeta?.totalTextWords,
-        baselineTokenCount:
-          sessionMeta?.analysisBaselineTokenCount ??
-          sessionMeta?.sessionBaselineTokenCount,
       };
 
       if (!confidenceGatePassed) {
@@ -387,20 +395,10 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
 
       if (applied) {
         onEmotionAppliedRef.current?.(applied);
+        showWhisper(applied);
       }
     },
-    [applyBlobEmotionSmooth, logApplyDecision]
-  );
-
-  /** @deprecated Use onCompanionAnalysis */
-  const onSessionEmotionDetected = React.useCallback(
-    (companion: CompanionAnalysis["emotion"], text: string) => {
-      onCompanionAnalysis(
-        { emotion: companion, confidence: "high" },
-        text
-      );
-    },
-    [onCompanionAnalysis]
+    [applyBlobEmotionSmooth, logApplyDecision, showWhisper]
   );
 
   const onClosing = React.useCallback((): Promise<void> => {
@@ -423,14 +421,14 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
     hidden,
     greeting,
     greetingVisible,
+    whisper,
+    whisperVisible,
     onCompanionPhase,
     onCompanionAnalysis,
-    onEmotionReaction,
     onEmotionFromWriting,
     onWakeFromSleep,
-    onSessionEmotionDetected,
     onClosing,
     runEnter,
     resetCompanionState,
   };
-}
+};

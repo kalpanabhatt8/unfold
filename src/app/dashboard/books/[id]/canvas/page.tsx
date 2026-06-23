@@ -263,17 +263,10 @@ const CanvasPage = () => {
     [persistDraft]
   );
 
-  // Milestone save handler — fires 15s after typing stops
-  // save. This is the seam for AI title generation: read the latest snapshot,
-  // ship the writing-column text to the title model, and persist the result
-  // back to the draft. AI plumbing is not wired yet; once it lands, call it
-  // from here and merge the returned title via `persistDraft({ title })`.
+  // Milestone save handler — fires 7s after typing stops.
   const handleMilestoneSave = useCallback(
     (_snapshot: CanvasSnapshot) => {
       persistDraft({}, { skipRender: true });
-      // TODO(ai-title): trigger AI title generation from `snapshot.textColumns`
-      // and call persistDraft({ title }) when it resolves. Keep this silent —
-      // the product spec calls for "no confirmation dialogs — silent save".
     },
     [persistDraft]
   );
@@ -379,6 +372,7 @@ const CanvasPage = () => {
           title={draft.title}
           onTitleChange={handleTitleChange}
           sessionEditedAt={sessionEditedAt}
+          lastEditedAt={draft.lastEditedAt}
         />
       )}
     </main>

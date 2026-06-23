@@ -3,148 +3,195 @@ import {
   COMPANION_EMOTIONS,
   normalizeCompanionEmotion,
 } from "@/lib/companion-emotions";
-import { detectCompanionAnalysis } from "@/lib/companion-local";
+import { keywordFallback } from "@/lib/companion-local";
 import { logCompanionServer } from "@/lib/companion-debug";
 
 type CompanionEmotion = (typeof COMPANION_EMOTIONS)[number];
-type CompanionConfidence = "high" | "low";
+type CompanionConfidence = "high" | "medium" | "low";
 
 type FallbackReason =
   | "no_api_key"
-  | "gemini_http_error"
-  | "gemini_quota_exceeded"
-  | "gemini_empty_response"
-  | "gemini_parse_failed"
-  | "gemini_exception"
-  | "force_local";
+  | "claude_http_error"
+  | "claude_empty_response"
+  | "claude_parse_failed"
+  | "claude_exception";
 
 type CompanionApiResponse = {
   emotion: CompanionEmotion;
   confidence: CompanionConfidence;
   _debug?: {
-    source: "gemini" | "local" | "api_fallback";
-    rawGemini?: string;
+    source: "claude" | "unavailable";
+    rawClaude?: string;
     fallbackReason?: FallbackReason;
-    geminiStatus?: number;
+    claudeStatus?: number;
   };
+};
+
+const UNAVAILABLE_ANALYSIS: CompanionApiResponse = {
+  emotion: "neutral",
+  confidence: "low",
 };
 
 const withDevDebug = (
   payload: CompanionApiResponse,
-  source: "gemini" | "local" | "api_fallback",
+  source: "claude" | "unavailable",
   extra?: Partial<NonNullable<CompanionApiResponse["_debug"]>>
 ): CompanionApiResponse => {
   if (process.env.NODE_ENV !== "development") return payload;
-  return {
-    ...payload,
-    _debug: { source, ...extra },
-  };
+  return { ...payload, _debug: { source, ...extra } };
 };
 
-/** Fast Gemini model — overridable via GEMINI_MODEL (e.g. gemini-2.5-flash). */
-const GEMINI_MODEL = process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash";
+const CLAUDE_MODEL = "claude-haiku-4-5-20251001";
 
-const EMOTION_LIST = COMPANION_EMOTIONS.join(", ");
+const isCompanionConfidenceValue = (v: unknown): v is CompanionConfidence =>
+  v === "high" || v === "medium" || v === "low";
 
-const parseGeminiJson = (raw: string): CompanionApiResponse | null => {
-  const cleaned = raw.replace(/```json/gi, "").replace(/```/g, "").trim();
-  const start = cleaned.indexOf("{");
-  const end = cleaned.lastIndexOf("}");
-  const candidate =
-    start !== -1 && end > start ? cleaned.slice(start, end + 1) : cleaned;
+const buildPrompt = (text: string): string =>
+  `You are classifying the emotional tone of a private journal entry.
+
+Classify the text into exactly ONE of these 9 emotions:
+love, excited, neutral, happy, sad, anxious, tired, confused, shocked
+
+Emotion definitions:
+- love: warmth, affection, emotional closeness, tenderness, care
+- excited: high-energy anticipation, thrill, eagerness, hype
+- neutral: emotionally flat, purely descriptive/factual writing — use ONLY when no meaningful emotion exists
+- happy: joy, pleasant mood, gratitude, contentment, pride, accomplishment, confidence
+- sad: loneliness, grief, disappointment, heaviness, emotional pain
+- anxious: worry, nervousness, overthinking, unease, fear of future
+- tired: low energy, fatigue, mentally or physically tired, exhaustion
+- confused: mental fog, uncertainty, disorientation, internal conflict, not understanding thoughts/feelings
+- shocked: surprise, disbelief, sudden emotional impact
+
+Rules:
+- Return exactly ONE emotion from the list above
+- Prefer nuanced emotional classification over neutral
+- If text contains multiple emotions, choose the dominant one
+- Detect subtle moods — journal writing often has low-intensity emotional states
+- Do NOT default to neutral unless the text is truly emotionally flat
+- Map pride, accomplishment, confidence, or smart to happy
+
+Respond with ONLY this JSON (no explanation, no markdown):
+{"emotion": "<emotion>", "confidence": "<high|medium|low>"}
+
+Journal entry:
+"""
+${text}
+"""`;
+
+const callClaude = async (
+  apiKey: string,
+  text: string
+): Promise<
+  | { ok: true; rawText: string }
+  | { ok: false; status: number; errText: string }
+> => {
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: CLAUDE_MODEL,
+      max_tokens: 60,
+      messages: [{ role: "user", content: buildPrompt(text) }],
+    }),
+  });
+
+  if (res.ok) {
+    const data = (await res.json()) as {
+      content?: Array<{ type: string; text?: string }>;
+    };
+    const rawText = data.content?.[0]?.text?.trim() ?? "";
+    return { ok: true, rawText };
+  }
+
+  const errText = await res.text();
+  return { ok: false, status: res.status, errText };
+};
+
+const stripMarkdownFences = (raw: string): string =>
+  raw
+    .replace(/```json\s*/gi, "")
+    .replace(/```/g, "")
+    .trim();
+
+const isAllowedClassifierEmotion = (
+  emotion: CompanionEmotion | null
+): emotion is CompanionEmotion =>
+  emotion !== null &&
+  (COMPANION_EMOTIONS as readonly string[]).includes(emotion);
+
+const parseClaudeResponse = (
+  raw: string
+): { emotion: CompanionEmotion; confidence: CompanionConfidence } | null => {
+  const cleaned = stripMarkdownFences(raw);
 
   try {
-    const parsed = JSON.parse(candidate) as Partial<CompanionApiResponse>;
-    const emotion = normalizeCompanionEmotion(parsed.emotion);
-    if (
-      emotion &&
-      (parsed.confidence === "high" || parsed.confidence === "low")
-    ) {
-      return {
-        emotion,
-        confidence: parsed.confidence,
-      };
+    const start = cleaned.indexOf("{");
+    const end = cleaned.lastIndexOf("}");
+    if (start !== -1 && end > start) {
+      const parsed = JSON.parse(cleaned.slice(start, end + 1)) as Record<
+        string,
+        unknown
+      >;
+      const emotion = normalizeCompanionEmotion(
+        typeof parsed.emotion === "string"
+          ? parsed.emotion.toLowerCase()
+          : parsed.emotion
+      );
+      if (isAllowedClassifierEmotion(emotion)) {
+        const confidence = isCompanionConfidenceValue(parsed.confidence)
+          ? parsed.confidence
+          : "medium";
+        return { emotion, confidence };
+      }
     }
   } catch {
-    /* fall through */
+    // fall through to word scan
+  }
+
+  const lower = cleaned.toLowerCase();
+  const direct = normalizeCompanionEmotion(lower.trim());
+  if (isAllowedClassifierEmotion(direct)) {
+    return { emotion: direct, confidence: "medium" };
+  }
+  for (const word of lower.split(/\s+/)) {
+    const found = normalizeCompanionEmotion(word);
+    if (isAllowedClassifierEmotion(found)) {
+      return { emotion: found, confidence: "medium" };
+    }
   }
   return null;
 };
 
-const buildPrompt = (text: string, scope: "delta" | "full" = "delta"): string => {
-  const scopeNote =
-    scope === "delta"
-      ? `This is ONLY the newest writing since the last pause — NOT the full journal.
-Classify the emotional tone of THIS CHUNK alone. Ignore any prior paragraphs the user may have written earlier in the session.`
-      : `Read the FULL excerpt before classifying — weight the MOST RECENT sentences heavily when the tone shifts.`;
-
-  return `You are classifying the emotional tone of a private journal excerpt.
-${scopeNote}
-Respond with JSON only — no markdown, no extra keys.
-
-Classify as exactly one of: ${EMOTION_LIST}
-
-Definitions:
-- "neutral"  = everyday reflection with no clear emotional tone
-- "happy"    = settled joy, gratitude, warmth, contentment
-- "excited"  = giddy anticipation, restless positive energy, butterflies
-- "love"     = affection, warmth toward someone/something, feeling loved or loving
-- "sad"      = grief, loss, loneliness, hurt, frustration, emotional weight
-- "confused" = uncertainty, stuck, worry, unable to start, unclear
-- "shocked"  = surprise, disbelief, sudden realization
-
-Rules:
-- Classify THIS excerpt only — do not infer tone from text not shown
-- Prefer "neutral" with confidence "low" when the tone is ambiguous or flat
-- Do NOT default to "happy" or "confused" — pick the clearest single tone in this chunk
-
-Confidence:
-- "high" = one clear dominant tone across the full excerpt
-- "low"  = mixed, ambiguous, or too little signal
-
-Examples:
-- "I keep thinking about what might go wrong." → {"emotion":"confused","confidence":"high"}
-- "Something is happening and I can't stop thinking about it. I keep smiling." → {"emotion":"excited","confidence":"high"}
-- "Today was good. I finished something and laughed with a friend." → {"emotion":"happy","confidence":"high"}
-- "I miss her so much. Everything feels heavy." → {"emotion":"sad","confidence":"high"}
-- "I wrote some notes about my day." → {"emotion":"neutral","confidence":"low"}
-
-Respond with JSON only:
-{"emotion":"<one of the seven>","confidence":"high"|"low"}
-
-Journal excerpt (${scope === "delta" ? "new chunk since last pause" : "full"}):
-"""
-${text.slice(0, 8000)}
-"""`;
-};
-
-const fallbackResponse = (
+const unavailableResponse = (
   text: string,
   reason: FallbackReason,
   extra?: Partial<NonNullable<CompanionApiResponse["_debug"]>>
 ) => {
-  const local = detectCompanionAnalysis(text);
-  logCompanionServer(text, reason, local, "api_fallback");
+  logCompanionServer(text, reason, UNAVAILABLE_ANALYSIS, "unavailable");
+  console.warn(`[🌻 claude] ⚠️ unavailable | reason: ${reason} | chars: ${text.length}`);
   return NextResponse.json(
-    withDevDebug(local, "api_fallback", { fallbackReason: reason, ...extra })
+    withDevDebug(UNAVAILABLE_ANALYSIS, "unavailable", {
+      fallbackReason: reason,
+      ...extra,
+    })
   );
 };
 
-/** Dev warm-up — compiles the route without calling Gemini. */
+/** Dev warm-up — compiles the route without calling Claude. */
 export async function GET() {
   return NextResponse.json({ ok: true });
 }
 
 export async function POST(request: Request) {
   let text = "";
-  let scope: "delta" | "full" = "delta";
   try {
-    const body = (await request.json()) as {
-      text?: unknown;
-      scope?: unknown;
-    };
+    const body = (await request.json()) as { text?: unknown };
     text = typeof body.text === "string" ? body.text.trim() : "";
-    scope = body.scope === "full" ? "full" : "delta";
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
@@ -153,80 +200,50 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Empty text" }, { status: 400 });
   }
 
-  if (process.env.COMPANION_FORCE_LOCAL === "true") {
-    const local = detectCompanionAnalysis(text);
-    logCompanionServer(text, "force_local", local, "local");
-    return NextResponse.json(
-      withDevDebug(local, "local", { fallbackReason: "force_local" })
-    );
-  }
-
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    const local = detectCompanionAnalysis(text);
-    logCompanionServer(text, "no_api_key", local, "local");
-    return NextResponse.json(
-      withDevDebug(local, "local", { fallbackReason: "no_api_key" })
-    );
+    return unavailableResponse(text, "no_api_key");
   }
-
-  const prompt = buildPrompt(text, scope);
 
   try {
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.2,
-            maxOutputTokens: 128,
-            responseMimeType: "application/json",
-          },
-        }),
-      }
-    );
+    const result = await callClaude(apiKey, text);
 
-    if (!geminiRes.ok) {
-      const errText = await geminiRes.text();
-      console.error("Gemini API error", geminiRes.status, errText);
-      const reason: FallbackReason =
-        geminiRes.status === 429 ? "gemini_quota_exceeded" : "gemini_http_error";
-      return fallbackResponse(text, reason, {
-        rawGemini: errText.slice(0, 500),
-        geminiStatus: geminiRes.status,
+    if (!result.ok) {
+      console.error("Claude API error", result.status, result.errText);
+      return unavailableResponse(text, "claude_http_error", {
+        rawClaude: result.errText.slice(0, 500),
+        claudeStatus: result.status,
       });
     }
 
-    const geminiData = (await geminiRes.json()) as {
-      candidates?: Array<{
-        content?: { parts?: Array<{ text?: string }> };
-      }>;
-    };
-
-    const rawText =
-      geminiData.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
-
-    if (!rawText) {
-      console.error("Gemini empty response", JSON.stringify(geminiData));
-      return fallbackResponse(text, "gemini_empty_response");
+    if (!result.rawText) {
+      return unavailableResponse(text, "claude_empty_response");
     }
 
-    const parsed = parseGeminiJson(rawText);
-
-    if (!parsed) {
-      console.error("Gemini parse failed", rawText);
-      return fallbackResponse(text, "gemini_parse_failed", { rawGemini: rawText });
+    const claudeParsed = parseClaudeResponse(result.rawText);
+    if (!claudeParsed) {
+      const fallback = keywordFallback(text);
+      logCompanionServer(text, result.rawText, fallback, "claude");
+      console.warn(
+        `[🌻 claude] 🔤 invalid/unparseable → keyword: "${fallback.emotion}" | raw: "${result.rawText}"`
+      );
+      return NextResponse.json(
+        withDevDebug(fallback, "claude", { rawClaude: result.rawText })
+      );
     }
 
-    logCompanionServer(text, rawText, parsed, "gemini");
-    return NextResponse.json(withDevDebug(parsed, "gemini", { rawGemini: rawText }));
+    const parsed = { emotion: claudeParsed.emotion, confidence: claudeParsed.confidence };
+    logCompanionServer(text, result.rawText, parsed, "claude");
+    console.log(
+      `[🌻 claude] ✅ emotion: "${claudeParsed.emotion}" | confidence: "${claudeParsed.confidence}" | raw: "${result.rawText}" | chars: ${text.length}`
+    );
+    return NextResponse.json(
+      withDevDebug(parsed, "claude", { rawClaude: result.rawText })
+    );
   } catch (error) {
     console.error("Companion route error", error);
-    return fallbackResponse(text, "gemini_exception", {
-      rawGemini: String(error).slice(0, 500),
+    return unavailableResponse(text, "claude_exception", {
+      rawClaude: String(error).slice(0, 500),
     });
   }
-};
+}

@@ -49,15 +49,30 @@ export const collectJournalWordTokens = (
   return joined.split(/\s+/).filter(Boolean);
 };
 
-/** @deprecated Use extractCompanionContext from @/lib/companion-analysis */
-export const extractEmotionWindowFromSnapshot = (
+/** Merge live signature value into a snapshot. */
+export function mergeSignatureOverride(
   snapshot: CanvasSnapshot,
-  wordCount: number
-): string => {
-  const tokens = collectJournalWordTokens(snapshot);
-  if (tokens.length === 0) return "";
-  return tokens.slice(-wordCount).join(" ");
-};
+  signature: string
+): CanvasSnapshot {
+  return { ...snapshot, signature };
+}
+
+/** Prefer live textarea DOM values over React state (state can lag one frame). */
+export function mergeLiveTextareaSnapshot(
+  snapshot: CanvasSnapshot,
+  textRefs: Record<string, HTMLTextAreaElement | null | undefined>
+): CanvasSnapshot {
+  return {
+    ...snapshot,
+    textColumns: snapshot.textColumns.map((col) =>
+      col.map((block) => {
+        const el = textRefs[block.id];
+        if (el) return { ...block, text: el.value };
+        return block;
+      })
+    ),
+  };
+}
 
 /** Apply in-flight textarea text before the next React render. */
 export function mergeBlockTextOverride(

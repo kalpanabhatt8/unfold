@@ -1,11 +1,13 @@
 /** Classifier labels — safe for server routes (no client imports). */
 
 export const COMPANION_EMOTIONS = [
+  "love",
+  "excited",
   "neutral",
   "happy",
-  "excited",
-  "love",
   "sad",
+  "anxious",
+  "tired",
   "confused",
   "shocked",
 ] as const;
@@ -19,9 +21,11 @@ export const BLOB_IDLE_EMOTIONS = ["sleep"] as const;
 export const LEGACY_COMPANION_EMOTION_MAP: Record<string, CompanionEmotion> = {
   heavy: "sad",
   angry: "sad",
-  anxious: "confused",
-  tired: "neutral",
   calm: "neutral",
+  proud: "happy",
+  accomplished: "happy",
+  confident: "happy",
+  smart: "happy",
 };
 
 export const normalizeCompanionEmotion = (

@@ -113,10 +113,12 @@ export const PEEK_HOLD_MS = 2000;
 export const GREETING_FONT_SIZE_PX = 16;
 export const GREETING_COLOR = "#3C2605";
 export const GREETING_FONT_FAMILY = "var(--font-balsamiq-sans), sans-serif";
-/** Horizontal offset (% of flower box width). */
-export const GREETING_LEFT_PCT = 55;
+/** Horizontal offset (% of flower box width) — peek greeting beside tilted head. */
+export const GREETING_LEFT_PCT = 62;
 /** Vertical offset (% from bottom of flower box) — raise to move text up. */
-export const GREETING_BOTTOM_PCT = 64;
+export const GREETING_BOTTOM_PCT = 78;
+/** Gap between whisper bubble and top of flower box (px). */
+export const WHISPER_GAP_PX = 10;
 
 export const BLOOM_SCALE_STEP = 0.028;
 export const BLOOM_GLOW_STEP = 0.05;

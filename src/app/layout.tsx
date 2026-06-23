@@ -92,6 +92,7 @@ export default function RootLayout({
       <html
         lang="en"
         className={`${bricolageGrotesque.variable} ${dmSans.variable} ${figtree.variable} ${caveat.variable} ${lora.variable} ${balsamiqSans.variable}`}
+        suppressHydrationWarning
       >
         <body suppressHydrationWarning className={`${figtree.className} font-sans`}>
           {children}

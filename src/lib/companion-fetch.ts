@@ -9,31 +9,30 @@ import {
   type CompanionRawResponse,
 } from "@/lib/companion-debug";
 
-const COMPANION_API_TIMEOUT_MS = 12_000;
-/** Dev cold-start / HMR — wait between retries when the route is not ready yet. */
-const COMPANION_ROUTE_RETRY_MS = [500, 1_000, 1_500, 2_000, 3_000] as const;
+/** Abort Claude if no response within this window — caller falls back to keywords. */
+const COMPANION_API_TIMEOUT_MS = 3_000;
 
-const isRouteNotReady = (status: number) =>
-  status === 404 || status === 502 || status === 503;
+/** Non-retryable — route returned a permanent-failure "unavailable" payload. */
+export class CompanionUnavailableError extends Error {
+  readonly reason: string;
+
+  constructor(reason: string) {
+    super(reason);
+    this.name = "CompanionUnavailableError";
+    this.reason = reason;
+  }
+}
 
 const isCompanionConfidence = (value: unknown): value is CompanionConfidence =>
-  value === "high" || value === "low";
+  value === "high" || value === "medium" || value === "low";
 
-const postCompanion = (
-  body: { text: string; scope?: "delta" },
-  signal?: AbortSignal
-) =>
+const postCompanion = (body: { text: string }, signal?: AbortSignal) =>
   fetch("/api/companion", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
     signal,
   });
-
-const waitForRetry = (attempt: number) =>
-  new Promise((r) =>
-    window.setTimeout(r, COMPANION_ROUTE_RETRY_MS[attempt] ?? 3_000)
-  );
 
 const parseAnalysis = (data: unknown): CompanionRawResponse | null => {
   if (!data || typeof data !== "object") return null;
@@ -54,79 +53,55 @@ const parseAnalysis = (data: unknown): CompanionRawResponse | null => {
 
 /** Ping the route so Next.js dev compiles it before the first classification. */
 export const warmCompanionRoute = async (): Promise<void> => {
-  for (let attempt = 0; attempt < COMPANION_ROUTE_RETRY_MS.length; attempt++) {
+  const RETRY_DELAYS = [500, 1_000, 1_500, 2_000, 3_000] as const;
+  const isNotReady = (s: number) => s === 404 || s === 502 || s === 503;
+  for (let i = 0; i < RETRY_DELAYS.length; i++) {
     try {
       const res = await fetch("/api/companion");
-      if (!isRouteNotReady(res.status)) return;
+      if (!isNotReady(res.status)) return;
     } catch {
       /* retry */
     }
-    await waitForRetry(attempt);
+    await new Promise((r) => window.setTimeout(r, RETRY_DELAYS[i]));
   }
 };
 
-/** Classify journal context (retries when the dev route is cold). */
+/**
+ * Classify full canvas text (single attempt, 3 s abort).
+ * Throws on any failure so the caller can fall back to keyword detection.
+ */
 export const fetchCompanionAnalysis = async (
   text: string
 ): Promise<CompanionAnalysis> => {
   const trimmed = text.trim();
-  if (!trimmed) {
-    throw new Error("Empty companion context");
-  }
+  if (!trimmed) throw new Error("Empty companion context");
 
-  let lastError: unknown;
-  const maxAttempts = COMPANION_ROUTE_RETRY_MS.length + 1;
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(
+    () => controller.abort(),
+    COMPANION_API_TIMEOUT_MS
+  );
 
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const controller = new AbortController();
-    const timeoutId = window.setTimeout(
-      () => controller.abort(),
-      COMPANION_API_TIMEOUT_MS
-    );
+  try {
+    const res = await postCompanion({ text: trimmed }, controller.signal);
 
-    try {
-      const res = await postCompanion(
-        { text: trimmed, scope: "delta" },
-        controller.signal
+    if (!res.ok) throw new Error(`Companion API failed (${res.status})`);
+
+    const body = await res.json();
+    const parsed = parseAnalysis(body);
+    if (!parsed) throw new Error("Invalid companion analysis");
+
+    const source: CompanionAnalysisSource = parsed._debug?.source ?? "claude";
+    logCompanionRawResponse(parsed, source);
+
+    if (source === "unavailable") {
+      throw new CompanionUnavailableError(
+        parsed._debug?.fallbackReason ?? "Companion classification unavailable"
       );
-
-      if (isRouteNotReady(res.status) && attempt < maxAttempts - 1) {
-        await waitForRetry(attempt);
-        continue;
-      }
-
-      if (!res.ok) {
-        throw new Error(`Companion API failed (${res.status})`);
-      }
-
-      const body = await res.json();
-      const parsed = parseAnalysis(body);
-      if (!parsed) {
-        throw new Error("Invalid companion analysis");
-      }
-
-      const source: CompanionAnalysisSource =
-        parsed._debug?.source ?? "gemini";
-      logCompanionRawResponse(parsed, source);
-
-      return { emotion: parsed.emotion, confidence: parsed.confidence };
-    } catch (error) {
-      lastError = error;
-      if (attempt < maxAttempts - 1) {
-        await waitForRetry(attempt);
-      }
-    } finally {
-      window.clearTimeout(timeoutId);
     }
+
+    return { emotion: parsed.emotion, confidence: parsed.confidence };
+  } finally {
+    window.clearTimeout(timeoutId);
   }
-
-  throw lastError ?? new Error("Companion API failed");
-};
-
-/** @deprecated Use fetchCompanionAnalysis */
-export const fetchCompanionEmotion = async (
-  emotionText: string
-): Promise<CompanionEmotion> => {
-  const result = await fetchCompanionAnalysis(emotionText);
-  return result.emotion;
 };

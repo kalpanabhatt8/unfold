@@ -14,8 +14,7 @@
  * Save model:
  *   - Snapshot is mirrored to localStorage shortly after each change so the
  *     user never loses keystrokes if the tab dies.
- *   - After 15s of typing inactivity, `onSave` fires with the latest snapshot
- *     (aligned with the companion trigger).
+ *   - After 7s of typing inactivity, `onSave` fires with the latest snapshot.
  */
 
 import React, {
@@ -28,6 +27,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { flushSync } from "react-dom";
 import clsx from "clsx";
 import Image from "next/image";
 import {
@@ -37,8 +37,10 @@ import {
   Pilcrow,
   Trash2,
 } from "lucide-react";
+import { JournalStamp, type JournalStampHandle } from "@/components/canvas/journal-stamp";
+import { UnfinishedDraftPrompt } from "@/components/canvas/unfinished-draft-prompt";
 import { iconStrokePx } from "@/components/ui/button-system";
-import { BOOK_TITLE_PLACEHOLDER } from "@/lib/book-title";
+import { hasBookTitle, BOOK_TITLE_PLACEHOLDER } from "@/lib/book-title";
 import BlobCharacter, {
   type BlobEmotion,
   type BlobPose,
@@ -46,7 +48,19 @@ import BlobCharacter, {
 } from "@/components/canvas/blob-character";
 import { EntranceGreeting } from "@/components/canvas/blob/entrance-greeting";
 import { useCompanion } from "@/hooks/use-companion";
-import { EMOTION_COOLDOWN_MS } from "@/lib/companion-pause";
+import {
+  collectJournalWordTokens,
+  extractJournalPlainText,
+  mergeBlockTextOverride,
+  mergeLiveTextareaSnapshot,
+  mergeSignatureOverride,
+} from "@/lib/canvas-word-count";
+import { UNFINISHED_DRAFT_PROMPT_MS } from "@/lib/companion-pause";
+import {
+  fetchJournalTitle,
+  MIN_WORDS_FOR_AI_TITLE,
+  UNTITLED_ENTRY,
+} from "@/lib/journal-title";
 import { getTextareaCaretOffsetInTextareaPx } from "@/lib/textarea-caret-offset";
 
 /* -------------------------------------------------------------------------- */
@@ -98,6 +112,8 @@ export type CanvasSnapshot = {
   columns: ColumnLayout;
   /** Author name / signature shown at the end of the page. */
   signature?: string;
+  /** Unix ms when the entry was sealed (irreversible). Absent = draft. */
+  sealedAt?: number;
   updatedAt: number;
 };
 
@@ -460,6 +476,11 @@ export function normalizeSnapshot(value: unknown): CanvasSnapshot | null {
   const signature =
     typeof value.signature === "string" ? value.signature : undefined;
 
+  const sealedAt =
+    typeof value.sealedAt === "number" && Number.isFinite(value.sealedAt)
+      ? value.sealedAt
+      : undefined;
+
   return {
     version: CANVAS_SNAPSHOT_VERSION,
     textColumns,
@@ -467,6 +488,7 @@ export function normalizeSnapshot(value: unknown): CanvasSnapshot | null {
     background: CANVAS_BACKGROUND,
     columns,
     signature,
+    sealedAt,
     updatedAt,
   };
 }
@@ -607,8 +629,8 @@ type CanvasBoardProps = {
    */
   onSnapshotChange?: (snapshot: CanvasSnapshot) => void;
   /**
-   * Fires on milestone saves: 15s after typing stops.
-   * This is the right place to trigger AI title regeneration.
+   * Fires on milestone saves: 7s after typing stops.
+   * Persists draft metadata. Empty titles may be auto-generated after sealing.
    */
   onSave?: (snapshot: CanvasSnapshot) => void;
   /** Book title — editable in the canvas header. */
@@ -621,6 +643,8 @@ type CanvasBoardProps = {
    * first open when no prior close timestamp exists.
    */
   sessionEditedAt: number;
+  /** Last time this draft was edited (persisted) — for stale-draft prompts. */
+  lastEditedAt?: number;
   /** Book cover background (CSS) — used for a subtle 6% page tint. */
   coverBackground?: string;
 };
@@ -644,6 +668,7 @@ function CanvasBoardInner(
     title,
     onTitleChange,
     sessionEditedAt,
+    lastEditedAt,
     coverBackground,
   }: CanvasBoardProps,
   ref: React.ForwardedRef<CanvasBoardHandle>
@@ -653,6 +678,12 @@ function CanvasBoardInner(
   ]);
   const [imageBlocks, setImageBlocks] = useState<JournalImage[]>([]);
   const [signature, setSignature] = useState("");
+  const [sealedAt, setSealedAt] = useState<number | null>(null);
+  const stampRef = useRef<JournalStampHandle>(null);
+  const [stampImprintAnchor, setStampImprintAnchor] =
+    useState<HTMLDivElement | null>(null);
+  const [showUnfinishedPrompt, setShowUnfinishedPrompt] = useState(false);
+  const unfinishedPromptCheckedRef = useRef(false);
   // Column layout has been retired from the UI; we keep the snapshot field
   // for backward-compat (legacy notebooks still deserialize) but always
   // render as a single column going forward.
@@ -660,6 +691,9 @@ function CanvasBoardInner(
   const [lastSavedAt, setLastSavedAt] = useState<number>(() => sessionEditedAt);
   const [showSavingLabel, setShowSavingLabel] = useState(false);
   const savingLabelTimerRef = useRef<number | null>(null);
+  /** Brief "pasting disabled" notice shown when a paste is blocked. */
+  const [pasteBlockedToast, setPasteBlockedToast] = useState(false);
+  const pasteToastTimerRef = useRef<number | null>(null);
   /** Snapshot `updatedAt` — frozen while editing; bumped only on close. */
   const snapshotEditedAtRef = useRef<number>(sessionEditedAt);
   /** Header stamp — frozen for this mount; never follows wall clock. */
@@ -677,6 +711,7 @@ function CanvasBoardInner(
   const writingColumnRef = useRef<HTMLDivElement | null>(null);
   const imageFileInputRef = useRef<HTMLInputElement | null>(null);
   const textRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
+  const signatureRef = useRef<HTMLTextAreaElement | null>(null);
   const hydratedRef = useRef(false);
   const [isContentReady, setIsContentReady] = useState(false);
   const focusAfterRender = useRef<{
@@ -688,14 +723,7 @@ function CanvasBoardInner(
 
   /* ---------------------------- Blob companion ---------------------------- */
 
-  const emotionCooldownUntilRef = useRef(0);
-
-  const blob = useBlobState({
-    bookId,
-    onEmotionApplied: () => {
-      emotionCooldownUntilRef.current = Date.now() + EMOTION_COOLDOWN_MS;
-    },
-  });
+  const blob = useBlobState({ bookId });
 
   /* ------------------------------ Hydration ------------------------------ */
 
@@ -713,6 +741,7 @@ function CanvasBoardInner(
       );
       setImageBlocks(snap.imageBlocks);
       setSignature(snap.signature ?? "");
+      if (snap.sealedAt) setSealedAt(snap.sealedAt);
       snapshotEditedAtRef.current = sessionEditedAt;
       setLastSavedAt(sessionEditedAt);
       const first = snap.textColumns[0]?.[0];
@@ -763,15 +792,15 @@ function CanvasBoardInner(
   /* ----------------------- Snapshot mirroring + save ---------------------- */
 
   const buildSnapshot = useCallback((): CanvasSnapshot => {
-    // Merge live textarea values so the companion always sees the latest
-    // keystroke (React state can lag one frame behind the DOM).
     const liveTextColumns = textColumns.map((col) =>
       col.map((block) => {
         const el = textRefs.current[block.id];
-        if (!el || el.value === block.text) return block;
-        return { ...block, text: el.value };
+        if (el) return { ...block, text: el.value };
+        return block;
       })
     );
+
+    const liveSignature = signatureRef.current?.value ?? signature;
 
     return {
       version: CANVAS_SNAPSHOT_VERSION,
@@ -779,10 +808,20 @@ function CanvasBoardInner(
       imageBlocks,
       background: CANVAS_BACKGROUND,
       columns,
-      signature,
+      signature: liveSignature,
+      sealedAt: sealedAt ?? undefined,
       updatedAt: snapshotEditedAtRef.current,
     };
-  }, [columns, imageBlocks, signature, textColumns]);
+  }, [columns, imageBlocks, sealedAt, signature, textColumns]);
+
+  const buildLiveCompanionSnapshot = useCallback((): CanvasSnapshot => {
+    let snap = buildSnapshot();
+    snap = mergeLiveTextareaSnapshot(snap, textRefs.current);
+    if (signatureRef.current) {
+      snap = mergeSignatureOverride(snap, signatureRef.current.value);
+    }
+    return snap;
+  }, [buildSnapshot]);
 
   const clearSavingLabelTimer = useCallback(() => {
     if (savingLabelTimerRef.current !== null) {
@@ -834,23 +873,113 @@ function CanvasBoardInner(
   }, [buildSnapshot, onSave, storageKey]);
 
   const companion = useCompanion({
-    buildSnapshot,
+    buildSnapshot: buildLiveCompanionSnapshot,
     onMilestoneSave: triggerMilestoneSave,
     isContentReady,
-    emotionCooldownUntilRef,
+    isSealed: sealedAt !== null,
     blob: {
       onCompanionPhase: blob.onCompanionPhase,
       onCompanionAnalysis: blob.onCompanionAnalysis,
       onEmotionFromWriting: blob.onEmotionFromWriting,
       onWakeFromSleep: blob.onWakeFromSleep,
+      onCanvasEmpty: blob.resetCompanionState,
     },
   });
+
+  const notifyCompanionWriting = useCallback(
+    (patch?: { blockId?: string; text?: string; signature?: string }) => {
+      let snap = buildLiveCompanionSnapshot();
+      if (patch?.blockId !== undefined && patch.text !== undefined) {
+        snap = mergeBlockTextOverride(snap, patch.blockId, patch.text);
+      }
+      if (patch?.signature !== undefined) {
+        snap = mergeSignatureOverride(snap, patch.signature);
+      }
+      const wordCount = collectJournalWordTokens(snap).length;
+      companion.onWritingActivity({ snapshot: snap, wordCount });
+    },
+    [buildLiveCompanionSnapshot, companion]
+  );
+
+  const handleSeal = useCallback(() => {
+    if (sealedAt !== null) return;
+    const now = Date.now();
+    console.log(`[🌻 stamp] 📮 entry sealed at ${new Date(now).toLocaleTimeString()}`);
+    setSealedAt(now);
+    companion.sealEntry();
+    try {
+      const raw = window.localStorage.getItem(storageKey);
+      const existing: Record<string, unknown> = raw ? JSON.parse(raw) : {};
+      window.localStorage.setItem(
+        storageKey,
+        JSON.stringify({ ...existing, sealedAt: now })
+      );
+    } catch {
+      /* noop */
+    }
+
+    const committedTitle = typeof title === "string" ? title.trim() : "";
+    if (hasBookTitle(committedTitle)) return;
+
+    void (async () => {
+      const snap = buildLiveCompanionSnapshot();
+      const wordCount = collectJournalWordTokens(snap).length;
+      if (wordCount < MIN_WORDS_FOR_AI_TITLE) {
+        onTitleChange?.(UNTITLED_ENTRY);
+        return;
+      }
+
+      try {
+        const text = extractJournalPlainText(snap);
+        const generated = await fetchJournalTitle(text);
+        onTitleChange?.(generated);
+      } catch {
+        onTitleChange?.(UNTITLED_ENTRY);
+      }
+    })();
+  }, [
+    buildLiveCompanionSnapshot,
+    companion,
+    onTitleChange,
+    sealedAt,
+    storageKey,
+    title,
+  ]);
+
+  const beginSealAnimation = useCallback(() => {
+    stampRef.current?.playSealAnimation();
+  }, []);
+
+  useEffect(() => {
+    if (!isContentReady || sealedAt !== null || unfinishedPromptCheckedRef.current) {
+      return;
+    }
+    unfinishedPromptCheckedRef.current = true;
+
+    const snap = buildSnapshot();
+    const wordCount = collectJournalWordTokens(snap).length;
+    if (wordCount === 0) return;
+
+    const lastActivityAt =
+      typeof lastEditedAt === "number" && Number.isFinite(lastEditedAt)
+        ? lastEditedAt
+        : snap.updatedAt;
+    if (Date.now() - lastActivityAt < UNFINISHED_DRAFT_PROMPT_MS) return;
+
+    setShowUnfinishedPrompt(true);
+  }, [buildSnapshot, isContentReady, lastEditedAt, sealedAt]);
+
+  // Make the writing area non-interactive once the entry is sealed.
+  // `inert` disables focus, keyboard, and pointer events on the whole subtree.
+  useEffect(() => {
+    if (!sealedAt || !writingRef.current) return;
+    (writingRef.current as HTMLDivElement & { inert: boolean }).inert = true;
+  }, [sealedAt]);
 
   useEffect(() => {
     if (process.env.NODE_ENV !== "development") return;
     const api = {
       resetSession: () => {
-        emotionCooldownUntilRef.current = 0;
         companion.resetSession();
         blob.resetCompanionState();
       },
@@ -859,10 +988,6 @@ function CanvasBoardInner(
       status: () => ({
         ...companion.getSessionMeta(),
         emotion: blob.emotion,
-        emotionCooldownRemainingMs: Math.max(
-          0,
-          emotionCooldownUntilRef.current - Date.now()
-        ),
       }),
       clearCanvasAndReload: () => {
         try {
@@ -872,24 +997,57 @@ function CanvasBoardInner(
         }
         window.location.reload();
       },
-      /** Classify arbitrary text without writing on canvas — for dev testing. */
+      /** Classify arbitrary text via Claude — for dev testing. */
       testClassify: async (text: string) => {
         const { fetchCompanionAnalysis } = await import("@/lib/companion-fetch");
-        const { detectCompanionAnalysis } = await import("@/lib/companion-local");
         const { companionAnalysisToBlob } = await import(
           "@/lib/companion-analysis"
         );
-        try {
-          const api = await fetchCompanionAnalysis(text);
-          const mapped = companionAnalysisToBlob(api);
-          console.log("testClassify API:", api, "→", mapped);
-          return { ...api, mapped, source: "api" as const };
-        } catch (error) {
-          const local = detectCompanionAnalysis(text);
-          const mapped = companionAnalysisToBlob(local);
-          console.log("testClassify local:", local, "→", mapped);
-          return { ...local, mapped, source: "local" as const, error };
+        const result = await fetchCompanionAnalysis(text);
+        const mapped = companionAnalysisToBlob(result);
+        console.log("testClassify:", result, "→", mapped);
+        return { ...result, mapped, source: "claude" as const };
+      },
+      /** Run the 5 fixed classifier fixtures via Claude. */
+      testClassifyBatch: async () => {
+        const { fetchCompanionAnalysis } = await import("@/lib/companion-fetch");
+        const fixtures = [
+          {
+            label: "happy",
+            text: "Today was genuinely good. I finished something I had been putting off and laughed with a friend. I feel light.",
+            expected: "happy",
+          },
+          {
+            label: "sad",
+            text: "Today felt heavy. Everything felt harder. It was exhausting. I just wanted to shut everything out.",
+            expected: "sad",
+          },
+          {
+            label: "anxious",
+            text: "I keep thinking about what might go wrong. My mind is racing and I could spiral if I let it.",
+            expected: "confused",
+          },
+          {
+            label: "love",
+            text: "I am so grateful for the people around me. They mean everything to me and I feel held.",
+            expected: "love",
+          },
+          {
+            label: "neutral",
+            text: "I wrote some notes about my day. Nothing particularly good or bad happened.",
+            expected: "neutral",
+          },
+        ] as const;
+        const results = [];
+        for (const fixture of fixtures) {
+          const result = await fetchCompanionAnalysis(fixture.text);
+          const ok = result.emotion === fixture.expected;
+          console.log(
+            `${ok ? "✓" : "✗"} ${fixture.label}: expected=${fixture.expected} got=${result.emotion} (${result.confidence})`
+          );
+          results.push({ ...fixture, ...result, source: "claude" as const, ok });
         }
+        return results;
       },
     };
     (window as Window & { __keepsCompanion?: typeof api }).__keepsCompanion =
@@ -922,6 +1080,23 @@ function CanvasBoardInner(
       focusAfterRender.current = { id, position };
     },
     []
+  );
+
+  /** Multi-textarea journal — native Cmd/Ctrl+A only hits one block; select all rows. */
+  const selectAllJournalText = useCallback(
+    (activeId: string) => {
+      const ids: string[] = [];
+      for (const col of textColumns) {
+        for (const block of visibleBlocksInColumn(col, activeId)) {
+          ids.push(block.id);
+        }
+      }
+      const selection = ids.length > 0 ? ids : [activeId];
+      setRangeAnchorId(selection[0]);
+      setSelectedBlockIds(selection);
+      setActiveBlockId(activeId);
+    },
+    [textColumns]
   );
 
   useLayoutEffect(() => {
@@ -1120,24 +1295,40 @@ function CanvasBoardInner(
 
   /* ----------------------------- Global events ---------------------------- */
 
+  // Paste is fully disabled inside the journal canvas — no text, rich text, or
+  // images. A capture-phase native listener blocks every paste path: keyboard
+  // shortcut, right-click menu, and the browser Edit menu.
   useEffect(() => {
-    const onPaste = (e: ClipboardEvent) => {
-      const items = e.clipboardData?.items;
-      if (!items) return;
-      for (const item of Array.from(items)) {
-        if (item.type.startsWith("image/")) {
-          const file = item.getAsFile();
-          if (file) {
-            e.preventDefault();
-            void insertImageFile(file);
-            return;
-          }
-        }
+    const showPasteBlockedToast = () => {
+      setPasteBlockedToast(true);
+      if (pasteToastTimerRef.current !== null) {
+        window.clearTimeout(pasteToastTimerRef.current);
+      }
+      pasteToastTimerRef.current = window.setTimeout(() => {
+        setPasteBlockedToast(false);
+        pasteToastTimerRef.current = null;
+      }, 2200);
+    };
+
+    const blockPaste = (e: ClipboardEvent) => {
+      const root = outerRef.current;
+      const target = e.target as Node | null;
+      // Ignore paste events outside the journaling surface.
+      if (root && target && !root.contains(target)) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      showPasteBlockedToast();
+    };
+
+    document.addEventListener("paste", blockPaste, true);
+    return () => {
+      document.removeEventListener("paste", blockPaste, true);
+      if (pasteToastTimerRef.current !== null) {
+        window.clearTimeout(pasteToastTimerRef.current);
+        pasteToastTimerRef.current = null;
       }
     };
-    window.addEventListener("paste", onPaste);
-    return () => window.removeEventListener("paste", onPaste);
-  }, [insertImageFile]);
+  }, []);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -1290,24 +1481,62 @@ function CanvasBoardInner(
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
-      {/* Sunflower — fixed bottom-left, always on screen */}
-      <div className="pointer-events-auto fixed bottom-5 left-5 z-20 flex flex-col items-start gap-2 overflow-visible">
-        {/* Entrance greeting — sits to the right of the peeking flower. */}
-        {blob.greeting ? (
-          <EntranceGreeting
-            visible={blob.greetingVisible}
-            peeking={blob.pose === "peek"}
-          >
-            {blob.greeting}
-          </EntranceGreeting>
-        ) : null}
-        <BlobCharacter
-          pose={blob.pose}
-          emotion={blob.emotion}
-          hidden={blob.hidden}
-          onWake={companion.onCanvasActivity}
-        />
+      {/* Paste-disabled notice */}
+      <div
+        role="status"
+        aria-live="polite"
+        className={clsx(
+          "pointer-events-none fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full bg-black/80 px-4 py-2 text-sm text-white shadow-lg transition-opacity duration-200",
+          pasteBlockedToast ? "opacity-100" : "opacity-0"
+        )}
+      >
+        Pasting is disabled for journaling
       </div>
+
+      {/* Sunflower — fixed bottom-left, always on screen */}
+      <div className="pointer-events-auto fixed bottom-5 left-5 z-20 overflow-visible">
+        <div className="relative">
+          {blob.greeting ? (
+            <EntranceGreeting
+              visible={blob.greetingVisible}
+              peeking={blob.pose === "peek"}
+              placement="beside"
+            >
+              {blob.greeting}
+            </EntranceGreeting>
+          ) : blob.whisper ? (
+            <EntranceGreeting
+              visible={blob.whisperVisible}
+              placement="above"
+            >
+              {blob.whisper}
+            </EntranceGreeting>
+          ) : null}
+          <BlobCharacter
+            pose={blob.pose}
+            emotion={blob.emotion}
+            hidden={blob.hidden}
+            onWake={companion.onCanvasActivity}
+          />
+        </div>
+      </div>
+
+      {/* Stamp — physical rubber-stamp interaction; manages its own visibility */}
+      <JournalStamp
+        ref={stampRef}
+        isSealed={!!sealedAt}
+        imprintAnchorEl={stampImprintAnchor}
+        onSeal={handleSeal}
+      />
+
+      <UnfinishedDraftPrompt
+        open={showUnfinishedPrompt}
+        onSeal={() => {
+          setShowUnfinishedPrompt(false);
+          beginSealAnimation();
+        }}
+        onKeepEditing={() => setShowUnfinishedPrompt(false)}
+      />
 
       {/* —————————— Full-width centered writing area —————————— */}
       <div
@@ -1341,7 +1570,10 @@ function CanvasBoardInner(
             />
 
             <div
-              ref={writingColumnRef}
+              ref={(el) => {
+                writingColumnRef.current = el;
+                setStampImprintAnchor(el);
+              }}
               data-writing-zone
               className="relative flex w-full shrink-0 flex-col"
               style={{
@@ -1383,13 +1615,16 @@ function CanvasBoardInner(
                   }}
                   onChange={(text) => {
                     updateTextBlock(block.id, { text });
-                    companion.onWritingActivity();
+                    notifyCompanionWriting({ blockId: block.id, text });
                   }}
                   onToggleCheck={() =>
                     updateTextBlock(block.id, { checked: !block.checked })
                   }
                   onEnter={(splitAt, ta) => {
-                    companion.onWritingActivity();
+                    notifyCompanionWriting({
+                      blockId: block.id,
+                      text: ta.value,
+                    });
                     const left = block.text.slice(0, splitAt);
                     const right = block.text.slice(splitAt);
                     if (
@@ -1469,43 +1704,55 @@ function CanvasBoardInner(
                     updateTextBlock(block.id, { text: `${left}\n${right}` });
                     focusBlock(block.id, splitAt + 1);
                   }}
+                  onSelectAll={() => selectAllJournalText(block.id)}
                   onBackspaceAtStart={() => {
-                    companion.onWritingActivity();
                     if (
                       block.blockKind !== "paragraph" &&
                       block.text.length === 0
                     ) {
-                      updateTextBlock(block.id, {
-                        blockKind: "paragraph",
-                        checked: undefined,
+                      flushSync(() => {
+                        updateTextBlock(block.id, {
+                          blockKind: "paragraph",
+                          checked: undefined,
+                        });
                       });
+                      notifyCompanionWriting();
                       return;
                     }
-                    setTextColumns((cols) => {
-                      const loc = (() => {
-                        for (let c = 0; c < cols.length; c++) {
-                          const i = cols[c].findIndex(
-                            (b) => b.id === block.id
-                          );
-                          if (i !== -1) return { c, i };
-                        }
-                        return null;
-                      })();
-                      if (!loc || loc.i === 0) return cols;
-                      const prev = cols[loc.c][loc.i - 1];
-                      const merged: JournalTextBlock = {
-                        ...prev,
-                        text: prev.text + block.text,
-                      };
-                      const updated = cols.map((c) => c.slice());
-                      updated[loc.c][loc.i - 1] = merged;
-                      updated[loc.c].splice(loc.i, 1);
-                      focusAfterRender.current = {
-                        id: merged.id,
-                        position: "end",
-                      };
-                      return updated;
+                    let mergedNotify: { blockId: string; text: string } | null =
+                      null;
+                    flushSync(() => {
+                      setTextColumns((cols) => {
+                        const loc = (() => {
+                          for (let c = 0; c < cols.length; c++) {
+                            const i = cols[c].findIndex(
+                              (b) => b.id === block.id
+                            );
+                            if (i !== -1) return { c, i };
+                          }
+                          return null;
+                        })();
+                        if (!loc || loc.i === 0) return cols;
+                        const prev = cols[loc.c][loc.i - 1];
+                        const merged: JournalTextBlock = {
+                          ...prev,
+                          text: prev.text + block.text,
+                        };
+                        mergedNotify = {
+                          blockId: merged.id,
+                          text: merged.text,
+                        };
+                        const updated = cols.map((c) => c.slice());
+                        updated[loc.c][loc.i - 1] = merged;
+                        updated[loc.c].splice(loc.i, 1);
+                        focusAfterRender.current = {
+                          id: merged.id,
+                          position: "end",
+                        };
+                        return updated;
+                      });
                     });
+                    if (mergedNotify) notifyCompanionWriting(mergedNotify);
                   }}
                 />
               ))}
@@ -1514,10 +1761,16 @@ function CanvasBoardInner(
             </div>
 
             <CanvasSignature
+              ref={signatureRef}
               value={signature}
               onChange={(next) => {
                 setSignature(next);
-                companion.onWritingActivity();
+                notifyCompanionWriting({ signature: next });
+              }}
+              onSelectAllJournal={() => {
+                const anchorId =
+                  activeBlockId ?? textColumns[0]?.[0]?.id ?? null;
+                if (anchorId) selectAllJournalText(anchorId);
               }}
             />
           </div>
@@ -2060,16 +2313,31 @@ function CanvasHeader({
 type CanvasSignatureProps = {
   value: string;
   onChange: (value: string) => void;
+  onSelectAllJournal?: () => void;
 };
 
-function CanvasSignature({ value, onChange }: CanvasSignatureProps) {
+const CanvasSignature = forwardRef<HTMLTextAreaElement, CanvasSignatureProps>(
+  function CanvasSignature({ value, onChange, onSelectAllJournal }, ref) {
   return (
     <textarea
+      ref={ref}
       data-signature
       rows={1}
       spellCheck={false}
       value={value}
       onChange={(e) => onChange(e.target.value)}
+      onKeyDown={(e) => {
+        if (
+          e.key.toLowerCase() === "a" &&
+          (e.metaKey || e.ctrlKey) &&
+          !e.altKey
+        ) {
+          e.preventDefault();
+          onSelectAllJournal?.();
+          const ta = e.currentTarget;
+          ta.setSelectionRange(0, ta.value.length);
+        }
+      }}
       aria-label="Signature"
       className="mt-16 block w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-left outline-none focus:outline-none"
       style={{
@@ -2087,7 +2355,7 @@ function CanvasSignature({ value, onChange }: CanvasSignatureProps) {
       }}
     />
   );
-}
+});
 
 /* -------------------------------------------------------------------------- */
 /*  Text block                                                                */
@@ -2104,6 +2372,7 @@ type TextBlockViewProps = {
   onToggleCheck: () => void;
   onEnter: (splitAt: number, ta: HTMLTextAreaElement) => void;
   onBackspaceAtStart: () => void;
+  onSelectAll: () => void;
 };
 
 function TextBlockView({
@@ -2117,6 +2386,7 @@ function TextBlockView({
   onToggleCheck,
   onEnter,
   onBackspaceAtStart,
+  onSelectAll,
 }: TextBlockViewProps) {
   const taRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -2212,6 +2482,17 @@ function TextBlockView({
         onFocus={onFocus}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => {
+          if (
+            e.key.toLowerCase() === "a" &&
+            (e.metaKey || e.ctrlKey) &&
+            !e.altKey
+          ) {
+            e.preventDefault();
+            onSelectAll();
+            const ta = e.currentTarget;
+            ta.setSelectionRange(0, ta.value.length);
+            return;
+          }
           if (
             e.key === "Enter" &&
             !e.shiftKey &&

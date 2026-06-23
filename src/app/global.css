@@ -691,6 +691,30 @@ input[type='number'] {
   -moz-appearance: textfield;
 }
 
+/* ── Journal stamp impact — subtle page-compression response ──────────────
+   A faint vignette flashes over the entire canvas for ~300 ms when the stamp
+   hits the paper, reinforcing the physical press sensation.
+   Triggered by JS adding the class `stamp-impact` to <body>.              */
+
+@keyframes stamp-press-vignette {
+  0%, 100% { opacity: 0; }
+  35%       { opacity: 1; }
+}
+
+body.stamp-impact::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background: radial-gradient(
+    ellipse 60% 50% at 50% 50%,
+    transparent 30%,
+    rgba(0, 0, 0, 0.018) 100%
+  );
+  animation: stamp-press-vignette 300ms ease-out both;
+}
+
 /* —— Canvas writing surface ————————————————————————————————————————
    LTR body text (~16px); placeholder matches size so the caret stays put. */
 [data-block-element="text"] textarea {

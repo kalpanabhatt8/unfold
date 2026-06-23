@@ -151,7 +151,7 @@ export default function BlobDevPage() {
               {BLOB_EMOTIONS.map((emotion) => (
                 <button
                   key={emotion}
-                  onClick={() => live.onEmotionReaction(emotion)}
+                  onClick={() => live.setEmotion(emotion)}
                   className="rounded-full border border-black/10 bg-white/80 px-3 py-1 hover:bg-white"
                 >
                   {emotion}
