@@ -763,6 +763,11 @@ body.stamp-impact::after {
   opacity: 1;
 }
 
+[data-writing-zone][data-sealed] [data-block-element="text"] textarea::placeholder {
+  opacity: 0;
+  color: transparent;
+}
+
 /* Cmd/Ctrl+A across blocks — one textarea per paragraph can't share one range. */
 [data-writing-zone][data-journal-all-selected]
   [data-block-element="text"]

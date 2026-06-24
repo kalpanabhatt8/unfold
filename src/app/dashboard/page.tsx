@@ -196,7 +196,7 @@ const Dashboard = () => {
                         />
                         <Tooltip
                           content="Edit cover"
-                          className={`absolute right-2 bottom-2 z-10 opacity-0 backdrop-blur-md transition-[opacity] duration-200 ease-out focus-within:opacity-100 group-hover:opacity-100`}
+                          className="absolute right-2 bottom-2 z-10 opacity-0 transition-[opacity] duration-200 ease-out focus-within:opacity-100 group-hover:opacity-100"
                         >
                           <button
                             type="button"

@@ -37,6 +37,7 @@ import {
 import {
   BOOK_TITLE_PLACEHOLDER,
   clampBookTitle,
+  commitBookTitle,
   MAX_BOOK_TITLE_CHARS,
 } from "@/lib/book-title";
 import {
@@ -187,6 +188,7 @@ const BookBuilderPage = () => {
   const colorPickerRef = useRef<HTMLDivElement | null>(null);
   const titleRef = useRef(title);
   titleRef.current = title;
+  const titleInputFocusedRef = useRef(false);
   const subtitleRef = useRef(subtitle);
   subtitleRef.current = subtitle;
 
@@ -224,6 +226,7 @@ const BookBuilderPage = () => {
     // Skip title/subtitle when storage matches what the user is typing — avoids
     // debounced saves (which used to trim) clobbering leading/trailing spaces.
     if (
+      !titleInputFocusedRef.current &&
       typeof existing.title === "string" &&
       existing.title !== titleRef.current
     ) {
@@ -512,6 +515,13 @@ const BookBuilderPage = () => {
           type="text"
           value={title}
           onChange={(event) => setTitle(clampBookTitle(event.target.value))}
+          onFocus={() => {
+            titleInputFocusedRef.current = true;
+          }}
+          onBlur={() => {
+            titleInputFocusedRef.current = false;
+            setTitle((current) => commitBookTitle(current));
+          }}
           maxLength={MAX_BOOK_TITLE_CHARS}
           size={Math.max(title.length, 15)}
           placeholder={BOOK_TITLE_PLACEHOLDER}

@@ -17,3 +17,8 @@ export function clampBookTitle(raw: string): string {
   if (cleaned.length <= MAX_BOOK_TITLE_CHARS) return cleaned;
   return cleaned.slice(0, MAX_BOOK_TITLE_CHARS);
 }
+
+/** Trim edges for persisted / displayed titles — use on blur, not while typing. */
+export function commitBookTitle(raw: string): string {
+  return clampBookTitle(raw).trim();
+}

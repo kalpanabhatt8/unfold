@@ -41,7 +41,7 @@ import { JournalStamp, type JournalStampHandle } from "@/components/canvas/journ
 import { UnfinishedDraftPrompt } from "@/components/canvas/unfinished-draft-prompt";
 import { iconStrokePx } from "@/components/ui/button-system";
 import { Tooltip } from "@/components/ui/tooltip";
-import { hasBookTitle, BOOK_TITLE_PLACEHOLDER, clampBookTitle, MAX_BOOK_TITLE_CHARS } from "@/lib/book-title";
+import { hasBookTitle, BOOK_TITLE_PLACEHOLDER, clampBookTitle, commitBookTitle, MAX_BOOK_TITLE_CHARS } from "@/lib/book-title";
 import BlobCharacter, {
   type BlobEmotion,
   type BlobPose,
@@ -1702,6 +1702,7 @@ function CanvasBoardInner(
               editedAt={headerDisplayedAt}
               showSaving={showSavingLabel}
               onTitleChange={onTitleChange}
+              isSealed={sealedAt !== null}
             />
 
             <div
@@ -1711,6 +1712,7 @@ function CanvasBoardInner(
               }}
               data-writing-zone
               data-journal-all-selected={journalAllSelected ? "" : undefined}
+              data-sealed={sealedAt !== null ? "" : undefined}
               className="relative flex w-full shrink-0 flex-col"
               style={{
                 gap: TEXT_COLUMN_GAP,
@@ -1727,6 +1729,7 @@ function CanvasBoardInner(
                 <TextBlockView
                   key={block.id}
                   block={block}
+                  isSealed={sealedAt !== null}
                   isActive={activeBlockId === block.id}
                   isInRange={selectedBlockIds.includes(block.id)}
                   journalAllSelected={journalAllSelected}
@@ -2353,6 +2356,7 @@ type CanvasHeaderProps = {
   editedAt: number;
   showSaving?: boolean;
   onTitleChange?: (title: string) => void;
+  isSealed?: boolean;
 };
 
 function CanvasHeader({
@@ -2360,30 +2364,34 @@ function CanvasHeader({
   editedAt,
   showSaving = false,
   onTitleChange,
+  isSealed = false,
 }: CanvasHeaderProps) {
-  const committedTitle =
+  const persistedTitle =
     typeof title === "string" ? title.trim() : "";
-  const [value, setValue] = useState(committedTitle);
+  const [value, setValue] = useState(persistedTitle);
+  const isTitleFocusedRef = useRef(false);
   const hasTitle = value.trim().length > 0;
 
   useEffect(() => {
-    setValue(committedTitle);
-  }, [committedTitle]);
+    if (isTitleFocusedRef.current) return;
+    setValue(persistedTitle);
+  }, [persistedTitle]);
 
   const commitTitle = useCallback(() => {
-    const next = value.trim();
-    if (next !== committedTitle) {
+    const next = commitBookTitle(value);
+    setValue(next);
+    if (next !== persistedTitle) {
       onTitleChange?.(next);
     }
-  }, [committedTitle, onTitleChange, value]);
+  }, [onTitleChange, persistedTitle, value]);
 
   useEffect(() => {
     if (!onTitleChange) return;
-    const next = value.trim();
-    if (next === committedTitle) return;
+    const next = commitBookTitle(value);
+    if (next === persistedTitle) return;
     const timer = window.setTimeout(() => onTitleChange(next), 400);
     return () => window.clearTimeout(timer);
-  }, [committedTitle, onTitleChange, value]);
+  }, [onTitleChange, persistedTitle, value]);
 
   const relativeTickActive = useMemo(
     () => isSameCalendarMonth(editedAt, Date.now()),
@@ -2418,13 +2426,19 @@ function CanvasHeader({
         value={value}
         onChange={(event) => setValue(clampBookTitle(event.target.value))}
         maxLength={MAX_BOOK_TITLE_CHARS}
-        onBlur={commitTitle}
+        onFocus={() => {
+          isTitleFocusedRef.current = true;
+        }}
+        onBlur={() => {
+          isTitleFocusedRef.current = false;
+          commitTitle();
+        }}
         onKeyDown={(event) => {
           if (event.key === "Enter") {
             event.currentTarget.blur();
           }
         }}
-        placeholder={BOOK_TITLE_PLACEHOLDER}
+        placeholder={isSealed ? "" : BOOK_TITLE_PLACEHOLDER}
         spellCheck={false}
         aria-label="Book title"
         className={clsx(
@@ -2506,6 +2520,7 @@ const CanvasSignature = forwardRef<HTMLTextAreaElement, CanvasSignatureProps>(
 
 type TextBlockViewProps = {
   block: JournalTextBlock;
+  isSealed: boolean;
   isActive: boolean;
   isInRange: boolean;
   journalAllSelected: boolean;
@@ -2522,6 +2537,7 @@ type TextBlockViewProps = {
 
 function TextBlockView({
   block,
+  isSealed,
   isActive,
   isInRange,
   journalAllSelected,
@@ -2555,7 +2571,7 @@ function TextBlockView({
   const showMarker = block.blockKind !== "paragraph";
 
   const placeholder =
-    !isActive || block.text.length > 0
+    isSealed || !isActive || block.text.length > 0
       ? ""
       : block.blockKind === "bullet"
         ? "List item"
