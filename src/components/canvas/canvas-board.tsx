@@ -40,13 +40,15 @@ import {
 import { JournalStamp, type JournalStampHandle } from "@/components/canvas/journal-stamp";
 import { UnfinishedDraftPrompt } from "@/components/canvas/unfinished-draft-prompt";
 import { iconStrokePx } from "@/components/ui/button-system";
-import { hasBookTitle, BOOK_TITLE_PLACEHOLDER } from "@/lib/book-title";
+import { Tooltip } from "@/components/ui/tooltip";
+import { hasBookTitle, BOOK_TITLE_PLACEHOLDER, clampBookTitle, MAX_BOOK_TITLE_CHARS } from "@/lib/book-title";
 import BlobCharacter, {
   type BlobEmotion,
   type BlobPose,
   useBlobState,
 } from "@/components/canvas/blob-character";
 import { EntranceGreeting } from "@/components/canvas/blob/entrance-greeting";
+import { WHISPER_COLOR } from "@/components/canvas/blob/layout";
 import { useCompanion } from "@/hooks/use-companion";
 import {
   collectJournalWordTokens,
@@ -57,10 +59,14 @@ import {
 } from "@/lib/canvas-word-count";
 import { UNFINISHED_DRAFT_PROMPT_MS } from "@/lib/companion-pause";
 import {
+  clearSealTitlePrefetch,
   fetchJournalTitle,
   MIN_WORDS_FOR_AI_TITLE,
+  prefetchSealTitle,
   UNTITLED_ENTRY,
+  warmJournalTitleRoute,
 } from "@/lib/journal-title";
+import { fetchJournalWhisper } from "@/lib/journal-whisper";
 import { getTextareaCaretOffsetInTextareaPx } from "@/lib/textarea-caret-offset";
 
 /* -------------------------------------------------------------------------- */
@@ -493,6 +499,31 @@ export function normalizeSnapshot(value: unknown): CanvasSnapshot | null {
   };
 }
 
+/** Client-only — CanvasBoard mounts after session hydration, so `window` is available. */
+function isSealedSnapshotOnLoad(
+  storageKey: string,
+  initialSnapshot?: CanvasSnapshot | null
+): boolean {
+  if (typeof window === "undefined") return false;
+
+  try {
+    const raw = window.localStorage.getItem(storageKey);
+    if (raw) {
+      const norm = normalizeSnapshot(JSON.parse(raw) as unknown);
+      if (norm?.sealedAt) return true;
+    }
+  } catch {
+    /* fall through */
+  }
+
+  if (initialSnapshot) {
+    const norm = normalizeSnapshot(initialSnapshot);
+    if (norm?.sealedAt) return true;
+  }
+
+  return false;
+}
+
 /* -------------------------------------------------------------------------- */
 /*  Image helpers                                                              */
 /* -------------------------------------------------------------------------- */
@@ -680,6 +711,7 @@ function CanvasBoardInner(
   const [signature, setSignature] = useState("");
   const [sealedAt, setSealedAt] = useState<number | null>(null);
   const stampRef = useRef<JournalStampHandle>(null);
+  const sealWhisperStartedRef = useRef(false);
   const [stampImprintAnchor, setStampImprintAnchor] =
     useState<HTMLDivElement | null>(null);
   const [showUnfinishedPrompt, setShowUnfinishedPrompt] = useState(false);
@@ -702,6 +734,8 @@ function CanvasBoardInner(
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
   const [rangeAnchorId, setRangeAnchorId] = useState<string | null>(null);
   const [selectedBlockIds, setSelectedBlockIds] = useState<string[]>([]);
+  /** True after Cmd/Ctrl+A — one textarea per block can't share a native range. */
+  const [journalAllSelected, setJournalAllSelected] = useState(false);
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
 
   const outerRef = useRef<HTMLDivElement | null>(null);
@@ -723,7 +757,11 @@ function CanvasBoardInner(
 
   /* ---------------------------- Blob companion ---------------------------- */
 
-  const blob = useBlobState({ bookId });
+  const blobEnterOnMount = useMemo(
+    () => !isSealedSnapshotOnLoad(storageKey, initialSnapshot),
+    [initialSnapshot, storageKey]
+  );
+  const blob = useBlobState({ bookId, enterOnMount: blobEnterOnMount });
 
   /* ------------------------------ Hydration ------------------------------ */
 
@@ -901,6 +939,39 @@ function CanvasBoardInner(
     [buildLiveCompanionSnapshot, companion]
   );
 
+  const beginSealWhisper = useCallback(() => {
+    if (sealedAt !== null || sealWhisperStartedRef.current) return;
+    sealWhisperStartedRef.current = true;
+
+    const snap = buildLiveCompanionSnapshot();
+    const text = extractJournalPlainText(snap);
+    if (!text.trim()) {
+      blob.enterSealedNeutral();
+      return;
+    }
+
+    void fetchJournalWhisper(text).then((whisper) => {
+      blob.onSealReaction(whisper);
+    });
+  }, [blob, buildLiveCompanionSnapshot, sealedAt]);
+
+  const maybePrefetchSealTitle = useCallback(() => {
+    if (sealedAt !== null) return;
+    const committedTitle = typeof title === "string" ? title.trim() : "";
+    if (hasBookTitle(committedTitle)) return;
+
+    const snap = buildLiveCompanionSnapshot();
+    if (collectJournalWordTokens(snap).length < MIN_WORDS_FOR_AI_TITLE) return;
+
+    const text = extractJournalPlainText(snap);
+    prefetchSealTitle(text);
+  }, [buildLiveCompanionSnapshot, sealedAt, title]);
+
+  const beginSealSideEffects = useCallback(() => {
+    beginSealWhisper();
+    maybePrefetchSealTitle();
+  }, [beginSealWhisper, maybePrefetchSealTitle]);
+
   const handleSeal = useCallback(() => {
     if (sealedAt !== null) return;
     const now = Date.now();
@@ -931,10 +1002,15 @@ function CanvasBoardInner(
 
       try {
         const text = extractJournalPlainText(snap);
-        const generated = await fetchJournalTitle(text);
+        const prefetched = prefetchSealTitle(text);
+        const generated = prefetched
+          ? await prefetched
+          : await fetchJournalTitle(text);
         onTitleChange?.(generated);
       } catch {
         onTitleChange?.(UNTITLED_ENTRY);
+      } finally {
+        clearSealTitlePrefetch();
       }
     })();
   }, [
@@ -945,6 +1021,19 @@ function CanvasBoardInner(
     storageKey,
     title,
   ]);
+
+  // Rehydrated sealed entry — calm neutral companion (no whisper replay).
+  useEffect(() => {
+    if (!isContentReady || sealedAt === null || sealWhisperStartedRef.current) {
+      return;
+    }
+    blob.enterSealedNeutral();
+  }, [blob, isContentReady, sealedAt]);
+
+  useEffect(() => {
+    if (!isContentReady || sealedAt !== null) return;
+    void warmJournalTitleRoute();
+  }, [isContentReady, sealedAt]);
 
   const beginSealAnimation = useCallback(() => {
     stampRef.current?.playSealAnimation();
@@ -1082,6 +1171,10 @@ function CanvasBoardInner(
     []
   );
 
+  const clearJournalSelectAll = useCallback(() => {
+    setJournalAllSelected(false);
+  }, []);
+
   /** Multi-textarea journal — native Cmd/Ctrl+A only hits one block; select all rows. */
   const selectAllJournalText = useCallback(
     (activeId: string) => {
@@ -1095,9 +1188,22 @@ function CanvasBoardInner(
       setRangeAnchorId(selection[0]);
       setSelectedBlockIds(selection);
       setActiveBlockId(activeId);
+      setJournalAllSelected(true);
     },
     [textColumns]
   );
+
+  /** Mirror Tiptap-style select-all across every visible block textarea. */
+  useLayoutEffect(() => {
+    if (!journalAllSelected) return;
+    for (const id of selectedBlockIds) {
+      const ta = textRefs.current[id];
+      if (!ta) continue;
+      ta.setSelectionRange(0, ta.value.length);
+    }
+    const activeTa = activeBlockId ? textRefs.current[activeBlockId] : null;
+    activeTa?.focus({ preventScroll: true });
+  }, [journalAllSelected, selectedBlockIds, activeBlockId, textColumns]);
 
   useLayoutEffect(() => {
     const target = focusAfterRender.current;
@@ -1330,6 +1436,30 @@ function CanvasBoardInner(
     };
   }, []);
 
+  // Multi-textarea select-all — copy the full journal body, not just the focused row.
+  useEffect(() => {
+    const onCopy = (e: ClipboardEvent) => {
+      if (!journalAllSelected) return;
+      const root = outerRef.current;
+      const target = e.target as Node | null;
+      if (root && target && !root.contains(target)) return;
+
+      const lines: string[] = [];
+      for (const col of textColumns) {
+        for (const block of visibleBlocksInColumn(col, activeBlockId)) {
+          if (!selectedBlockIds.includes(block.id)) continue;
+          if (block.text.length > 0) lines.push(block.text);
+        }
+      }
+
+      e.preventDefault();
+      e.clipboardData?.setData("text/plain", lines.join("\n\n"));
+    };
+
+    document.addEventListener("copy", onCopy);
+    return () => document.removeEventListener("copy", onCopy);
+  }, [journalAllSelected, textColumns, activeBlockId, selectedBlockIds]);
+
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "copy";
@@ -1508,6 +1638,9 @@ function CanvasBoardInner(
             <EntranceGreeting
               visible={blob.whisperVisible}
               placement="above"
+              italic={blob.sealWhisperActive}
+              color={blob.sealWhisperActive ? WHISPER_COLOR : undefined}
+              fadeDurationMs={blob.whisperFadeMs}
             >
               {blob.whisper}
             </EntranceGreeting>
@@ -1526,6 +1659,8 @@ function CanvasBoardInner(
         ref={stampRef}
         isSealed={!!sealedAt}
         imprintAnchorEl={stampImprintAnchor}
+        onStampBegin={beginSealSideEffects}
+        onStampHover={maybePrefetchSealTitle}
         onSeal={handleSeal}
       />
 
@@ -1575,6 +1710,7 @@ function CanvasBoardInner(
                 setStampImprintAnchor(el);
               }}
               data-writing-zone
+              data-journal-all-selected={journalAllSelected ? "" : undefined}
               className="relative flex w-full shrink-0 flex-col"
               style={{
                 gap: TEXT_COLUMN_GAP,
@@ -1593,14 +1729,17 @@ function CanvasBoardInner(
                   block={block}
                   isActive={activeBlockId === block.id}
                   isInRange={selectedBlockIds.includes(block.id)}
+                  journalAllSelected={journalAllSelected}
                   registerRef={(el) => {
                     textRefs.current[block.id] = el;
                   }}
                   onFocus={() => {
                     setActiveBlockId(block.id);
-                    setRangeAnchorId(block.id);
-                    setSelectedBlockIds([block.id]);
                     setSelectedImageId(null);
+                    if (!journalAllSelected) {
+                      setRangeAnchorId(block.id);
+                      setSelectedBlockIds([block.id]);
+                    }
                   }}
                   onShiftFocus={() => {
                     if (!rangeAnchorId) return;
@@ -1614,6 +1753,7 @@ function CanvasBoardInner(
                     setActiveBlockId(block.id);
                   }}
                   onChange={(text) => {
+                    clearJournalSelectAll();
                     updateTextBlock(block.id, { text });
                     notifyCompanionWriting({ blockId: block.id, text });
                   }}
@@ -1705,6 +1845,7 @@ function CanvasBoardInner(
                     focusBlock(block.id, splitAt + 1);
                   }}
                   onSelectAll={() => selectAllJournalText(block.id)}
+                  onClearSelectAll={clearJournalSelectAll}
                   onBackspaceAtStart={() => {
                     if (
                       block.blockKind !== "paragraph" &&
@@ -1833,29 +1974,29 @@ function CanvasBoardInner(
                   },
                 ] as const
               ).map(({ kind, icon, label }) => (
-                <button
-                  key={kind}
-                  type="button"
-                  aria-label={label}
-                  title={label}
-                  onClick={() =>
-                    setBlockKind(
-                      activeBlockId,
-                      kind,
-                      selectedBlockIds.length > 1
-                        ? selectedBlockIds
-                        : undefined
-                    )
-                  }
-                  className={clsx(
-                    "inline-flex h-7 w-7 items-center justify-center rounded-lg transition",
-                    activeTextKind === kind
-                      ? "bg-black/10 text-[var(--color-canvas-toolbar-icon)]"
-                      : "text-[var(--color-canvas-toolbar-icon)]/70 hover:bg-black/[0.05] hover:text-[var(--color-canvas-toolbar-icon)]"
-                  )}
-                >
-                  {icon}
-                </button>
+                <Tooltip key={kind} content={label}>
+                  <button
+                    type="button"
+                    aria-label={label}
+                    onClick={() =>
+                      setBlockKind(
+                        activeBlockId,
+                        kind,
+                        selectedBlockIds.length > 1
+                          ? selectedBlockIds
+                          : undefined
+                      )
+                    }
+                    className={clsx(
+                      "inline-flex h-7 w-7 items-center justify-center rounded-lg transition",
+                      activeTextKind === kind
+                        ? "bg-black/10 text-[var(--color-canvas-toolbar-icon)]"
+                        : "text-[var(--color-canvas-toolbar-icon)]/70 hover:bg-black/[0.05] hover:text-[var(--color-canvas-toolbar-icon)]"
+                    )}
+                  >
+                    {icon}
+                  </button>
+                </Tooltip>
               ))}
             </div>
           </div>
@@ -2146,19 +2287,20 @@ function PolaroidImage({
       </figcaption>
 
       {selected && (
-        <button
-          type="button"
-          aria-label="Remove image"
-          title="Remove image"
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemove();
-          }}
-          onPointerDown={(e) => e.stopPropagation()}
-          className="absolute -right-2 -top-2 inline-flex h-6 w-6 items-center justify-center rounded-full border border-black/10 bg-white text-black/55 shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition hover:text-red-500"
-        >
-          <Trash2 size={12} strokeWidth={iconStrokePx(12)} />
-        </button>
+        <Tooltip content="Remove image" className="absolute -right-2 -top-2">
+          <button
+            type="button"
+            aria-label="Remove image"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemove();
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-black/10 bg-white text-black/55 shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition hover:text-red-500"
+          >
+            <Trash2 size={12} strokeWidth={iconStrokePx(12)} />
+          </button>
+        </Tooltip>
       )}
     </figure>
   );
@@ -2274,7 +2416,8 @@ function CanvasHeader({
       <input
         type="text"
         value={value}
-        onChange={(event) => setValue(event.target.value)}
+        onChange={(event) => setValue(clampBookTitle(event.target.value))}
+        maxLength={MAX_BOOK_TITLE_CHARS}
         onBlur={commitTitle}
         onKeyDown={(event) => {
           if (event.key === "Enter") {
@@ -2341,7 +2484,7 @@ const CanvasSignature = forwardRef<HTMLTextAreaElement, CanvasSignatureProps>(
       aria-label="Signature"
       className="mt-16 block w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-left outline-none focus:outline-none"
       style={{
-        fontFamily: "var(--font-body)",
+        fontFamily: "var(--font-signature), cursive",
         fontSize: WRITING_FONT_SIZE,
         lineHeight: WRITING_LINE_HEIGHT,
         letterSpacing: WRITING_LETTER_SPACING,
@@ -2365,6 +2508,7 @@ type TextBlockViewProps = {
   block: JournalTextBlock;
   isActive: boolean;
   isInRange: boolean;
+  journalAllSelected: boolean;
   registerRef: (el: HTMLTextAreaElement | null) => void;
   onFocus: () => void;
   onShiftFocus: () => void;
@@ -2373,12 +2517,14 @@ type TextBlockViewProps = {
   onEnter: (splitAt: number, ta: HTMLTextAreaElement) => void;
   onBackspaceAtStart: () => void;
   onSelectAll: () => void;
+  onClearSelectAll: () => void;
 };
 
 function TextBlockView({
   block,
   isActive,
   isInRange,
+  journalAllSelected,
   registerRef,
   onFocus,
   onShiftFocus,
@@ -2387,6 +2533,7 @@ function TextBlockView({
   onEnter,
   onBackspaceAtStart,
   onSelectAll,
+  onClearSelectAll,
 }: TextBlockViewProps) {
   const taRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -2422,7 +2569,9 @@ function TextBlockView({
       dir="ltr"
       className={clsx(
         "relative flex w-full items-start gap-3 rounded-md leading-relaxed transition-colors",
-        isInRange && !isActive ? "bg-black/[0.04]" : ""
+        isInRange && !isActive && !journalAllSelected
+          ? "bg-black/[0.04]"
+          : ""
       )}
       style={{ overflowAnchor: "none" }}
       onMouseDown={(e) => {
@@ -2481,6 +2630,17 @@ function TextBlockView({
         placeholder={placeholder}
         onFocus={onFocus}
         onChange={(e) => onChange(e.target.value)}
+        onSelect={() => {
+          if (!journalAllSelected) return;
+          const ta = taRef.current;
+          if (!ta) return;
+          const full =
+            ta.selectionStart === 0 && ta.selectionEnd === ta.value.length;
+          if (!full) onClearSelectAll();
+        }}
+        onMouseDown={(e) => {
+          if (journalAllSelected && !e.shiftKey) onClearSelectAll();
+        }}
         onKeyDown={(e) => {
           if (
             e.key.toLowerCase() === "a" &&
@@ -2489,9 +2649,10 @@ function TextBlockView({
           ) {
             e.preventDefault();
             onSelectAll();
-            const ta = e.currentTarget;
-            ta.setSelectionRange(0, ta.value.length);
             return;
+          }
+          if (journalAllSelected && !e.metaKey && !e.ctrlKey) {
+            onClearSelectAll();
           }
           if (
             e.key === "Enter" &&

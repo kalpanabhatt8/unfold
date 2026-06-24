@@ -33,8 +33,8 @@ export default function StampDevPage() {
         <header>
           <h1 className="text-xl font-semibold text-[#3a2820]">Stamp preview</h1>
           <p className="mt-1 text-sm text-black/50">
-            One line when it fits · two lines only when needed · text stays inside
-            the scalloped border.
+            Wraps at word boundaries inside 90% of the safe zone — words are never
+            split mid-word.
           </p>
         </header>
 
@@ -82,10 +82,9 @@ export default function StampDevPage() {
         <section className="rounded-2xl border border-dashed border-black/15 bg-white/40 p-5 text-sm text-black/55">
           <p className="font-medium text-black/70">Layout rules</p>
           <ul className="mt-2 list-inside list-disc space-y-1">
-            <li>≤ 14 characters → single centered line</li>
-            <li>Longer with a space → split first / rest (if each part ≤ 10 chars)</li>
-            <li>Still too long → first name only on one line</li>
-            <li>Font scales down so text stays inside ~54% inner safe zone</li>
+            <li>One line by default — wraps only if it truly overflows</li>
+            <li>Whole words move to the next line; never split mid-word</li>
+            <li>Text box ≈ 70% of stamp width</li>
           </ul>
         </section>
       </div>

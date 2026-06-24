@@ -14,6 +14,7 @@ import {
   iconPx,
   iconStroke,
 } from "@/components/ui/button-system";
+import { Tooltip } from "@/components/ui/tooltip";
 import { starterBookTemplates } from "@/data/book-templates";
 import { coverBackgroundVar, resolveBookCoverBackground } from "@/data/cover-gradients";
 import {
@@ -193,20 +194,24 @@ const Dashboard = () => {
                             ),
                           }}
                         />
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            router.push(
-                              `/dashboard/books/${book.id}?from=dashboard`
-                            );
-                          }}
-                          aria-label={`Edit cover of ${displayTitle}`}
-                          title="Edit cover"
-                          className={`absolute right-2 bottom-2 z-10 opacity-0 backdrop-blur-md transition-[opacity] duration-200 ease-out focus-visible:opacity-100 group-hover:opacity-100 ${btnIcon("sm")} ${btnState.default} ${btnState.hover} ${btnState.active}`}
+                        <Tooltip
+                          content="Edit cover"
+                          className={`absolute right-2 bottom-2 z-10 opacity-0 backdrop-blur-md transition-[opacity] duration-200 ease-out focus-within:opacity-100 group-hover:opacity-100`}
                         >
-                          <PencilRulerIcon strokeWidth={iconStroke("sm")} size={iconPx("sm")} aria-hidden className={iconFixed} />
-                        </button>
+                          <button
+                            type="button"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              router.push(
+                                `/dashboard/books/${book.id}?from=dashboard`
+                              );
+                            }}
+                            aria-label={`Edit cover of ${displayTitle}`}
+                            className={`${btnIcon("sm")} ${btnState.default} ${btnState.hover} ${btnState.active}`}
+                          >
+                            <PencilRulerIcon strokeWidth={iconStroke("sm")} size={iconPx("sm")} aria-hidden className={iconFixed} />
+                          </button>
+                        </Tooltip>
                       </div>
                     </div>
                     <div className="text-xs text-[var(--text-secondary)] ">

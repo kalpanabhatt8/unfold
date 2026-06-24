@@ -24,6 +24,7 @@ import {
   iconPx,
   iconStroke,
 } from "@/components/ui/button-system";
+import { Tooltip } from "@/components/ui/tooltip";
 import {
   claimCanvasSessionStamp,
   endCanvasSession,
@@ -345,21 +346,25 @@ const CanvasPage = () => {
 
   return (
     <main className="relative h-svh min-h-0 w-full overflow-hidden">
-      <button
-        type="button"
-        onClick={handleBack}
-        disabled={isNavigatingBack}
-        className={`fixed left-4 top-4 z-50 ${btnRadius.pill} ${btnIcon("md")} ${btnState.default} ${btnState.hover} ${btnState.active} ${btnState.disabled}`}
-        aria-label="Back to books"
-        title="Back to books"
+      <Tooltip
+        content="Back to books"
+        className="fixed left-4 top-4 z-50"
       >
-        <ArrowLeft
-          strokeWidth={iconStroke("md")}
-          size={iconPx("md")}
-          aria-hidden
-          className={iconFixed}
-        />
-      </button>
+        <button
+          type="button"
+          onClick={handleBack}
+          disabled={isNavigatingBack}
+          className={`${btnRadius.pill} ${btnIcon("md")} ${btnState.default} ${btnState.hover} ${btnState.active} ${btnState.disabled}`}
+          aria-label="Back to books"
+        >
+          <ArrowLeft
+            strokeWidth={iconStroke("md")}
+            size={iconPx("md")}
+            aria-hidden
+            className={iconFixed}
+          />
+        </button>
+      </Tooltip>
 
       {sessionEditedAt !== null && (
         <CanvasBoard

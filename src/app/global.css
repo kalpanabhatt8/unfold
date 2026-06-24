@@ -159,11 +159,37 @@
   --popup-shadow: var(--shadow);
   --color-focus-ring: var(--gray-900);
 
+  /* Tooltips */
+  --tooltip-bg: #190e05;
+  --tooltip-fg: #ffffff;
+  --tooltip-font-size: var(--text-sm);
+  --tooltip-letter-spacing: 0.03em;
+  --tooltip-padding-y: 0.45rem;
+  --tooltip-padding-x: 0.7rem;
+
   /* Typography — body vs heading */
   --font-body: var(--font-figtree), system-ui, -apple-system, "Segoe UI",
     Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
   --font-heading: var(--font-bricolage), system-ui, sans-serif;
   --font-accent: var(--font-caveat), var(--font-dm-sans), system-ui, sans-serif;
+  --font-signature: var(--font-covered-by-your-grace), var(--font-caveat), cursive;
+  --stamp-signature-tilt: -12deg;
+  --stamp-imprint-tilt: -12deg;
+}
+
+/* Shared tooltip bubble — bg #190E05, white text */
+.tooltip-bubble {
+  background: var(--tooltip-bg);
+  color: var(--tooltip-fg);
+  font-family: var(--font-body);
+  font-size: var(--tooltip-font-size);
+  font-weight: 500;
+  letter-spacing: var(--tooltip-letter-spacing);
+  line-height: 1.45;
+  white-space: nowrap;
+  padding: var(--tooltip-padding-y) var(--tooltip-padding-x);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
 }
 
 /* Base element styling */
@@ -727,11 +753,28 @@ body.stamp-impact::after {
 }
 
 [data-writing-zone] [data-signature] {
-  font-family: var(--font-body), system-ui, sans-serif;
+  font-family: var(--font-signature), cursive;
+  transform: rotate(var(--stamp-signature-tilt));
+  transform-origin: left center;
 }
 
 [data-block-element="text"] textarea::placeholder {
   color: var(--canvas-writing-placeholder);
   opacity: 1;
+}
+
+/* Cmd/Ctrl+A across blocks — one textarea per paragraph can't share one range. */
+[data-writing-zone][data-journal-all-selected]
+  [data-block-element="text"]
+  textarea {
+  background-color: Highlight;
+  color: HighlightText;
+}
+
+[data-writing-zone][data-journal-all-selected]
+  [data-block-element="text"]
+  textarea::selection {
+  background-color: Highlight;
+  color: HighlightText;
 }
 

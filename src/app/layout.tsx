@@ -8,6 +8,7 @@ import {
   Balsamiq_Sans,
   Bricolage_Grotesque,
   Caveat,
+  Covered_By_Your_Grace,
   DM_Sans,
   Figtree,
   Lora,
@@ -39,6 +40,13 @@ const caveat = Caveat({
   weight: ["400", "500", "600", "700"],
   display: "swap",
   variable: "--font-caveat",
+});
+
+const coveredByYourGrace = Covered_By_Your_Grace({
+  subsets: ["latin"],
+  weight: "400",
+  display: "swap",
+  variable: "--font-covered-by-your-grace",
 });
 
 // Writing-area serif used by the canvas. Defined globally so we can reference
@@ -91,7 +99,7 @@ export default function RootLayout({
     >
       <html
         lang="en"
-        className={`${bricolageGrotesque.variable} ${dmSans.variable} ${figtree.variable} ${caveat.variable} ${lora.variable} ${balsamiqSans.variable}`}
+        className={`${bricolageGrotesque.variable} ${dmSans.variable} ${figtree.variable} ${caveat.variable} ${coveredByYourGrace.variable} ${lora.variable} ${balsamiqSans.variable}`}
         suppressHydrationWarning
       >
         <body suppressHydrationWarning className={`${figtree.className} font-sans`}>

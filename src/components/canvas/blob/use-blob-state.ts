@@ -21,6 +21,9 @@ import {
   GREETING_DURATION_S,
   PEEK_DELAY_MS,
   PEEK_HOLD_MS,
+  SEAL_WHISPER_FADE_IN_MS,
+  SEAL_WHISPER_FADE_OUT_MS,
+  SEAL_WHISPER_STAY_MS,
   WAKE_DURATION_MS,
   WAKE_SURPRISE_MS,
 } from "./layout";
@@ -62,9 +65,13 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
   const [greetingVisible, setGreetingVisible] = React.useState(false);
   const [whisper, setWhisper] = React.useState<string | null>(null);
   const [whisperVisible, setWhisperVisible] = React.useState(false);
+  const [sealWhisperActive, setSealWhisperActive] = React.useState(false);
+  const [whisperFadeMs, setWhisperFadeMs] = React.useState(450);
 
   const transitionTimerRef = React.useRef<number | null>(null);
   const whisperTimerRef = React.useRef<number | null>(null);
+  const sealWhisperFadeOutTimerRef = React.useRef<number | null>(null);
+  const sealWhisperRestTimerRef = React.useRef<number | null>(null);
   const enterTimerRef = React.useRef<number | null>(null);
   const wakeTimerRef = React.useRef<number | null>(null);
   const wakeSettleTimerRef = React.useRef<number | null>(null);
@@ -107,6 +114,8 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
     clearTimer(wakeTimerRef);
     clearTimer(wakeSettleTimerRef);
     clearTimer(whisperTimerRef);
+    clearTimer(sealWhisperFadeOutTimerRef);
+    clearTimer(sealWhisperRestTimerRef);
     clearEntranceTimers();
   }, [clearEntranceTimers]);
 
@@ -158,12 +167,82 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
     const phrase = pickWhisper(emotion);
     if (!phrase) return;
     clearTimer(whisperTimerRef);
+    clearTimer(sealWhisperFadeOutTimerRef);
+    clearTimer(sealWhisperRestTimerRef);
+    setSealWhisperActive(false);
+    setWhisperFadeMs(450);
     setWhisper(phrase);
     setWhisperVisible(true);
     whisperTimerRef.current = window.setTimeout(() => {
       setWhisperVisible(false);
     }, EMOTION_REACTION_MS);
   }, []);
+
+  /** Sealed session — calm and awake (reopen, or no whisper after stamp). */
+  const enterSealedNeutral = React.useCallback(() => {
+    if (closingRef.current) return;
+    sleepingRef.current = false;
+    clearTimer(transitionTimerRef);
+    clearTimer(whisperTimerRef);
+    clearTimer(sealWhisperFadeOutTimerRef);
+    clearTimer(sealWhisperRestTimerRef);
+    setWhisperVisible(false);
+    setWhisper(null);
+    setSealWhisperActive(false);
+    setPose("idle");
+    setEmotion("neutral");
+    awakeEmotionRef.current = "neutral";
+  }, []);
+
+  /** After the seal whisper fades — eyes closed, session complete. */
+  const enterPeacefulResting = React.useCallback(() => {
+    if (closingRef.current) return;
+    sleepingRef.current = true;
+    clearTimer(transitionTimerRef);
+    clearTimer(whisperTimerRef);
+    clearTimer(sealWhisperFadeOutTimerRef);
+    clearTimer(sealWhisperRestTimerRef);
+    setWhisperVisible(false);
+    setWhisper(null);
+    setSealWhisperActive(false);
+    setPose("idle");
+    setEmotion("sleep");
+  }, []);
+
+  const onSealReaction = React.useCallback(
+    (phrase: string | null) => {
+      if (closingRef.current) return;
+
+      clearTimer(whisperTimerRef);
+      clearTimer(sealWhisperFadeOutTimerRef);
+      clearTimer(sealWhisperRestTimerRef);
+      setWhisperVisible(false);
+
+      if (!phrase) {
+        enterSealedNeutral();
+        return;
+      }
+
+      setSealWhisperActive(true);
+      setWhisperFadeMs(SEAL_WHISPER_FADE_IN_MS);
+      setWhisper(phrase);
+      requestAnimationFrame(() => {
+        setWhisperVisible(true);
+      });
+
+      sealWhisperFadeOutTimerRef.current = window.setTimeout(() => {
+        setWhisperFadeMs(SEAL_WHISPER_FADE_OUT_MS);
+        setWhisperVisible(false);
+      }, SEAL_WHISPER_FADE_IN_MS + SEAL_WHISPER_STAY_MS);
+
+      sealWhisperRestTimerRef.current = window.setTimeout(() => {
+        setWhisper(null);
+        setSealWhisperActive(false);
+        enterPeacefulResting();
+      }, SEAL_WHISPER_FADE_IN_MS + SEAL_WHISPER_STAY_MS + SEAL_WHISPER_FADE_OUT_MS);
+    },
+    [enterPeacefulResting]
+  );
 
   const runEnter = React.useCallback(() => {
     if (closingRef.current) return;
@@ -423,6 +502,8 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
     greetingVisible,
     whisper,
     whisperVisible,
+    sealWhisperActive,
+    whisperFadeMs,
     onCompanionPhase,
     onCompanionAnalysis,
     onEmotionFromWriting,
@@ -430,5 +511,7 @@ export function useBlobState(opts: UseBlobStateOptions = {}) {
     onClosing,
     runEnter,
     resetCompanionState,
+    onSealReaction,
+    enterSealedNeutral,
   };
 };

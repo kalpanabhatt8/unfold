@@ -1,36 +1,27 @@
 import { NextResponse } from "next/server";
 import {
+  MAX_SEAL_TITLE_CHARS,
   MAX_SEAL_TITLE_WORDS,
+  TITLE_INPUT_WORD_CAP,
   normalizeSealTitle,
   UNTITLED_ENTRY,
 } from "@/lib/journal-title";
 
 const CLAUDE_MODEL = "claude-haiku-4-5-20251001";
 
+function truncateForTitle(text: string): string {
+  const trimmed = text.trim();
+  if (!trimmed) return "";
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  if (words.length <= TITLE_INPUT_WORD_CAP) return trimmed;
+  return words.slice(-TITLE_INPUT_WORD_CAP).join(" ");
+}
+
 const buildPrompt = (text: string): string =>
-  `You name private journal entries for a personal diary app.
+  `Pick a 2–4 word title for this journal entry.
+Use the writer's own words — raw emotional fragment, not a polished title.
+Max ${MAX_SEAL_TITLE_CHARS} characters. No ending punctuation. Title only.
 
-Read the full entry and identify what it is really about — the core feeling or tension underneath.
-
-Then write a short title (2–5 words) in the user's own inner voice: natural, raw, and emotionally honest. Not poetic. Not inspirational. Not a keyword summary.
-
-Rules:
-- 2–5 words only
-- Sound like something the writer might actually think or say to themselves
-- Plain, direct language — no literary flourishes or self-help tone
-- Do NOT use metaphor-heavy words: light, rise, journey, healing, growth, warrior, bloom, unfold, etc.
-- Do NOT lift or paraphrase the opening sentence unless those exact words are the true heart of the entry
-- Avoid generic diary phrases ("I feel sad", "today felt heavy", "I can do")
-- No punctuation at the end
-- No quotes around the title
-- Title case is fine but not required
-
-Good titles: I Refuse to Shrink · No Longer Small · Still Not Over It
-Bad titles: Finding My Light · The Healing Journey · I Can Do · Today Felt Heavy
-
-Respond with ONLY the title text — nothing else.
-
-Journal entry:
 """
 ${text}
 """`;
@@ -51,7 +42,7 @@ const callClaude = async (
     },
     body: JSON.stringify({
       model: CLAUDE_MODEL,
-      max_tokens: 32,
+      max_tokens: 12,
       messages: [{ role: "user", content: buildPrompt(text) }],
     }),
   });
@@ -67,6 +58,11 @@ const callClaude = async (
   const errText = await res.text();
   return { ok: false, status: res.status, errText };
 };
+
+/** Dev warm-up — compiles the route without calling Claude. */
+export async function GET() {
+  return NextResponse.json({ ok: true });
+}
 
 export async function POST(request: Request) {
   let text = "";
@@ -86,8 +82,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ title: UNTITLED_ENTRY });
   }
 
+  const excerpt = truncateForTitle(text);
+  if (!excerpt) {
+    return NextResponse.json({ title: UNTITLED_ENTRY });
+  }
+
   try {
-    const result = await callClaude(apiKey, text);
+    const result = await callClaude(apiKey, excerpt);
 
     if (!result.ok) {
       console.error("Journal title API error", result.status, result.errText);

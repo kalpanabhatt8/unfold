@@ -21,6 +21,10 @@ type EntranceGreetingProps = {
   className?: string;
   /** @default "div" — canvas uses div; dev page may use span */
   as?: "div" | "span";
+  italic?: boolean;
+  color?: string;
+  /** Opacity transition duration (ms). */
+  fadeDurationMs?: number;
 };
 
 export function EntranceGreeting({
@@ -30,6 +34,9 @@ export function EntranceGreeting({
   placement = "beside",
   className,
   as: Tag = "div",
+  italic = false,
+  color = GREETING_COLOR,
+  fadeDurationMs = 450,
 }: EntranceGreetingProps) {
   const transforms: string[] = [];
 
@@ -58,14 +65,18 @@ export function EntranceGreeting({
   return (
     <Tag
       aria-hidden
-      className={clsx("pointer-events-none absolute whitespace-nowrap leading-none", className)}
+      className={clsx(
+        "pointer-events-none absolute whitespace-nowrap leading-none",
+        italic && "italic",
+        className
+      )}
       style={{
         ...placementStyle,
         fontFamily: GREETING_FONT_FAMILY,
         fontSize: `${GREETING_FONT_SIZE_PX}px`,
-        color: GREETING_COLOR,
+        color,
         opacity: visible ? 1 : 0,
-        transition: "opacity 450ms ease, transform 450ms ease",
+        transition: `opacity ${fadeDurationMs}ms ease, transform ${fadeDurationMs}ms ease`,
       }}
     >
       {children}
