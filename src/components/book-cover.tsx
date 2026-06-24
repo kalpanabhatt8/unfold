@@ -70,34 +70,34 @@ export function BookCover({
       "--book-subtitle-size": sizeConfig.text.subtitleSize,
     } as Record<string, string>;
 
-    if (resolvedGradient) {
-      const { background: _drop, ...restStyle } = (style ?? {}) as React.CSSProperties;
-      const nextStyle: React.CSSProperties = {
-        ...restStyle,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        ...(overlayVars as React.CSSProperties),
-      };
-      (nextStyle as Record<string, string>)["--book-cover-bg"] =
-        coverBackgroundVar(resolvedGradient);
-      return nextStyle;
+    const { background: bgFromStyle, ...restStyle } = (style ??
+      {}) as React.CSSProperties;
+    const coverBg =
+      resolvedGradient != null
+        ? coverBackgroundVar(resolvedGradient)
+        : typeof bgFromStyle === "string" && bgFromStyle.trim()
+          ? bgFromStyle.trim()
+          : undefined;
+
+    if (!coverBg && Object.keys(restStyle).length === 0) {
+      return overlayVars as React.CSSProperties;
     }
-    if (style?.background) {
-      return {
-        ...style,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        ...(overlayVars as React.CSSProperties),
-      };
+
+    const nextStyle: React.CSSProperties = {
+      ...restStyle,
+      ...(overlayVars as React.CSSProperties),
+    };
+    if (coverBg) {
+      (nextStyle as Record<string, string>)["--book-cover-bg"] = coverBg;
     }
-    return overlayVars as React.CSSProperties;
+    return nextStyle;
   }, [resolvedGradient, sizeConfig, style]);
 
   const bgString =
-    typeof (coverStyle as React.CSSProperties | undefined)?.background === "string"
-      ? ((coverStyle as React.CSSProperties).background as string)
+    resolvedGradient != null
+      ? coverBackgroundVar(resolvedGradient)
       : typeof style?.background === "string"
-        ? (style.background as string)
+        ? style.background
         : undefined;
 
   const fallbackLum = useMemo(

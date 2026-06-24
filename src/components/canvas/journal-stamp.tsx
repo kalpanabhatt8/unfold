@@ -634,13 +634,13 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
               onFocus={onStampHover}
               aria-label="Seal this entry forever"
               disabled={phase !== "idle"}
-              className={`group relative shrink-0 cursor-pointer select-none overflow-hidden outline-none disabled:cursor-default ${btnIcon("lg")} ${btnState.default} ${btnState.hover} ${btnState.active} ${btnState.disabled}`}
+              className={`group shrink-0 cursor-pointer select-none outline-none disabled:cursor-default ${btnIcon("lg")} ${btnState.default} ${btnState.hover} ${btnState.active} ${btnState.disabled}`}
             >
               <Stamp
                 size={iconPx("lg")}
                 strokeWidth={iconStroke("lg")}
                 aria-hidden
-                className={`${iconFixed} absolute bottom-1.5 right-1.5 origin-bottom-right transition-transform duration-200 ease-out group-hover:rotate-12 group-disabled:rotate-0`}
+                className={`${iconFixed} origin-center transition-transform duration-200 ease-out group-hover:rotate-12 group-disabled:rotate-0`}
               />
             </button>
           </Tooltip>
