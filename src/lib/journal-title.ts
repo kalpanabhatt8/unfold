@@ -1,17 +1,20 @@
+import { MAX_BOOK_TITLE_CHARS } from "@/lib/book-title";
+
 /** Fallback when journal content is too short for AI title generation. */
 export const UNTITLED_ENTRY = "Untitled Entry";
 
 /** Minimum word count before calling the title model. */
 export const MIN_WORDS_FOR_AI_TITLE = 3;
 
-/** Prefer 2–3 words; soft cap for generated titles. */
-export const PREFERRED_SEAL_TITLE_WORDS = 3;
+/** Preferred word count range for Claude-generated cover titles. */
+export const PREFERRED_SEAL_TITLE_WORDS_MIN = 3;
+export const PREFERRED_SEAL_TITLE_WORDS_MAX = 4;
 
-/** Soft max words for a generated seal title. */
-export const MAX_SEAL_TITLE_WORDS = 4;
+/** Hard max words for a generated seal title. */
+export const MAX_SEAL_TITLE_WORDS = PREFERRED_SEAL_TITLE_WORDS_MAX;
 
-/** Hard max characters (including spaces) for a generated seal title. */
-export const MAX_SEAL_TITLE_CHARS = 24;
+/** Hard max characters (including spaces) — matches cover title input limit. */
+export const MAX_SEAL_TITLE_CHARS = MAX_BOOK_TITLE_CHARS;
 
 /** Tail sent to the title model — keeps requests small and fast. */
 export const TITLE_INPUT_WORD_CAP = 100;

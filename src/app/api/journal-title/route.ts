@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import {
   MAX_SEAL_TITLE_CHARS,
   MAX_SEAL_TITLE_WORDS,
+  PREFERRED_SEAL_TITLE_WORDS_MIN,
+  PREFERRED_SEAL_TITLE_WORDS_MAX,
   TITLE_INPUT_WORD_CAP,
   normalizeSealTitle,
   UNTITLED_ENTRY,
@@ -18,9 +20,17 @@ function truncateForTitle(text: string): string {
 }
 
 const buildPrompt = (text: string): string =>
-  `Pick a 2–4 word title for this journal entry.
-Use the writer's own words — raw emotional fragment, not a polished title.
-Max ${MAX_SEAL_TITLE_CHARS} characters. No ending punctuation. Title only.
+  `Name this private journal entry for its book cover.
+
+Rules:
+- Prefer ${PREFERRED_SEAL_TITLE_WORDS_MIN}–${PREFERRED_SEAL_TITLE_WORDS_MAX} words
+- Hard max: ${MAX_SEAL_TITLE_CHARS} characters including spaces
+- Prioritize short, punchy fragments over full sentences
+- Reuse the writer's own words when possible — raw fragment, not a polished title
+- No ending punctuation
+- No quotes around the title
+
+Respond with ONLY the title text.
 
 """
 ${text}

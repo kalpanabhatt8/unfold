@@ -34,7 +34,11 @@ import {
   estimateBackgroundLuminance,
   sampleCoverImageFromUrl,
 } from "@/lib/cover-text-contrast";
-import { BOOK_TITLE_PLACEHOLDER } from "@/lib/book-title";
+import {
+  BOOK_TITLE_PLACEHOLDER,
+  clampBookTitle,
+  MAX_BOOK_TITLE_CHARS,
+} from "@/lib/book-title";
 import {
   DRAFTS_STORAGE_KEY,
   readDraftById,
@@ -507,7 +511,8 @@ const BookBuilderPage = () => {
         <input
           type="text"
           value={title}
-          onChange={(event) => setTitle(event.target.value)}
+          onChange={(event) => setTitle(clampBookTitle(event.target.value))}
+          maxLength={MAX_BOOK_TITLE_CHARS}
           size={Math.max(title.length, 15)}
           placeholder={BOOK_TITLE_PLACEHOLDER}
           autoFocus={shouldAutoFocusTitle}

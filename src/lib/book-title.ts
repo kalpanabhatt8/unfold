@@ -2,7 +2,7 @@
 export const BOOK_TITLE_PLACEHOLDER = "New book";
 
 /** Max characters users may type for a book title (cover + canvas). */
-export const MAX_BOOK_TITLE_CHARS = 30;
+export const MAX_BOOK_TITLE_CHARS = 24;
 
 export function hasBookTitle(title: string | undefined | null): boolean {
   return typeof title === "string" && title.trim().length > 0;
