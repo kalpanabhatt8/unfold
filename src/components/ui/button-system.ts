@@ -1,6 +1,6 @@
 export const btnBase =
   "inline-flex items-center justify-center rounded-xl transition-colors duration-150 " +
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20";
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20 active:opacity-100";
 
 export const btnRadius = {
   pill: "rounded-full",
@@ -54,7 +54,8 @@ export const btnState = {
   default: "bg-white text-[var(--color-icon)] border border-black/[0.08]",
   neutral: "bg-white text-[var(--color-icon)]",
   hover: "hover:bg-[var(--color-iconbutton-hover)] hover:text-[var(--color-icon)]",
-  active: "active:bg-black/[0.08]",
+  active:
+    "active:bg-[var(--color-iconbutton-active)] active:text-[var(--color-icon)]",
   selected: "bg-black/[0.08] text-[var(--color-icon)] border-black/[0.16]",
   disabled:
     "disabled:bg-black/[0.03] disabled:text-black/35 disabled:border-black/[0.06] disabled:opacity-45 disabled:pointer-events-none",

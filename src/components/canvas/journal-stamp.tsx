@@ -10,7 +10,6 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { createPortal } from "react-dom";
 import { useAuth, useClerk, useSession } from "@clerk/nextjs";
 import type { PublicUserData, UserResource } from "@clerk/types";
 import { Stamp } from "lucide-react";
@@ -402,8 +401,6 @@ export interface JournalStampProps {
    * When true the imprint is shown immediately, with no animation.
    */
   isSealed: boolean;
-  /** Writing column — imprint is portaled here so it stays on the page. */
-  imprintAnchorEl?: HTMLElement | null;
 }
 
 /**
@@ -417,7 +414,7 @@ export interface JournalStampProps {
  *   E. Done         +220 ms  — onSeal() fires, tool hides, imprint stays
  */
 export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
-  function JournalStamp({ onStampBegin, onStampHover, onSeal, isSealed, imprintAnchorEl = null }, ref) {
+  function JournalStamp({ onStampBegin, onStampHover, onSeal, isSealed }, ref) {
   const clerk = useClerk();
   const { isSignedIn, sessionClaims, isLoaded: authLoaded } = useAuth();
   const { session, isLoaded: sessionLoaded } = useSession();
@@ -585,19 +582,19 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
     );
   }, [showImprint, userName]);
 
-  /* ── Imprint style — anchored on the writing column, scrolls with the page ── */
+  /** Right edge of the centered writing column (matches canvas-board layout). */
+  const writingColumnRight =
+    "calc(max(1.5rem, (100vw - min(92vw, 700px)) / 2) + 1.5rem)";
+
+  /* ── Imprint — bottom edge at 100svh; fixed so it stays while content scrolls ── */
   const imprintStyle: React.CSSProperties = {
-    position: imprintAnchorEl ? "absolute" : "fixed",
-    ...(imprintAnchorEl
-      ? { top: "4.5rem", right: 0 }
-      : {
-          right:
-            "calc(max(1.5rem, (100vw - min(92vw, 700px)) / 2 + 1.5rem))",
-          top: "30%",
-        }),
+    position: "fixed",
+    top: "100svh",
+    right: writingColumnRight,
     zIndex: 20,
     pointerEvents: "none",
-    transform: `rotate(var(--stamp-imprint-tilt, -10deg)) scale(${showImprint ? 1 : 0.75})`,
+    transformOrigin: "100% 100%",
+    transform: `translateY(-100%) rotate(var(--stamp-imprint-tilt, -10deg)) scale(${showImprint ? 1 : 0.75})`,
     opacity: showImprint ? inkAlpha : 0,
     transition: showImprint
       ? "transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 240ms ease-out"
@@ -615,10 +612,7 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
 
   return (
     <>
-      {showImprint &&
-        (imprintAnchorEl
-          ? createPortal(imprint, imprintAnchorEl)
-          : imprint)}
+      {showImprint && imprint}
 
       {/* ── Stamp tool — icon button, bottom-right of canvas ── */}
       {showTool && (

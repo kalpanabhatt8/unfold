@@ -18,7 +18,8 @@
     --gradient-3: #E4F2D3; 
     --gradient-4: #D5F2EB;  */
 
-    --gradient-1: #ead4c0; 
+    /* --gradient-1: #ead4c0;  */
+    --gradient-1: #C6BEF5; 
     --gradient-2: #dde5b6; 
     --gradient-3: #eea8ba; 
     --gradient-4: #da7635; 
@@ -43,6 +44,16 @@
   --book-cover-gradient-g8: var(--gradient-8);
   --book-cover-gradient-g9: var(--gradient-9);
   --book-cover-gradient-g10: var(--gradient-10);
+
+  --create-new-cover-bg: linear-gradient(90deg, #ebedf0 0%, #e3e8ec 100%);
+  --cover-editor-bg: #f7f7f7;
+  --cover-editor-panel-bg: #f3f5f7;
+}
+
+/* Full-page shell — matches app shell; gray accents live on toolbar/title only. */
+.cover-editor-page {
+  min-height: 100svh;
+  background: var(--app-bg);
 }
 
 .book-cover-stack {
@@ -86,7 +97,7 @@
   transition:
     transform 160ms ease,
     box-shadow 200ms ease;
-  background: var(--book-cover-gradient-g1);
+  background: var(--create-new-cover-bg);
   background-size: cover;
   background-position: center;
   width: 100%;
@@ -246,7 +257,7 @@
 }
 
 .book-cover[data-variant="solid"] {
-  background: var(--book-cover-bg, var(--book-cover-gradient-g1));
+  background: var(--book-cover-bg, var(--create-new-cover-bg));
 }
 
 .book-cover[data-variant="image"] {
@@ -429,5 +440,5 @@
 }
 
 .create-new-notebook .book-cover {
-  background: var(--book-cover-gradient-g1) !important;
+  background: var(--create-new-cover-bg) !important;
 }

@@ -9,22 +9,16 @@ import React, {
   useState,
 } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 import { getTemplateById } from "@/data/book-templates";
-import { coverBackgroundVar } from "@/data/cover-gradients";
+import {
+  coverBackgroundVar,
+  CREATE_NEW_COVER_BG,
+  migrateBlankBookCoverBackground,
+} from "@/data/cover-gradients";
 import CanvasBoard, {
   type CanvasBoardHandle,
   type CanvasSnapshot,
 } from "@/components/canvas/canvas-board";
-import {
-  btnIcon,
-  btnRadius,
-  btnState,
-  iconFixed,
-  iconPx,
-  iconStroke,
-} from "@/components/ui/button-system";
-import { Tooltip } from "@/components/ui/tooltip";
 import {
   claimCanvasSessionStamp,
   endCanvasSession,
@@ -42,7 +36,7 @@ const blankDefaults = {
   variant: "solid" as const,
   title: "",
   subtitle: "Describe this notebook",
-  background: coverBackgroundVar("g1"),
+  background: CREATE_NEW_COVER_BG,
 };
 
 type Draft = RecentBook;
@@ -71,7 +65,6 @@ const CanvasPage = () => {
   }
   prevBookIdRef.current = bookId;
   const boardRef = useRef<CanvasBoardHandle>(null);
-  const [isNavigatingBack, setIsNavigatingBack] = useState(false);
   const templateParam = searchParams.get("template");
 
   const template = useMemo(() => {
@@ -142,6 +135,10 @@ const CanvasPage = () => {
         ...(existing ?? {}),
         canvasOpened: true,
         lastOpenedAt: now,
+        background: migrateBlankBookCoverBackground(
+          existing?.background ?? baseDraft.background,
+          existing?.sourceTemplateId ?? baseDraft.sourceTemplateId,
+        ),
       };
       const updatedDrafts: Record<string, Draft> = {
         ...drafts,
@@ -318,17 +315,6 @@ const CanvasPage = () => {
     };
   }, []);
 
-  const handleBack = useCallback(() => {
-    if (isNavigatingBack) return;
-    setIsNavigatingBack(true);
-    const snapshot = boardRef.current?.captureForClose() ?? null;
-    if (snapshot) {
-      persistBoardSnapshot(snapshot);
-    }
-    endCanvasSession(bookId);
-    router.replace("/dashboard");
-  }, [bookId, isNavigatingBack, persistBoardSnapshot, router]);
-
   const goToCoverEditor = useCallback(() => {
     // Open the cover editor while keeping this draft's "canvas opened" flag.
     // Passing `from=canvas` makes the editor's Back button return here.
@@ -346,26 +332,6 @@ const CanvasPage = () => {
 
   return (
     <main className="relative h-svh min-h-0 w-full overflow-hidden">
-      <Tooltip
-        content="Back to books"
-        className="fixed left-4 top-4 z-50"
-      >
-        <button
-          type="button"
-          onClick={handleBack}
-          disabled={isNavigatingBack}
-          className={`${btnRadius.pill} ${btnIcon("md")} ${btnState.default} ${btnState.hover} ${btnState.active} ${btnState.disabled}`}
-          aria-label="Back to books"
-        >
-          <ArrowLeft
-            strokeWidth={iconStroke("md")}
-            size={iconPx("md")}
-            aria-hidden
-            className={iconFixed}
-          />
-        </button>
-      </Tooltip>
-
       {sessionEditedAt !== null && (
         <CanvasBoard
           ref={boardRef}

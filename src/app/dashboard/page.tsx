@@ -16,7 +16,10 @@ import {
 } from "@/components/ui/button-system";
 import { Tooltip } from "@/components/ui/tooltip";
 import { starterBookTemplates } from "@/data/book-templates";
-import { coverBackgroundVar, resolveBookCoverBackground } from "@/data/cover-gradients";
+import {
+  CREATE_NEW_COVER_BG,
+  resolveBookCoverBackground,
+} from "@/data/cover-gradients";
 import {
   readRecentBooks,
   RECENT_BOOKS_STORAGE_KEY,
@@ -24,8 +27,6 @@ import {
   type RecentBook,
 } from "@/lib/recent-books";
 import { hasBookTitle, resolveBookDisplayTitle } from "@/lib/book-title";
-
-const CREATE_NEW_COVER_BG = coverBackgroundVar("g1");
 
 const Dashboard = () => {
   const router = useRouter();

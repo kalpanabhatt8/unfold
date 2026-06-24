@@ -27,6 +27,8 @@ import { bookCoverSamples, getTemplateById } from "@/data/book-templates";
 import {
   coverBackgroundVar,
   coverGradientIdFromBackground,
+  CREATE_NEW_COVER_BG,
+  migrateBlankBookCoverBackground,
   resolveBookCoverBackground,
 } from "@/data/cover-gradients";
 import {
@@ -53,7 +55,7 @@ const blankDefaults = {
   variant: "solid" as const,
   title: "",
   subtitle: "",
-  background: coverBackgroundVar("g1"),
+  background: CREATE_NEW_COVER_BG,
 };
 
 // A tight, opinionated palette — five calm presets, no custom CSS field.
@@ -178,7 +180,10 @@ const BookBuilderPage = () => {
   const [hexInput, setHexInput] = useState("8BA9CF");
   const [isColorPickerOpen, setIsColorPickerOpen] = useState(false);
   const [background, setBackground] = useState<string>(() =>
-    resolveBookCoverBackground(defaultBackground),
+    migrateBlankBookCoverBackground(
+      defaultBackground,
+      templateParam ?? (template ? template.id : "blank"),
+    ),
   );
   const [hydrated, setHydrated] = useState(false);
   const [sourceTemplateId, setSourceTemplateId] = useState<string | null>(
@@ -245,7 +250,10 @@ const BookBuilderPage = () => {
       setCoverImage(existing.coverImage ?? null);
     }
     if (existing.background) {
-      const resolved = resolveBookCoverBackground(existing.background);
+      const resolved = migrateBlankBookCoverBackground(
+        existing.background,
+        existing.sourceTemplateId,
+      );
       setBackground(resolved);
       const parsedBg = cssColorToRgba(resolved);
       if (parsedBg) {
@@ -443,17 +451,7 @@ const BookBuilderPage = () => {
   };
 
   return (
-    <main className="relative min-h-screen w-full overflow-hidden">
-      {/* Soft ambient backdrop — keeps the page from feeling like a form. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0 -z-10"
-        // style={{
-        //   background:
-        //     "radial-gradient(60% 50% at 50% 22%, rgba(0,0,0,0.04), transparent 70%), var(--surface-0)",
-        // }}
-      />
-
+    <main className="cover-editor-page relative w-full overflow-hidden">
       <button
         type="button"
         onClick={handleBack}
@@ -526,7 +524,7 @@ const BookBuilderPage = () => {
           size={Math.max(title.length, 15)}
           placeholder={BOOK_TITLE_PLACEHOLDER}
           autoFocus={shouldAutoFocusTitle}
-          className="header-xl w-auto rounded-md bg-[var(--gray-75)] p-2 text-center font-medium leading-tight tracking-[-0.01em] text-[var(--text-primary)] placeholder:text-black/35 outline-none"
+          className="header-xl w-auto rounded-md bg-[var(--cover-editor-bg)] p-2 text-center font-medium leading-tight tracking-[-0.01em] text-[var(--text-primary)] placeholder:text-black/35 outline-none"
           style={{
             fontFamily:
               "var(--font-heading)",
@@ -546,7 +544,7 @@ const BookBuilderPage = () => {
             role="group"
             aria-label="Cover colors"
             ref={colorPickerRef}
-            className="relative rounded-[0.5rem] bg-white outline outline-1 outline-black/[0.08]"
+            className="relative rounded-[0.5rem] bg-[var(--cover-editor-panel-bg)] outline outline-1 outline-black/[0.08]"
           >
             <div className="flex items-center gap-0 overflow-hidden rounded-[0.5rem]">
               {colorPresets.map((preset) => {
@@ -652,7 +650,7 @@ const BookBuilderPage = () => {
           <div
             role="group"
             aria-label="Preset cover images"
-            className="flex items-center gap-0 overflow-hidden rounded-[0.5rem] bg-white outline outline-1 outline-black/[0.08]"
+            className="flex items-center gap-0 overflow-hidden rounded-[0.5rem] bg-[var(--cover-editor-panel-bg)] outline outline-1 outline-black/[0.08]"
           >
             <input
               ref={fileInputRef}

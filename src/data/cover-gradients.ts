@@ -48,13 +48,34 @@ export function coverBackgroundVar(id: CoverGradientId): string {
   return `var(--book-cover-gradient-${normalized ?? "g1"})`;
 }
 
-/** g10 matches the canvas page — use g1 on covers so they don't disappear into the bg. */
+/** Dashboard “create new” tile — also the default blank-book cover on first open. */
+export const CREATE_NEW_COVER_BG = "var(--create-new-cover-bg)";
+
+const LEGACY_BLANK_COVER_BG = coverBackgroundVar("g1");
+
+/** g10 matches the canvas page — use create-new on covers so they don't disappear into the bg. */
 export function resolveBookCoverBackground(
   background: string | undefined | null
 ): string {
   const trimmed = background?.trim();
-  if (!trimmed) return coverBackgroundVar("g1");
+  if (!trimmed) return CREATE_NEW_COVER_BG;
   const id = coverGradientIdFromBackground(trimmed);
-  if (id === "g10") return coverBackgroundVar("g1");
+  if (id === "g10") return CREATE_NEW_COVER_BG;
   return trimmed;
+}
+
+/** Blank books that still carry the old g1 default get the create-new cover instead. */
+export function migrateBlankBookCoverBackground(
+  background: string | undefined | null,
+  sourceTemplateId?: string | null
+): string {
+  const resolved = resolveBookCoverBackground(background);
+  const isBlank =
+    sourceTemplateId === undefined ||
+    sourceTemplateId === null ||
+    sourceTemplateId === "blank";
+  if (isBlank && resolved === LEGACY_BLANK_COVER_BG) {
+    return CREATE_NEW_COVER_BG;
+  }
+  return resolved;
 }

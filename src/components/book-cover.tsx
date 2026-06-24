@@ -6,6 +6,7 @@ import { BOOK_CONFIG, type BookCoverSize } from "@/components/book-cover-config"
 import {
   coverBackgroundVar,
   coverGradientIdFromBackground,
+  CREATE_NEW_COVER_BG,
 } from "@/data/cover-gradients";
 import {
   coverOverlayTextStyles,
@@ -77,7 +78,7 @@ export function BookCover({
         ? coverBackgroundVar(resolvedGradient)
         : typeof bgFromStyle === "string" && bgFromStyle.trim()
           ? bgFromStyle.trim()
-          : undefined;
+          : CREATE_NEW_COVER_BG;
 
     if (!coverBg && Object.keys(restStyle).length === 0) {
       return overlayVars as React.CSSProperties;

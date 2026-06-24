@@ -4,7 +4,7 @@
  * CanvasBoard — full-width journal writing surface.
  *
  *  ┌─────────────────────────────────────────────────────────────┐
- *  │  title (left)                edited · saving? (right)        │
+ *  │  title (left)                last edited · saving? (right)    │
  *  │  ─────────────────────────────────────────────────────────── │
  *  │  centered writing column (Rethink Sans)                      │
  *  │  signature (end)                                             │
@@ -712,8 +712,6 @@ function CanvasBoardInner(
   const [sealedAt, setSealedAt] = useState<number | null>(null);
   const stampRef = useRef<JournalStampHandle>(null);
   const sealWhisperStartedRef = useRef(false);
-  const [stampImprintAnchor, setStampImprintAnchor] =
-    useState<HTMLDivElement | null>(null);
   const [showUnfinishedPrompt, setShowUnfinishedPrompt] = useState(false);
   const unfinishedPromptCheckedRef = useRef(false);
   // Column layout has been retired from the UI; we keep the snapshot field
@@ -723,9 +721,10 @@ function CanvasBoardInner(
   const [lastSavedAt, setLastSavedAt] = useState<number>(() => sessionEditedAt);
   const [showSavingLabel, setShowSavingLabel] = useState(false);
   const savingLabelTimerRef = useRef<number | null>(null);
-  /** Brief "pasting disabled" notice shown when a paste is blocked. */
-  const [pasteBlockedToast, setPasteBlockedToast] = useState(false);
-  const pasteToastTimerRef = useRef<number | null>(null);
+  // TEMP: paste blocking disabled — re-enable when done testing
+  // /** Brief "pasting disabled" notice shown when a paste is blocked. */
+  // const [pasteBlockedToast, setPasteBlockedToast] = useState(false);
+  // const pasteToastTimerRef = useRef<number | null>(null);
   /** Snapshot `updatedAt` — frozen while editing; bumped only on close. */
   const snapshotEditedAtRef = useRef<number>(sessionEditedAt);
   /** Header stamp — frozen for this mount; never follows wall clock. */
@@ -742,7 +741,6 @@ function CanvasBoardInner(
   const writingRef = useRef<HTMLDivElement | null>(null);
   /** Scrollport for the writing column only — page / left rail stay fixed. */
   const writingScrollRef = useRef<HTMLDivElement | null>(null);
-  const writingColumnRef = useRef<HTMLDivElement | null>(null);
   const imageFileInputRef = useRef<HTMLInputElement | null>(null);
   const textRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
   const signatureRef = useRef<HTMLTextAreaElement | null>(null);
@@ -1057,13 +1055,6 @@ function CanvasBoardInner(
 
     setShowUnfinishedPrompt(true);
   }, [buildSnapshot, isContentReady, lastEditedAt, sealedAt]);
-
-  // Make the writing area non-interactive once the entry is sealed.
-  // `inert` disables focus, keyboard, and pointer events on the whole subtree.
-  useEffect(() => {
-    if (!sealedAt || !writingRef.current) return;
-    (writingRef.current as HTMLDivElement & { inert: boolean }).inert = true;
-  }, [sealedAt]);
 
   useEffect(() => {
     if (process.env.NODE_ENV !== "development") return;
@@ -1401,40 +1392,41 @@ function CanvasBoardInner(
 
   /* ----------------------------- Global events ---------------------------- */
 
-  // Paste is fully disabled inside the journal canvas — no text, rich text, or
-  // images. A capture-phase native listener blocks every paste path: keyboard
-  // shortcut, right-click menu, and the browser Edit menu.
-  useEffect(() => {
-    const showPasteBlockedToast = () => {
-      setPasteBlockedToast(true);
-      if (pasteToastTimerRef.current !== null) {
-        window.clearTimeout(pasteToastTimerRef.current);
-      }
-      pasteToastTimerRef.current = window.setTimeout(() => {
-        setPasteBlockedToast(false);
-        pasteToastTimerRef.current = null;
-      }, 2200);
-    };
-
-    const blockPaste = (e: ClipboardEvent) => {
-      const root = outerRef.current;
-      const target = e.target as Node | null;
-      // Ignore paste events outside the journaling surface.
-      if (root && target && !root.contains(target)) return;
-      e.preventDefault();
-      e.stopImmediatePropagation();
-      showPasteBlockedToast();
-    };
-
-    document.addEventListener("paste", blockPaste, true);
-    return () => {
-      document.removeEventListener("paste", blockPaste, true);
-      if (pasteToastTimerRef.current !== null) {
-        window.clearTimeout(pasteToastTimerRef.current);
-        pasteToastTimerRef.current = null;
-      }
-    };
-  }, []);
+  // TEMP: paste blocking disabled — re-enable when done testing
+  // // Paste is fully disabled inside the journal canvas — no text, rich text, or
+  // // images. A capture-phase native listener blocks every paste path: keyboard
+  // // shortcut, right-click menu, and the browser Edit menu.
+  // useEffect(() => {
+  //   const showPasteBlockedToast = () => {
+  //     setPasteBlockedToast(true);
+  //     if (pasteToastTimerRef.current !== null) {
+  //       window.clearTimeout(pasteToastTimerRef.current);
+  //     }
+  //     pasteToastTimerRef.current = window.setTimeout(() => {
+  //       setPasteBlockedToast(false);
+  //       pasteToastTimerRef.current = null;
+  //     }, 2200);
+  //   };
+  //
+  //   const blockPaste = (e: ClipboardEvent) => {
+  //     const root = outerRef.current;
+  //     const target = e.target as Node | null;
+  //     // Ignore paste events outside the journaling surface.
+  //     if (root && target && !root.contains(target)) return;
+  //     e.preventDefault();
+  //     e.stopImmediatePropagation();
+  //     showPasteBlockedToast();
+  //   };
+  //
+  //   document.addEventListener("paste", blockPaste, true);
+  //   return () => {
+  //     document.removeEventListener("paste", blockPaste, true);
+  //     if (pasteToastTimerRef.current !== null) {
+  //       window.clearTimeout(pasteToastTimerRef.current);
+  //       pasteToastTimerRef.current = null;
+  //     }
+  //   };
+  // }, []);
 
   // Multi-textarea select-all — copy the full journal body, not just the focused row.
   useEffect(() => {
@@ -1577,6 +1569,7 @@ function CanvasBoardInner(
 
   const onWritingPointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
+      if (sealedAt !== null) return;
       const target = e.target as HTMLElement | null;
       if (!target) return;
       if (target.closest("[data-block-element]")) return;
@@ -1594,7 +1587,7 @@ function CanvasBoardInner(
       focusSlotInColumn(columnIndex);
       setSelectedImageId(null);
     },
-    [focusSlotInColumn]
+    [focusSlotInColumn, sealedAt]
   );
 
   /* ------------------------------- Render ------------------------------- */
@@ -1611,8 +1604,9 @@ function CanvasBoardInner(
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
+      {/* TEMP: paste blocking disabled — re-enable when done testing */}
       {/* Paste-disabled notice */}
-      <div
+      {/* <div
         role="status"
         aria-live="polite"
         className={clsx(
@@ -1621,7 +1615,7 @@ function CanvasBoardInner(
         )}
       >
         Pasting is disabled for journaling
-      </div>
+      </div> */}
 
       {/* Sunflower — fixed bottom-left, always on screen */}
       <div className="pointer-events-auto fixed bottom-5 left-5 z-20 overflow-visible">
@@ -1658,7 +1652,6 @@ function CanvasBoardInner(
       <JournalStamp
         ref={stampRef}
         isSealed={!!sealedAt}
-        imprintAnchorEl={stampImprintAnchor}
         onStampBegin={beginSealSideEffects}
         onStampHover={maybePrefetchSealTitle}
         onSeal={handleSeal}
@@ -1706,10 +1699,6 @@ function CanvasBoardInner(
             />
 
             <div
-              ref={(el) => {
-                writingColumnRef.current = el;
-                setStampImprintAnchor(el);
-              }}
               data-writing-zone
               data-journal-all-selected={journalAllSelected ? "" : undefined}
               data-sealed={sealedAt !== null ? "" : undefined}
@@ -1907,6 +1896,7 @@ function CanvasBoardInner(
             <CanvasSignature
               ref={signatureRef}
               value={signature}
+              isSealed={sealedAt !== null}
               onChange={(next) => {
                 setSignature(next);
                 notifyCompanionWriting({ signature: next });
@@ -2313,41 +2303,23 @@ function PolaroidImage({
 /*  Canvas header — last-edited date + heading                                   */
 /* -------------------------------------------------------------------------- */
 
-const isSameCalendarMonth = (ts: number, now: number) => {
+/** Header stamp — e.g. "28 June 2026" / "Tue, 22:58". */
+function formatLastEditedStamp(ts: number): { date: string; time: string } {
   const d = new Date(ts);
-  const n = new Date(now);
-  return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth();
-};
-
-/** Header stamp — e.g. "Edited 12 min" (this month) or "Edited 26 Mar". */
-function formatEditedLabel(ts: number, now = Date.now()): string {
-  if (isSameCalendarMonth(ts, now)) {
-    const diff = Math.max(0, now - ts);
-    const minute = 60_000;
-    const hour = 60 * minute;
-    const day = 24 * hour;
-
-    if (diff < minute) return "Edited just now";
-    if (diff < hour) {
-      const mins = Math.round(diff / minute);
-      return `Edited ${mins} min`;
-    }
-    if (diff < day) {
-      const hours = Math.round(diff / hour);
-      return `Edited ${hours} hr`;
-    }
-    const days = Math.round(diff / day);
-    return `Edited ${days} day${days === 1 ? "" : "s"}`;
-  }
-
-  const d = new Date(ts);
+  const weekday = d.toLocaleDateString(undefined, { weekday: "short" });
   const day = d.getDate();
-  const month = d.toLocaleDateString(undefined, { month: "short" });
+  const month = d.toLocaleDateString(undefined, { month: "long" });
   const year = d.getFullYear();
-  if (year !== new Date(now).getFullYear()) {
-    return `Edited ${day} ${month} ${year}`;
-  }
-  return `Edited ${day} ${month}`;
+  const time = d.toLocaleTimeString(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  return {
+    date: `${day} ${month} ${year}`,
+    // time: `${weekday}, ${time}`,
+    time: ` ${time}`,
+  };
 }
 
 type CanvasHeaderProps = {
@@ -2393,23 +2365,9 @@ function CanvasHeader({
     return () => window.clearTimeout(timer);
   }, [onTitleChange, persistedTitle, value]);
 
-  const relativeTickActive = useMemo(
-    () => isSameCalendarMonth(editedAt, Date.now()),
-    [editedAt]
-  );
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (!relativeTickActive) return;
-    const id = window.setInterval(() => setNow(Date.now()), 60_000);
-    return () => window.clearInterval(id);
-  }, [relativeTickActive]);
-
-  const editedLabel = useMemo(
-    () => formatEditedLabel(editedAt, now),
-    [editedAt, now]
-  );
-  const isoDate = useMemo(
-    () => new Date(editedAt).toISOString().slice(0, 10),
+  const editedStamp = useMemo(() => formatLastEditedStamp(editedAt), [editedAt]);
+  const isoDateTime = useMemo(
+    () => new Date(editedAt).toISOString(),
     [editedAt]
   );
 
@@ -2424,6 +2382,8 @@ function CanvasHeader({
       <input
         type="text"
         value={value}
+        readOnly={isSealed}
+        tabIndex={isSealed ? -1 : undefined}
         onChange={(event) => setValue(clampBookTitle(event.target.value))}
         maxLength={MAX_BOOK_TITLE_CHARS}
         onFocus={() => {
@@ -2442,17 +2402,18 @@ function CanvasHeader({
         spellCheck={false}
         aria-label="Book title"
         className={clsx(
-          "header-lg col-start-1 row-start-1 w-full max-w-[55%] self-end border-0 bg-transparent p-0 text-left font-semibold tracking-tight outline-none focus:outline-none placeholder:text-[var(--canvas-title-placeholder)]",
+          "header-lg col-start-1 row-start-1 w-full max-w-[55%] self-end border-0 bg-transparent p-0 text-left font-medium tracking-tight outline-none focus:outline-none placeholder:text-[var(--canvas-title-placeholder)]",
           hasTitle ? "text-[var(--canvas-title-ink)]" : "text-[var(--canvas-title-placeholder)]"
         )}
         style={{ fontFamily: "var(--font-heading)" }}
       />
       <time
-        dateTime={isoDate}
-        className="col-start-2 row-start-1 block text-right text-sm tracking-[0.01em] text-[var(--canvas-date)]"
+        dateTime={isoDateTime}
+        className="col-start-2 row-start-1 block text-right text-sm tracking-[0.04em]"
         style={{ lineHeight: 1.45 }}
       >
-        {editedLabel}
+        <span className=" text-[var(--canvas-date-time)] mb-[-1px]">{editedStamp.date}, </span>
+        <span className=" text-[var(--canvas-date-time)]">{editedStamp.time}</span>
       </time>
       {showSaving ? (
         <p
@@ -2469,18 +2430,21 @@ function CanvasHeader({
 
 type CanvasSignatureProps = {
   value: string;
+  isSealed?: boolean;
   onChange: (value: string) => void;
   onSelectAllJournal?: () => void;
 };
 
 const CanvasSignature = forwardRef<HTMLTextAreaElement, CanvasSignatureProps>(
-  function CanvasSignature({ value, onChange, onSelectAllJournal }, ref) {
+  function CanvasSignature({ value, isSealed = false, onChange, onSelectAllJournal }, ref) {
   return (
     <textarea
       ref={ref}
       data-signature
       rows={1}
       spellCheck={false}
+      readOnly={isSealed}
+      tabIndex={isSealed ? -1 : undefined}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       onKeyDown={(e) => {
@@ -2611,6 +2575,7 @@ function TextBlockView({
             <button
               type="button"
               onClick={onToggleCheck}
+              disabled={isSealed}
               aria-label={block.checked ? "Mark incomplete" : "Mark complete"}
               className={clsx(
                 "inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[5px] border-[1.5px] transition-all duration-150",
@@ -2643,6 +2608,8 @@ function TextBlockView({
         value={block.text}
         rows={1}
         spellCheck
+        readOnly={isSealed}
+        tabIndex={isSealed ? -1 : undefined}
         placeholder={placeholder}
         onFocus={onFocus}
         onChange={(e) => onChange(e.target.value)}
