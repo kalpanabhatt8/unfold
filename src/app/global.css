@@ -723,30 +723,6 @@ input[type='number'] {
   -moz-appearance: textfield;
 }
 
-/* ── Journal stamp impact — subtle page-compression response ──────────────
-   A faint vignette flashes over the entire canvas for ~300 ms when the stamp
-   hits the paper, reinforcing the physical press sensation.
-   Triggered by JS adding the class `stamp-impact` to <body>.              */
-
-@keyframes stamp-press-vignette {
-  0%, 100% { opacity: 0; }
-  35%       { opacity: 1; }
-}
-
-body.stamp-impact::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 9999;
-  background: radial-gradient(
-    ellipse 60% 50% at 50% 50%,
-    transparent 30%,
-    rgba(0, 0, 0, 0.018) 100%
-  );
-  animation: stamp-press-vignette 300ms ease-out both;
-}
-
 /* —— Canvas writing surface — signature textarea only ——————————————— */
 [data-writing-zone] [data-signature] {
   font-family: var(--font-signature), cursive;
@@ -857,74 +833,52 @@ body.stamp-impact::after {
   display: inline;
 }
 
-/* —— Journal seal — wobble + soft aurora fade ——————————————————————— */
+/* —— Journal seal — top-left → bottom-right aurora sweep — */
 
 [data-writing-zone] {
-  --seal-wobble-ms: 350ms;
-  --seal-aurora-ms: 950ms;
+  --seal-aurora-ms: 1800ms;
   --seal-sealed-opacity: 0.68;
   --seal-sealed-ink: color-mix(in srgb, var(--canvas-ink) 78%, var(--canvas-muted) 22%);
-  --seal-ink-live: var(--canvas-ink);
-  --seal-ink-done: color-mix(in srgb, var(--canvas-ink) 68%, var(--canvas-muted) 32%);
-  --seal-aurora-a: color-mix(in srgb, #9eb4d2 28%, var(--seal-ink-done));
-  --seal-aurora-b: color-mix(in srgb, #a8cfc0 26%, var(--seal-ink-done));
-  --seal-aurora-c: color-mix(in srgb, #d8c0a8 24%, var(--seal-ink-done));
-  --seal-aurora-d: color-mix(in srgb, #c0b0d4 22%, var(--seal-ink-done));
+  /* Final engraved look — baked into the sweep so we never run a second global fade. */
+  --seal-sealed-ink-visible: color-mix(
+    in srgb,
+    var(--seal-sealed-ink) calc(var(--seal-sealed-opacity) * 100%),
+    var(--canvas-bg)
+  );
+  --aurora-veil: color-mix(in srgb, var(--canvas-ink) 35%, #e8dfd0 65%);
+  --aurora-core: color-mix(in srgb, var(--canvas-ink) 15%, #f5ede0 85%);
 }
 
-@keyframes journal-seal-wobble {
-  0%,
-  100% {
-    transform: translate3d(0, 0, 0);
-  }
-  20% {
-    transform: translate3d(0.3px, -0.45px, 0);
-  }
-  45% {
-    transform: translate3d(-0.35px, 0.3px, 0);
-  }
-  70% {
-    transform: translate3d(0.2px, 0.15px, 0);
-  }
-}
-
-/* One soft aurora wash through the letterforms, then settle. */
+/* One TL → BR pass; sealed ink trails behind a single aurora front. */
 @keyframes journal-seal-aurora {
   0% {
-    background-position: 120% 50%;
-    opacity: 1;
+    background-position: 100% 100%;
   }
   100% {
-    background-position: -20% 50%;
-    opacity: var(--seal-sealed-opacity);
+    background-position: 0% 0%;
   }
-}
-
-[data-writing-zone][data-sealing] .journal-seal-content {
-  transform-origin: 88% 95%;
-  animation: journal-seal-wobble var(--seal-wobble-ms) cubic-bezier(0.34, 0.02, 0.18, 1) both;
 }
 
 [data-writing-zone][data-sealing] .journal-tiptap p.journal-block {
   color: transparent;
   -webkit-text-fill-color: transparent;
+  opacity: 1;
   background-image: linear-gradient(
-    100deg,
-    var(--seal-ink-done) 0%,
-    var(--seal-aurora-a) 14%,
-    var(--seal-aurora-b) 28%,
-    var(--seal-aurora-c) 42%,
-    var(--seal-aurora-d) 56%,
-    var(--seal-ink-live) 72%,
-    var(--seal-ink-live) 100%
+    135deg,
+    var(--seal-sealed-ink-visible) 0%,
+    var(--seal-sealed-ink-visible) 52%,
+    var(--aurora-veil) 58%,
+    var(--aurora-core) 62%,
+    var(--canvas-ink) 68%,
+    var(--canvas-ink) 100%
   );
-  background-size: 280% 100%;
-  background-position: 120% 50%;
+  background-size: 280vmax 280vmax;
+  background-position: 100% 100%;
   background-repeat: no-repeat;
+  background-attachment: fixed;
   -webkit-background-clip: text;
   background-clip: text;
-  animation: journal-seal-aurora var(--seal-aurora-ms) ease-in-out
-    var(--seal-wobble-ms) forwards;
+  animation: journal-seal-aurora var(--seal-aurora-ms) linear forwards;
 }
 
 [data-writing-zone][data-sealing] .journal-tiptap .ProseMirror,
@@ -938,17 +892,21 @@ body.stamp-impact::after {
 }
 
 [data-writing-zone][data-sealed] .journal-tiptap p.journal-block {
-  opacity: var(--seal-sealed-opacity);
-  color: var(--seal-sealed-ink);
-  background-image: none;
+  color: var(--seal-sealed-ink-visible);
   -webkit-text-fill-color: currentColor;
+  background-image: none;
   background-clip: border-box;
   -webkit-background-clip: border-box;
+  opacity: 1;
 }
 
 [data-writing-zone][data-sealed] .journal-tiptap p.journal-block.is-checklist.is-checked {
-  opacity: var(--seal-sealed-opacity);
-  color: color-mix(in srgb, var(--canvas-muted) 88%, var(--canvas-ink) 12%);
+  opacity: 1;
+  color: color-mix(
+    in srgb,
+    color-mix(in srgb, var(--canvas-muted) 88%, var(--canvas-ink) 12%) calc(var(--seal-sealed-opacity) * 100%),
+    var(--canvas-bg)
+  );
 }
 
 [data-writing-zone][data-sealed] .journal-tiptap .ProseMirror {
@@ -956,16 +914,12 @@ body.stamp-impact::after {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  [data-writing-zone][data-sealing] .journal-seal-content {
-    animation: none;
-  }
-
   [data-writing-zone][data-sealing] .journal-tiptap p.journal-block {
     animation: none;
-    opacity: var(--seal-sealed-opacity);
-    color: var(--seal-sealed-ink);
+    color: var(--seal-sealed-ink-visible);
     -webkit-text-fill-color: currentColor;
     background-image: none;
+    opacity: 1;
   }
 }
 

@@ -633,9 +633,6 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
       setPhase("impact");
       onStampImpact?.();
 
-      document.body.classList.add("stamp-impact");
-      setTimeout(() => document.body.classList.remove("stamp-impact"), 360);
-
       push(() => {
         setImprintVisible(true);
         setPhase("lifting");

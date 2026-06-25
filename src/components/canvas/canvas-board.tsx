@@ -27,6 +27,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { flushSync } from "react-dom";
 import clsx from "clsx";
 import Image from "next/image";
 import {
@@ -45,7 +46,11 @@ import { UnfinishedDraftPrompt } from "@/components/canvas/unfinished-draft-prom
 import { iconStrokePx } from "@/components/ui/button-system";
 import { Tooltip } from "@/components/ui/tooltip";
 import { hasBookTitle, BOOK_TITLE_PLACEHOLDER, clampBookTitle, commitBookTitle, MAX_BOOK_TITLE_CHARS } from "@/lib/book-title";
-import { JOURNAL_SEAL_ANIM_MS } from "@/lib/journal-seal-animation";
+import {
+  JOURNAL_SEAL_ANIM_MS,
+  JOURNAL_SEAL_AURORA_MS,
+  JOURNAL_SEAL_AURORA_START_MS,
+} from "@/lib/journal-seal-animation";
 import BlobCharacter, {
   type BlobEmotion,
   type BlobPose,
@@ -574,7 +579,9 @@ function CanvasBoardInner(
   const [isSealing, setIsSealing] = useState(false);
   const stampRef = useRef<JournalStampHandle>(null);
   const sealWhisperStartedRef = useRef(false);
+  const sealTitleAppliedRef = useRef(false);
   const sealAnimTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sealAuroraStartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const writingZoneRef = useRef<HTMLDivElement | null>(null);
   const [showUnfinishedPrompt, setShowUnfinishedPrompt] = useState(false);
   const unfinishedPromptCheckedRef = useRef(false);
@@ -787,10 +794,40 @@ function CanvasBoardInner(
     prefetchSealTitle(text);
   }, [buildLiveCompanionSnapshot, sealedAt, title]);
 
-  const beginSealSideEffects = useCallback(() => {
-    beginSealWhisper();
-    maybePrefetchSealTitle();
-  }, [beginSealWhisper, maybePrefetchSealTitle]);
+  const applySealTitleWhenReady = useCallback(() => {
+    if (sealTitleAppliedRef.current) return;
+    const committedTitle = typeof title === "string" ? title.trim() : "";
+    if (hasBookTitle(committedTitle)) {
+      sealTitleAppliedRef.current = true;
+      return;
+    }
+
+    const snap = buildLiveCompanionSnapshot();
+    const wordCount = collectJournalWordTokens(snap).length;
+    if (wordCount < MIN_WORDS_FOR_AI_TITLE) {
+      sealTitleAppliedRef.current = true;
+      onTitleChange?.(UNTITLED_ENTRY);
+      return;
+    }
+
+    const text = extractJournalPlainText(snap);
+    const promise = prefetchSealTitle(text) ?? fetchJournalTitle(text);
+
+    void promise
+      .then((generated) => {
+        if (sealTitleAppliedRef.current) return;
+        sealTitleAppliedRef.current = true;
+        onTitleChange?.(generated);
+      })
+      .catch(() => {
+        if (sealTitleAppliedRef.current) return;
+        sealTitleAppliedRef.current = true;
+        onTitleChange?.(UNTITLED_ENTRY);
+      })
+      .finally(() => {
+        clearSealTitlePrefetch();
+      });
+  }, [buildLiveCompanionSnapshot, onTitleChange, title]);
 
   const handleSeal = useCallback(() => {
     if (sealedAt !== null) return;
@@ -809,40 +846,15 @@ function CanvasBoardInner(
       /* noop */
     }
 
-    const committedTitle = typeof title === "string" ? title.trim() : "";
-    if (hasBookTitle(committedTitle)) return;
-
-    void (async () => {
-      const snap = buildLiveCompanionSnapshot();
-      const wordCount = collectJournalWordTokens(snap).length;
-      if (wordCount < MIN_WORDS_FOR_AI_TITLE) {
-        onTitleChange?.(UNTITLED_ENTRY);
-        return;
-      }
-
-      try {
-        const text = extractJournalPlainText(snap);
-        const prefetched = prefetchSealTitle(text);
-        const generated = prefetched
-          ? await prefetched
-          : await fetchJournalTitle(text);
-        onTitleChange?.(generated);
-      } catch {
-        onTitleChange?.(UNTITLED_ENTRY);
-      } finally {
-        clearSealTitlePrefetch();
-      }
-    })();
+    applySealTitleWhenReady();
   }, [
-    buildLiveCompanionSnapshot,
+    applySealTitleWhenReady,
     companion,
-    onTitleChange,
     sealedAt,
     storageKey,
-    title,
   ]);
 
-  const handleStampImpact = useCallback(() => {
+  const startAuroraSeal = useCallback(() => {
     if (sealedAt !== null || isSealing) return;
 
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
@@ -852,23 +864,60 @@ function CanvasBoardInner(
 
     journalEditorRef.current?.lock();
     setIsSealing(true);
-    writingZoneRef.current?.setAttribute("data-sealing", "");
+
+    const zone = writingZoneRef.current;
+    if (!zone) return;
+
+    const finishSealAnimation = () => {
+      if (sealAnimTimerRef.current) {
+        clearTimeout(sealAnimTimerRef.current);
+        sealAnimTimerRef.current = null;
+      }
+      zone.removeEventListener("animationend", onAuroraEnd);
+      // Paint the final sweep frame before swapping data-sealing → data-sealed.
+      requestAnimationFrame(() => {
+        flushSync(() => {
+          handleSeal();
+          setIsSealing(false);
+        });
+      });
+    };
+
+    let auroraEnded = false;
+    const onAuroraEnd = (e: AnimationEvent) => {
+      if (e.animationName !== "journal-seal-aurora" || auroraEnded) return;
+      auroraEnded = true;
+      finishSealAnimation();
+    };
+
+    zone.addEventListener("animationend", onAuroraEnd);
 
     if (sealAnimTimerRef.current) {
       clearTimeout(sealAnimTimerRef.current);
     }
-    sealAnimTimerRef.current = setTimeout(() => {
-      sealAnimTimerRef.current = null;
-      writingZoneRef.current?.removeAttribute("data-sealing");
-      handleSeal();
-      setIsSealing(false);
-    }, JOURNAL_SEAL_ANIM_MS);
+    sealAnimTimerRef.current = setTimeout(finishSealAnimation, JOURNAL_SEAL_ANIM_MS);
   }, [handleSeal, isSealing, sealedAt]);
+
+  const beginSealSideEffects = useCallback(() => {
+    beginSealWhisper();
+    maybePrefetchSealTitle();
+
+    if (sealAuroraStartTimerRef.current) {
+      clearTimeout(sealAuroraStartTimerRef.current);
+    }
+    sealAuroraStartTimerRef.current = setTimeout(() => {
+      sealAuroraStartTimerRef.current = null;
+      startAuroraSeal();
+    }, JOURNAL_SEAL_AURORA_START_MS);
+  }, [beginSealWhisper, maybePrefetchSealTitle, startAuroraSeal]);
 
   useEffect(() => {
     return () => {
       if (sealAnimTimerRef.current) {
         clearTimeout(sealAnimTimerRef.current);
+      }
+      if (sealAuroraStartTimerRef.current) {
+        clearTimeout(sealAuroraStartTimerRef.current);
       }
     };
   }, []);
@@ -1229,7 +1278,6 @@ function CanvasBoardInner(
         ref={stampRef}
         isSealed={!!sealedAt}
         onStampBegin={beginSealSideEffects}
-        onStampImpact={handleStampImpact}
         onStampHover={maybePrefetchSealTitle}
       />
 
@@ -1279,6 +1327,11 @@ function CanvasBoardInner(
               data-sealed={sealedAt !== null ? "" : undefined}
               data-sealing={isSealing ? "" : undefined}
               className="relative flex w-full min-h-0 flex-1 flex-col"
+              style={
+                {
+                  "--seal-aurora-ms": `${JOURNAL_SEAL_AURORA_MS}ms`,
+                } as React.CSSProperties
+              }
             >
               <div className="journal-seal-content flex w-full min-h-0 flex-1 flex-col">
                 <JournalTiptapEditor
