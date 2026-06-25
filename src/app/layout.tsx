@@ -6,6 +6,7 @@ import "./book.css";
 // Google Fonts
 import {
   Balsamiq_Sans,
+  Bonheur_Royale,
   Bricolage_Grotesque,
   Caveat,
   Covered_By_Your_Grace,
@@ -66,6 +67,13 @@ const balsamiqSans = Balsamiq_Sans({
   variable: "--font-balsamiq-sans",
 });
 
+const bonheurRoyale = Bonheur_Royale({
+  subsets: ["latin"],
+  weight: "400",
+  display: "swap",
+  variable: "--font-bonheur-royale",
+});
+
 export const metadata: Metadata = {
   title: "Keeps",
   description: "A private, playful scrapbook to plan, rant, dream, and collect pretty things.",
@@ -99,7 +107,7 @@ export default function RootLayout({
     >
       <html
         lang="en"
-        className={`${bricolageGrotesque.variable} ${dmSans.variable} ${figtree.variable} ${caveat.variable} ${coveredByYourGrace.variable} ${lora.variable} ${balsamiqSans.variable}`}
+        className={`${bricolageGrotesque.variable} ${dmSans.variable} ${figtree.variable} ${caveat.variable} ${coveredByYourGrace.variable} ${lora.variable} ${balsamiqSans.variable} ${bonheurRoyale.variable}`}
         suppressHydrationWarning
       >
         <body suppressHydrationWarning className={`${figtree.className} font-sans`}>

@@ -88,6 +88,8 @@ export function useCompanion({
   /** Baseline for pause / long-writing delta — resyncs after settled shrink. */
   const deltaBaselineRef = useRef(0);
   const pauseTriggeredRef = useRef(false);
+  /** Arms once per long-writing burst until the in-flight analysis settles. */
+  const longWritingTriggeredRef = useRef(false);
   /** Freshest live snapshot + count from canvas notifications (DOM-merged). */
   const latestLiveSnapshotRef = useRef<CanvasSnapshot | null>(null);
   const latestLiveWordCountRef = useRef(0);
@@ -100,6 +102,7 @@ export function useCompanion({
   const queuedRunRef = useRef<{
     trigger: AnalysisTrigger;
     snapshot: CanvasSnapshot | null;
+    deltaBaselineOverride?: number;
   } | null>(null);
 
   const saveTimerRef = useRef<number | null>(null);
@@ -107,6 +110,8 @@ export function useCompanion({
   const inactivityNeutralTimerRef = useRef<number | null>(null);
   const pollIntervalRef = useRef<number | null>(null);
   const deletionDebounceTimerRef = useRef<number | null>(null);
+  /** TEMP: deletion-triggered API calls since page load (for spam investigation). */
+  const deletionApiCallCountRef = useRef(0);
 
   buildSnapshotRef.current = buildSnapshot;
   onMilestoneSaveRef.current = onMilestoneSave;
@@ -140,35 +145,41 @@ export function useCompanion({
     async (
       trigger: AnalysisTrigger,
       generation: number,
-      snapshotOverride?: CanvasSnapshot
+      snapshotOverride?: CanvasSnapshot,
+      deltaBaselineOverride?: number
     ) => {
-    if (isSealedRef.current) return;
-
-    // Deletion + initial (resumed-draft load) both reclassify the whole canvas.
-    const isDeletion = trigger === "deletion";
-    const snapshot = snapshotOverride ?? buildSnapshotRef.current();
-    const totalWords = collectJournalWordTokens(snapshot).length;
-    const isShortEntry =
-      trigger === "pause" && totalWords <= COMPANION_SHORT_ENTRY_MAX_WORDS;
-    const isFullCanvas = isDeletion || trigger === "initial" || isShortEntry;
-    const analysisBaseline = wordsAtLastReactionRef.current;
-    const deltaBaseline = deltaBaselineRef.current;
-    const text = isFullCanvas
-      ? extractFullCanvasAnalyzeText(snapshot)
-      : extractCompanionAnalyzeText(snapshot, deltaBaseline);
-    if (!text.trim()) return;
-
-    const newWords = totalWords - deltaBaseline;
-    pendingAnalysisRef.current = true;
-
-    console.log(
-      `[🌻 companion] 🧠 runAnalysis #${generation} (${trigger}) | total: ${totalWords}w | analysing: "${text.slice(0, 60)}${text.length > 60 ? "…" : ""}"`
-    );
-
     try {
+      if (isSealedRef.current) return;
+
+      // Deletion + initial (resumed-draft load) both reclassify the whole canvas.
+      const isDeletion = trigger === "deletion";
+      const snapshot = snapshotOverride ?? buildSnapshotRef.current();
+      const totalWords = collectJournalWordTokens(snapshot).length;
+      const isShortEntry =
+        trigger === "pause" && totalWords <= COMPANION_SHORT_ENTRY_MAX_WORDS;
+      const isFullCanvas = isDeletion || trigger === "initial" || isShortEntry;
+      const analysisBaseline = wordsAtLastReactionRef.current;
+      const deltaBaseline = deltaBaselineOverride ?? deltaBaselineRef.current;
+      const text = isFullCanvas
+        ? extractFullCanvasAnalyzeText(snapshot)
+        : extractCompanionAnalyzeText(snapshot, deltaBaseline);
+      if (!text.trim()) return;
+
+      const newWords = totalWords - deltaBaseline;
+
+      console.log(
+        `[🌻 companion] 🧠 runAnalysis #${generation} (${trigger}) | total: ${totalWords}w | analysing: "${text.slice(0, 60)}${text.length > 60 ? "…" : ""}"`
+      );
+
       let analysis: CompanionAnalysis;
       let source: "claude" | "keyword";
       try {
+        if (isDeletion) {
+          deletionApiCallCountRef.current += 1;
+          console.log(
+            `[deletion-debug] API trigger | count: ${deletionApiCallCountRef.current}`
+          );
+        }
         analysis = await fetchCompanionAnalysis(text);
         if (!isCompanionEmotion(analysis.emotion)) {
           throw new Error(`Invalid emotion: ${analysis.emotion}`);
@@ -219,14 +230,19 @@ export function useCompanion({
 
       scheduleInactivityNeutral();
     } finally {
+      if (trigger === "long-writing") {
+        longWritingTriggeredRef.current = false;
+      }
       pendingAnalysisRef.current = false;
       const queued = queuedRunRef.current;
       if (queued) {
         queuedRunRef.current = null;
+        pendingAnalysisRef.current = true;
         void runAnalysis(
           queued.trigger,
           analysisGenerationRef.current,
-          queued.snapshot ?? undefined
+          queued.snapshot ?? undefined,
+          queued.deltaBaselineOverride
         );
       }
     }
@@ -240,27 +256,42 @@ export function useCompanion({
    * already running, queues only the freshest intent to run next.
    */
   const requestAnalysis = useCallback(
-    (trigger: AnalysisTrigger, snapshotOverride?: CanvasSnapshot) => {
+    (
+      trigger: AnalysisTrigger,
+      snapshotOverride?: CanvasSnapshot,
+      deltaBaselineOverride?: number
+    ) => {
       if (isSealedRef.current) return;
       const generation = ++analysisGenerationRef.current;
       if (pendingAnalysisRef.current) {
-        queuedRunRef.current = { trigger, snapshot: snapshotOverride ?? null };
+        if (trigger === "deletion") {
+          console.log("[deletion-debug] skipped | pending");
+        }
+        queuedRunRef.current = {
+          trigger,
+          snapshot: snapshotOverride ?? null,
+          deltaBaselineOverride,
+        };
         return;
       }
-      void runAnalysis(trigger, generation, snapshotOverride);
+      pendingAnalysisRef.current = true;
+      void runAnalysis(
+        trigger,
+        generation,
+        snapshotOverride,
+        deltaBaselineOverride
+      );
     },
     [runAnalysis]
   );
 
-  const shouldTriggerAnalysis = useCallback(
+  const shouldTriggerPauseAnalysis = useCallback(
     (pause: number, newWords: number, totalWords: number): boolean => {
-      const pauseTrigger =
+      return (
         pause >= COMPANION_PAUSE_TRIGGER_MS &&
         (newWords >= COMPANION_MIN_NEW_WORDS_FOR_EMOTION ||
-          (totalWords > 0 && totalWords <= COMPANION_SHORT_ENTRY_MAX_WORDS));
-      const longWritingTrigger =
-        newWords >= COMPANION_LONG_WRITING_WORD_THRESHOLD;
-      return pauseTrigger || longWritingTrigger;
+          (totalWords > 0 && totalWords <= COMPANION_SHORT_ENTRY_MAX_WORDS))
+      );
     },
     []
   );
@@ -278,26 +309,19 @@ export function useCompanion({
       const currentWords = collectJournalWordTokens(snapshot).length;
       const newWords = currentWords - deltaBaselineRef.current;
 
-      if (!shouldTriggerAnalysis(pause, newWords, currentWords)) return;
-
-      const trigger: AnalysisTrigger =
-        newWords >= COMPANION_LONG_WRITING_WORD_THRESHOLD &&
-        pause < COMPANION_PAUSE_TRIGGER_MS
-          ? "long-writing"
-          : "pause";
+      if (!shouldTriggerPauseAnalysis(pause, newWords, currentWords)) return;
 
       const shortEntry =
-        trigger === "pause" &&
         currentWords <= COMPANION_SHORT_ENTRY_MAX_WORDS &&
         newWords < COMPANION_MIN_NEW_WORDS_FOR_EMOTION;
 
       console.log(
-        `[🌻 companion] 🎯 ${trigger}${shortEntry ? " (short entry)" : ""} | paused ${(pause / 1000).toFixed(0)}s | +${newWords} words (${currentWords}w total) → analysis`
+        `[🌻 companion] 🎯 pause${shortEntry ? " (short entry)" : ""} | paused ${(pause / 1000).toFixed(0)}s | +${newWords} words (${currentWords}w total) → analysis`
       );
       pauseTriggeredRef.current = true;
-      requestAnalysis(trigger);
+      requestAnalysis("pause");
     }, COMPANION_POLL_INTERVAL_MS);
-  }, [requestAnalysis, shouldTriggerAnalysis]);
+  }, [requestAnalysis, shouldTriggerPauseAnalysis]);
 
   const resolveWordCount = useCallback((raw: number): number => {
     const previous = lastWordCountRef.current;
@@ -353,6 +377,9 @@ export function useCompanion({
       }
 
       console.log(
+        `[deletion-debug] threshold crossed | deleted: ${deletedSinceAnalysis}w`
+      );
+      console.log(
         `[🌻 companion] 🗑️ deletion settled | -${deletedSinceAnalysis}w → re-analyze full canvas`
       );
       pauseTriggeredRef.current = true;
@@ -375,16 +402,15 @@ export function useCompanion({
   const scheduleSleepIdle = useCallback(() => {
     clearTimeoutRef(sleepTimerRef);
     sleepTimerRef.current = window.setTimeout(() => {
-      if (isSealedRef.current) return;
       console.log("[🌻 companion] 😴 sleep (4.5 min inactivity)");
       blobRef.current?.onEmotionFromWriting("sleep");
     }, SLEEP_CANVAS_IDLE_MS);
   }, []);
 
   const onCanvasActivity = useCallback(() => {
-    if (isSealedRef.current) return;
     blobRef.current?.onWakeFromSleep();
     scheduleSleepIdle();
+    if (isSealedRef.current) return;
     scheduleInactivityNeutral();
   }, [scheduleSleepIdle, scheduleInactivityNeutral]);
 
@@ -420,6 +446,7 @@ export function useCompanion({
       wordsAtLastReactionRef.current = 0;
       deltaBaselineRef.current = 0;
       deletionFloorRef.current = null;
+      longWritingTriggeredRef.current = false;
       latestLiveSnapshotRef.current = null;
       return;
     }
@@ -453,13 +480,15 @@ export function useCompanion({
     if (
       newWords >= COMPANION_LONG_WRITING_WORD_THRESHOLD &&
       !pendingAnalysisRef.current &&
-      !pauseTriggeredRef.current
+      !longWritingTriggeredRef.current
     ) {
+      const sinceBaseline = deltaBaselineRef.current;
+      deltaBaselineRef.current = currentWordCount;
+      longWritingTriggeredRef.current = true;
       console.log(
         `[🌻 companion] 🎯 long-writing | +${newWords} words → analysis`
       );
-      pauseTriggeredRef.current = true;
-      requestAnalysis("long-writing");
+      requestAnalysis("long-writing", snapshot, sinceBaseline);
     }
   },
   [
@@ -480,6 +509,7 @@ export function useCompanion({
     clearTimeoutRef(saveTimerRef);
     clearTimeoutRef(sleepTimerRef);
     pendingAnalysisRef.current = false;
+    longWritingTriggeredRef.current = false;
     // Invalidate any in-flight analysis and drop the queue.
     analysisGenerationRef.current += 1;
     queuedRunRef.current = null;
@@ -491,6 +521,7 @@ export function useCompanion({
     clearTimeoutRef(saveTimerRef);
     pendingAnalysisRef.current = false;
     pauseTriggeredRef.current = false;
+    longWritingTriggeredRef.current = false;
     // Invalidate any in-flight analysis and drop the queue.
     analysisGenerationRef.current += 1;
     queuedRunRef.current = null;
@@ -581,6 +612,7 @@ export function useCompanion({
     onCanvasActivity,
     resetSession,
     sealEntry,
+    scheduleSleepIdle,
     getSessionMeta: () => ({
       totalTextWords: collectJournalWordTokens(buildSnapshotRef.current()).length,
     }),

@@ -22,6 +22,58 @@ import {
 } from "@/components/ui/button-system";
 import { Tooltip } from "@/components/ui/tooltip";
 
+/** Equal visual inset from viewport bottom and right (px). */
+const STAMP_EDGE_INSET_PX = 32;
+const STAMP_SIZE = 132;
+const STAMP_TILT_DEG = 12;
+const STAMP_PRESS_MS = 200;
+const STAMP_IMPACT_HOLD_MS = 150;
+const STAMP_INK_FADE_MS = 420;
+const STAMP_PRESS_SCALE = 0.92;
+const STAMP_TILT = `rotate(var(--stamp-imprint-tilt, -${STAMP_TILT_DEG}deg))`;
+
+/**
+ * Rotating a square around its center makes the visual bounds extend past the
+ * layout box. Nudge bottom/right so the tilted stamp sits the same distance
+ * from each viewport edge.
+ */
+function stampAlignedCornerInsets(
+  size: number,
+  insetPx: number,
+  tiltDeg: number,
+): Pick<React.CSSProperties, "bottom" | "right"> {
+  const rad = (Math.abs(tiltDeg) * Math.PI) / 180;
+  const half = size / 2;
+  const overflow = half * (Math.cos(rad) + Math.sin(rad)) - half;
+  return {
+    bottom: insetPx + overflow,
+    right: insetPx + overflow,
+  };
+}
+
+const stampImprintInsets = stampAlignedCornerInsets(
+  STAMP_SIZE,
+  STAMP_EDGE_INSET_PX,
+  STAMP_TILT_DEG,
+);
+
+/** Seal icon button — true corner inset. */
+const stampCornerAnchor: React.CSSProperties = {
+  position: "fixed",
+  bottom: STAMP_EDGE_INSET_PX,
+  right: STAMP_EDGE_INSET_PX,
+  zIndex: 20,
+};
+
+/** Stamp imprint — optical corner inset after tilt. */
+const stampImprintShell: React.CSSProperties = {
+  position: "fixed",
+  ...stampImprintInsets,
+  zIndex: 20,
+  width: STAMP_SIZE,
+  height: STAMP_SIZE,
+};
+
 const STAMP_IMAGE = "/Images/stamp.svg";
 const STAMP_INK = "158, 118, 90"; // #9E765A — matches stamp.svg border
 const STAMP_NAME_CACHE_KEY = "keeps-stamp-display-name-v2";
@@ -73,8 +125,7 @@ function formatStampDisplayText(text: string): string {
     .join(" ");
 }
 
-/** Handwritten signature face — shared with canvas signature field. */
-const STAMP_FONT_FAMILY = "var(--font-signature), cursive";
+const STAMP_FONT_FAMILY = "var(--font-bonheur-royale), cursive";
 const STAMP_LETTER_SPACING = "0.04em";
 const STAMP_WORD_SPACING = "0.005em";
 
@@ -385,17 +436,17 @@ type Phase = "idle" | "pressing" | "impact" | "lifting" | "done";
 /* ─── JournalStamp ───────────────────────────────────────────────────────── */
 
 export type JournalStampHandle = {
-  /** Run the press-and-lift animation, then call `onSeal`. */
+  /** Run the press-and-lift stamp animation. */
   playSealAnimation: () => void;
 };
 
 export interface JournalStampProps {
   /** Called when the stamp press animation begins — fire seal side-effects early. */
   onStampBegin?: () => void;
+  /** Called when the stamp face meets the page — start text preservation animation. */
+  onStampImpact?: () => void;
   /** Hover/focus on stamp — prefetch title generation before click. */
   onStampHover?: () => void;
-  /** Called after the full press-and-lift animation completes — seals entry. */
-  onSeal: () => void;
   /**
    * Whether the entry is already sealed (rehydrated from localStorage).
    * When true the imprint is shown immediately, with no animation.
@@ -406,15 +457,17 @@ export interface JournalStampProps {
 /**
  * Physical rubber-stamp interaction for sealing a journal entry.
  *
- * Animation sequence (~700 ms total):
- *   A. Press down    180 ms  — tool translates down + squashes
- *   B. Impact hold   120 ms  — brief compression at bottom
- *   C. Ink reveal    200 ms  — imprint fades + springs into view on paper
- *   D. Lift          180 ms  — tool springs back up
- *   E. Done         +220 ms  — onSeal() fires, tool hides, imprint stays
+ * Animation sequence (~770 ms total):
+ *   A. Press in place  200 ms  — uniform scale, corner pinned at 32 / 32 px
+ *   B. Hold             150 ms  — brief pause at contact
+ *   C. Ink fade         420 ms  — slow opacity fade, zero movement
+ *   D. Done              — imprint never moves again
  */
 export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
-  function JournalStamp({ onStampBegin, onStampHover, onSeal, isSealed }, ref) {
+  function JournalStamp(
+    { onStampBegin, onStampImpact, onStampHover, isSealed },
+    ref,
+  ) {
   const clerk = useClerk();
   const { isSignedIn, sessionClaims, isLoaded: authLoaded } = useAuth();
   const { session, isLoaded: sessionLoaded } = useSession();
@@ -449,6 +502,46 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
     return cached;
   }, [clerk.loaded, sessionClaims, user, session?.publicUserData]);
 
+  /** Stable primitive key — avoids re-logging when Clerk object refs change on parent re-render. */
+  const authDebugFingerprint = useMemo(() => {
+    const publicUserData = session?.publicUserData;
+    const claimsFirst =
+      typeof sessionClaims?.first_name === "string"
+        ? sessionClaims.first_name
+        : "";
+    const claimsLast =
+      typeof sessionClaims?.last_name === "string"
+        ? sessionClaims.last_name
+        : "";
+    return [
+      hasClerkPublishableKey,
+      clerk.loaded,
+      authLoaded,
+      sessionLoaded,
+      isSignedIn,
+      user?.id ?? "",
+      publicUserData?.firstName ?? "",
+      publicUserData?.lastName ?? "",
+      publicUserData?.identifier ?? "",
+      claimsFirst,
+      claimsLast,
+      userName,
+    ].join("|");
+  }, [
+    hasClerkPublishableKey,
+    clerk.loaded,
+    authLoaded,
+    sessionLoaded,
+    isSignedIn,
+    user?.id,
+    session?.publicUserData?.firstName,
+    session?.publicUserData?.lastName,
+    session?.publicUserData?.identifier,
+    sessionClaims?.first_name,
+    sessionClaims?.last_name,
+    userName,
+  ]);
+
   useEffect(() => {
     const cached = readCachedStampName();
     console.log("[🪪 stamp] auth snapshot", {
@@ -473,17 +566,9 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
       resolved: userName,
       cached,
     });
-  }, [
-    authLoaded,
-    clerk.loaded,
-    hasClerkPublishableKey,
-    isSignedIn,
-    session?.publicUserData,
-    sessionClaims,
-    sessionLoaded,
-    user,
-    userName,
-  ]);
+    // Log only when authDebugFingerprint changes (mount + real auth/name updates).
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- fingerprint encodes all auth primitives
+  }, [authDebugFingerprint]);
 
   useEffect(() => {
     if (!clerk.loaded || !user || userName) return;
@@ -492,6 +577,8 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [imprintVisible, setImprintVisible] = useState(false);
+  const [pressEngaged, setPressEngaged] = useState(false);
+  const sealStartedRef = useRef(false);
 
   /* Stable random values — chosen once per mount for ink realism */
   const [inkAlpha] = useState(() => 0.7 + Math.random() * 0.17); // 0.70…0.87
@@ -501,6 +588,7 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
   /* Keep imprint visible whenever sealed — covers hydration and post-animation. */
   useEffect(() => {
     if (isSealed) {
+      sealStartedRef.current = true;
       setImprintVisible(true);
       setPhase("done");
     }
@@ -511,8 +599,24 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
     return () => timerIds.current.forEach(clearTimeout);
   }, []);
 
+  /* Uniform in-place press — scale on the next frame after contact. */
+  useEffect(() => {
+    if (phase !== "pressing") {
+      setPressEngaged(false);
+      return;
+    }
+    const id = requestAnimationFrame(() => setPressEngaged(true));
+    return () => cancelAnimationFrame(id);
+  }, [phase]);
+
   const playSealAnimation = useCallback(() => {
-    if (phase !== "idle" || isSealed) return;
+    if (sealStartedRef.current || isSealed) return;
+    sealStartedRef.current = true;
+
+    console.log(
+      "[🪪 stamp] seal animation started — name:",
+      userName ? `"${userName}"` : "(none)",
+    );
 
     onStampBegin?.();
 
@@ -521,120 +625,112 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
       timerIds.current.push(id);
     };
 
-    // A) Press down — 180 ms
+    setImprintVisible(false);
+    setPressEngaged(false);
     setPhase("pressing");
 
     push(() => {
-      // B) Impact hold — 120 ms
       setPhase("impact");
+      onStampImpact?.();
 
       document.body.classList.add("stamp-impact");
-      setTimeout(() => document.body.classList.remove("stamp-impact"), 300);
+      setTimeout(() => document.body.classList.remove("stamp-impact"), 360);
 
       push(() => {
-        // C) Ink starts appearing — 200 ms transition handled by CSS
         setImprintVisible(true);
+        setPhase("lifting");
 
-        // D) Lift begins simultaneously with ink reveal
         push(() => {
-          setPhase("lifting");
-
-          // E) Fully lifted — fire seal callback
-          push(() => {
-            setPhase("done");
-            onSeal();
-          }, 220);
-        }, 180);
-      }, 120);
-    }, 180);
-  }, [phase, isSealed, onSeal, onStampBegin]);
+          setPhase("done");
+        }, STAMP_INK_FADE_MS);
+      }, STAMP_IMPACT_HOLD_MS);
+    }, STAMP_PRESS_MS);
+  }, [isSealed, onStampBegin, onStampImpact, userName]);
 
   useImperativeHandle(ref, () => ({ playSealAnimation }), [playSealAnimation]);
 
-  const handleStampClick = useCallback(() => {
-    if (phase !== "idle" || isSealed) return;
+  const startSeal = useCallback(() => {
     playSealAnimation();
-  }, [phase, isSealed, playSealAnimation]);
+  }, [playSealAnimation]);
 
-  /* ── Tool transform — presses down on click, springs back on lift ── */
-  const toolIsDown = phase === "pressing" || phase === "impact";
+  const isOnPaper = imprintVisible || isSealed;
+  const showRubberStamp = phase !== "idle" || isOnPaper;
+  const showSealButton = !isSealed && phase === "idle";
 
-  const toolStyle: React.CSSProperties = {
-    transform: toolIsDown
-      ? "translateY(20px) scaleY(0.91)"
-      : "translateY(0px) scaleY(1)",
-    transformOrigin: "50% 100%",
+  /** One transform for every phase after contact — no translate, no axis squash. */
+  const stampFaceTransform =
+    phase === "pressing" && !pressEngaged
+      ? `${STAMP_TILT} scale(${STAMP_PRESS_SCALE})`
+      : `${STAMP_TILT} scale(1)`;
+
+  const stampFaceStyle: React.CSSProperties = {
+    width: "100%",
+    height: "100%",
+    transformOrigin: "50% 50%",
+    transform: stampFaceTransform,
+    opacity: isOnPaper ? inkAlpha : 1,
+    mixBlendMode: isOnPaper ? "multiply" : "normal",
     transition:
-      phase === "pressing"
-        ? "transform 180ms cubic-bezier(0.55, 0, 1, 0.45)"
-        : phase === "lifting"
-          ? "transform 220ms cubic-bezier(0, 0, 0.2, 1)"
-          : "none",
+      phase === "done"
+        ? "none"
+        : isOnPaper || phase === "lifting"
+          ? `opacity ${STAMP_INK_FADE_MS}ms ease-out`
+          : phase === "pressing" && pressEngaged
+            ? `transform ${STAMP_PRESS_MS}ms cubic-bezier(0.33, 1, 0.68, 1)`
+            : "none",
   };
 
-  const showImprint = imprintVisible || isSealed;
+  const prevShowImprintRef = useRef(false);
 
   useEffect(() => {
-    if (!showImprint) return;
+    if (!isOnPaper || prevShowImprintRef.current) return;
+    prevShowImprintRef.current = true;
     console.log(
       "[🪪 stamp] imprint on page — name:",
       userName ? `"${userName}"` : "(none — sign in with Google or add Clerk keys)",
     );
-  }, [showImprint, userName]);
-
-  /** Right edge of the centered writing column (matches canvas-board layout). */
-  const writingColumnRight =
-    "calc(max(1.5rem, (100vw - min(92vw, 700px)) / 2) + 1.5rem)";
-
-  /* ── Imprint — bottom edge at 100svh; fixed so it stays while content scrolls ── */
-  const imprintStyle: React.CSSProperties = {
-    position: "fixed",
-    top: "100svh",
-    right: writingColumnRight,
-    zIndex: 20,
-    pointerEvents: "none",
-    transformOrigin: "100% 100%",
-    transform: `translateY(-100%) rotate(var(--stamp-imprint-tilt, -10deg)) scale(${showImprint ? 1 : 0.75})`,
-    opacity: showImprint ? inkAlpha : 0,
-    transition: showImprint
-      ? "transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1), opacity 240ms ease-out"
-      : "none",
-    mixBlendMode: "multiply",
-  };
-
-  const imprint = (
-    <div style={imprintStyle} aria-hidden>
-      <StampFace userName={userName} size={132} inkAlpha={0.88} />
-    </div>
-  );
-
-  const showTool = !isSealed && phase !== "done";
+  }, [isOnPaper, userName]);
 
   return (
     <>
-      {showImprint && imprint}
+      {showRubberStamp && (
+        <div style={{ ...stampImprintShell, pointerEvents: "none" }} aria-hidden>
+          <div style={stampFaceStyle}>
+            <StampFace
+              userName={userName}
+              size={STAMP_SIZE}
+              inkAlpha={isOnPaper ? 0.88 : 0.95}
+            />
+          </div>
+        </div>
+      )}
 
-      {/* ── Stamp tool — icon button, bottom-right of canvas ── */}
-      {showTool && (
-        <div
-          className="pointer-events-auto fixed bottom-5 right-5 z-20"
-          style={toolStyle}
-        >
+      {/* ── Seal control — icon at rest; one rubber stamp handles press + imprint ── */}
+      {showSealButton && (
+        <div className="pointer-events-auto" style={stampCornerAnchor}>
           <Tooltip content="Seal forever">
             <button
               type="button"
-              onClick={handleStampClick}
+              onPointerDown={(e) => {
+                e.preventDefault();
+                startSeal();
+              }}
+              onKeyDown={(e) => {
+                if (e.key !== "Enter" && e.key !== " ") return;
+                e.preventDefault();
+                startSeal();
+              }}
+              onClick={(e) => e.preventDefault()}
               onPointerEnter={onStampHover}
               onFocus={onStampHover}
               aria-label="Seal this entry forever"
-              disabled={phase !== "idle"}
-              className={`group shrink-0 cursor-pointer select-none outline-none disabled:cursor-default ${btnIcon("lg")} ${btnState.default} ${btnState.hover} ${btnState.active} ${btnState.disabled}`}
+              className={`group shrink-0 cursor-pointer select-none outline-none ${btnIcon("lg")} ${btnState.default} ${btnState.hover} ${btnState.active}`}
             >
               <Stamp
                 size={iconPx("lg")}
                 strokeWidth={iconStroke("lg")}
                 aria-hidden
-                className={`${iconFixed} origin-center transition-transform duration-200 ease-out group-hover:rotate-12 group-disabled:rotate-0`}
+                className={`${iconFixed} origin-center transition-transform duration-200 ease-out group-hover:rotate-12`}
               />
             </button>
           </Tooltip>

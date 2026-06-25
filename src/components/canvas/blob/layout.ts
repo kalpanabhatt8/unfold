@@ -119,8 +119,12 @@ export const GREETING_LEFT_PCT = 62;
 export const GREETING_BOTTOM_PCT = 78;
 /** Gap between whisper bubble and top of flower box (px). */
 export const WHISPER_GAP_PX = 10;
-/** Seal reaction whisper — muted warm tone, italic above the flower. */
-export const WHISPER_COLOR = "#9A7B5A";
+/** Curved whisper arc — gentle bow above the flower head (matches mock). */
+export const WHISPER_ARC_MIN_WIDTH_PX = 108;
+export const WHISPER_ARC_MAX_WIDTH_PX = 196;
+export const WHISPER_ARC_CHAR_WIDTH_PX = 7.4;
+export const WHISPER_ARC_PEAK_Y_PX = 5;
+export const WHISPER_ARC_BASELINE_Y_PX = 26;
 export const SEAL_WHISPER_FADE_IN_MS = 1_000;
 export const SEAL_WHISPER_STAY_MS = 5_000;
 export const SEAL_WHISPER_FADE_OUT_MS = 1_500;

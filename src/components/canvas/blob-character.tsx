@@ -5,7 +5,7 @@
 export { default } from "./blob/blob-character";
 export { useBlobState } from "./blob/use-blob-state";
 export type { UseBlobStateOptions } from "./blob/use-blob-state";
-export { GREETING_DURATION_MS, EMOTION_REACTION_MS } from "./blob/use-blob-state";
+export { GREETING_DURATION_MS } from "./blob/use-blob-state";
 
 export type {
   BlobPose,

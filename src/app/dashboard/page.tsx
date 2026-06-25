@@ -31,14 +31,7 @@ import { hasBookTitle, resolveBookDisplayTitle } from "@/lib/book-title";
 const Dashboard = () => {
   const router = useRouter();
   const pathname = usePathname();
-  const [recentBooks, setRecentBooks] = useState<RecentBook[]>(() => {
-    if (typeof window === "undefined") return [];
-    try {
-      return readRecentBooks();
-    } catch {
-      return [];
-    }
-  });
+  const [recentBooks, setRecentBooks] = useState<RecentBook[]>([]);
 
   const createDraftId = (prefix: string) =>
     `${prefix}-${Date.now().toString(36)}${Math.random()

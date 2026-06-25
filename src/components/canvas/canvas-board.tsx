@@ -27,7 +27,6 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { flushSync } from "react-dom";
 import clsx from "clsx";
 import Image from "next/image";
 import {
@@ -38,26 +37,36 @@ import {
   Trash2,
 } from "lucide-react";
 import { JournalStamp, type JournalStampHandle } from "@/components/canvas/journal-stamp";
+import {
+  JournalTiptapEditor,
+  type JournalTiptapEditorHandle,
+} from "@/components/canvas/journal-tiptap-editor";
 import { UnfinishedDraftPrompt } from "@/components/canvas/unfinished-draft-prompt";
 import { iconStrokePx } from "@/components/ui/button-system";
 import { Tooltip } from "@/components/ui/tooltip";
 import { hasBookTitle, BOOK_TITLE_PLACEHOLDER, clampBookTitle, commitBookTitle, MAX_BOOK_TITLE_CHARS } from "@/lib/book-title";
+import { JOURNAL_SEAL_ANIM_MS } from "@/lib/journal-seal-animation";
 import BlobCharacter, {
   type BlobEmotion,
   type BlobPose,
   useBlobState,
 } from "@/components/canvas/blob-character";
 import { EntranceGreeting } from "@/components/canvas/blob/entrance-greeting";
-import { WHISPER_COLOR } from "@/components/canvas/blob/layout";
 import { useCompanion } from "@/hooks/use-companion";
 import {
   collectJournalWordTokens,
   extractJournalPlainText,
-  mergeBlockTextOverride,
-  mergeLiveTextareaSnapshot,
-  mergeSignatureOverride,
+  // mergeSignatureOverride,
 } from "@/lib/canvas-word-count";
-import { UNFINISHED_DRAFT_PROMPT_MS } from "@/lib/companion-pause";
+import {
+  createWritingSlots,
+  emptyParagraph,
+  newBlockId as newId,
+} from "@/lib/journal-blocks";
+import {
+  UNFINISHED_DRAFT_PROMPT_MS,
+} from "@/lib/companion-pause";
+
 import {
   clearSealTitlePrefetch,
   fetchJournalTitle,
@@ -67,7 +76,6 @@ import {
   warmJournalTitleRoute,
 } from "@/lib/journal-title";
 import { fetchJournalWhisper } from "@/lib/journal-whisper";
-import { getTextareaCaretOffsetInTextareaPx } from "@/lib/textarea-caret-offset";
 
 /* -------------------------------------------------------------------------- */
 /*  Types                                                                     */
@@ -135,8 +143,6 @@ export const CANVAS_RECESS = "var(--canvas-recess)";
 /** Centered writing column width. */
 const WRITING_COLUMN_MAX_WIDTH = "min(92vw, 700px)";
 
-const TEXT_COLUMN_GAP = 32;
-
 /** Vertical breathing room at the top and bottom of the page. */
 const PAGE_PADDING_Y = 88;
 /** Keep active typing line comfortably above the viewport bottom. */
@@ -148,37 +154,6 @@ const WRITING_LINE_HEIGHT = 1.75;
 const WRITING_LETTER_SPACING = "0.005em";
 const WRITING_WORD_SPACING = "0.005em";
 const WRITING_INK = "var(--canvas-ink)";
-const WRITING_PLACEHOLDER = "Start writing…";
-
-/** Fixed journal slots — no ad-hoc blocks beyond this count. */
-const MAX_WRITING_BLOCKS = 7;
-
-const columnBlockCount = (col: JournalTextBlock[]) => col.length;
-
-const firstEmptyBlockInColumn = (
-  col: JournalTextBlock[]
-): JournalTextBlock | null =>
-  col.find((b) => b.text.length === 0) ?? null;
-
-/** Filled blocks plus one trailing empty slot — avoids painting padded empty slots. */
-const visibleBlocksInColumn = (
-  col: JournalTextBlock[],
-  activeBlockId: string | null
-): JournalTextBlock[] => {
-  let lastWithText = -1;
-  for (let i = 0; i < col.length; i++) {
-    if (col[i].text.length > 0) lastWithText = i;
-  }
-  const activeIdx =
-    activeBlockId != null
-      ? col.findIndex((b) => b.id === activeBlockId)
-      : -1;
-  const end = Math.min(
-    col.length - 1,
-    Math.max(lastWithText + 1, activeIdx >= 0 ? activeIdx + 1 : 0, 0)
-  );
-  return col.slice(0, end + 1);
-};
 
 /** Polaroid frame visual constants (tuned for the narrow 200px column). */
 const POLAROID_PAD_X = 10;
@@ -199,9 +174,6 @@ const TEXT_CTX_SELECTION_MIN = 4;
 /*  Helpers                                                                   */
 /* -------------------------------------------------------------------------- */
 
-const newId = () =>
-  `el-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
-
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null;
 
@@ -210,25 +182,6 @@ const arrayOrEmpty = <T,>(v: unknown): T[] =>
 
 const clamp = (v: number, min: number, max: number) =>
   Math.min(max, Math.max(min, v));
-
-const emptyParagraph = (): JournalTextBlock => ({
-  id: newId(),
-  blockKind: "paragraph",
-  text: "",
-});
-
-const createWritingSlots = (count = MAX_WRITING_BLOCKS): JournalTextBlock[] =>
-  Array.from({ length: count }, () => emptyParagraph());
-
-/** Pad a column up to the fixed slot count without removing existing blocks. */
-const padWritingSlots = (col: JournalTextBlock[]): JournalTextBlock[] => {
-  if (col.length >= MAX_WRITING_BLOCKS) return col;
-  const padded = col.slice();
-  while (padded.length < MAX_WRITING_BLOCKS) {
-    padded.push(emptyParagraph());
-  }
-  return padded;
-};
 
 /**
  * Adjust the column tracks to a new column count without redistributing
@@ -466,9 +419,6 @@ export function normalizeSnapshot(value: unknown): CanvasSnapshot | null {
     textColumns.length === 0 ? [createWritingSlots()] : textColumns,
     columns
   );
-  textColumns = textColumns.map((col, idx) =>
-    idx === 0 ? padWritingSlots(col) : col
-  );
 
   const imageBlocks = arrayOrEmpty<unknown>(value.imageBlocks)
     .map(sanitizeImage)
@@ -548,103 +498,6 @@ const fileToDataUrl = (file: File): Promise<string> =>
     reader.readAsDataURL(file);
   });
 
-/**
- * Approximate x-offset (px) from the textarea's left border to `index`,
- * using canvas measureText — **fallback only** when mirror layout fails
- * (e.g. zero-width textarea); wrong for soft-wrap.
- */
-const approxCharXInTextarea = (
-  el: HTMLTextAreaElement,
-  index: number
-): number => {
-  const cs = window.getComputedStyle(el);
-  const font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
-  const padL = parseFloat(cs.paddingLeft) || 0;
-  const safe = Math.max(0, Math.min(index, el.value.length));
-  const before = el.value.slice(0, safe);
-  const lineStart = before.lastIndexOf("\n") + 1;
-  const linePrefix = before.slice(lineStart);
-  const canvas = document.createElement("canvas");
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return padL;
-  ctx.font = font;
-  return padL + ctx.measureText(linePrefix).width - el.scrollLeft;
-};
-
-/**
- * Approximate Y — **fallback only**; newline × line-height (wrong for soft-wrap).
- */
-const approxCaretYInTextarea = (
-  el: HTMLTextAreaElement,
-  index: number
-): number => {
-  const cs = window.getComputedStyle(el);
-  const padTop = parseFloat(cs.paddingTop) || 0;
-  const lineHeight =
-    parseFloat(cs.lineHeight) ||
-    parseFloat(cs.fontSize) * WRITING_LINE_HEIGHT;
-  const safe = Math.max(0, Math.min(index, el.value.length));
-  const before = el.value.slice(0, safe);
-  const newlineCount = (before.match(/\n/g) ?? []).length;
-  return padTop + newlineCount * lineHeight - el.scrollTop;
-};
-
-/** Caret (left, top) inside the textarea border box; mirror div handles soft-wrap. */
-const caretOffsetInTextarea = (
-  el: HTMLTextAreaElement,
-  index: number
-): { left: number; top: number } => {
-  try {
-    const m = getTextareaCaretOffsetInTextareaPx(el, index);
-    if (m) return m;
-  } catch {
-    /* mirror must never break typing / selection UI */
-  }
-  return {
-    left: approxCharXInTextarea(el, index),
-    top: approxCaretYInTextarea(el, index),
-  };
-};
-
-/** Keep the caret inside the writing scrollport — avoids focus() jumping to block top. */
-const caretOffsetInScrollContent = (
-  scrollEl: HTMLDivElement,
-  ta: HTMLTextAreaElement,
-  caretIndex: number
-): number => {
-  const scrollRect = scrollEl.getBoundingClientRect();
-  const taRect = ta.getBoundingClientRect();
-  const caret = caretOffsetInTextarea(ta, caretIndex);
-  return scrollEl.scrollTop + (taRect.top - scrollRect.top) + caret.top;
-};
-
-const scrollCaretIntoWritingView = (
-  scrollEl: HTMLDivElement,
-  ta: HTMLTextAreaElement,
-  caretIndex: number
-) => {
-  const caret = caretOffsetInTextarea(ta, caretIndex);
-  const taRect = ta.getBoundingClientRect();
-  const scrollRect = scrollEl.getBoundingClientRect();
-  const cs = window.getComputedStyle(ta);
-  const lineHeight =
-    parseFloat(cs.lineHeight) ||
-    parseFloat(cs.fontSize) * WRITING_LINE_HEIGHT;
-
-  const caretTop = taRect.top + caret.top;
-  const caretBottom = caretTop + lineHeight;
-
-  const minTop = scrollRect.top + PAGE_PADDING_Y;
-  const maxBottom =
-    scrollRect.bottom - PAGE_PADDING_Y - SCROLL_COMFORT_BOTTOM;
-
-  if (caretBottom > maxBottom) {
-    scrollEl.scrollTop += caretBottom - maxBottom;
-  } else if (caretBottom < minTop) {
-    scrollEl.scrollTop -= minTop - caretTop;
-  }
-};
-
 /* -------------------------------------------------------------------------- */
 /*  Top-level component                                                       */
 /* -------------------------------------------------------------------------- */
@@ -704,14 +557,25 @@ function CanvasBoardInner(
   }: CanvasBoardProps,
   ref: React.ForwardedRef<CanvasBoardHandle>
 ) {
-  const [textColumns, setTextColumns] = useState<JournalTextBlock[][]>(() => [
-    createWritingSlots(),
-  ]);
+  const [journalBlocks, setJournalBlocks] = useState<JournalTextBlock[]>(() =>
+    createWritingSlots()
+  );
+  const journalBlocksRef = useRef(journalBlocks);
+  journalBlocksRef.current = journalBlocks;
+  const [editorContentKey, setEditorContentKey] = useState(0);
+  const journalEditorRef = useRef<JournalTiptapEditorHandle>(null);
+  const textColumns = useMemo(() => [journalBlocks], [journalBlocks]);
+  const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
   const [imageBlocks, setImageBlocks] = useState<JournalImage[]>([]);
-  const [signature, setSignature] = useState("");
+  // Signature — disabled for now
+  // const [signature, setSignature] = useState("");
+  // const [signatureFieldOpen, setSignatureFieldOpen] = useState(false);
   const [sealedAt, setSealedAt] = useState<number | null>(null);
+  const [isSealing, setIsSealing] = useState(false);
   const stampRef = useRef<JournalStampHandle>(null);
   const sealWhisperStartedRef = useRef(false);
+  const sealAnimTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const writingZoneRef = useRef<HTMLDivElement | null>(null);
   const [showUnfinishedPrompt, setShowUnfinishedPrompt] = useState(false);
   const unfinishedPromptCheckedRef = useRef(false);
   // Column layout has been retired from the UI; we keep the snapshot field
@@ -721,45 +585,35 @@ function CanvasBoardInner(
   const [lastSavedAt, setLastSavedAt] = useState<number>(() => sessionEditedAt);
   const [showSavingLabel, setShowSavingLabel] = useState(false);
   const savingLabelTimerRef = useRef<number | null>(null);
-  // TEMP: paste blocking disabled — re-enable when done testing
-  // /** Brief "pasting disabled" notice shown when a paste is blocked. */
-  // const [pasteBlockedToast, setPasteBlockedToast] = useState(false);
-  // const pasteToastTimerRef = useRef<number | null>(null);
   /** Snapshot `updatedAt` — frozen while editing; bumped only on close. */
   const snapshotEditedAtRef = useRef<number>(sessionEditedAt);
   /** Header stamp — frozen for this mount; never follows wall clock. */
   const [headerDisplayedAt] = useState(() => sessionEditedAt);
 
-  const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
-  const [rangeAnchorId, setRangeAnchorId] = useState<string | null>(null);
-  const [selectedBlockIds, setSelectedBlockIds] = useState<string[]>([]);
-  /** True after Cmd/Ctrl+A — one textarea per block can't share a native range. */
-  const [journalAllSelected, setJournalAllSelected] = useState(false);
+
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
 
   const outerRef = useRef<HTMLDivElement | null>(null);
-  const writingRef = useRef<HTMLDivElement | null>(null);
   /** Scrollport for the writing column only — page / left rail stay fixed. */
   const writingScrollRef = useRef<HTMLDivElement | null>(null);
   const imageFileInputRef = useRef<HTMLInputElement | null>(null);
-  const textRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
-  const signatureRef = useRef<HTMLTextAreaElement | null>(null);
+  // const signatureRef = useRef<HTMLTextAreaElement | null>(null);
   const hydratedRef = useRef(false);
   const [isContentReady, setIsContentReady] = useState(false);
-  const focusAfterRender = useRef<{
-    id: string;
-    position: "start" | "end" | number;
-  } | null>(null);
-  /** Caret Y inside the writing scrollport — preserved across Enter reflows. */
-  const scrollAnchorRef = useRef<number | null>(null);
 
   /* ---------------------------- Blob companion ---------------------------- */
+
+  const armIdleSleepRef = useRef<() => void>(() => {});
 
   const blobEnterOnMount = useMemo(
     () => !isSealedSnapshotOnLoad(storageKey, initialSnapshot),
     [initialSnapshot, storageKey]
   );
-  const blob = useBlobState({ bookId, enterOnMount: blobEnterOnMount });
+  const blob = useBlobState({
+    bookId,
+    enterOnMount: blobEnterOnMount,
+    onSealWhisperSettled: () => armIdleSleepRef.current(),
+  });
 
   /* ------------------------------ Hydration ------------------------------ */
 
@@ -768,23 +622,16 @@ function CanvasBoardInner(
     hydratedRef.current = true;
 
     const apply = (snap: CanvasSnapshot) => {
-      // Collapse any legacy multi-column snapshots down to a single track so
-      // the UI matches the simplified spec without losing existing content.
-      setTextColumns(
-        adjustColumns(snap.textColumns, 1).map((col, idx) =>
-          idx === 0 ? padWritingSlots(col) : col
-        )
-      );
+      const cols = adjustColumns(snap.textColumns, 1);
+      const blocks = cols[0] ?? createWritingSlots();
+      journalBlocksRef.current = blocks;
+      setJournalBlocks(blocks);
+      setEditorContentKey((k) => k + 1);
       setImageBlocks(snap.imageBlocks);
-      setSignature(snap.signature ?? "");
+      // setSignature(snap.signature ?? "");
       if (snap.sealedAt) setSealedAt(snap.sealedAt);
       snapshotEditedAtRef.current = sessionEditedAt;
       setLastSavedAt(sessionEditedAt);
-      const first = snap.textColumns[0]?.[0];
-      if (first) {
-        focusAfterRender.current = { id: first.id, position: "start" };
-        setActiveBlockId(first.id);
-      }
     };
 
     try {
@@ -808,12 +655,6 @@ function CanvasBoardInner(
         }
         return;
       }
-
-      const first = textColumns[0]?.[0];
-      if (first) {
-        focusAfterRender.current = { id: first.id, position: "start" };
-        setActiveBlockId(first.id);
-      }
     } catch {
       if (initialSnapshot) {
         const norm = normalizeSnapshot(initialSnapshot) ?? emptySnapshot();
@@ -828,36 +669,24 @@ function CanvasBoardInner(
   /* ----------------------- Snapshot mirroring + save ---------------------- */
 
   const buildSnapshot = useCallback((): CanvasSnapshot => {
-    const liveTextColumns = textColumns.map((col) =>
-      col.map((block) => {
-        const el = textRefs.current[block.id];
-        if (el) return { ...block, text: el.value };
-        return block;
-      })
-    );
-
-    const liveSignature = signatureRef.current?.value ?? signature;
-
     return {
       version: CANVAS_SNAPSHOT_VERSION,
-      textColumns: liveTextColumns,
+      textColumns: [journalBlocks],
       imageBlocks,
       background: CANVAS_BACKGROUND,
       columns,
-      signature: liveSignature,
+      signature: "",
       sealedAt: sealedAt ?? undefined,
       updatedAt: snapshotEditedAtRef.current,
     };
-  }, [columns, imageBlocks, sealedAt, signature, textColumns]);
+  }, [columns, imageBlocks, journalBlocks, sealedAt]);
 
   const buildLiveCompanionSnapshot = useCallback((): CanvasSnapshot => {
-    let snap = buildSnapshot();
-    snap = mergeLiveTextareaSnapshot(snap, textRefs.current);
-    if (signatureRef.current) {
-      snap = mergeSignatureOverride(snap, signatureRef.current.value);
-    }
-    return snap;
+    return buildSnapshot();
   }, [buildSnapshot]);
+
+  const buildLiveCompanionSnapshotRef = useRef(buildLiveCompanionSnapshot);
+  buildLiveCompanionSnapshotRef.current = buildLiveCompanionSnapshot;
 
   const clearSavingLabelTimer = useCallback(() => {
     if (savingLabelTimerRef.current !== null) {
@@ -921,21 +750,13 @@ function CanvasBoardInner(
       onCanvasEmpty: blob.resetCompanionState,
     },
   });
+  armIdleSleepRef.current = companion.scheduleSleepIdle;
 
-  const notifyCompanionWriting = useCallback(
-    (patch?: { blockId?: string; text?: string; signature?: string }) => {
-      let snap = buildLiveCompanionSnapshot();
-      if (patch?.blockId !== undefined && patch.text !== undefined) {
-        snap = mergeBlockTextOverride(snap, patch.blockId, patch.text);
-      }
-      if (patch?.signature !== undefined) {
-        snap = mergeSignatureOverride(snap, patch.signature);
-      }
-      const wordCount = collectJournalWordTokens(snap).length;
-      companion.onWritingActivity({ snapshot: snap, wordCount });
-    },
-    [buildLiveCompanionSnapshot, companion]
-  );
+  const notifyCompanionWriting = useCallback(() => {
+    const snap = buildLiveCompanionSnapshotRef.current();
+    const wordCount = collectJournalWordTokens(snap).length;
+    companion.onWritingActivity({ snapshot: snap, wordCount });
+  }, [companion]);
 
   const beginSealWhisper = useCallback(() => {
     if (sealedAt !== null || sealWhisperStartedRef.current) return;
@@ -945,6 +766,7 @@ function CanvasBoardInner(
     const text = extractJournalPlainText(snap);
     if (!text.trim()) {
       blob.enterSealedNeutral();
+      armIdleSleepRef.current();
       return;
     }
 
@@ -1020,12 +842,45 @@ function CanvasBoardInner(
     title,
   ]);
 
-  // Rehydrated sealed entry — calm neutral companion (no whisper replay).
+  const handleStampImpact = useCallback(() => {
+    if (sealedAt !== null || isSealing) return;
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      handleSeal();
+      return;
+    }
+
+    journalEditorRef.current?.lock();
+    setIsSealing(true);
+    writingZoneRef.current?.setAttribute("data-sealing", "");
+
+    if (sealAnimTimerRef.current) {
+      clearTimeout(sealAnimTimerRef.current);
+    }
+    sealAnimTimerRef.current = setTimeout(() => {
+      sealAnimTimerRef.current = null;
+      writingZoneRef.current?.removeAttribute("data-sealing");
+      handleSeal();
+      setIsSealing(false);
+    }, JOURNAL_SEAL_ANIM_MS);
+  }, [handleSeal, isSealing, sealedAt]);
+
+  useEffect(() => {
+    return () => {
+      if (sealAnimTimerRef.current) {
+        clearTimeout(sealAnimTimerRef.current);
+      }
+    };
+  }, []);
+
+  // Rehydrated sealed entry — calm and awake; sleep after 4.5 min idle (same as writing).
   useEffect(() => {
     if (!isContentReady || sealedAt === null || sealWhisperStartedRef.current) {
       return;
     }
+
     blob.enterSealedNeutral();
+    armIdleSleepRef.current();
   }, [blob, isContentReady, sealedAt]);
 
   useEffect(() => {
@@ -1153,207 +1008,19 @@ function CanvasBoardInner(
     [buildSnapshot, blob, companion]
   );
 
-  /* --------------------------- Focus management --------------------------- */
+  /* --------------------------- Focus / selection --------------------------- */
 
-  const focusBlock = useCallback(
-    (id: string, position: "start" | "end" | number = "end") => {
-      focusAfterRender.current = { id, position };
-    },
-    []
-  );
-
-  const clearJournalSelectAll = useCallback(() => {
-    setJournalAllSelected(false);
+  const handleJournalBlocksChange = useCallback((blocks: JournalTextBlock[]) => {
+    journalBlocksRef.current = blocks;
+    setJournalBlocks(blocks);
   }, []);
 
-  /** Multi-textarea journal — native Cmd/Ctrl+A only hits one block; select all rows. */
-  const selectAllJournalText = useCallback(
-    (activeId: string) => {
-      const ids: string[] = [];
-      for (const col of textColumns) {
-        for (const block of visibleBlocksInColumn(col, activeId)) {
-          ids.push(block.id);
-        }
-      }
-      const selection = ids.length > 0 ? ids : [activeId];
-      setRangeAnchorId(selection[0]);
-      setSelectedBlockIds(selection);
-      setActiveBlockId(activeId);
-      setJournalAllSelected(true);
-    },
-    [textColumns]
-  );
-
-  /** Mirror Tiptap-style select-all across every visible block textarea. */
-  useLayoutEffect(() => {
-    if (!journalAllSelected) return;
-    for (const id of selectedBlockIds) {
-      const ta = textRefs.current[id];
-      if (!ta) continue;
-      ta.setSelectionRange(0, ta.value.length);
-    }
-    const activeTa = activeBlockId ? textRefs.current[activeBlockId] : null;
-    activeTa?.focus({ preventScroll: true });
-  }, [journalAllSelected, selectedBlockIds, activeBlockId, textColumns]);
-
-  useLayoutEffect(() => {
-    const target = focusAfterRender.current;
-    if (!target) return;
-    const ta = textRefs.current[target.id];
-    if (!ta) return;
-    focusAfterRender.current = null;
-
-    const scrollEl = writingScrollRef.current;
-    const scrollTopBefore = scrollEl?.scrollTop ?? 0;
-
-    ta.focus({ preventScroll: true });
-    const len = ta.value.length;
-    const point =
-      typeof target.position === "number"
-        ? clamp(target.position, 0, len)
-        : target.position === "start"
-          ? 0
-          : len;
-    ta.setSelectionRange(point, point);
-
-    if (!scrollEl) return;
-
-    // setSelectionRange can still scroll the writing column — undo that first.
-    scrollEl.scrollTop = scrollTopBefore;
-
-    const anchor = scrollAnchorRef.current;
-    if (anchor != null) {
-      scrollAnchorRef.current = null;
-      const scrollRect = scrollEl.getBoundingClientRect();
-      const taRect = ta.getBoundingClientRect();
-      const caret = caretOffsetInTextarea(ta, point);
-      const offset = taRect.top - scrollRect.top + caret.top;
-      scrollEl.scrollTop = anchor - offset;
-    }
-
-    scrollCaretIntoWritingView(scrollEl, ta, point);
-  });
-
-  /* --------------------------- Block mutations --------------------------- */
-
-  const updateTextBlock = useCallback(
-    (id: string, patch: Partial<JournalTextBlock>) => {
-      setTextColumns((cols) =>
-        cols.map((col) =>
-          col.map((b) => (b.id === id ? { ...b, ...patch } : b))
-        )
-      );
+  const setBlockKind = useCallback(
+    (id: string, kind: TextBlockKind) => {
+      journalEditorRef.current?.setBlockKind(kind, [id]);
+      setShowTextCtx(false);
     },
     []
-  );
-
-  const setBlockKind = useCallback(
-    (id: string, kind: TextBlockKind, batchIds?: string[]) => {
-      const targets = batchIds && batchIds.length > 1 ? batchIds : null;
-      if (targets) {
-        setTextColumns((cols) =>
-          cols.map((col) =>
-            col.map((b) => {
-              if (!targets.includes(b.id)) return b;
-              if (kind === "checklist")
-                return {
-                  ...b,
-                  blockKind: "checklist",
-                  checked: b.checked ?? false,
-                };
-              return { ...b, blockKind: kind, checked: undefined };
-            })
-          )
-        );
-        setSelectedBlockIds([id]);
-        return;
-      }
-
-      let focusNextId: string | null = null;
-
-      setTextColumns((cols) =>
-        cols.map((col) => {
-          const i = col.findIndex((b) => b.id === id);
-          if (i === -1) return col;
-
-          const block = col[i];
-          const el = textRefs.current[id];
-          const v = el?.value ?? block.text;
-          const s0 = el?.selectionStart ?? 0;
-          const s1 = el?.selectionEnd ?? 0;
-          const lo = Math.min(s0, s1);
-          const hi = Math.max(s0, s1);
-          const selected = v.slice(lo, hi);
-          const hasRange = lo !== hi;
-
-          if (
-            el &&
-            hasRange &&
-            (kind === "bullet" || kind === "checklist") &&
-            selected.includes("\n")
-          ) {
-            const before = v.slice(0, lo);
-            const after = v.slice(hi);
-            let lines = selected.split("\n");
-            if (lines.length > 1 && lines[lines.length - 1] === "")
-              lines = lines.slice(0, -1);
-
-            const inserts: JournalTextBlock[] = [];
-            if (before.length > 0) {
-              inserts.push({
-                ...block,
-                id,
-                blockKind: "paragraph",
-                text: before,
-                checked: undefined,
-              });
-            }
-            lines.forEach((lineText, idx) => {
-              inserts.push({
-                id: before.length === 0 && idx === 0 ? id : newId(),
-                blockKind: kind,
-                text: lineText,
-                checked: kind === "checklist" ? false : undefined,
-              });
-            });
-            if (after.length > 0) {
-              inserts.push({ ...emptyParagraph(), text: after });
-            }
-            if (inserts.length === 0) {
-              inserts.push({
-                ...block,
-                id,
-                blockKind: kind,
-                text: "",
-                checked: kind === "checklist" ? false : undefined,
-              });
-            }
-            const firstList = inserts.find((b) => b.blockKind === kind);
-            if (firstList) focusNextId = firstList.id;
-
-            return [...col.slice(0, i), ...inserts, ...col.slice(i + 1)];
-          }
-
-          return col.map((b) => {
-            if (b.id !== id) return b;
-            if (kind === "checklist") {
-              return {
-                ...b,
-                blockKind: "checklist",
-                checked: b.checked ?? false,
-              };
-            }
-            return { ...b, blockKind: kind, checked: undefined };
-          });
-        })
-      );
-
-      if (focusNextId) {
-        focusBlock(focusNextId, "end");
-        setShowTextCtx(false);
-      }
-    },
-    [focusBlock]
   );
 
   /* ------------------------------ Images --------------------------------- */
@@ -1392,66 +1059,6 @@ function CanvasBoardInner(
 
   /* ----------------------------- Global events ---------------------------- */
 
-  // TEMP: paste blocking disabled — re-enable when done testing
-  // // Paste is fully disabled inside the journal canvas — no text, rich text, or
-  // // images. A capture-phase native listener blocks every paste path: keyboard
-  // // shortcut, right-click menu, and the browser Edit menu.
-  // useEffect(() => {
-  //   const showPasteBlockedToast = () => {
-  //     setPasteBlockedToast(true);
-  //     if (pasteToastTimerRef.current !== null) {
-  //       window.clearTimeout(pasteToastTimerRef.current);
-  //     }
-  //     pasteToastTimerRef.current = window.setTimeout(() => {
-  //       setPasteBlockedToast(false);
-  //       pasteToastTimerRef.current = null;
-  //     }, 2200);
-  //   };
-  //
-  //   const blockPaste = (e: ClipboardEvent) => {
-  //     const root = outerRef.current;
-  //     const target = e.target as Node | null;
-  //     // Ignore paste events outside the journaling surface.
-  //     if (root && target && !root.contains(target)) return;
-  //     e.preventDefault();
-  //     e.stopImmediatePropagation();
-  //     showPasteBlockedToast();
-  //   };
-  //
-  //   document.addEventListener("paste", blockPaste, true);
-  //   return () => {
-  //     document.removeEventListener("paste", blockPaste, true);
-  //     if (pasteToastTimerRef.current !== null) {
-  //       window.clearTimeout(pasteToastTimerRef.current);
-  //       pasteToastTimerRef.current = null;
-  //     }
-  //   };
-  // }, []);
-
-  // Multi-textarea select-all — copy the full journal body, not just the focused row.
-  useEffect(() => {
-    const onCopy = (e: ClipboardEvent) => {
-      if (!journalAllSelected) return;
-      const root = outerRef.current;
-      const target = e.target as Node | null;
-      if (root && target && !root.contains(target)) return;
-
-      const lines: string[] = [];
-      for (const col of textColumns) {
-        for (const block of visibleBlocksInColumn(col, activeBlockId)) {
-          if (!selectedBlockIds.includes(block.id)) continue;
-          if (block.text.length > 0) lines.push(block.text);
-        }
-      }
-
-      e.preventDefault();
-      e.clipboardData?.setData("text/plain", lines.join("\n\n"));
-    };
-
-    document.addEventListener("copy", onCopy);
-    return () => document.removeEventListener("copy", onCopy);
-  }, [journalAllSelected, textColumns, activeBlockId, selectedBlockIds]);
-
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "copy";
@@ -1468,22 +1075,6 @@ function CanvasBoardInner(
     [insertImageFile]
   );
 
-  /* --------------------- Click on column whitespace ---------------------- */
-
-  const focusSlotInColumn = useCallback((columnIndex: number) => {
-    setTextColumns((cols) => {
-      const col = cols[columnIndex];
-      if (!col || col.length === 0) return cols;
-      const target =
-        firstEmptyBlockInColumn(col) ?? col[col.length - 1];
-      focusAfterRender.current = {
-        id: target.id,
-        position: target.text.length === 0 ? "start" : "end",
-      };
-      return cols;
-    });
-  }, []);
-
   /* ------------------------------ Computed UI ----------------------------- */
 
   const activeBlock = useMemo(() => {
@@ -1497,52 +1088,58 @@ function CanvasBoardInner(
 
   const activeTextKind: TextBlockKind | null = activeBlock?.blockKind ?? null;
 
-  const activeColumnBlocks = useMemo<JournalTextBlock[]>(() => {
-    if (!activeBlockId) return [];
-    for (const col of textColumns) {
-      if (col.some((b) => b.id === activeBlockId)) return col;
-    }
-    return [];
-  }, [activeBlockId, textColumns]);
-
-  // Whether the text contextual bar is currently visible.
   const [showTextCtx, setShowTextCtx] = useState(false);
   const [textCtxPos, setTextCtxPos] = useState<{ x: number; y: number } | null>(
     null
   );
 
   useEffect(() => {
-    const onSelectionChange = () => {
-      const el = activeBlockId ? textRefs.current[activeBlockId] : null;
-      if (!el || el !== document.activeElement) {
-        setShowTextCtx(false);
-        return;
-      }
-      const len = (el.selectionEnd ?? 0) - (el.selectionStart ?? 0);
-      if (len >= TEXT_CTX_SELECTION_MIN) {
-        const r = el.getBoundingClientRect();
-        const anchorIdx = Math.min(
-          el.selectionStart ?? 0,
-          el.selectionEnd ?? 0
-        );
-        const { left: relX } = caretOffsetInTextarea(el, anchorIdx);
-        const inField =
-          r.left + Math.min(Math.max(relX, 4), Math.max(4, r.width - 4));
+    if (!isSealing) return;
+    setShowTextCtx(false);
+    setSelectedImageId(null);
+  }, [isSealing]);
+
+  const refreshTextContext = useCallback(() => {
+    const editorRoot = document.querySelector(
+      ".journal-tiptap .ProseMirror"
+    ) as HTMLElement | null;
+    if (!editorRoot) {
+      setShowTextCtx(false);
+      return;
+    }
+
+    const active = document.activeElement;
+    if (
+      active !== editorRoot &&
+      !editorRoot.contains(active) &&
+      !editorRoot.contains(document.getSelection()?.anchorNode ?? null)
+    ) {
+      setShowTextCtx(false);
+      return;
+    }
+
+    const len = journalEditorRef.current?.getSelectedTextLength() ?? 0;
+    if (len >= TEXT_CTX_SELECTION_MIN) {
+      const rect = journalEditorRef.current?.getSelectionRect();
+      if (rect) {
         const popoverGuessW = 160;
         const left = Math.max(
           8,
-          Math.min(inField, window.innerWidth - popoverGuessW - 8)
+          Math.min(rect.left, window.innerWidth - popoverGuessW - 8)
         );
-        setTextCtxPos({ x: left, y: r.top });
+        setTextCtxPos({ x: left, y: rect.top });
         setShowTextCtx(true);
-      } else {
-        setShowTextCtx(false);
+        return;
       }
-    };
-    document.addEventListener("selectionchange", onSelectionChange);
+    }
+    setShowTextCtx(false);
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener("selectionchange", refreshTextContext);
     return () =>
-      document.removeEventListener("selectionchange", onSelectionChange);
-  }, [activeBlockId]);
+      document.removeEventListener("selectionchange", refreshTextContext);
+  }, [refreshTextContext]);
 
   useEffect(() => {
     if (!activeBlockId) {
@@ -1557,7 +1154,6 @@ function CanvasBoardInner(
       const t = e.target as HTMLElement;
       if (!t.closest("[data-ctx]") && !t.closest("[data-toolbar]")) {
         setShowTextCtx(false);
-        setSelectedBlockIds((ids) => (ids.length <= 1 ? ids : ids.slice(-1)));
         setSelectedImageId(null);
       }
     };
@@ -1569,26 +1165,21 @@ function CanvasBoardInner(
 
   const onWritingPointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
-      if (sealedAt !== null) return;
+      if (sealedAt !== null || isSealing) return;
       const target = e.target as HTMLElement | null;
       if (!target) return;
-      if (target.closest("[data-block-element]")) return;
-      if (target.closest("[data-signature]")) return;
+      // Let ProseMirror handle every click inside the editor.
+      if (target.closest(".journal-tiptap")) return;
       if (!target.closest("[data-writing-zone]")) return;
 
-      const col = target.closest("[data-text-column]");
-      let columnIndex = 0;
-      if (col instanceof HTMLElement) {
-        const idx = Number(col.dataset.textColumn);
-        if (Number.isFinite(idx)) columnIndex = idx;
-      }
-
       e.preventDefault();
-      focusSlotInColumn(columnIndex);
+      journalEditorRef.current?.focus("start");
       setSelectedImageId(null);
     },
-    [focusSlotInColumn, sealedAt]
+    [isSealing, sealedAt]
   );
+
+  const isContentLocked = sealedAt !== null || isSealing;
 
   /* ------------------------------- Render ------------------------------- */
 
@@ -1604,19 +1195,6 @@ function CanvasBoardInner(
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
-      {/* TEMP: paste blocking disabled — re-enable when done testing */}
-      {/* Paste-disabled notice */}
-      {/* <div
-        role="status"
-        aria-live="polite"
-        className={clsx(
-          "pointer-events-none fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full bg-black/80 px-4 py-2 text-sm text-white shadow-lg transition-opacity duration-200",
-          pasteBlockedToast ? "opacity-100" : "opacity-0"
-        )}
-      >
-        Pasting is disabled for journaling
-      </div> */}
-
       {/* Sunflower — fixed bottom-left, always on screen */}
       <div className="pointer-events-auto fixed bottom-5 left-5 z-20 overflow-visible">
         <div className="relative">
@@ -1632,8 +1210,6 @@ function CanvasBoardInner(
             <EntranceGreeting
               visible={blob.whisperVisible}
               placement="above"
-              italic={blob.sealWhisperActive}
-              color={blob.sealWhisperActive ? WHISPER_COLOR : undefined}
               fadeDurationMs={blob.whisperFadeMs}
             >
               {blob.whisper}
@@ -1653,8 +1229,8 @@ function CanvasBoardInner(
         ref={stampRef}
         isSealed={!!sealedAt}
         onStampBegin={beginSealSideEffects}
+        onStampImpact={handleStampImpact}
         onStampHover={maybePrefetchSealTitle}
-        onSeal={handleSeal}
       />
 
       <UnfinishedDraftPrompt
@@ -1669,7 +1245,6 @@ function CanvasBoardInner(
       {/* —————————— Full-width centered writing area —————————— */}
       <div
         className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden"
-        ref={writingRef}
         onPointerDown={(e) => {
           companion.onCanvasActivity();
           onWritingPointerDown(e);
@@ -1687,7 +1262,7 @@ function CanvasBoardInner(
           }}
         >
           <div
-            className="mx-auto flex w-full shrink-0 flex-col px-6"
+            className="mx-auto flex w-full min-h-0 flex-1 flex-col px-6"
             style={{ maxWidth: WRITING_COLUMN_MAX_WIDTH }}
           >
             <CanvasHeader
@@ -1699,214 +1274,102 @@ function CanvasBoardInner(
             />
 
             <div
+              ref={writingZoneRef}
               data-writing-zone
-              data-journal-all-selected={journalAllSelected ? "" : undefined}
               data-sealed={sealedAt !== null ? "" : undefined}
-              className="relative flex w-full shrink-0 flex-col"
-              style={{
-                gap: TEXT_COLUMN_GAP,
-                ["--writing-rule-step" as string]: `calc(${WRITING_FONT_SIZE} * ${WRITING_LINE_HEIGHT})`,
-              }}
+              data-sealing={isSealing ? "" : undefined}
+              className="relative flex w-full min-h-0 flex-1 flex-col"
             >
-          {textColumns.map((col, colIdx) => (
-            <div
-              key={colIdx}
-              data-text-column={colIdx}
-              className="flex min-w-0 shrink-0 flex-col"
-            >
-              {visibleBlocksInColumn(col, activeBlockId).map((block) => (
-                <TextBlockView
-                  key={block.id}
-                  block={block}
+              <div className="journal-seal-content flex w-full min-h-0 flex-1 flex-col">
+                <JournalTiptapEditor
+                  key={editorContentKey}
+                  ref={journalEditorRef}
+                  initialBlocks={journalBlocks}
                   isSealed={sealedAt !== null}
-                  isActive={activeBlockId === block.id}
-                  isInRange={selectedBlockIds.includes(block.id)}
-                  journalAllSelected={journalAllSelected}
-                  registerRef={(el) => {
-                    textRefs.current[block.id] = el;
-                  }}
-                  onFocus={() => {
-                    setActiveBlockId(block.id);
-                    setSelectedImageId(null);
-                    if (!journalAllSelected) {
-                      setRangeAnchorId(block.id);
-                      setSelectedBlockIds([block.id]);
-                    }
-                  }}
-                  onShiftFocus={() => {
-                    if (!rangeAnchorId) return;
-                    const ids = activeColumnBlocks.map((b) => b.id);
-                    const ai = ids.indexOf(rangeAnchorId);
-                    const bi = ids.indexOf(block.id);
-                    if (ai === -1 || bi === -1) return;
-                    const lo = Math.min(ai, bi);
-                    const hi = Math.max(ai, bi);
-                    setSelectedBlockIds(ids.slice(lo, hi + 1));
-                    setActiveBlockId(block.id);
-                  }}
-                  onChange={(text) => {
-                    clearJournalSelectAll();
-                    updateTextBlock(block.id, { text });
-                    notifyCompanionWriting({ blockId: block.id, text });
-                  }}
-                  onToggleCheck={() =>
-                    updateTextBlock(block.id, { checked: !block.checked })
-                  }
-                  onEnter={(splitAt, ta) => {
-                    notifyCompanionWriting({
-                      blockId: block.id,
-                      text: ta.value,
-                    });
-                    const left = block.text.slice(0, splitAt);
-                    const right = block.text.slice(splitAt);
-                    if (
-                      block.text.length === 0 &&
-                      block.blockKind !== "paragraph"
-                    ) {
-                      updateTextBlock(block.id, {
-                        blockKind: "paragraph",
-                        checked: undefined,
-                      });
-                      return;
-                    }
-
-                    const loc = (() => {
-                      for (let c = 0; c < textColumns.length; c++) {
-                        const i = textColumns[c].findIndex(
-                          (b) => b.id === block.id
-                        );
-                        if (i !== -1) return { c, i };
-                      }
-                      return null;
-                    })();
-                    if (!loc) return;
-
-                    const col = textColumns[loc.c];
-                    const nextIdx = loc.i + 1;
-                    const movesToOtherBlock =
-                      nextIdx < col.length ||
-                      columnBlockCount(col) < MAX_WRITING_BLOCKS;
-                    const scrollEl = writingScrollRef.current;
-                    if (scrollEl && movesToOtherBlock) {
-                      scrollAnchorRef.current = caretOffsetInScrollContent(
-                        scrollEl,
-                        ta,
-                        splitAt
-                      );
-                    } else {
-                      scrollAnchorRef.current = null;
-                    }
-
-                    // Fixed slots: Enter moves to the next line (block below).
-                    if (nextIdx < col.length) {
-                      const below = col[nextIdx];
-                      setTextColumns((cols) => {
-                        const updated = cols.map((c) => c.slice());
-                        updated[loc.c][loc.i] = { ...block, text: left };
-                        updated[loc.c][nextIdx] = {
-                          ...below,
-                          text: right + below.text,
-                        };
-                        return updated;
-                      });
-                      focusBlock(below.id, right.length);
-                      return;
-                    }
-
-                    // Room for another slot — split into a new block.
-                    if (columnBlockCount(col) < MAX_WRITING_BLOCKS) {
-                      const next: JournalTextBlock = {
-                        id: newId(),
-                        blockKind: block.blockKind,
-                        text: right,
-                        checked:
-                          block.blockKind === "checklist" ? false : undefined,
-                      };
-                      setTextColumns((cols) => {
-                        const updated = cols.map((c) => c.slice());
-                        updated[loc.c][loc.i] = { ...block, text: left };
-                        updated[loc.c].splice(loc.i + 1, 0, next);
-                        return updated;
-                      });
-                      focusBlock(next.id, "start");
-                      return;
-                    }
-
-                    // Last slot — soft line break within the same field.
-                    updateTextBlock(block.id, { text: `${left}\n${right}` });
-                    focusBlock(block.id, splitAt + 1);
-                  }}
-                  onSelectAll={() => selectAllJournalText(block.id)}
-                  onClearSelectAll={clearJournalSelectAll}
-                  onBackspaceAtStart={() => {
-                    if (
-                      block.blockKind !== "paragraph" &&
-                      block.text.length === 0
-                    ) {
-                      flushSync(() => {
-                        updateTextBlock(block.id, {
-                          blockKind: "paragraph",
-                          checked: undefined,
-                        });
-                      });
-                      notifyCompanionWriting();
-                      return;
-                    }
-                    let mergedNotify: { blockId: string; text: string } | null =
-                      null;
-                    flushSync(() => {
-                      setTextColumns((cols) => {
-                        const loc = (() => {
-                          for (let c = 0; c < cols.length; c++) {
-                            const i = cols[c].findIndex(
-                              (b) => b.id === block.id
-                            );
-                            if (i !== -1) return { c, i };
-                          }
-                          return null;
-                        })();
-                        if (!loc || loc.i === 0) return cols;
-                        const prev = cols[loc.c][loc.i - 1];
-                        const merged: JournalTextBlock = {
-                          ...prev,
-                          text: prev.text + block.text,
-                        };
-                        mergedNotify = {
-                          blockId: merged.id,
-                          text: merged.text,
-                        };
-                        const updated = cols.map((c) => c.slice());
-                        updated[loc.c][loc.i - 1] = merged;
-                        updated[loc.c].splice(loc.i, 1);
-                        focusAfterRender.current = {
-                          id: merged.id,
-                          position: "end",
-                        };
-                        return updated;
-                      });
-                    });
-                    if (mergedNotify) notifyCompanionWriting(mergedNotify);
-                  }}
+                  isSealing={isSealing}
+                  onBlocksChange={handleJournalBlocksChange}
+                  onActiveBlockChange={setActiveBlockId}
+                  onSelectionActivity={refreshTextContext}
+                  onFocus={() => setSelectedImageId(null)}
+                  onWritingActivity={notifyCompanionWriting}
                 />
-              ))}
-            </div>
-          ))}
-            </div>
 
-            <CanvasSignature
-              ref={signatureRef}
-              value={signature}
-              isSealed={sealedAt !== null}
-              onChange={(next) => {
-                setSignature(next);
-                notifyCompanionWriting({ signature: next });
-              }}
-              onSelectAllJournal={() => {
-                const anchorId =
-                  activeBlockId ?? textColumns[0]?.[0]?.id ?? null;
-                if (anchorId) selectAllJournalText(anchorId);
-              }}
-            />
+                {!sealedAt ? (
+                  <div
+                    className="min-h-[min(50vh,24rem)] flex-1 cursor-text"
+                    aria-hidden
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      journalEditorRef.current?.focus("end");
+                      setSelectedImageId(null);
+                    }}
+                  />
+                ) : null}
+
+                {/* Signature — disabled for now
+                {!sealedAt && !signatureFieldOpen ? (
+                  <div
+                    className="min-h-[min(50vh,24rem)] flex-1 cursor-text"
+                    aria-hidden
+                    onPointerDown={(e) => {
+                      e.preventDefault();
+                      journalEditorRef.current?.focus("end");
+                      setSelectedImageId(null);
+                    }}
+                  />
+                ) : null}
+
+                {sealedAt !== null ? (
+                  signature.trim() ? (
+                    <CanvasSignature
+                      ref={signatureRef}
+                      value={signature}
+                      isSealed
+                      onChange={setSignature}
+                    />
+                  ) : null
+                ) : signatureFieldOpen ? (
+                  <CanvasSignature
+                    ref={signatureRef}
+                    value={signature}
+                    isSealed={false}
+                    onChange={(next) => {
+                      setSignature(next);
+                      notifyCompanionWriting();
+                    }}
+                    onBlur={() => {
+                      if (!signatureRef.current?.value.trim()) {
+                        setSignatureFieldOpen(false);
+                      }
+                    }}
+                    onDismiss={() => {
+                      setSignatureFieldOpen(false);
+                      journalEditorRef.current?.focus("start");
+                    }}
+                    onSelectAllJournal={() =>
+                      journalEditorRef.current?.selectAll()
+                    }
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSignatureFieldOpen(true);
+                      requestAnimationFrame(() => signatureRef.current?.focus());
+                    }}
+                    className="mt-16 w-fit border-0 bg-transparent p-0 text-left text-[var(--canvas-ink-secondary)] outline-none transition-colors hover:text-[var(--canvas-ink)]"
+                    style={{
+                      fontFamily: "var(--font-body), system-ui, sans-serif",
+                      fontSize: WRITING_FONT_SIZE,
+                      lineHeight: WRITING_LINE_HEIGHT,
+                    }}
+                  >
+                    Add signature
+                  </button>
+                )}
+                */}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1926,9 +1389,7 @@ function CanvasBoardInner(
       />
 
       {/* —————————— Text contextual format bar —————————— */}
-      {(showTextCtx || selectedBlockIds.length > 1) &&
-        textCtxPos &&
-        activeBlockId && (
+      {showTextCtx && textCtxPos && activeBlockId && (
           <div
             data-ctx
             className="pointer-events-auto fixed z-40 -translate-y-full"
@@ -1941,11 +1402,6 @@ function CanvasBoardInner(
                   "var(--font-body)",
               }}
             >
-              {selectedBlockIds.length > 1 && (
-                <span className="mr-0.5 rounded-md bg-black/[0.06] px-1.5 py-0.5 text-xs font-medium text-black/50">
-                  {selectedBlockIds.length} rows
-                </span>
-              )}
               {(
                 [
                   {
@@ -1971,15 +1427,7 @@ function CanvasBoardInner(
                   <button
                     type="button"
                     aria-label={label}
-                    onClick={() =>
-                      setBlockKind(
-                        activeBlockId,
-                        kind,
-                        selectedBlockIds.length > 1
-                          ? selectedBlockIds
-                          : undefined
-                      )
-                    }
+                    onClick={() => setBlockKind(activeBlockId, kind)}
                     className={clsx(
                       "inline-flex h-7 w-7 items-center justify-center rounded-lg transition",
                       activeTextKind === kind
@@ -2428,15 +1876,21 @@ function CanvasHeader({
   );
 }
 
+/* Signature — disabled for now
 type CanvasSignatureProps = {
   value: string;
   isSealed?: boolean;
   onChange: (value: string) => void;
+  onBlur?: () => void;
+  onDismiss?: () => void;
   onSelectAllJournal?: () => void;
 };
 
 const CanvasSignature = forwardRef<HTMLTextAreaElement, CanvasSignatureProps>(
-  function CanvasSignature({ value, isSealed = false, onChange, onSelectAllJournal }, ref) {
+  function CanvasSignature(
+    { value, isSealed = false, onChange, onBlur, onDismiss, onSelectAllJournal },
+    ref
+  ) {
   return (
     <textarea
       ref={ref}
@@ -2447,7 +1901,13 @@ const CanvasSignature = forwardRef<HTMLTextAreaElement, CanvasSignatureProps>(
       tabIndex={isSealed ? -1 : undefined}
       value={value}
       onChange={(e) => onChange(e.target.value)}
+      onBlur={onBlur}
       onKeyDown={(e) => {
+        if (e.key === "Escape" && !isSealed) {
+          e.preventDefault();
+          onDismiss?.();
+          return;
+        }
         if (
           e.key.toLowerCase() === "a" &&
           (e.metaKey || e.ctrlKey) &&
@@ -2460,6 +1920,7 @@ const CanvasSignature = forwardRef<HTMLTextAreaElement, CanvasSignatureProps>(
         }
       }}
       aria-label="Signature"
+      placeholder="Your signature…"
       className="mt-16 block w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-left outline-none focus:outline-none"
       style={{
         fontFamily: "var(--font-signature), cursive",
@@ -2477,208 +1938,4 @@ const CanvasSignature = forwardRef<HTMLTextAreaElement, CanvasSignatureProps>(
     />
   );
 });
-
-/* -------------------------------------------------------------------------- */
-/*  Text block                                                                */
-/* -------------------------------------------------------------------------- */
-
-type TextBlockViewProps = {
-  block: JournalTextBlock;
-  isSealed: boolean;
-  isActive: boolean;
-  isInRange: boolean;
-  journalAllSelected: boolean;
-  registerRef: (el: HTMLTextAreaElement | null) => void;
-  onFocus: () => void;
-  onShiftFocus: () => void;
-  onChange: (text: string) => void;
-  onToggleCheck: () => void;
-  onEnter: (splitAt: number, ta: HTMLTextAreaElement) => void;
-  onBackspaceAtStart: () => void;
-  onSelectAll: () => void;
-  onClearSelectAll: () => void;
-};
-
-function TextBlockView({
-  block,
-  isSealed,
-  isActive,
-  isInRange,
-  journalAllSelected,
-  registerRef,
-  onFocus,
-  onShiftFocus,
-  onChange,
-  onToggleCheck,
-  onEnter,
-  onBackspaceAtStart,
-  onSelectAll,
-  onClearSelectAll,
-}: TextBlockViewProps) {
-  const taRef = useRef<HTMLTextAreaElement | null>(null);
-
-  const setRefs = useCallback(
-    (el: HTMLTextAreaElement | null) => {
-      taRef.current = el;
-      registerRef(el);
-    },
-    [registerRef]
-  );
-
-  useLayoutEffect(() => {
-    const ta = taRef.current;
-    if (!ta) return;
-    ta.style.height = "auto";
-    ta.style.height = `${ta.scrollHeight}px`;
-  }, [block.text, block.blockKind]);
-
-  const showMarker = block.blockKind !== "paragraph";
-
-  const placeholder =
-    isSealed || !isActive || block.text.length > 0
-      ? ""
-      : block.blockKind === "bullet"
-        ? "List item"
-        : block.blockKind === "checklist"
-          ? "To-do"
-          : WRITING_PLACEHOLDER;
-
-  return (
-    <div
-      data-block-element="text"
-      dir="ltr"
-      className={clsx(
-        "relative flex w-full items-start gap-3 rounded-md leading-relaxed transition-colors",
-        isInRange && !isActive && !journalAllSelected
-          ? "bg-black/[0.04]"
-          : ""
-      )}
-      style={{ overflowAnchor: "none" }}
-      onMouseDown={(e) => {
-        if (e.shiftKey) {
-          e.preventDefault();
-          onShiftFocus();
-        }
-      }}
-    >
-      {showMarker && (
-        <div
-          className="flex shrink-0 select-none items-start"
-          style={{ paddingTop: 10 }}
-          aria-hidden={block.blockKind === "bullet"}
-        >
-          {block.blockKind === "bullet" ? (
-            <span className="text-lg leading-none opacity-60">
-              •
-            </span>
-          ) : (
-            <button
-              type="button"
-              onClick={onToggleCheck}
-              disabled={isSealed}
-              aria-label={block.checked ? "Mark incomplete" : "Mark complete"}
-              className={clsx(
-                "inline-flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[5px] border-[1.5px] transition-all duration-150",
-                block.checked
-                  ? "border-black/70 bg-black/80"
-                  : "border-black/25 hover:border-black/50"
-              )}
-            >
-              {block.checked && (
-                <svg
-                  viewBox="0 0 14 14"
-                  className="h-3 w-3"
-                  fill="none"
-                  stroke="white"
-                  strokeWidth={2.2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M2.5 7l3 3 6-6" />
-                </svg>
-              )}
-            </button>
-          )}
-        </div>
-      )}
-
-      <textarea
-        ref={setRefs}
-        dir="ltr"
-        value={block.text}
-        rows={1}
-        spellCheck
-        readOnly={isSealed}
-        tabIndex={isSealed ? -1 : undefined}
-        placeholder={placeholder}
-        onFocus={onFocus}
-        onChange={(e) => onChange(e.target.value)}
-        onSelect={() => {
-          if (!journalAllSelected) return;
-          const ta = taRef.current;
-          if (!ta) return;
-          const full =
-            ta.selectionStart === 0 && ta.selectionEnd === ta.value.length;
-          if (!full) onClearSelectAll();
-        }}
-        onMouseDown={(e) => {
-          if (journalAllSelected && !e.shiftKey) onClearSelectAll();
-        }}
-        onKeyDown={(e) => {
-          if (
-            e.key.toLowerCase() === "a" &&
-            (e.metaKey || e.ctrlKey) &&
-            !e.altKey
-          ) {
-            e.preventDefault();
-            onSelectAll();
-            return;
-          }
-          if (journalAllSelected && !e.metaKey && !e.ctrlKey) {
-            onClearSelectAll();
-          }
-          if (
-            e.key === "Enter" &&
-            !e.shiftKey &&
-            !e.nativeEvent.isComposing
-          ) {
-            e.preventDefault();
-            const ta = e.currentTarget;
-            onEnter(ta.selectionStart ?? ta.value.length, ta);
-            return;
-          }
-          if (
-            e.key === "Backspace" &&
-            !e.shiftKey &&
-            !e.metaKey &&
-            !e.ctrlKey
-          ) {
-            const ta = e.currentTarget;
-            const start = ta.selectionStart ?? 0;
-            const end = ta.selectionEnd ?? 0;
-            if (start === 0 && end === 0) {
-              e.preventDefault();
-              onBackspaceAtStart();
-              return;
-            }
-          }
-        }}
-        className={clsx(
-          "block w-full resize-none overflow-hidden border-0 bg-transparent p-0 outline-none focus:outline-none placeholder:text-[var(--canvas-writing-placeholder)]",
-          block.blockKind === "checklist" && block.checked
-            ? "text-[var(--canvas-muted)] line-through decoration-[color-mix(in_srgb,var(--canvas-ink)_30%,transparent)] decoration-[1.5px]"
-            : ""
-        )}
-        style={{
-          fontFamily: "var(--font-body)",
-          fontSize: WRITING_FONT_SIZE,
-          lineHeight: WRITING_LINE_HEIGHT,
-          letterSpacing: WRITING_LETTER_SPACING,
-          wordSpacing: WRITING_WORD_SPACING,
-          color: WRITING_INK,
-          textAlign: "left",
-        }}
-      />
-    </div>
-  );
-}
+*/
