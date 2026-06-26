@@ -62,6 +62,8 @@ import {
   MOUTH_CHANGE_CONTRACT_DURATION_S,
   MOUTH_WAKE_SETTLE_DURATION_S,
   MOUTH_SHOCKED_OPEN_SCALE_Y,
+  BLOB_SIZE_DESKTOP_PX,
+  BLOB_SIZE_MOBILE_PX,
 } from "./layout";
 import { POSES } from "./poses";
 import {
@@ -243,10 +245,26 @@ function MouthImage({ emotion }: { emotion: BlobEmotion }) {
   );
 }
 
+function useResponsiveBlobSize() {
+  const [px, setPx] = React.useState(BLOB_SIZE_DESKTOP_PX);
+
+  React.useLayoutEffect(() => {
+    const mq = window.matchMedia("(min-width: 640px)");
+    const update = () => {
+      setPx(mq.matches ? BLOB_SIZE_DESKTOP_PX : BLOB_SIZE_MOBILE_PX);
+    };
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
+  return px;
+}
+
 export default function BlobCharacter({
   pose,
   emotion = "neutral",
-  size = 200,
+  size: sizeProp,
   className,
   hidden = false,
   bloomLevel = 0,
@@ -254,6 +272,9 @@ export default function BlobCharacter({
   onWake,
   debugLayout = false,
 }: BlobCharacterProps) {
+  const responsiveSize = useResponsiveBlobSize();
+  const size = sizeProp ?? responsiveSize;
+
   const [paintReady, setPaintReady] = React.useState(false);
   React.useLayoutEffect(() => setPaintReady(true), []);
 
@@ -347,7 +368,7 @@ export default function BlobCharacter({
       onClick={isJump ? handleHighFive : isSleeping ? handleWake : undefined}
       onPointerEnter={isSleeping ? handleWake : undefined}
       className={clsx(
-        "select-none transition-opacity duration-300",
+        "shrink-0 select-none transition-opacity duration-300",
         !paintReady || hidden ? "opacity-0" : "opacity-100",
         isJump || isSleeping ? "cursor-pointer" : "cursor-default",
         className
@@ -356,6 +377,10 @@ export default function BlobCharacter({
         {
           width: size,
           height: size,
+          minWidth: size,
+          minHeight: size,
+          maxWidth: size,
+          maxHeight: size,
           "--blob-seed": seed,
         } as React.CSSProperties
       }

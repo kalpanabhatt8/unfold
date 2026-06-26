@@ -1,8 +1,8 @@
 "use client";
 
 import clsx from "clsx";
-import type { CSSProperties } from "react";
-import { useId, useMemo } from "react";
+import type { CSSProperties, RefObject } from "react";
+import { useId, useLayoutEffect, useMemo, useState } from "react";
 import {
   GREETING_BOTTOM_PCT,
   GREETING_COLOR,
@@ -13,8 +13,11 @@ import {
   WHISPER_ARC_BASELINE_Y_PX,
   WHISPER_ARC_CHAR_WIDTH_PX,
   WHISPER_ARC_MAX_WIDTH_PX,
+  WHISPER_ARC_MIN_FONT_SIZE_PX,
   WHISPER_ARC_MIN_WIDTH_PX,
   WHISPER_ARC_PEAK_Y_PX,
+  WHISPER_ARC_SIDE_MARGIN_PX,
+  WHISPER_ARC_TEXT_PADDING_PX,
   WHISPER_GAP_PX,
 } from "./layout";
 
@@ -31,16 +34,107 @@ type EntranceGreetingProps = {
   color?: string;
   /** Opacity transition duration (ms). */
   fadeDurationMs?: number;
+  /** Anchor for viewport-aware curved whisper sizing (flower wrapper). */
+  layoutAnchorRef?: RefObject<HTMLElement | null>;
 };
 
-function whisperArcWidth(text: string) {
-  return Math.min(
-    WHISPER_ARC_MAX_WIDTH_PX,
-    Math.max(
-      WHISPER_ARC_MIN_WIDTH_PX,
-      text.length * WHISPER_ARC_CHAR_WIDTH_PX
-    )
+type ArcLayout = {
+  width: number;
+  fontSize: number;
+};
+
+let measureProbe: HTMLSpanElement | null = null;
+
+function measureGreetingWidth(text: string, fontSize: number) {
+  if (typeof document === "undefined") {
+    return text.length * WHISPER_ARC_CHAR_WIDTH_PX;
+  }
+
+  if (!measureProbe) {
+    measureProbe = document.createElement("span");
+    measureProbe.setAttribute("aria-hidden", "true");
+    measureProbe.style.cssText =
+      "position:fixed;left:-9999px;top:0;visibility:hidden;white-space:nowrap;pointer-events:none;";
+    measureProbe.style.fontFamily = GREETING_FONT_FAMILY;
+    document.body.appendChild(measureProbe);
+  }
+
+  measureProbe.style.fontSize = `${fontSize}px`;
+  measureProbe.textContent = text;
+  return measureProbe.getBoundingClientRect().width;
+}
+
+function viewportArcMaxWidth(anchor: HTMLElement | null) {
+  if (!anchor || typeof window === "undefined") {
+    return WHISPER_ARC_MAX_WIDTH_PX;
+  }
+
+  const rect = anchor.getBoundingClientRect();
+  const centerX = rect.left + rect.width / 2;
+  const halfAvailable = Math.min(
+    centerX - WHISPER_ARC_SIDE_MARGIN_PX,
+    window.innerWidth - centerX - WHISPER_ARC_SIDE_MARGIN_PX
   );
+
+  return Math.max(
+    WHISPER_ARC_MIN_WIDTH_PX,
+    Math.min(WHISPER_ARC_MAX_WIDTH_PX, halfAvailable * 2)
+  );
+}
+
+function computeArcLayout(text: string, viewportMax: number): ArcLayout {
+  let fontSize = GREETING_FONT_SIZE_PX;
+  let textWidth = measureGreetingWidth(text, fontSize);
+  const targetWidth = textWidth + WHISPER_ARC_TEXT_PADDING_PX;
+
+  if (targetWidth > viewportMax) {
+    const scale = (viewportMax - WHISPER_ARC_TEXT_PADDING_PX) / textWidth;
+    fontSize = Math.max(
+      WHISPER_ARC_MIN_FONT_SIZE_PX,
+      GREETING_FONT_SIZE_PX * scale
+    );
+    textWidth = measureGreetingWidth(text, fontSize);
+  }
+
+  const width = Math.min(
+    viewportMax,
+    Math.max(WHISPER_ARC_MIN_WIDTH_PX, textWidth + WHISPER_ARC_TEXT_PADDING_PX)
+  );
+
+  return { width, fontSize };
+}
+
+function useArcLayout(
+  text: string,
+  layoutAnchorRef?: RefObject<HTMLElement | null>
+) {
+  const [layout, setLayout] = useState<ArcLayout>(() => {
+    const viewportMax = WHISPER_ARC_MAX_WIDTH_PX;
+    return computeArcLayout(text, viewportMax);
+  });
+
+  useLayoutEffect(() => {
+    const update = () => {
+      const viewportMax = viewportArcMaxWidth(layoutAnchorRef?.current ?? null);
+      setLayout(computeArcLayout(text, viewportMax));
+    };
+
+    update();
+
+    const anchor = layoutAnchorRef?.current;
+    if (!anchor || typeof window === "undefined") return;
+
+    const observer = new ResizeObserver(update);
+    observer.observe(anchor);
+    window.addEventListener("resize", update);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  }, [layoutAnchorRef, text]);
+
+  return layout;
 }
 
 function CurvedWhisper({
@@ -48,20 +142,23 @@ function CurvedWhisper({
   color,
   italic,
   pathId,
+  layoutAnchorRef,
 }: {
   children: string;
   color: string;
   italic: boolean;
   pathId: string;
+  layoutAnchorRef?: RefObject<HTMLElement | null>;
 }) {
-  const width = useMemo(() => whisperArcWidth(children), [children]);
+  const { width, fontSize } = useArcLayout(children, layoutAnchorRef);
   const pathD = `M 0 ${WHISPER_ARC_BASELINE_Y_PX} Q ${width / 2} ${WHISPER_ARC_PEAK_Y_PX} ${width} ${WHISPER_ARC_BASELINE_Y_PX}`;
+  const textLength = useMemo(() => width * 0.94, [width]);
 
   return (
     <svg
       width={width}
       height={WHISPER_ARC_BASELINE_Y_PX + 4}
-      className="block overflow-visible"
+      className="block max-w-[calc(100vw-24px)] overflow-visible"
       aria-hidden
     >
       <defs>
@@ -70,8 +167,10 @@ function CurvedWhisper({
       <text
         fill={color}
         fontFamily={GREETING_FONT_FAMILY}
-        fontSize={GREETING_FONT_SIZE_PX}
+        fontSize={fontSize}
         fontStyle={italic ? "italic" : "normal"}
+        textLength={textLength}
+        lengthAdjust="spacingAndGlyphs"
       >
         <textPath href={`#${pathId}`} startOffset="50%" textAnchor="middle">
           {children}
@@ -91,6 +190,7 @@ export function EntranceGreeting({
   italic = false,
   color = GREETING_COLOR,
   fadeDurationMs = 450,
+  layoutAnchorRef,
 }: EntranceGreetingProps) {
   const curvedPathId = useId();
   const transforms: string[] = [];
@@ -134,6 +234,7 @@ export function EntranceGreeting({
           pathId={curvedPathId}
           color={color}
           italic={italic}
+          layoutAnchorRef={layoutAnchorRef}
         >
           {children}
         </CurvedWhisper>

@@ -31,6 +31,7 @@ export type BloomLevel = 0 | 1 | 2 | 3;
 export type BlobCharacterProps = {
   pose: BlobPose;
   emotion?: BlobEmotion;
+  /** Box size in px. Omit to use `BLOB_SIZE_*_PX` from layout.ts (viewport-aware). */
   size?: number;
   className?: string;
   hidden?: boolean;

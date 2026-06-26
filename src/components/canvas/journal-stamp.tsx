@@ -12,7 +12,7 @@ import React, {
 } from "react";
 import { useAuth, useClerk, useSession } from "@clerk/nextjs";
 import type { PublicUserData, UserResource } from "@clerk/types";
-import { Stamp } from "lucide-react";
+import { Signature } from "lucide-react";
 import {
   btnIcon,
   btnState,
@@ -24,8 +24,13 @@ import { Tooltip } from "@/components/ui/tooltip";
 
 /** Equal visual inset from viewport bottom and right (px). */
 const STAMP_EDGE_INSET_PX = 32;
-const STAMP_SIZE = 132;
-const STAMP_TILT_DEG = 12;
+/** Text-only imprint box — width fits long names; height fits two lines at 2× font. */
+const STAMP_WIDTH = 180;
+const STAMP_HEIGHT = 80;
+const STAMP_TEXT_PADDING = 12;
+/** Baseline used for font scale — keeps 2× sizing vs the old 132px stamp. */
+const STAMP_FONT_REFERENCE = 132;
+const STAMP_TILT_DEG = 24;
 const STAMP_PRESS_MS = 200;
 const STAMP_IMPACT_HOLD_MS = 150;
 const STAMP_INK_FADE_MS = 420;
@@ -33,18 +38,23 @@ const STAMP_PRESS_SCALE = 0.92;
 const STAMP_TILT = `rotate(var(--stamp-imprint-tilt, -${STAMP_TILT_DEG}deg))`;
 
 /**
- * Rotating a square around its center makes the visual bounds extend past the
- * layout box. Nudge bottom/right so the tilted stamp sits the same distance
- * from each viewport edge.
+ * Rotating the imprint around its center extends past the layout box.
+ * Nudge bottom/right so the tilted stamp sits the same distance from each edge.
  */
 function stampAlignedCornerInsets(
-  size: number,
+  width: number,
+  height: number,
   insetPx: number,
   tiltDeg: number,
 ): Pick<React.CSSProperties, "bottom" | "right"> {
   const rad = (Math.abs(tiltDeg) * Math.PI) / 180;
-  const half = size / 2;
-  const overflow = half * (Math.cos(rad) + Math.sin(rad)) - half;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  const halfW = width / 2;
+  const halfH = height / 2;
+  const aabbW = width * cos + height * sin;
+  const aabbH = width * sin + height * cos;
+  const overflow = Math.max(aabbW / 2 - halfW, aabbH / 2 - halfH);
   return {
     bottom: insetPx + overflow,
     right: insetPx + overflow,
@@ -52,7 +62,8 @@ function stampAlignedCornerInsets(
 }
 
 const stampImprintInsets = stampAlignedCornerInsets(
-  STAMP_SIZE,
+  STAMP_WIDTH,
+  STAMP_HEIGHT,
   STAMP_EDGE_INSET_PX,
   STAMP_TILT_DEG,
 );
@@ -70,8 +81,9 @@ const stampImprintShell: React.CSSProperties = {
   position: "fixed",
   ...stampImprintInsets,
   zIndex: 20,
-  width: STAMP_SIZE,
-  height: STAMP_SIZE,
+  width: STAMP_WIDTH,
+  height: STAMP_HEIGHT,
+  overflow: "visible",
 };
 
 const STAMP_IMAGE = "/Images/stamp.svg";
@@ -104,11 +116,6 @@ function joinNameParts(...parts: Array<string | null | undefined>): string {
     .filter((part): part is string => Boolean(part))
     .join(" ");
 }
-
-/** Inner text safe zone — keeps ink inside the scalloped border. */
-const STAMP_TEXT_ZONE_RATIO = 0.70;
-/** Text uses the full safe zone; wraps only when it truly overflows. */
-const STAMP_TEXT_WRAP_RATIO = 1;
 
 function capitalizeWord(part: string): string {
   if (!part) return "";
@@ -278,18 +285,21 @@ function logStampNameDebug({
 
 function stampFontSizeForName(
   name: string,
-  size: number,
   wrapped: boolean,
 ): number {
   const text = name.trim();
   const words = text.split(/\s+/).filter(Boolean);
-  if (words.length === 0) return size * 0.14;
+  if (words.length === 0) return STAMP_FONT_REFERENCE * 0.28;
 
   const longestWord = Math.max(...words.map((word) => word.length));
   if (wrapped) {
-    return stampFontSize(longestWord, 2, size);
+    return stampFontSize(longestWord, 2, STAMP_FONT_REFERENCE);
   }
-  return stampFontSize(Math.max(longestWord, text.length), 1, size);
+  return stampFontSize(
+    Math.max(longestWord, text.length),
+    1,
+    STAMP_FONT_REFERENCE,
+  );
 }
 
 function stampFontSize(
@@ -298,22 +308,23 @@ function stampFontSize(
   size: number,
 ): number {
   if (lineCount === 1) {
-    if (longestLineChars <= 5) return size * 0.16;
-    if (longestLineChars <= 8) return size * 0.14;
-    if (longestLineChars <= 11) return size * 0.12;
-    if (longestLineChars <= 14) return size * 0.105;
-    return size * 0.09;
+    if (longestLineChars <= 5) return size * 0.32;
+    if (longestLineChars <= 8) return size * 0.28;
+    if (longestLineChars <= 11) return size * 0.24;
+    if (longestLineChars <= 14) return size * 0.21;
+    return size * 0.18;
   }
-  if (longestLineChars <= 5) return size * 0.13;
-  if (longestLineChars <= 8) return size * 0.11;
-  return size * 0.145;
+  if (longestLineChars <= 5) return size * 0.26;
+  if (longestLineChars <= 8) return size * 0.22;
+  return size * 0.29;
 }
 
 /* ─── Stamp face ─────────────────────────────────────────────────────────── */
 
 interface StampFaceProps {
   userName: string;
-  size: number;
+  width: number;
+  height: number;
   /** Base ink opacity (0–1) applied to the name text. */
   inkAlpha: number;
   className?: string;
@@ -322,7 +333,8 @@ interface StampFaceProps {
 
 export function StampFace({
   userName,
-  size,
+  width,
+  height,
   inkAlpha,
   className,
   style,
@@ -332,30 +344,10 @@ export function StampFace({
     [userName],
   );
 
-  if (!displayName) {
-    return (
-      <div
-        className={className}
-        style={{ position: "relative", width: size, height: size, ...style }}
-        aria-hidden
-      >
-        <img
-          src={STAMP_IMAGE}
-          alt=""
-          width={size}
-          height={size}
-          draggable={false}
-          style={{ display: "block" }}
-        />
-      </div>
-    );
-  }
-
   const textRef = useRef<HTMLSpanElement>(null);
   const [shouldWrap, setShouldWrap] = useState(false);
 
-  const wrapWidth = size * STAMP_TEXT_ZONE_RATIO * STAMP_TEXT_WRAP_RATIO;
-  const fontSize = stampFontSizeForName(displayName, size, shouldWrap);
+  const fontSize = stampFontSizeForName(displayName, shouldWrap);
   const inkColor = `rgba(${STAMP_INK}, ${inkAlpha.toFixed(3)})`;
 
   useEffect(() => {
@@ -370,61 +362,73 @@ export function StampFace({
     el.style.whiteSpace = "nowrap";
     const needsWrap = el.scrollWidth > el.clientWidth + 1;
     setShouldWrap(needsWrap);
-  }, [displayName, fontSize, wrapWidth]);
+  }, [displayName, fontSize, width, height]);
+
+  if (!displayName) {
+    return (
+      <div
+        className={className}
+        style={{
+          position: "relative",
+          width,
+          height,
+          boxSizing: "border-box",
+          ...style,
+        }}
+        aria-hidden
+      />
+    );
+  }
 
   return (
     <div
       className={className}
-      style={{ position: "relative", width: size, height: size, ...style }}
+      style={{
+        position: "relative",
+        width,
+        height,
+        boxSizing: "border-box",
+        padding: STAMP_TEXT_PADDING,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        overflow: "visible",
+        fontFamily: STAMP_FONT_FAMILY,
+        fontWeight: 400,
+        fontSize,
+        lineHeight: 1.35,
+        letterSpacing: STAMP_LETTER_SPACING,
+        wordSpacing: STAMP_WORD_SPACING,
+        color: inkColor,
+        textAlign: "center",
+        userSelect: "none",
+        pointerEvents: "none",
+        ...style,
+      }}
       aria-hidden
     >
-      <img
+      {/* <img
         src={STAMP_IMAGE}
         alt=""
-        width={size}
-        height={size}
+        width={width}
+        height={height}
         draggable={false}
         style={{ display: "block" }}
-      />
-      <div
+      /> */}
+      <span
+        ref={textRef}
         style={{
-          position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: "translate(-50%, -50%)",
-          width: wrapWidth,
-          maxWidth: wrapWidth,
-          boxSizing: "border-box",
-          overflow: "hidden",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontFamily: STAMP_FONT_FAMILY,
-          fontWeight: 400,
-          fontSize,
-          lineHeight: 1.4,
-          letterSpacing: STAMP_LETTER_SPACING,
-          wordSpacing: STAMP_WORD_SPACING,
-          color: inkColor,
-          textAlign: "center",
-          userSelect: "none",
-          pointerEvents: "none",
+          display: "block",
+          width: "100%",
+          maxWidth: "100%",
+          whiteSpace: shouldWrap ? "normal" : "nowrap",
+          wordBreak: "normal",
+          overflowWrap: "normal",
+          hyphens: "none",
         }}
       >
-        <span
-          ref={textRef}
-          style={{
-            display: "block",
-            width: "100%",
-            whiteSpace: shouldWrap ? "normal" : "nowrap",
-            wordBreak: "normal",
-            overflowWrap: "normal",
-            hyphens: "none",
-          }}
-        >
-          {displayName}
-        </span>
-      </div>
+        {displayName}
+      </span>
     </div>
   );
 }
@@ -695,17 +699,18 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
           <div style={stampFaceStyle}>
             <StampFace
               userName={userName}
-              size={STAMP_SIZE}
+              width={STAMP_WIDTH}
+              height={STAMP_HEIGHT}
               inkAlpha={isOnPaper ? 0.88 : 0.95}
             />
           </div>
         </div>
       )}
 
-      {/* ── Seal control — icon at rest; one rubber stamp handles press + imprint ── */}
+      {/* ── Sign control — icon at rest; press animation leaves signature imprint ── */}
       {showSealButton && (
         <div className="pointer-events-auto" style={stampCornerAnchor}>
-          <Tooltip content="Seal forever">
+          <Tooltip content="Sign it">
             <button
               type="button"
               onPointerDown={(e) => {
@@ -720,14 +725,14 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
               onClick={(e) => e.preventDefault()}
               onPointerEnter={onStampHover}
               onFocus={onStampHover}
-              aria-label="Seal this entry forever"
+              aria-label="Sign this entry"
               className={`group shrink-0 cursor-pointer select-none outline-none ${btnIcon("lg")} ${btnState.default} ${btnState.hover} ${btnState.active}`}
             >
-              <Stamp
+              <Signature
                 size={iconPx("lg")}
                 strokeWidth={iconStroke("lg")}
                 aria-hidden
-                className={`${iconFixed} origin-center transition-transform duration-200 ease-out group-hover:rotate-12`}
+                className={`${iconFixed} origin-center transition-transform duration-200 ease-out group-hover:rotate-0`}
               />
             </button>
           </Tooltip>

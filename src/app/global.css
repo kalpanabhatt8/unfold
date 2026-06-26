@@ -180,7 +180,7 @@
   --font-accent: var(--font-caveat), var(--font-dm-sans), system-ui, sans-serif;
   --font-signature: var(--font-covered-by-your-grace), var(--font-caveat), cursive;
   --stamp-signature-tilt: -12deg;
-  --stamp-imprint-tilt: -12deg;
+  --stamp-imprint-tilt: -18deg;
 }
 
 /* Shared tooltip bubble — bg #190E05, white text */

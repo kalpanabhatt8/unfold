@@ -34,10 +34,10 @@ export function UnfinishedDraftPrompt({
           className="text-base font-semibold tracking-tight text-[var(--canvas-ink)]"
           style={{ fontFamily: "var(--font-heading)" }}
         >
-          This entry was left unfinished. Seal it?
+          This entry was left unfinished. Sign it?
         </h2>
         <p className="mt-1.5 text-sm text-black/45">
-          Your draft is still open. Sealing makes it permanent — or keep writing.
+          Your draft is still open. Signing makes it permanent — or keep writing.
         </p>
 
         <div className="mt-5 flex justify-end gap-2">
@@ -53,7 +53,7 @@ export function UnfinishedDraftPrompt({
             onClick={onSeal}
             className={`${btnRadius.soft} ${btnText("sm")} bg-[var(--canvas-ink)] text-white hover:bg-black/80 active:bg-black/90`}
           >
-            Seal it
+            Sign it
           </button>
         </div>
       </div>

@@ -611,6 +611,7 @@ function CanvasBoardInner(
   /* ---------------------------- Blob companion ---------------------------- */
 
   const armIdleSleepRef = useRef<() => void>(() => {});
+  const blobAnchorRef = useRef<HTMLDivElement | null>(null);
 
   const blobEnterOnMount = useMemo(
     () => !isSealedSnapshotOnLoad(storageKey, initialSnapshot),
@@ -1245,13 +1246,14 @@ function CanvasBoardInner(
       onDrop={handleDrop}
     >
       {/* Sunflower — fixed bottom-left, always on screen */}
-      <div className="pointer-events-auto fixed bottom-5 left-5 z-20 overflow-visible">
-        <div className="relative">
+      <div className="pointer-events-auto fixed bottom-3 left-3 z-20 overflow-visible sm:bottom-5 sm:left-5">
+        <div ref={blobAnchorRef} className="relative">
           {blob.greeting ? (
             <EntranceGreeting
               visible={blob.greetingVisible}
               peeking={blob.pose === "peek"}
               placement="beside"
+              layoutAnchorRef={blobAnchorRef}
             >
               {blob.greeting}
             </EntranceGreeting>
@@ -1260,6 +1262,7 @@ function CanvasBoardInner(
               visible={blob.whisperVisible}
               placement="above"
               fadeDurationMs={blob.whisperFadeMs}
+              layoutAnchorRef={blobAnchorRef}
             >
               {blob.whisper}
             </EntranceGreeting>
@@ -1316,6 +1319,7 @@ function CanvasBoardInner(
             <CanvasHeader
               title={title}
               editedAt={headerDisplayedAt}
+              sealedAt={sealedAt}
               showSaving={showSavingLabel}
               onTitleChange={onTitleChange}
               isSealed={sealedAt !== null}
@@ -1804,10 +1808,9 @@ function PolaroidImage({
 /*  Canvas header — last-edited date + heading                                   */
 /* -------------------------------------------------------------------------- */
 
-/** Header stamp — e.g. "28 June 2026" / "Tue, 22:58". */
+/** Draft header — e.g. "28 June 2026, 22:58". */
 function formatLastEditedStamp(ts: number): { date: string; time: string } {
   const d = new Date(ts);
-  const weekday = d.toLocaleDateString(undefined, { weekday: "short" });
   const day = d.getDate();
   const month = d.toLocaleDateString(undefined, { month: "long" });
   const year = d.getFullYear();
@@ -1818,15 +1821,25 @@ function formatLastEditedStamp(ts: number): { date: string; time: string } {
   });
   return {
     date: `${day} ${month} ${year}`,
-    // time: `${weekday}, ${time}`,
-    time: ` ${time}`,
+    time,
   };
+}
+
+/** Sealed header — e.g. "🌻 Sealed · 26 Jun 2026". */
+function formatSignedStamp(ts: number): string {
+  const d = new Date(ts);
+  const day = d.getDate();
+  const month = d.toLocaleDateString(undefined, { month: "short" });
+  const year = d.getFullYear();
+  return `🌻 Sealed · ${day} ${month} ${year}`;
 }
 
 type CanvasHeaderProps = {
   title?: string;
   /** Session-frozen stamp from the parent (last close, or now on first open). */
   editedAt: number;
+  /** Unix ms when the entry was sealed — shown instead of editedAt once stamped. */
+  sealedAt?: number | null;
   showSaving?: boolean;
   onTitleChange?: (title: string) => void;
   isSealed?: boolean;
@@ -1835,6 +1848,7 @@ type CanvasHeaderProps = {
 function CanvasHeader({
   title,
   editedAt,
+  sealedAt = null,
   showSaving = false,
   onTitleChange,
   isSealed = false,
@@ -1866,10 +1880,24 @@ function CanvasHeader({
     return () => window.clearTimeout(timer);
   }, [onTitleChange, persistedTitle, value]);
 
-  const editedStamp = useMemo(() => formatLastEditedStamp(editedAt), [editedAt]);
+  const displayAt =
+    isSealed && typeof sealedAt === "number" && Number.isFinite(sealedAt)
+      ? sealedAt
+      : editedAt;
+  const editedStamp = useMemo(
+    () => formatLastEditedStamp(displayAt),
+    [displayAt],
+  );
+  const signedStamp = useMemo(
+    () =>
+      typeof sealedAt === "number" && Number.isFinite(sealedAt)
+        ? formatSignedStamp(sealedAt)
+        : null,
+    [sealedAt],
+  );
   const isoDateTime = useMemo(
-    () => new Date(editedAt).toISOString(),
-    [editedAt]
+    () => new Date(displayAt).toISOString(),
+    [displayAt],
   );
 
   return (
@@ -1913,8 +1941,18 @@ function CanvasHeader({
         className="col-start-2 row-start-1 block text-right text-sm tracking-[0.04em]"
         style={{ lineHeight: 1.45 }}
       >
-        <span className=" text-[var(--canvas-date-time)] mb-[-1px]">{editedStamp.date}, </span>
-        <span className=" text-[var(--canvas-date-time)]">{editedStamp.time}</span>
+        {isSealed && signedStamp ? (
+          <span className="text-[var(--canvas-date-time)]">{signedStamp}</span>
+        ) : (
+          <>
+            <span className="text-[var(--canvas-date-time)] mb-[-1px]">
+              {editedStamp.date},{" "}
+            </span>
+            <span className="text-[var(--canvas-date-time)]">
+              {editedStamp.time}
+            </span>
+          </>
+        )}
       </time>
       {showSaving ? (
         <p

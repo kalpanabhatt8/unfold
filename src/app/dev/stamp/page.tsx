@@ -17,7 +17,8 @@ const EXAMPLES = [
 
 export default function StampDevPage() {
   const [customName, setCustomName] = useState("Kalpana Bhatt");
-  const [size, setSize] = useState(132);
+  const [width, setWidth] = useState(200);
+  const [height, setHeight] = useState(128);
 
   return (
     <main
@@ -33,8 +34,7 @@ export default function StampDevPage() {
         <header>
           <h1 className="text-xl font-semibold text-[#3a2820]">Stamp preview</h1>
           <p className="mt-1 text-sm text-black/50">
-            Wraps at word boundaries inside 90% of the safe zone — words are never
-            split mid-word.
+            Text-only imprint — wraps at word boundaries with equal inset padding.
           </p>
         </header>
 
@@ -49,18 +49,34 @@ export default function StampDevPage() {
             />
           </label>
           <label className="mt-4 block text-sm font-medium text-black/60">
-            Size ({size}px)
+            Width ({width}px)
             <input
               type="range"
-              min={58}
-              max={180}
-              value={size}
-              onChange={(e) => setSize(Number(e.target.value))}
+              min={120}
+              max={280}
+              value={width}
+              onChange={(e) => setWidth(Number(e.target.value))}
+              className="mt-2 w-full"
+            />
+          </label>
+          <label className="mt-4 block text-sm font-medium text-black/60">
+            Height ({height}px)
+            <input
+              type="range"
+              min={48}
+              max={160}
+              value={height}
+              onChange={(e) => setHeight(Number(e.target.value))}
               className="mt-2 w-full"
             />
           </label>
           <div className="mt-8 flex justify-center">
-            <StampFace userName={customName} size={size} inkAlpha={0.88} />
+            <StampFace
+              userName={customName}
+              width={width}
+              height={height}
+              inkAlpha={0.88}
+            />
           </div>
         </section>
 
@@ -73,7 +89,7 @@ export default function StampDevPage() {
               <p className="text-xs uppercase tracking-widest text-black/40">
                 {ex.label}
               </p>
-              <StampFace userName={ex.name} size={132} inkAlpha={0.88} />
+              <StampFace userName={ex.name} width={200} height={128} inkAlpha={0.88} />
               <p className="text-center text-sm text-black/55">&quot;{ex.name}&quot;</p>
             </div>
           ))}
@@ -84,7 +100,7 @@ export default function StampDevPage() {
           <ul className="mt-2 list-inside list-disc space-y-1">
             <li>One line by default — wraps only if it truly overflows</li>
             <li>Whole words move to the next line; never split mid-word</li>
-            <li>Text box ≈ 70% of stamp width</li>
+            <li>Text box uses full width minus {12}px padding on each side</li>
           </ul>
         </section>
       </div>

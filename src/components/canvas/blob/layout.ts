@@ -121,10 +121,17 @@ export const GREETING_BOTTOM_PCT = 78;
 export const WHISPER_GAP_PX = 10;
 /** Curved whisper arc — gentle bow above the flower head (matches mock). */
 export const WHISPER_ARC_MIN_WIDTH_PX = 108;
-export const WHISPER_ARC_MAX_WIDTH_PX = 196;
+/** Soft cap on wide viewports; arc also clamps to available screen width. */
+export const WHISPER_ARC_MAX_WIDTH_PX = 280;
 export const WHISPER_ARC_CHAR_WIDTH_PX = 7.4;
 export const WHISPER_ARC_PEAK_Y_PX = 5;
 export const WHISPER_ARC_BASELINE_Y_PX = 26;
+export const WHISPER_ARC_MIN_FONT_SIZE_PX = 11;
+export const WHISPER_ARC_SIDE_MARGIN_PX = 12;
+export const WHISPER_ARC_TEXT_PADDING_PX = 10;
+/** Sunflower render size on the canvas writing surface. */
+export const BLOB_SIZE_MOBILE_PX = 148;
+export const BLOB_SIZE_DESKTOP_PX = 160;
 export const SEAL_WHISPER_FADE_IN_MS = 1_000;
 export const SEAL_WHISPER_STAY_MS = 5_000;
 export const SEAL_WHISPER_FADE_OUT_MS = 1_500;
