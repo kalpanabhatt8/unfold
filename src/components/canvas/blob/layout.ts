@@ -131,7 +131,7 @@ export const WHISPER_ARC_SIDE_MARGIN_PX = 12;
 export const WHISPER_ARC_TEXT_PADDING_PX = 10;
 /** Sunflower render size on the canvas writing surface. */
 export const BLOB_SIZE_MOBILE_PX = 148;
-export const BLOB_SIZE_DESKTOP_PX = 160;
+export const BLOB_SIZE_DESKTOP_PX = 140;
 export const SEAL_WHISPER_FADE_IN_MS = 1_000;
 export const SEAL_WHISPER_STAY_MS = 5_000;
 export const SEAL_WHISPER_FADE_OUT_MS = 1_500;
