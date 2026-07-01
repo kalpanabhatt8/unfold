@@ -344,6 +344,9 @@ const CanvasPage = () => {
           onTitleChange={handleTitleChange}
           sessionEditedAt={sessionEditedAt}
           lastEditedAt={draft.lastEditedAt}
+          coverBackground={draft.background}
+          coverImage={draft.coverImage}
+          coverVariant={draft.variant}
         />
       )}
     </main>

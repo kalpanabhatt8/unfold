@@ -10,6 +10,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 import { useAuth, useClerk, useSession } from "@clerk/nextjs";
 import type { PublicUserData, UserResource } from "@clerk/types";
 import { Signature } from "lucide-react";
@@ -23,10 +24,10 @@ import {
 import { Tooltip } from "@/components/ui/tooltip";
 
 /** Equal visual inset from viewport bottom and right (px). */
-const STAMP_EDGE_INSET_PX = 32;
+export const STAMP_EDGE_INSET_PX = 32;
 /** Text-only imprint box — width fits long names; height fits two lines at 2× font. */
-const STAMP_WIDTH = 180;
-const STAMP_HEIGHT = 80;
+export const STAMP_WIDTH = 180;
+export const STAMP_HEIGHT = 80;
 const STAMP_TEXT_PADDING = 12;
 /** Baseline used for font scale — keeps 2× sizing vs the old 132px stamp. */
 const STAMP_FONT_REFERENCE = 132;
@@ -67,6 +68,103 @@ const stampImprintInsets = stampAlignedCornerInsets(
   STAMP_EDGE_INSET_PX,
   STAMP_TILT_DEG,
 );
+
+export type StampImprintAnchor = {
+  host: HTMLElement;
+  pageIndex: number;
+  bottom: number;
+  right: number;
+};
+
+/** Persisted stamp position on a book page (page-local bottom/right in px). */
+export type StampPlacement = {
+  pageIndex: number;
+  bottom: number;
+  right: number;
+};
+
+export type StampPlacementOptions = {
+  /** Distance from page bottom to clip/content bottom (px). */
+  contentBottomInset?: number;
+  /** Distance from page right to content clip (px). */
+  pagePadRight?: number;
+};
+
+/** Place the stamp on the page-right, below the last line when there is room. */
+export function computeStampPlacementOnPage(
+  pageEl: HTMLElement,
+  endRect: DOMRect | null,
+  options: StampPlacementOptions = {},
+): Pick<StampPlacement, "bottom" | "right"> {
+  const pageRect = pageEl.getBoundingClientRect();
+  const minInset = STAMP_EDGE_INSET_PX;
+  const contentBottomInset = options.contentBottomInset ?? minInset;
+  const pagePadRight = options.pagePadRight ?? minInset;
+  const stampGap = 12;
+
+  const right = pagePadRight;
+
+  if (!endRect) {
+    return { bottom: contentBottomInset + stampGap, right };
+  }
+
+  const endFromPageBottom = pageRect.bottom - endRect.bottom;
+  const spaceBelowText = endFromPageBottom - contentBottomInset;
+  const maxBottom = pageRect.height - contentBottomInset - STAMP_HEIGHT;
+
+  let bottom: number;
+
+  if (spaceBelowText >= STAMP_HEIGHT + stampGap) {
+    // Room below the last line — sit in that gap, hugging the page bottom.
+    bottom = contentBottomInset + stampGap;
+    const stampTopFromPageBottom = bottom + STAMP_HEIGHT;
+    if (stampTopFromPageBottom > endFromPageBottom - stampGap) {
+      bottom = endFromPageBottom - stampGap - STAMP_HEIGHT;
+    }
+  } else {
+    // Tight on space — place just above the last text block.
+    bottom = endFromPageBottom + stampGap;
+  }
+
+  bottom = Math.min(Math.max(minInset, bottom), Math.max(minInset, maxBottom));
+
+  return { bottom, right };
+}
+
+/** @deprecated Use computeStampPlacementOnPage — kept for live anchor measurement. */
+export function computeStampAnchorOnPage(
+  pageEl: HTMLElement,
+  endRect: DOMRect | null,
+  pageIndex: number,
+  options?: StampPlacementOptions,
+): StampImprintAnchor {
+  const placement = computeStampPlacementOnPage(pageEl, endRect, options);
+  return {
+    host: pageEl,
+    pageIndex,
+    bottom: placement.bottom,
+    right: placement.right,
+  };
+}
+
+function pageImprintShell(anchor: StampImprintAnchor): React.CSSProperties {
+  const tiltInsets = stampAlignedCornerInsets(
+    STAMP_WIDTH,
+    STAMP_HEIGHT,
+    0,
+    STAMP_TILT_DEG,
+  );
+  return {
+    position: "absolute",
+    bottom: anchor.bottom + (Number(tiltInsets.bottom) || 0),
+    right: anchor.right + (Number(tiltInsets.right) || 0),
+    zIndex: 4,
+    width: STAMP_WIDTH,
+    height: STAMP_HEIGHT,
+    overflow: "visible",
+    pointerEvents: "none",
+  };
+}
 
 /** Seal icon button — true corner inset. */
 const stampCornerAnchor: React.CSSProperties = {
@@ -281,6 +379,37 @@ function logStampNameDebug({
   console.groupEnd();
 }
 
+function useStampDisplayName(): string {
+  const clerk = useClerk();
+  const { sessionClaims } = useAuth();
+  const { session } = useSession();
+  const user = clerk.user;
+
+  return useMemo(() => {
+    const cached = readCachedStampName();
+    if (!clerk.loaded) return cached;
+
+    const fromClaims = joinNameParts(
+      typeof sessionClaims?.first_name === "string"
+        ? sessionClaims.first_name
+        : undefined,
+      typeof sessionClaims?.last_name === "string"
+        ? sessionClaims.last_name
+        : undefined,
+    );
+
+    const resolved =
+      fromClaims || resolveStampUserName(user, session?.publicUserData);
+
+    if (resolved) {
+      cacheStampName(resolved);
+      return resolved;
+    }
+
+    return cached;
+  }, [clerk.loaded, sessionClaims, user, session?.publicUserData]);
+}
+
 /* ─── Name layout ────────────────────────────────────────────────────────── */
 
 function stampFontSizeForName(
@@ -433,6 +562,66 @@ export function StampFace({
   );
 }
 
+/* ─── Inline page imprint (persistent) ───────────────────────────────────── */
+
+export function StampImprint({
+  bottom,
+  right,
+  userName,
+  inkAlpha = 0.88,
+}: {
+  bottom: number;
+  right: number;
+  userName: string;
+  inkAlpha?: number;
+}) {
+  const tiltInsets = stampAlignedCornerInsets(
+    STAMP_WIDTH,
+    STAMP_HEIGHT,
+    0,
+    STAMP_TILT_DEG,
+  );
+
+  return (
+    <div
+      className="journal-page__stamp"
+      style={{
+        bottom: bottom + (Number(tiltInsets.bottom) || 0),
+        right: right + (Number(tiltInsets.right) || 0),
+      }}
+      aria-hidden
+    >
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          transformOrigin: "50% 50%",
+          transform: STAMP_TILT,
+          opacity: inkAlpha,
+          mixBlendMode: "multiply",
+        }}
+      >
+        <StampFace
+          userName={userName}
+          width={STAMP_WIDTH}
+          height={STAMP_HEIGHT}
+          inkAlpha={inkAlpha}
+        />
+      </div>
+    </div>
+  );
+}
+
+export function JournalPageStamp({
+  bottom,
+  right,
+}: Pick<StampPlacement, "bottom" | "right">) {
+  const userName = useStampDisplayName();
+  return (
+    <StampImprint bottom={bottom} right={right} userName={userName} />
+  );
+}
+
 /* ─── Animation phase type ───────────────────────────────────────────────── */
 
 type Phase = "idle" | "pressing" | "impact" | "lifting" | "done";
@@ -456,6 +645,19 @@ export interface JournalStampProps {
    * When true the imprint is shown immediately, with no animation.
    */
   isSealed: boolean;
+  /** `corner` = fixed viewport button; `inline` = in-flow pill on the book page. */
+  placement?: "corner" | "inline";
+  /** When false, only the imprint animation renders (trigger via ref). */
+  showButton?: boolean;
+  /** Live measurement for the press animation before placement is persisted. */
+  resolveImprintAnchor?: () => StampImprintAnchor | null;
+  /**
+   * When set, the page editor renders the permanent imprint — the portal imprint
+   * is suppressed so the stamp never disappears after placement.
+   */
+  persistedPlacement?: StampPlacement | null;
+  /** Called when the stamp meets the page — capture placement for persistence. */
+  onStampPlaced?: (placement: StampPlacement) => void;
 }
 
 /**
@@ -469,7 +671,17 @@ export interface JournalStampProps {
  */
 export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
   function JournalStamp(
-    { onStampBegin, onStampImpact, onStampHover, isSealed },
+    {
+      onStampBegin,
+      onStampImpact,
+      onStampHover,
+      isSealed,
+      placement = "corner",
+      showButton = true,
+      resolveImprintAnchor,
+      persistedPlacement = null,
+      onStampPlaced,
+    },
     ref,
   ) {
   const clerk = useClerk();
@@ -481,30 +693,7 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
     process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
   );
 
-  const userName = useMemo(() => {
-    const cached = readCachedStampName();
-
-    if (!clerk.loaded) return cached;
-
-    const fromClaims = joinNameParts(
-      typeof sessionClaims?.first_name === "string"
-        ? sessionClaims.first_name
-        : undefined,
-      typeof sessionClaims?.last_name === "string"
-        ? sessionClaims.last_name
-        : undefined,
-    );
-
-    const resolved =
-      fromClaims || resolveStampUserName(user, session?.publicUserData);
-
-    if (resolved) {
-      cacheStampName(resolved);
-      return resolved;
-    }
-
-    return cached;
-  }, [clerk.loaded, sessionClaims, user, session?.publicUserData]);
+  const userName = useStampDisplayName();
 
   /** Stable primitive key — avoids re-logging when Clerk object refs change on parent re-render. */
   const authDebugFingerprint = useMemo(() => {
@@ -582,7 +771,17 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
   const [phase, setPhase] = useState<Phase>("idle");
   const [imprintVisible, setImprintVisible] = useState(false);
   const [pressEngaged, setPressEngaged] = useState(false);
+  const [pageImprintAnchor, setPageImprintAnchor] =
+    useState<StampImprintAnchor | null>(null);
   const sealStartedRef = useRef(false);
+
+  const measurePageImprint = useCallback(() => {
+    if (!resolveImprintAnchor || persistedPlacement) {
+      setPageImprintAnchor(null);
+      return;
+    }
+    setPageImprintAnchor(resolveImprintAnchor());
+  }, [persistedPlacement, resolveImprintAnchor]);
 
   /* Stable random values — chosen once per mount for ink realism */
   const [inkAlpha] = useState(() => 0.7 + Math.random() * 0.17); // 0.70…0.87
@@ -595,8 +794,34 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
       sealStartedRef.current = true;
       setImprintVisible(true);
       setPhase("done");
+      measurePageImprint();
     }
-  }, [isSealed]);
+  }, [isSealed, measurePageImprint]);
+
+  useLayoutEffect(() => {
+    if (!resolveImprintAnchor || persistedPlacement) return;
+    if (!isSealed && phase === "idle") return;
+    measurePageImprint();
+  }, [isSealed, measurePageImprint, persistedPlacement, phase, resolveImprintAnchor]);
+
+  useEffect(() => {
+    if (
+      !isSealed ||
+      persistedPlacement ||
+      !resolveImprintAnchor ||
+      pageImprintAnchor
+    ) {
+      return;
+    }
+    const id = requestAnimationFrame(() => measurePageImprint());
+    return () => cancelAnimationFrame(id);
+  }, [
+    isSealed,
+    measurePageImprint,
+    pageImprintAnchor,
+    persistedPlacement,
+    resolveImprintAnchor,
+  ]);
 
   /* Cleanup all pending timers on unmount */
   useEffect(() => {
@@ -617,6 +842,8 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
     if (sealStartedRef.current || isSealed) return;
     sealStartedRef.current = true;
 
+    measurePageImprint();
+
     console.log(
       "[🪪 stamp] seal animation started — name:",
       userName ? `"${userName}"` : "(none)",
@@ -636,6 +863,14 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
     push(() => {
       setPhase("impact");
       onStampImpact?.();
+      const anchor = resolveImprintAnchor?.();
+      if (anchor && onStampPlaced) {
+        onStampPlaced({
+          pageIndex: anchor.pageIndex,
+          bottom: anchor.bottom,
+          right: anchor.right,
+        });
+      }
 
       push(() => {
         setImprintVisible(true);
@@ -646,7 +881,15 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
         }, STAMP_INK_FADE_MS);
       }, STAMP_IMPACT_HOLD_MS);
     }, STAMP_PRESS_MS);
-  }, [isSealed, onStampBegin, onStampImpact, userName]);
+  }, [
+    isSealed,
+    measurePageImprint,
+    onStampBegin,
+    onStampImpact,
+    onStampPlaced,
+    resolveImprintAnchor,
+    userName,
+  ]);
 
   useImperativeHandle(ref, () => ({ playSealAnimation }), [playSealAnimation]);
 
@@ -655,8 +898,9 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
   }, [playSealAnimation]);
 
   const isOnPaper = imprintVisible || isSealed;
-  const showRubberStamp = phase !== "idle" || isOnPaper;
-  const showSealButton = !isSealed && phase === "idle";
+  const showRubberStamp =
+    !persistedPlacement && (imprintVisible || isSealed);
+  const showSealButton = showButton && !isSealed && phase === "idle";
 
   /** One transform for every phase after contact — no translate, no axis squash. */
   const stampFaceTransform =
@@ -692,23 +936,36 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
     );
   }, [isOnPaper, userName]);
 
+  const imprintShellStyle = resolveImprintAnchor
+    ? pageImprintAnchor
+      ? pageImprintShell(pageImprintAnchor)
+      : null
+    : stampImprintShell;
+
+  const imprintNode =
+    showRubberStamp && imprintShellStyle ? (
+      <div style={imprintShellStyle} aria-hidden>
+        <div style={stampFaceStyle}>
+          <StampFace
+            userName={userName}
+            width={STAMP_WIDTH}
+            height={STAMP_HEIGHT}
+            inkAlpha={isOnPaper ? 0.88 : 0.95}
+          />
+        </div>
+      </div>
+    ) : null;
+
   return (
     <>
-      {showRubberStamp && (
-        <div style={{ ...stampImprintShell, pointerEvents: "none" }} aria-hidden>
-          <div style={stampFaceStyle}>
-            <StampFace
-              userName={userName}
-              width={STAMP_WIDTH}
-              height={STAMP_HEIGHT}
-              inkAlpha={isOnPaper ? 0.88 : 0.95}
-            />
-          </div>
-        </div>
-      )}
+      {pageImprintAnchor?.host && imprintNode
+        ? createPortal(imprintNode, pageImprintAnchor.host)
+        : !resolveImprintAnchor
+          ? imprintNode
+          : null}
 
       {/* ── Sign control — icon at rest; press animation leaves signature imprint ── */}
-      {showSealButton && (
+      {showSealButton && placement === "corner" && (
         <div className="pointer-events-auto" style={stampCornerAnchor}>
           <Tooltip content="Sign it">
             <button
@@ -737,6 +994,29 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
             </button>
           </Tooltip>
         </div>
+      )}
+
+      {showSealButton && placement === "inline" && (
+        <button
+          type="button"
+          onPointerDown={(e) => {
+            e.preventDefault();
+            startSeal();
+          }}
+          onKeyDown={(e) => {
+            if (e.key !== "Enter" && e.key !== " ") return;
+            e.preventDefault();
+            startSeal();
+          }}
+          onClick={(e) => e.preventDefault()}
+          onPointerEnter={onStampHover}
+          onFocus={onStampHover}
+          aria-label="Seal this entry"
+          className="journal-page__seal-btn"
+        >
+          <Signature size={14} strokeWidth={2} aria-hidden />
+          Seal Entry
+        </button>
       )}
     </>
   );

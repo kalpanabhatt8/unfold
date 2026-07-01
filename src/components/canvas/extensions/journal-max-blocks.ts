@@ -10,7 +10,7 @@ export const JournalMaxBlocks = Extension.create({
   name: "journalMaxBlocks",
 
   addOptions() {
-    return { max: MAX_WRITING_BLOCKS };
+    return { max: MAX_WRITING_BLOCKS as number | null };
   },
 
   addProseMirrorPlugins() {
@@ -25,6 +25,7 @@ export const JournalMaxBlocks = Extension.create({
         },
         props: {
           handleKeyDown(view, event) {
+            if (max === null) return false;
             if (event.key !== "Enter" || event.shiftKey) return false;
             if (event.isComposing) return false;
 

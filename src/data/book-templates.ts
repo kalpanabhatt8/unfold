@@ -64,15 +64,26 @@ const getCoverImage = (index: number) => {
 };
 
 const createSnapshot = (
-  overrides: Partial<TemplateCanvasSnapshot>
-): TemplateCanvasSnapshot => ({
-  version: 4,
-  textColumns: [[]],
-  imageBlocks: [],
-  background: CANVAS_BACKGROUND,
-  columns: 1,
-  ...overrides,
-});
+  overrides: Partial<TemplateCanvasSnapshot> & {
+    textColumns?: TemplateCanvasSnapshot["textColumns"];
+  } = {}
+): TemplateCanvasSnapshot => {
+  const { textColumns, pages: pagesOverride, ...rest } = overrides;
+  const pages =
+    pagesOverride ??
+    (textColumns && textColumns.length > 0
+      ? textColumns.map((col) => col)
+      : [[]]);
+
+  return {
+    version: 5,
+    pages,
+    spreadIndex: 0,
+    imageBlocks: [],
+    background: CANVAS_BACKGROUND,
+    ...rest,
+  };
+};
 
 const coverTemplates: BookTemplate[] = coverImagePaths.map(
   (coverImage, index) => ({
@@ -96,8 +107,7 @@ const contentTemplates: BookTemplate[] = [
     coverImage: null,
     coverGradientId: "g3",
     canvas: createSnapshot({
-      columns: 1,
-      textColumns: [
+      pages: [
         [
           {
             id: "text-morning-focus",
@@ -140,8 +150,7 @@ const contentTemplates: BookTemplate[] = [
     coverImage: getCoverImage(1),
     coverGradientId: "g2",
     canvas: createSnapshot({
-      columns: 1,
-      textColumns: [
+      pages: [
         [
           {
             id: "text-reflection-title",
@@ -181,8 +190,7 @@ const contentTemplates: BookTemplate[] = [
     coverImage: null,
     coverGradientId: "g4",
     canvas: createSnapshot({
-      columns: 1,
-      textColumns: [
+      pages: [
         [
           {
             id: "text-moodboard-title",
@@ -207,8 +215,7 @@ const contentTemplates: BookTemplate[] = [
     coverImage: null,
     coverGradientId: "g5",
     canvas: createSnapshot({
-      columns: 1,
-      textColumns: [
+      pages: [
         [
           {
             id: "text-vision-title",

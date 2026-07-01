@@ -29,6 +29,8 @@ export default function EditorDevPage() {
             ref={editorRef}
             initialBlocks={blocks}
             isSealed={false}
+            getPageBounds={() => null}
+            onWouldOverflow={() => {}}
             onBlocksChange={setBlocks}
             onActiveBlockChange={() => {}}
           />

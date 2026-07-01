@@ -18,8 +18,57 @@ export function spineBaseRgbFromBackground(background: string | undefined | null
 export const SPINE_INNER_SHADOWS =
   "inset 4px 2px 10px 0 rgba(0,0,0,0.25), inset -4px 4px 14px 0 rgba(0,0,0,0.25)";
 
-/** Average RGB over the center band of a cover image (for image-based spines). */
-export function sampleCoverImageRgb(imageUrl: string): Promise<Rgb | null> {
+function averageRgbFromImageData(data: Uint8ClampedArray): Rgb | null {
+  let r = 0;
+  let g = 0;
+  let b = 0;
+  let n = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    const a = data[i + 3]! / 255;
+    if (a < 0.08) continue;
+    r += data[i]!;
+    g += data[i + 1]!;
+    b += data[i + 2]!;
+    n++;
+  }
+  if (!n) return null;
+  return { r: Math.round(r / n), g: Math.round(g / n), b: Math.round(b / n) };
+}
+
+/** Most frequent quantized RGB in a bitmap sample (for image-based cover themes). */
+function dominantRgbFromImageData(data: Uint8ClampedArray): Rgb | null {
+  const buckets = new Map<
+    number,
+    { r: number; g: number; b: number; count: number }
+  >();
+  const quantize = (channel: number) => Math.round(channel / 16) * 16;
+
+  for (let i = 0; i < data.length; i += 4) {
+    const a = data[i + 3]! / 255;
+    if (a < 0.08) continue;
+    const r = quantize(data[i]!);
+    const g = quantize(data[i + 1]!);
+    const b = quantize(data[i + 2]!);
+    const key = (r << 16) | (g << 8) | b;
+    const bucket = buckets.get(key);
+    if (bucket) {
+      bucket.count += 1;
+    } else {
+      buckets.set(key, { r, g, b, count: 1 });
+    }
+  }
+
+  let best: { r: number; g: number; b: number; count: number } | null = null;
+  for (const bucket of buckets.values()) {
+    if (!best || bucket.count > best.count) best = bucket;
+  }
+  return best ? { r: best.r, g: best.g, b: best.b } : null;
+}
+
+function sampleCoverImageRegion(
+  imageUrl: string,
+  reduce: (data: Uint8ClampedArray) => Rgb | null,
+): Promise<Rgb | null> {
   return new Promise((resolve) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
@@ -59,25 +108,21 @@ export function sampleCoverImageRgb(imageUrl: string): Promise<Rgb | null> {
       }
 
       const { data } = ctx.getImageData(x0, y0, rw, rh);
-      let r = 0;
-      let g = 0;
-      let b = 0;
-      let n = 0;
-      for (let i = 0; i < data.length; i += 4) {
-        const a = data[i + 3]! / 255;
-        if (a < 0.08) continue;
-        r += data[i]!;
-        g += data[i + 1]!;
-        b += data[i + 2]!;
-        n++;
-      }
-      if (!n) {
-        resolve(null);
-        return;
-      }
-      resolve({ r: Math.round(r / n), g: Math.round(g / n), b: Math.round(b / n) });
+      resolve(reduce(data));
     };
     img.onerror = () => resolve(null);
     img.src = imageUrl;
   });
+}
+
+/** Average RGB over the center band of a cover image (for image-based spines). */
+export function sampleCoverImageRgb(imageUrl: string): Promise<Rgb | null> {
+  return sampleCoverImageRegion(imageUrl, averageRgbFromImageData);
+}
+
+/** Dominant RGB over the center band of a cover image (for canvas cover theme). */
+export function sampleCoverImageDominantRgb(
+  imageUrl: string,
+): Promise<Rgb | null> {
+  return sampleCoverImageRegion(imageUrl, dominantRgbFromImageData);
 }

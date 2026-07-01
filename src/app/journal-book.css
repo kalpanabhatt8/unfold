@@ -1,0 +1,756 @@
+/* Journal book — functional layout (styling pass comes later). */
+
+.journal-book-shell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  padding: 2rem 1rem;
+}
+
+.journal-book-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 1.25rem;
+  filter:
+    drop-shadow(0 24px 48px rgb(15 15 15 / 12%))
+    drop-shadow(0 4px 12px rgb(15 15 15 / 8%));
+}
+
+.journal-book {
+  width: 70vw;
+  --journal-depth-grow: 2px;
+  --journal-page-depth-layers: 5; /* keep in sync with PAGE_DEPTH_LAYER_COUNT in journal-book.tsx */
+  --journal-page-stack-front-inset: calc(
+    (var(--journal-page-depth-layers) - 1) * var(--journal-depth-grow)
+  );
+  --journal-page-top-inset: var(--journal-page-stack-front-inset);
+  --journal-cover-bleed: calc(3 * var(--journal-depth-grow));
+  --journal-cover-bleed-y:6px;
+  /* Outer cover corners only (left/right outside). Unset = page radius + bleed. */
+  --journal-cover-outer-radius: 40px;
+  --journal-cover-spine-inset-top: 0.003 !important;
+  --journal-cover-spine-inset-bottom: 0.006;
+  --journal-cover-spine-gap: 0px;
+  --journal-cover-spine-radius: 12px;
+  --journal-cover-spine-radius-tl: 0px;
+  --journal-cover-spine-radius-tr: 0px;
+  --journal-cover-spine-radius-bl: 12px;
+  --journal-cover-spine-radius-br: 12px;
+  --journal-cover-offset-y: 1.25px;
+  --journal-page-stack-offset-y: 1px;
+  --journal-paper: #f8f7f4;
+  --journal-page-stack-seam: #ebeae6;
+  --journal-page-stack-highlight: #fdfcfa;
+  --journal-page-width: calc(70vw / 2);
+  --journal-page-height: 80vh;
+  --journal-page-pad-x: 56px;
+  --journal-page-pad-top: 48px;
+  --journal-page-pad-y: 48px;
+  --journal-page-chrome-height: 5.75rem;
+  --journal-text-column-width: 68ch;
+  --journal-body-size: 0.9375rem;
+  --journal-body-line-height: 1.95;
+  --journal-body-letter-spacing: 0.012em;
+  --journal-body-paragraph-gap: 1.95em;
+  --journal-cover: #e8b4b8;
+  --journal-radius-page: 40px; /* border radius of the page */
+  --journal-spine-shade: #5c4a3e;
+  --journal-spine-line: rgb(100 75 65 / 16%);
+  --journal-spine-gradient-width: 56px;
+
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  perspective: 2200px;
+  perspective-origin: 50% 40%;
+  overflow: visible;
+}
+
+/* —— Layered depth: stacked pages inset on both sides —— */
+
+.journal-book__page-depth {
+  position: absolute;
+  pointer-events: none;
+  background: var(--journal-paper);
+  box-shadow:
+    inset 0 1px 0 var(--journal-page-stack-highlight),
+    inset 1px 0 0 var(--journal-page-stack-seam),
+    inset -1px 0 0 var(--journal-page-stack-seam);
+}
+
+.journal-book__depth-stack {
+  position: absolute;
+  top: var(--journal-page-stack-offset-y);
+  width: var(--journal-page-width);
+  height: calc(var(--journal-page-height) - var(--journal-page-stack-offset-y));
+  pointer-events: none;
+  z-index: 1;
+  overflow: visible;
+}
+
+.journal-book__depth-stack--left {
+  left: 0;
+}
+
+.journal-book__depth-stack--right {
+  right: 0;
+}
+
+.journal-book__page-depth--left.journal-book__page-depth--1 {
+  z-index: 1;
+  top: 0;
+  bottom: 0;
+  left: calc(4 * var(--journal-depth-grow));
+  right: calc(4 * var(--journal-depth-grow));
+  border-top-left-radius: var(--journal-radius-page);
+  border-bottom-left-radius: var(--journal-radius-page);
+}
+
+.journal-book__page-depth--left.journal-book__page-depth--2 {
+  z-index: 0;
+  top: 0;
+  bottom: 0;
+  left: calc(3 * var(--journal-depth-grow));
+  right: calc(3 * var(--journal-depth-grow));
+  border-top-left-radius: var(--journal-radius-page);
+  border-bottom-left-radius: var(--journal-radius-page);
+}
+
+.journal-book__page-depth--left.journal-book__page-depth--3 {
+  z-index: -1;
+  top: 0;
+  bottom: 0;
+  left: calc(2 * var(--journal-depth-grow));
+  right: calc(2 * var(--journal-depth-grow));
+  border-top-left-radius: var(--journal-radius-page);
+  border-bottom-left-radius: var(--journal-radius-page);
+}
+
+.journal-book__page-depth--left.journal-book__page-depth--4 {
+  z-index: -2;
+  top: 0;
+  bottom: 0;
+  left: calc(1 * var(--journal-depth-grow));
+  right: calc(1 * var(--journal-depth-grow));
+  border-top-left-radius: var(--journal-radius-page);
+  border-bottom-left-radius: var(--journal-radius-page);
+}
+
+.journal-book__page-depth--left.journal-book__page-depth--5 {
+  z-index: -3;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  border-top-left-radius: var(--journal-radius-page);
+  border-bottom-left-radius: var(--journal-radius-page);
+}
+
+/* Cover: SVG trapezium path — outer edge full height, spine edge inset. */
+.journal-book__cover {
+  position: absolute;
+  top: calc(-1 * var(--journal-cover-bleed-y) + var(--journal-cover-offset-y));
+  width: calc(
+    var(--journal-page-width) + var(--journal-cover-bleed) -
+      var(--journal-cover-spine-gap) / 2
+  );
+  height: calc(var(--journal-page-height) + 2 * var(--journal-cover-bleed-y));
+  pointer-events: none;
+  z-index: 0;
+  overflow: visible;
+}
+
+.journal-book__cover path {
+  fill: var(--journal-cover);
+}
+
+.journal-book__cover--left {
+  left: calc(-1 * var(--journal-cover-bleed));
+}
+
+.journal-book__cover--right {
+  right: calc(-1 * var(--journal-cover-bleed));
+}
+
+.journal-book__page-depth--right.journal-book__page-depth--1 {
+  z-index: 1;
+  top: 0;
+  bottom: 0;
+  left: calc(4 * var(--journal-depth-grow));
+  right: calc(4 * var(--journal-depth-grow));
+  border-top-right-radius: var(--journal-radius-page);
+  border-bottom-right-radius: var(--journal-radius-page);
+}
+
+.journal-book__page-depth--right.journal-book__page-depth--2 {
+  z-index: 0;
+  top: 0;
+  bottom: 0;
+  left: calc(3 * var(--journal-depth-grow));
+  right: calc(3 * var(--journal-depth-grow));
+  border-top-right-radius: var(--journal-radius-page);
+  border-bottom-right-radius: var(--journal-radius-page);
+}
+
+.journal-book__page-depth--right.journal-book__page-depth--3 {
+  z-index: -1;
+  top: 0;
+  bottom: 0;
+  left: calc(2 * var(--journal-depth-grow));
+  right: calc(2 * var(--journal-depth-grow));
+  border-top-right-radius: var(--journal-radius-page);
+  border-bottom-right-radius: var(--journal-radius-page);
+}
+
+.journal-book__page-depth--right.journal-book__page-depth--4 {
+  z-index: -2;
+  top: 0;
+  bottom: 0;
+  left: calc(1 * var(--journal-depth-grow));
+  right: calc(1 * var(--journal-depth-grow));
+  border-top-right-radius: var(--journal-radius-page);
+  border-bottom-right-radius: var(--journal-radius-page);
+}
+
+.journal-book__page-depth--right.journal-book__page-depth--5 {
+  z-index: -3;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  border-top-right-radius: var(--journal-radius-page);
+  border-bottom-right-radius: var(--journal-radius-page);
+}
+
+.journal-book__spread {
+  display: flex;
+  align-items: stretch;
+  position: relative;
+  background: transparent;
+  padding: 0;
+  overflow: visible;
+}
+
+/* Static page revealed beneath a flipping leaf (avoids canvas recess showing through). */
+.journal-book__page-under {
+  position: absolute;
+  top: var(--journal-page-stack-offset-y);
+  width: var(--journal-page-width);
+  height: calc(var(--journal-page-height) - var(--journal-page-stack-offset-y));
+  z-index: 1;
+  pointer-events: none;
+}
+
+.journal-book__page-under--left {
+  left: 0;
+}
+
+.journal-book__page-under--right {
+  right: 0;
+}
+
+.journal-book__gutter {
+  position: absolute;
+  top: var(--journal-page-stack-offset-y);
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: var(--journal-spine-gradient-width);
+  pointer-events: none;
+  z-index: 13;
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    color-mix(in srgb, var(--journal-paper) 98%, var(--journal-spine-shade) 2%) 22%,
+    color-mix(in srgb, var(--journal-paper) 95%, var(--journal-spine-shade) 5%) 40%,
+    color-mix(in srgb, var(--journal-paper) 90%, var(--journal-spine-shade) 10%) 47%,
+    color-mix(in srgb, var(--journal-paper) 86%, var(--journal-spine-shade) 14%) 49.5%,
+    color-mix(in srgb, var(--journal-paper) 84%, var(--journal-spine-shade) 16%) 50%,
+    color-mix(in srgb, var(--journal-paper) 86%, var(--journal-spine-shade) 14%) 50.5%,
+    color-mix(in srgb, var(--journal-paper) 90%, var(--journal-spine-shade) 10%) 53%,
+    color-mix(in srgb, var(--journal-paper) 95%, var(--journal-spine-shade) 5%) 60%,
+    color-mix(in srgb, var(--journal-paper) 98%, var(--journal-spine-shade) 2%) 78%,
+    transparent 100%
+  );
+}
+
+.journal-page {
+  width: var(--journal-page-width);
+  height: var(--journal-page-height);
+  max-height: var(--journal-page-height);
+  background: var(--journal-paper);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  overscroll-behavior: none;
+  position: relative;
+  isolation: isolate;
+  contain: layout size;
+}
+
+.journal-page--left {
+  border-radius: var(--journal-radius-page) 0 0 var(--journal-radius-page);
+  background: var(--journal-paper);
+}
+
+.journal-page--left::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    transparent 82%,
+    color-mix(in srgb, var(--journal-paper) 99%, var(--journal-spine-shade) 1%) 88%,
+    color-mix(in srgb, var(--journal-paper) 97%, var(--journal-spine-shade) 3%) 93%,
+    color-mix(in srgb, var(--journal-paper) 95%, var(--journal-spine-shade) 5%) 97%,
+    color-mix(in srgb, var(--journal-paper) 92%, var(--journal-spine-shade) 8%) 100%
+  );
+}
+
+.journal-page--right {
+  border-radius: 0 var(--journal-radius-page) var(--journal-radius-page) 0;
+  background: var(--journal-paper);
+}
+
+.journal-page--right::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(
+    to left,
+    transparent 0%,
+    transparent 82%,
+    color-mix(in srgb, var(--journal-paper) 99%, var(--journal-spine-shade) 1%) 88%,
+    color-mix(in srgb, var(--journal-paper) 97%, var(--journal-spine-shade) 3%) 93%,
+    color-mix(in srgb, var(--journal-paper) 95%, var(--journal-spine-shade) 5%) 97%,
+    color-mix(in srgb, var(--journal-paper) 92%, var(--journal-spine-shade) 8%) 100%
+  );
+}
+
+.journal-page__stamp {
+  position: absolute;
+  z-index: 4;
+  width: 180px;
+  height: 80px;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.journal-page__chrome {
+  flex: 0 0 auto;
+  min-height: var(--journal-page-chrome-height);
+  padding: 0 var(--journal-page-pad-x);
+  padding-top: var(--journal-page-pad-top);
+  padding-bottom: 0;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.journal-page__heading-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  max-width: var(--journal-text-column-width);
+  margin-inline: auto;
+}
+
+.journal-page__date {
+  margin: 0;
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: var(--canvas-date-time, #8a8278);
+  letter-spacing: 0.02em;
+  line-height: 1.45;
+}
+
+.journal-page__chrome--right {
+  display: none;
+}
+
+.journal-page--right > .journal-page__chrome--band {
+  display: none;
+}
+
+.journal-page__seal-float {
+  position: absolute;
+  top: var(--journal-page-pad-top);
+  right: var(--journal-page-pad-x);
+  z-index: 4;
+  pointer-events: auto;
+}
+
+.journal-page__heading {
+  margin: 0;
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
+  font-family: var(--font-heading), Georgia, serif;
+  font-size: 1.35rem;
+  font-weight: 500;
+  color: var(--canvas-title-ink, #2a2420);
+  letter-spacing: -0.01em;
+}
+
+.journal-page__heading-input {
+  width: 100%;
+  max-width: none;
+  margin-inline: 0;
+  display: block;
+  border: 0;
+  background: transparent;
+  outline: none;
+}
+
+.journal-page__heading-input::placeholder {
+  color: var(--canvas-title-placeholder, #a09890);
+}
+
+.journal-page__status {
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-size: 0.8rem;
+  color: var(--canvas-date-time, #8a8278);
+  letter-spacing: 0.02em;
+}
+
+.journal-page__seal-slot {
+  pointer-events: auto;
+}
+
+.journal-page__seal-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--font-body), system-ui, sans-serif;
+  font-size: 0.78rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--journal-cover) 55%, #000 18%);
+  background: transparent;
+  color: #6a5048;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.journal-page__seal-btn:hover {
+  background: rgb(255 255 255 / 50%);
+}
+
+.journal-page--body-only {
+  width: 100%;
+  height: 100%;
+}
+
+.journal-page--body-only .journal-page__body {
+  padding-top: 0;
+  height: 100%;
+}
+
+.journal-page__body {
+  flex: 1 1 0;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  padding: var(--journal-page-pad-top) var(--journal-page-pad-x) var(--journal-page-pad-y);
+}
+
+.journal-page--has-heading .journal-page__body {
+  padding-top: 0.75rem;
+}
+
+/* Hard clip — page never grows with content. */
+.journal-page__clip {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+/* Override global .journal-tiptap { flex: 0 0 auto } — book pages are fixed-size. */
+.journal-page__clip .journal-tiptap--book-page {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: var(--journal-text-column-width);
+  margin-inline: auto;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.journal-page__clip .journal-tiptap--book-page .ProseMirror,
+.journal-page__readonly .ProseMirror,
+.journal-page__measure .journal-tiptap--book-page .ProseMirror {
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  font-size: var(--journal-body-size);
+  line-height: var(--journal-body-line-height);
+  letter-spacing: var(--journal-body-letter-spacing);
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  hyphens: none;
+}
+
+.journal-page__clip .journal-tiptap--book-page p.journal-block,
+.journal-page__readonly p.journal-block,
+.journal-page__measure .journal-tiptap--book-page p.journal-block {
+  margin-bottom: var(--journal-body-paragraph-gap);
+}
+
+.journal-page__clip .journal-tiptap--book-page p.journal-block:last-child,
+.journal-page__readonly p.journal-block:last-child,
+.journal-page__measure .journal-tiptap--book-page p.journal-block:last-child {
+  margin-bottom: 0;
+}
+
+.journal-page__readonly {
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.journal-page__readonly .ProseMirror {
+  max-height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+.journal-page__measure {
+  position: fixed;
+  left: -10000px;
+  top: 0;
+  visibility: hidden;
+  pointer-events: none;
+  overflow: visible;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.journal-page__readonly .ProseMirror {
+  outline: none;
+}
+
+/* —— Page edge tap zones —— */
+
+.journal-book__edge {
+  position: absolute;
+  top: var(--journal-page-stack-offset-y);
+  bottom: 0;
+  width: 2.75rem;
+  z-index: 40;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  opacity: 0;
+  overflow: hidden;
+  transition: opacity 150ms ease, background 150ms ease;
+}
+
+.journal-book__edge--left {
+  left: 0;
+  border-radius: var(--journal-radius-page) 0 0 var(--journal-radius-page);
+}
+
+.journal-book__edge--right {
+  right: 0;
+  border-radius: 0 var(--journal-radius-page) var(--journal-radius-page) 0;
+}
+
+.journal-book__edge:hover:not(:disabled),
+.journal-book__edge:focus-visible:not(:disabled) {
+  opacity: 1;
+  background: linear-gradient(
+    to right,
+    rgb(0 0 0 / 6%),
+    transparent
+  );
+}
+
+.journal-book__edge--right:hover:not(:disabled),
+.journal-book__edge--right:focus-visible:not(:disabled) {
+  background: linear-gradient(
+    to left,
+    rgb(0 0 0 / 6%),
+    transparent
+  );
+}
+
+.journal-book__edge:disabled {
+  cursor: default;
+  pointer-events: none;
+}
+
+/* —— Left page flip —— */
+
+.journal-book__left-leaf {
+  position: relative;
+  z-index: 2;
+  transform-style: preserve-3d;
+  width: var(--journal-page-width);
+  margin-top: var(--journal-page-stack-offset-y);
+  height: calc(var(--journal-page-height) - var(--journal-page-stack-offset-y));
+  overflow: visible;
+}
+
+.journal-book__left-leaf--active {
+  z-index: 30;
+}
+
+.journal-book__left-face {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+}
+
+.journal-book__left-face--front {
+  z-index: 3;
+  transform: translateZ(1px);
+  border-radius: var(--journal-radius-page) 0 0 var(--journal-radius-page);
+  overflow: hidden;
+}
+
+.journal-book__left-face--back {
+  transform: rotateY(180deg) translateZ(1px);
+}
+
+.journal-book__left-face--back .journal-page {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  border-radius: 0 var(--journal-radius-page) var(--journal-radius-page) 0;
+}
+
+.journal-book__left-face--front .journal-page {
+  display: flex;
+  flex-direction: column;
+  width: calc(100% - 2 * var(--journal-page-top-inset));
+  height: 100%;
+  margin-left: var(--journal-page-top-inset);
+  margin-right: var(--journal-page-top-inset);
+  border-radius: var(--journal-radius-page) 0 0 var(--journal-radius-page);
+  box-shadow: inset 0 1px 0 var(--journal-page-stack-highlight);
+}
+
+.journal-book__page-under--left .journal-page {
+  width: calc(100% - 2 * var(--journal-page-top-inset));
+  margin-left: var(--journal-page-top-inset);
+  margin-right: var(--journal-page-top-inset);
+}
+
+/* —— Right page flip —— */
+
+.journal-book__right-leaf {
+  position: relative;
+  z-index: 2;
+  transform-style: preserve-3d;
+  width: var(--journal-page-width);
+  margin-top: var(--journal-page-stack-offset-y);
+  height: calc(var(--journal-page-height) - var(--journal-page-stack-offset-y));
+  overflow: visible;
+}
+
+.journal-book__right-leaf--active {
+  z-index: 30;
+}
+
+.journal-book__right-face {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+}
+
+.journal-book__right-face--front {
+  z-index: 3;
+  transform: translateZ(1px);
+  border-radius: 0 var(--journal-radius-page) var(--journal-radius-page) 0;
+  overflow: hidden;
+}
+
+.journal-book__right-face--back {
+  transform: rotateY(180deg) translateZ(1px);
+}
+
+.journal-book__right-face--back .journal-page {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--journal-radius-page) 0 0 var(--journal-radius-page);
+}
+
+.journal-book__right-face--front .journal-page {
+  display: flex;
+  flex-direction: column;
+  width: calc(100% - 2 * var(--journal-page-top-inset));
+  height: 100%;
+  margin-left: var(--journal-page-top-inset);
+  margin-right: var(--journal-page-top-inset);
+  border-radius: 0 var(--journal-radius-page) var(--journal-radius-page) 0;
+  box-shadow: inset 0 1px 0 var(--journal-page-stack-highlight);
+}
+
+.journal-book__page-under--right .journal-page {
+  width: calc(100% - 2 * var(--journal-page-top-inset));
+  margin-left: var(--journal-page-top-inset);
+  margin-right: var(--journal-page-top-inset);
+}
+
+.journal-book__right-face--front .journal-page__body {
+  flex: 1;
+  min-height: 0;
+}
+
+/* Dot grid on pages */
+.journal-page::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background-image: radial-gradient(circle, rgb(0 0 0 / 7%) 1px, transparent 1px);
+  background-size: 18px 18px;
+  opacity: 0.55;
+}
+
+.journal-page > * {
+  position: relative;
+  z-index: 1;
+}
+

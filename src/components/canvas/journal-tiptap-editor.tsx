@@ -15,7 +15,11 @@ import Placeholder from "@tiptap/extension-placeholder";
 import type { TextBlockKind, JournalTextBlock } from "@/components/canvas/canvas-board";
 import { JournalBlock } from "@/components/canvas/extensions/journal-block";
 import { JournalMaxBlocks } from "@/components/canvas/extensions/journal-max-blocks";
-import { applyBlockKind } from "@/lib/journal-blocks";
+import {
+  JournalPageCapacity,
+  type PageBounds,
+} from "@/components/canvas/extensions/journal-page-capacity";
+import { applyBlockKind, MAX_WRITING_BLOCKS } from "@/lib/journal-blocks";
 import {
   blocksToDoc,
   docToBlocks,
@@ -37,14 +41,27 @@ export type JournalTiptapEditorHandle = {
   ) => void;
   getActiveBlockId: () => string | null;
   getSelectionRect: () => DOMRect | null;
+  /** Caret rect at the end of the document — for stamp placement. */
+  getContentEndRect: () => DOMRect | null;
   getSelectedTextLength: () => number;
 };
+
+/** Return kept blocks when the editor must trim to match page storage. */
+export type JournalBlocksChangeHandler = (
+  blocks: JournalTextBlock[]
+) => JournalTextBlock[] | void;
 
 type JournalTiptapEditorProps = {
   initialBlocks: JournalTextBlock[];
   isSealed: boolean;
   isSealing?: boolean;
-  onBlocksChange: (blocks: JournalTextBlock[]) => void;
+  maxBlocks?: number | null;
+  getPageBounds: () => PageBounds | null;
+  onWouldOverflow: (
+    kept: JournalTextBlock[],
+    overflow: JournalTextBlock[]
+  ) => void;
+  onBlocksChange: JournalBlocksChangeHandler;
   onActiveBlockChange: (blockId: string | null) => void;
   onSelectionActivity?: () => void;
   onFocus?: () => void;
@@ -75,6 +92,9 @@ export const JournalTiptapEditor = forwardRef<
     initialBlocks,
     isSealed,
     isSealing = false,
+    maxBlocks,
+    getPageBounds,
+    onWouldOverflow,
     onBlocksChange,
     onActiveBlockChange,
     onSelectionActivity,
@@ -93,6 +113,12 @@ export const JournalTiptapEditor = forwardRef<
   onFocusRef.current = onFocus;
   const onWritingActivityRef = useRef(onWritingActivity);
   onWritingActivityRef.current = onWritingActivity;
+  const getPageBoundsRef = useRef(getPageBounds);
+  getPageBoundsRef.current = getPageBounds;
+  const onWouldOverflowRef = useRef(onWouldOverflow);
+  onWouldOverflowRef.current = onWouldOverflow;
+  const paginatingRef = useRef(false);
+  const syncingRef = useRef(false);
   const initialContentRef = useRef(blocksToDoc(initialBlocks));
   const isLocked = isSealed || isSealing;
 
@@ -103,7 +129,14 @@ export const JournalTiptapEditor = forwardRef<
       HardBreak,
       History,
       JournalBlock,
-      JournalMaxBlocks,
+      JournalMaxBlocks.configure({
+        max: maxBlocks === undefined ? MAX_WRITING_BLOCKS : maxBlocks,
+      }),
+      JournalPageCapacity.configure({
+        getPageBounds: () => getPageBoundsRef.current(),
+        onWouldOverflow: (kept, overflow) =>
+          onWouldOverflowRef.current(kept, overflow),
+      }),
       Placeholder.configure({
         showOnlyCurrent: true,
         includeChildren: false,
@@ -126,9 +159,20 @@ export const JournalTiptapEditor = forwardRef<
         dir: "ltr",
         spellcheck: "true",
       },
+      handleScrollToSelection: () => true,
     },
     onUpdate: ({ editor: ed }) => {
-      onBlocksChangeRef.current(docToBlocks(ed.getJSON()));
+      if (paginatingRef.current || syncingRef.current) return;
+
+      const blocks = docToBlocks(ed.getJSON());
+      const trimTo = onBlocksChangeRef.current(blocks);
+
+      if (trimTo) {
+        paginatingRef.current = true;
+        ed.commands.setContent(blocksToDoc(trimTo), false);
+        paginatingRef.current = false;
+      }
+
       onWritingActivityRef.current?.();
     },
     onSelectionUpdate: ({ editor: ed }) => {
@@ -144,10 +188,22 @@ export const JournalTiptapEditor = forwardRef<
   useEffect(() => {
     if (!editor) return;
     editor.setEditable(!isLocked);
-    if (isLocked) {
-      editor.commands.blur();
-    }
+    if (isLocked) editor.commands.blur();
   }, [editor, isLocked]);
+
+  // Page storage is authoritative — editor only shows what fits this page.
+  useEffect(() => {
+    if (!editor || isLocked || paginatingRef.current) return;
+    const fromEditor = docToBlocks(editor.getJSON());
+    if (JSON.stringify(fromEditor) === JSON.stringify(initialBlocks)) return;
+    syncingRef.current = true;
+    paginatingRef.current = true;
+    editor.commands.setContent(blocksToDoc(initialBlocks), false);
+    paginatingRef.current = false;
+    queueMicrotask(() => {
+      syncingRef.current = false;
+    });
+  }, [editor, initialBlocks, isLocked]);
 
   useImperativeHandle(
     ref,
@@ -161,16 +217,13 @@ export const JournalTiptapEditor = forwardRef<
         editor.commands.blur();
       },
       focus(position = "end") {
-        if (!editor) return;
-        editor.commands.focus(position);
+        editor?.commands.focus(position);
       },
       focusEnd() {
-        if (!editor) return;
-        editor.commands.focus("end");
+        editor?.commands.focus("end");
       },
       selectAll() {
-        if (!editor) return;
-        editor.commands.selectAll();
+        editor?.commands.selectAll();
       },
       setBlockKind(kind: TextBlockKind, blockIds?: string[]) {
         if (!editor) return;
@@ -210,8 +263,12 @@ export const JournalTiptapEditor = forwardRef<
               selectedText,
             }
           );
-          editor.commands.setContent(blocksToDoc(nextBlocks), false);
-          onBlocksChangeRef.current(nextBlocks);
+          const trimTo = onBlocksChangeRef.current(nextBlocks);
+          if (trimTo) {
+            editor.commands.setContent(blocksToDoc(trimTo), false);
+          } else {
+            editor.commands.setContent(blocksToDoc(nextBlocks), false);
+          }
           return;
         }
 
@@ -233,7 +290,12 @@ export const JournalTiptapEditor = forwardRef<
           tr = tr.setNodeMarkup(pos, undefined, attrs);
         });
         view.dispatch(tr);
-        onBlocksChangeRef.current(docToBlocks(editor.getJSON()));
+        const trimTo = onBlocksChangeRef.current(
+          docToBlocks(editor.getJSON())
+        );
+        if (trimTo) {
+          editor.commands.setContent(blocksToDoc(trimTo), false);
+        }
       },
       getActiveBlockId() {
         return findJournalBlockAtSelection(editor!)?.blockId ?? null;
@@ -251,6 +313,14 @@ export const JournalTiptapEditor = forwardRef<
           Math.abs(end.bottom - start.top)
         );
       },
+      getContentEndRect() {
+        if (!editor) return null;
+        const docSize = editor.state.doc.content.size;
+        const pos = Math.max(1, docSize - 1);
+        const coords = editor.view.coordsAtPos(pos);
+        const lineHeight = Math.max(coords.bottom - coords.top, 16);
+        return new DOMRect(coords.left, coords.top, 0, lineHeight);
+      },
       getSelectedTextLength() {
         if (!editor) return 0;
         const { from, to } = editor.state.selection;
@@ -265,7 +335,7 @@ export const JournalTiptapEditor = forwardRef<
   return (
     <EditorContent
       editor={editor}
-      className="journal-tiptap w-full"
+      className="journal-tiptap journal-tiptap--book-page w-full h-full"
     />
   );
 });

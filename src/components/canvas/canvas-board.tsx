@@ -37,11 +37,8 @@ import {
   Pilcrow,
   Trash2,
 } from "lucide-react";
-import { JournalStamp, type JournalStampHandle } from "@/components/canvas/journal-stamp";
-import {
-  JournalTiptapEditor,
-  type JournalTiptapEditorHandle,
-} from "@/components/canvas/journal-tiptap-editor";
+import { JournalStamp, type JournalStampHandle, type StampPlacement } from "@/components/canvas/journal-stamp";
+import { JournalBook, type JournalBookHandle } from "@/components/canvas/journal-book";
 import { UnfinishedDraftPrompt } from "@/components/canvas/unfinished-draft-prompt";
 import { iconStrokePx } from "@/components/ui/button-system";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -63,6 +60,13 @@ import {
   extractJournalPlainText,
   // mergeSignatureOverride,
 } from "@/lib/canvas-word-count";
+import {
+  columnsToPages,
+  emptyPages,
+  inferBookWritingState,
+  lastContentSpreadIndex,
+  lastContentPageIndex,
+} from "@/lib/journal-pages";
 import {
   createWritingSlots,
   emptyParagraph,
@@ -86,7 +90,7 @@ import { fetchJournalWhisper } from "@/lib/journal-whisper";
 /*  Types                                                                     */
 /* -------------------------------------------------------------------------- */
 
-export const CANVAS_SNAPSHOT_VERSION = 4 as const;
+export const CANVAS_SNAPSHOT_VERSION = 5 as const;
 
 export type TextBlockKind = "paragraph" | "bullet" | "checklist";
 export type ColumnLayout = 1 | 2 | 3;
@@ -124,16 +128,24 @@ export type JournalImage = {
 
 export type CanvasSnapshot = {
   version: typeof CANVAS_SNAPSHOT_VERSION;
-  /** 2D — outer index is the column track, inner index is the block order. */
-  textColumns: JournalTextBlock[][];
+  /** Paginated book pages — each page is an ordered list of blocks. */
+  pages: JournalTextBlock[][];
+  /** Current spread index (0 = pages 1–2, 1 = pages 3–4, …). */
+  spreadIndex: number;
   imageBlocks: JournalImage[];
   background: string;
-  columns: ColumnLayout;
   /** Author name / signature shown at the end of the page. */
   signature?: string;
   /** Unix ms when the entry was sealed (irreversible). Absent = draft. */
   sealedAt?: number;
+  /** Page-local position of the signature imprint once sealed. */
+  stampPlacement?: StampPlacement;
   updatedAt: number;
+
+  /** @deprecated Legacy v4 — migrated into `pages` on load. */
+  textColumns?: JournalTextBlock[][];
+  /** @deprecated Legacy column layout field. */
+  columns?: ColumnLayout;
 };
 
 /* -------------------------------------------------------------------------- */
@@ -235,10 +247,10 @@ const adjustColumns = (
 
 export const emptySnapshot = (): CanvasSnapshot => ({
   version: CANVAS_SNAPSHOT_VERSION,
-  textColumns: [createWritingSlots()],
+  pages: emptyPages(),
+  spreadIndex: 0,
   imageBlocks: [],
   background: CANVAS_BACKGROUND,
-  columns: 1,
   signature: "",
   updatedAt: Date.now(),
 });
@@ -384,13 +396,37 @@ function migrateLegacy(raw: Record<string, unknown>): CanvasSnapshot {
 
   return {
     version: CANVAS_SNAPSHOT_VERSION,
-    textColumns: [flatText.length > 0 ? flatText : [emptyParagraph()]],
+    pages: [flatText.length > 0 ? flatText : [emptyParagraph()]],
+    spreadIndex: 0,
     imageBlocks: images,
     background: CANVAS_BACKGROUND,
-    columns: 1,
     updatedAt: Date.now(),
   };
 }
+
+const sanitizeStampPlacement = (raw: unknown): StampPlacement | undefined => {
+  if (!isRecord(raw)) return undefined;
+  const pageIndex =
+    typeof raw.pageIndex === "number" && Number.isFinite(raw.pageIndex)
+      ? Math.max(0, Math.floor(raw.pageIndex))
+      : undefined;
+  const bottom =
+    typeof raw.bottom === "number" && Number.isFinite(raw.bottom)
+      ? raw.bottom
+      : undefined;
+  const right =
+    typeof raw.right === "number" && Number.isFinite(raw.right)
+      ? raw.right
+      : undefined;
+  if (
+    pageIndex === undefined ||
+    bottom === undefined ||
+    right === undefined
+  ) {
+    return undefined;
+  }
+  return { pageIndex, bottom, right };
+};
 
 export function normalizeSnapshot(value: unknown): CanvasSnapshot | null {
   if (!isRecord(value)) return null;
@@ -400,7 +436,33 @@ export function normalizeSnapshot(value: unknown): CanvasSnapshot | null {
       ? value.version
       : 0;
 
-  if (ver !== CANVAS_SNAPSHOT_VERSION || !Array.isArray(value.textColumns)) {
+  if (ver < CANVAS_SNAPSHOT_VERSION) {
+    try {
+      const legacy = migrateLegacy(value);
+      if (ver === 4 && Array.isArray(value.textColumns)) {
+        return {
+          ...legacy,
+          pages: columnsToPages(
+            arrayOrEmpty<unknown>(value.textColumns).map((col) =>
+              arrayOrEmpty<unknown>(col)
+                .map(sanitizeTextBlock)
+                .filter((b): b is JournalTextBlock => Boolean(b))
+            )
+          ),
+          spreadIndex:
+            typeof value.spreadIndex === "number" &&
+            Number.isFinite(value.spreadIndex)
+              ? Math.max(0, value.spreadIndex)
+              : 0,
+        };
+      }
+      return legacy;
+    } catch {
+      return null;
+    }
+  }
+
+  if (!Array.isArray(value.pages)) {
     try {
       return migrateLegacy(value);
     } catch {
@@ -408,22 +470,12 @@ export function normalizeSnapshot(value: unknown): CanvasSnapshot | null {
     }
   }
 
-  const columnsRaw = value.columns;
-  const columns: ColumnLayout =
-    columnsRaw === 1 || columnsRaw === 2 || columnsRaw === 3
-      ? (columnsRaw as ColumnLayout)
-      : 1;
-
-  let textColumns = arrayOrEmpty<unknown>(value.textColumns).map((col) =>
-    arrayOrEmpty<unknown>(col)
+  let pages = arrayOrEmpty<unknown>(value.pages).map((page) =>
+    arrayOrEmpty<unknown>(page)
       .map(sanitizeTextBlock)
       .filter((b): b is JournalTextBlock => Boolean(b))
   );
-
-  textColumns = adjustColumns(
-    textColumns.length === 0 ? [createWritingSlots()] : textColumns,
-    columns
-  );
+  if (pages.length === 0) pages = emptyPages();
 
   const imageBlocks = arrayOrEmpty<unknown>(value.imageBlocks)
     .map(sanitizeImage)
@@ -442,14 +494,23 @@ export function normalizeSnapshot(value: unknown): CanvasSnapshot | null {
       ? value.sealedAt
       : undefined;
 
+  const spreadIndex =
+    typeof value.spreadIndex === "number" &&
+    Number.isFinite(value.spreadIndex)
+      ? Math.max(0, value.spreadIndex)
+      : 0;
+
+  const stampPlacement = sanitizeStampPlacement(value.stampPlacement);
+
   return {
     version: CANVAS_SNAPSHOT_VERSION,
-    textColumns,
+    pages,
+    spreadIndex,
     imageBlocks,
     background: CANVAS_BACKGROUND,
-    columns,
     signature,
     sealedAt,
+    stampPlacement,
     updatedAt,
   };
 }
@@ -536,6 +597,8 @@ type CanvasBoardProps = {
   lastEditedAt?: number;
   /** Book cover background (CSS) — used for a subtle 6% page tint. */
   coverBackground?: string;
+  coverImage?: string | null;
+  coverVariant?: "solid" | "image";
 };
 
 /**
@@ -559,17 +622,19 @@ function CanvasBoardInner(
     sessionEditedAt,
     lastEditedAt,
     coverBackground,
+    coverImage,
+    coverVariant,
   }: CanvasBoardProps,
   ref: React.ForwardedRef<CanvasBoardHandle>
 ) {
-  const [journalBlocks, setJournalBlocks] = useState<JournalTextBlock[]>(() =>
-    createWritingSlots()
-  );
-  const journalBlocksRef = useRef(journalBlocks);
-  journalBlocksRef.current = journalBlocks;
+  const [pages, setPages] = useState<JournalTextBlock[][]>(() => emptyPages());
+  const pagesRef = useRef(pages);
+  pagesRef.current = pages;
+  const [spreadIndex, setSpreadIndex] = useState(0);
+  const [writingPageIndex, setWritingPageIndex] = useState(0);
   const [editorContentKey, setEditorContentKey] = useState(0);
-  const journalEditorRef = useRef<JournalTiptapEditorHandle>(null);
-  const textColumns = useMemo(() => [journalBlocks], [journalBlocks]);
+  const bookRef = useRef<JournalBookHandle>(null);
+  const textColumns = useMemo(() => pages, [pages]);
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
   const [imageBlocks, setImageBlocks] = useState<JournalImage[]>([]);
   // Signature — disabled for now
@@ -577,6 +642,9 @@ function CanvasBoardInner(
   // const [signatureFieldOpen, setSignatureFieldOpen] = useState(false);
   const [sealedAt, setSealedAt] = useState<number | null>(null);
   const [isSealing, setIsSealing] = useState(false);
+  const [stampPlacement, setStampPlacement] = useState<StampPlacement | null>(
+    null
+  );
   const stampRef = useRef<JournalStampHandle>(null);
   const sealWhisperStartedRef = useRef(false);
   const sealTitleAppliedRef = useRef(false);
@@ -585,9 +653,7 @@ function CanvasBoardInner(
   const writingZoneRef = useRef<HTMLDivElement | null>(null);
   const [showUnfinishedPrompt, setShowUnfinishedPrompt] = useState(false);
   const unfinishedPromptCheckedRef = useRef(false);
-  // Column layout has been retired from the UI; we keep the snapshot field
-  // for backward-compat (legacy notebooks still deserialize) but always
-  // render as a single column going forward.
+  // Legacy column layout — kept for snapshot migration only.
   const [columns] = useState<ColumnLayout>(1);
   const [lastSavedAt, setLastSavedAt] = useState<number>(() => sessionEditedAt);
   const [showSavingLabel, setShowSavingLabel] = useState(false);
@@ -630,14 +696,21 @@ function CanvasBoardInner(
     hydratedRef.current = true;
 
     const apply = (snap: CanvasSnapshot) => {
-      const cols = adjustColumns(snap.textColumns, 1);
-      const blocks = cols[0] ?? createWritingSlots();
-      journalBlocksRef.current = blocks;
-      setJournalBlocks(blocks);
+      const loadedPages =
+        snap.pages.length > 0 ? snap.pages : columnsToPages(snap.textColumns ?? []);
+      pagesRef.current = loadedPages;
+      setPages(loadedPages);
+      const writing = inferBookWritingState(
+        loadedPages,
+        snap.spreadIndex ?? 0,
+        Boolean(snap.sealedAt)
+      );
+      setSpreadIndex(writing.spreadIndex);
+      setWritingPageIndex(writing.writingPageIndex);
       setEditorContentKey((k) => k + 1);
       setImageBlocks(snap.imageBlocks);
-      // setSignature(snap.signature ?? "");
       if (snap.sealedAt) setSealedAt(snap.sealedAt);
+      setStampPlacement(snap.stampPlacement ?? null);
       snapshotEditedAtRef.current = sessionEditedAt;
       setLastSavedAt(sessionEditedAt);
     };
@@ -679,15 +752,16 @@ function CanvasBoardInner(
   const buildSnapshot = useCallback((): CanvasSnapshot => {
     return {
       version: CANVAS_SNAPSHOT_VERSION,
-      textColumns: [journalBlocks],
+      pages,
+      spreadIndex,
       imageBlocks,
       background: CANVAS_BACKGROUND,
-      columns,
       signature: "",
       sealedAt: sealedAt ?? undefined,
+      stampPlacement: stampPlacement ?? undefined,
       updatedAt: snapshotEditedAtRef.current,
     };
-  }, [columns, imageBlocks, journalBlocks, sealedAt]);
+  }, [imageBlocks, pages, sealedAt, spreadIndex, stampPlacement]);
 
   const buildLiveCompanionSnapshot = useCallback((): CanvasSnapshot => {
     return buildSnapshot();
@@ -839,9 +913,14 @@ function CanvasBoardInner(
     try {
       const raw = window.localStorage.getItem(storageKey);
       const existing: Record<string, unknown> = raw ? JSON.parse(raw) : {};
+      const snap = buildSnapshot();
       window.localStorage.setItem(
         storageKey,
-        JSON.stringify({ ...existing, sealedAt: now })
+        JSON.stringify({
+          ...existing,
+          ...snap,
+          sealedAt: now,
+        })
       );
     } catch {
       /* noop */
@@ -850,10 +929,37 @@ function CanvasBoardInner(
     applySealTitleWhenReady();
   }, [
     applySealTitleWhenReady,
+    buildSnapshot,
     companion,
     sealedAt,
     storageKey,
   ]);
+
+  const captureStampPlacement = useCallback((placement: StampPlacement) => {
+    setStampPlacement(placement);
+  }, []);
+
+  const restoreStampPlacementFromBook = useCallback(() => {
+    const loadedPages = pagesRef.current;
+    const targetSpread = lastContentSpreadIndex(loadedPages);
+    const measure = () => {
+      const anchor = bookRef.current?.getStampImprintAnchor();
+      if (!anchor) return;
+      setStampPlacement({
+        pageIndex: anchor.pageIndex,
+        bottom: anchor.bottom,
+        right: anchor.right,
+      });
+    };
+
+    if (spreadIndex !== targetSpread) {
+      setSpreadIndex(targetSpread);
+      requestAnimationFrame(() => requestAnimationFrame(measure));
+      return;
+    }
+
+    measure();
+  }, [spreadIndex]);
 
   const startAuroraSeal = useCallback(() => {
     if (sealedAt !== null || isSealing) return;
@@ -863,7 +969,7 @@ function CanvasBoardInner(
       return;
     }
 
-    journalEditorRef.current?.lock();
+    bookRef.current?.lockEditors();
     setIsSealing(true);
 
     const zone = writingZoneRef.current;
@@ -934,13 +1040,40 @@ function CanvasBoardInner(
   }, [blob, isContentReady, sealedAt]);
 
   useEffect(() => {
+    if (!isContentReady || sealedAt === null) return;
+    const targetPage =
+      stampPlacement?.pageIndex ?? lastContentPageIndex(pages);
+    const targetSpread = Math.floor(targetPage / 2);
+    if (spreadIndex !== targetSpread) return;
+
+    const id = requestAnimationFrame(() => {
+      restoreStampPlacementFromBook();
+    });
+    return () => cancelAnimationFrame(id);
+  }, [
+    isContentReady,
+    pages,
+    restoreStampPlacementFromBook,
+    sealedAt,
+    spreadIndex,
+    stampPlacement?.pageIndex,
+  ]);
+
+  useEffect(() => {
     if (!isContentReady || sealedAt !== null) return;
     void warmJournalTitleRoute();
   }, [isContentReady, sealedAt]);
 
   const beginSealAnimation = useCallback(() => {
-    stampRef.current?.playSealAnimation();
-  }, []);
+    const targetSpread = lastContentSpreadIndex(pagesRef.current);
+    const play = () => stampRef.current?.playSealAnimation();
+    if (spreadIndex !== targetSpread) {
+      setSpreadIndex(targetSpread);
+      requestAnimationFrame(() => requestAnimationFrame(play));
+      return;
+    }
+    play();
+  }, [spreadIndex]);
 
   useEffect(() => {
     if (!isContentReady || sealedAt !== null || unfinishedPromptCheckedRef.current) {
@@ -1060,14 +1193,24 @@ function CanvasBoardInner(
 
   /* --------------------------- Focus / selection --------------------------- */
 
-  const handleJournalBlocksChange = useCallback((blocks: JournalTextBlock[]) => {
-    journalBlocksRef.current = blocks;
-    setJournalBlocks(blocks);
-  }, []);
+  const handlePagesChange = useCallback(
+    (
+      next:
+        | JournalTextBlock[][]
+        | ((prev: JournalTextBlock[][]) => JournalTextBlock[][])
+    ) => {
+      setPages((prev) => {
+        const nextPages = typeof next === "function" ? next(prev) : next;
+        pagesRef.current = nextPages;
+        return nextPages;
+      });
+    },
+    []
+  );
 
   const setBlockKind = useCallback(
     (id: string, kind: TextBlockKind) => {
-      journalEditorRef.current?.setBlockKind(kind, [id]);
+      bookRef.current?.getActiveEditor()?.setBlockKind(kind, [id]);
       setShowTextCtx(false);
     },
     []
@@ -1168,9 +1311,9 @@ function CanvasBoardInner(
       return;
     }
 
-    const len = journalEditorRef.current?.getSelectedTextLength() ?? 0;
+    const len = bookRef.current?.getActiveEditor()?.getSelectedTextLength() ?? 0;
     if (len >= TEXT_CTX_SELECTION_MIN) {
-      const rect = journalEditorRef.current?.getSelectionRect();
+      const rect = bookRef.current?.getActiveEditor()?.getSelectionRect();
       if (rect) {
         const popoverGuessW = 160;
         const left = Math.max(
@@ -1223,7 +1366,7 @@ function CanvasBoardInner(
       if (!target.closest("[data-writing-zone]")) return;
 
       e.preventDefault();
-      journalEditorRef.current?.focus("start");
+      bookRef.current?.focusActive("start");
       setSelectedImageId(null);
     },
     [isSealing, sealedAt]
@@ -1276,12 +1419,17 @@ function CanvasBoardInner(
         </div>
       </div>
 
-      {/* Stamp — physical rubber-stamp interaction; manages its own visibility */}
+      {/* Stamp — sign icon bottom-right; imprint lands on the book page */}
       <JournalStamp
         ref={stampRef}
         isSealed={!!sealedAt}
         onStampBegin={beginSealSideEffects}
         onStampHover={maybePrefetchSealTitle}
+        persistedPlacement={stampPlacement}
+        onStampPlaced={captureStampPlacement}
+        resolveImprintAnchor={() =>
+          bookRef.current?.getStampImprintAnchor() ?? null
+        }
       />
 
       <UnfinishedDraftPrompt
@@ -1293,7 +1441,7 @@ function CanvasBoardInner(
         onKeepEditing={() => setShowUnfinishedPrompt(false)}
       />
 
-      {/* —————————— Full-width centered writing area —————————— */}
+      {/* —————————— Book writing surface —————————— */}
       <div
         className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden"
         onPointerDown={(e) => {
@@ -1302,131 +1450,41 @@ function CanvasBoardInner(
         }}
       >
         <div
-          ref={writingScrollRef}
-          className="relative flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain"
-          onScroll={() => companion.onCanvasActivity()}
-          style={{
-            paddingTop: PAGE_PADDING_Y,
-            paddingBottom: PAGE_PADDING_Y,
-            scrollPaddingTop: PAGE_PADDING_Y,
-            scrollPaddingBottom: PAGE_PADDING_Y + SCROLL_COMFORT_BOTTOM,
-          }}
+          ref={writingZoneRef}
+          data-sealed={sealedAt !== null ? "" : undefined}
+          data-sealing={isSealing ? "" : undefined}
+          className="relative flex min-h-0 flex-1 flex-col overflow-hidden"
+          style={
+            {
+              "--seal-aurora-ms": `${JOURNAL_SEAL_AURORA_MS}ms`,
+            } as React.CSSProperties
+          }
         >
-          <div
-            className="mx-auto flex w-full min-h-0 flex-1 flex-col px-6"
-            style={{ maxWidth: WRITING_COLUMN_MAX_WIDTH }}
-          >
-            <CanvasHeader
-              title={title}
-              editedAt={headerDisplayedAt}
-              sealedAt={sealedAt}
-              showSaving={showSavingLabel}
-              onTitleChange={onTitleChange}
+          <div className="journal-seal-content flex min-h-0 flex-1 flex-col">
+            <JournalBook
+              key={editorContentKey}
+              ref={bookRef}
+              pages={pages}
+              spreadIndex={spreadIndex}
+              writingPageIndex={writingPageIndex}
               isSealed={sealedAt !== null}
+              isSealing={isSealing}
+              title={title}
+              onTitleChange={onTitleChange}
+              sealedAt={sealedAt}
+              sessionEditedAt={headerDisplayedAt}
+              onPagesChange={handlePagesChange}
+              onSpreadIndexChange={setSpreadIndex}
+              onWritingPageIndexChange={setWritingPageIndex}
+              onActiveBlockChange={setActiveBlockId}
+              onSelectionActivity={refreshTextContext}
+              onFocus={() => setSelectedImageId(null)}
+              onWritingActivity={notifyCompanionWriting}
+              stampPlacement={stampPlacement}
+              coverBackground={coverBackground}
+              coverImage={coverImage}
+              coverVariant={coverVariant}
             />
-
-            <div
-              ref={writingZoneRef}
-              data-writing-zone
-              data-sealed={sealedAt !== null ? "" : undefined}
-              data-sealing={isSealing ? "" : undefined}
-              className="relative flex w-full min-h-0 flex-1 flex-col"
-              style={
-                {
-                  "--seal-aurora-ms": `${JOURNAL_SEAL_AURORA_MS}ms`,
-                } as React.CSSProperties
-              }
-            >
-              <div className="journal-seal-content flex w-full min-h-0 flex-1 flex-col">
-                <JournalTiptapEditor
-                  key={editorContentKey}
-                  ref={journalEditorRef}
-                  initialBlocks={journalBlocks}
-                  isSealed={sealedAt !== null}
-                  isSealing={isSealing}
-                  onBlocksChange={handleJournalBlocksChange}
-                  onActiveBlockChange={setActiveBlockId}
-                  onSelectionActivity={refreshTextContext}
-                  onFocus={() => setSelectedImageId(null)}
-                  onWritingActivity={notifyCompanionWriting}
-                />
-
-                {!sealedAt ? (
-                  <div
-                    className="min-h-[min(50vh,24rem)] flex-1 cursor-text"
-                    aria-hidden
-                    onPointerDown={(e) => {
-                      e.preventDefault();
-                      journalEditorRef.current?.focus("end");
-                      setSelectedImageId(null);
-                    }}
-                  />
-                ) : null}
-
-                {/* Signature — disabled for now
-                {!sealedAt && !signatureFieldOpen ? (
-                  <div
-                    className="min-h-[min(50vh,24rem)] flex-1 cursor-text"
-                    aria-hidden
-                    onPointerDown={(e) => {
-                      e.preventDefault();
-                      journalEditorRef.current?.focus("end");
-                      setSelectedImageId(null);
-                    }}
-                  />
-                ) : null}
-
-                {sealedAt !== null ? (
-                  signature.trim() ? (
-                    <CanvasSignature
-                      ref={signatureRef}
-                      value={signature}
-                      isSealed
-                      onChange={setSignature}
-                    />
-                  ) : null
-                ) : signatureFieldOpen ? (
-                  <CanvasSignature
-                    ref={signatureRef}
-                    value={signature}
-                    isSealed={false}
-                    onChange={(next) => {
-                      setSignature(next);
-                      notifyCompanionWriting();
-                    }}
-                    onBlur={() => {
-                      if (!signatureRef.current?.value.trim()) {
-                        setSignatureFieldOpen(false);
-                      }
-                    }}
-                    onDismiss={() => {
-                      setSignatureFieldOpen(false);
-                      journalEditorRef.current?.focus("start");
-                    }}
-                    onSelectAllJournal={() =>
-                      journalEditorRef.current?.selectAll()
-                    }
-                  />
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSignatureFieldOpen(true);
-                      requestAnimationFrame(() => signatureRef.current?.focus());
-                    }}
-                    className="mt-16 w-fit border-0 bg-transparent p-0 text-left text-[var(--canvas-ink-secondary)] outline-none transition-colors hover:text-[var(--canvas-ink)]"
-                    style={{
-                      fontFamily: "var(--font-body), system-ui, sans-serif",
-                      fontSize: WRITING_FONT_SIZE,
-                      lineHeight: WRITING_LINE_HEIGHT,
-                    }}
-                  >
-                    Add signature
-                  </button>
-                )}
-                */}
-              </div>
-            </div>
           </div>
         </div>
       </div>

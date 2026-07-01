@@ -748,7 +748,7 @@ input[type='number'] {
   outline: none;
   font-family: var(--font-body), system-ui, sans-serif;
   font-size: var(--text-md);
-  line-height: 1.75;
+  line-height: 1.85;
   letter-spacing: 0.005em;
   word-spacing: 0.005em;
   color: var(--canvas-ink);
@@ -758,7 +758,9 @@ input[type='number'] {
 .journal-tiptap p.journal-block {
   margin: 0 0 1.75em;
   white-space: pre-wrap;
+  word-break: keep-all;
   overflow-wrap: break-word;
+  hyphens: none;
 }
 
 .journal-tiptap p.journal-block:last-child {

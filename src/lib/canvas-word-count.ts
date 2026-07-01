@@ -1,4 +1,4 @@
-import type { CanvasSnapshot } from "@/components/canvas/canvas-board";
+import type { CanvasSnapshot, JournalTextBlock } from "@/components/canvas/canvas-board";
 
 const stripBlockPrefix = (text: string, blockKind: string): string => {
   if (blockKind === "bullet" || blockKind === "checklist") {
@@ -7,15 +7,23 @@ const stripBlockPrefix = (text: string, blockKind: string): string => {
   return text;
 };
 
+/** All writing blocks from a snapshot (book pages or legacy columns). */
+export const snapshotWritingBlocks = (
+  snapshot: CanvasSnapshot
+): JournalTextBlock[] => {
+  if (Array.isArray(snapshot.pages) && snapshot.pages.length > 0) {
+    return snapshot.pages.flat();
+  }
+  return snapshot.textColumns?.flat() ?? [];
+};
+
 /** Count whitespace-separated words across all writing blocks + signature. */
 export const countWordsFromSnapshot = (snapshot: CanvasSnapshot): number => {
   const parts: string[] = [];
 
-  for (const col of snapshot.textColumns) {
-    for (const block of col) {
-      const stripped = stripBlockPrefix(block.text, block.blockKind).trim();
-      if (stripped) parts.push(stripped);
-    }
+  for (const block of snapshotWritingBlocks(snapshot)) {
+    const stripped = stripBlockPrefix(block.text, block.blockKind).trim();
+    if (stripped) parts.push(stripped);
   }
 
   const sig = snapshot.signature?.trim();
@@ -33,11 +41,9 @@ export const collectJournalWordTokens = (
 ): string[] => {
   const parts: string[] = [];
 
-  for (const col of snapshot.textColumns) {
-    for (const block of col) {
-      const stripped = stripBlockPrefix(block.text, block.blockKind).trim();
-      if (stripped) parts.push(stripped);
-    }
+  for (const block of snapshotWritingBlocks(snapshot)) {
+    const stripped = stripBlockPrefix(block.text, block.blockKind).trim();
+    if (stripped) parts.push(stripped);
   }
 
   const sig = snapshot.signature?.trim();
@@ -60,11 +66,9 @@ export function mergeSignatureOverride(
 export const extractJournalPlainText = (snapshot: CanvasSnapshot): string => {
   const lines: string[] = [];
 
-  for (const col of snapshot.textColumns) {
-    for (const block of col) {
-      const stripped = stripBlockPrefix(block.text, block.blockKind).trim();
-      if (stripped) lines.push(stripped);
-    }
+  for (const block of snapshotWritingBlocks(snapshot)) {
+    const stripped = stripBlockPrefix(block.text, block.blockKind).trim();
+    if (stripped) lines.push(stripped);
   }
 
   const sig = snapshot.signature?.trim();
