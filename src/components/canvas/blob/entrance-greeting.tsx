@@ -8,8 +8,9 @@ import {
   GREETING_COLOR,
   GREETING_FONT_FAMILY,
   GREETING_FONT_SIZE_PX,
-  GREETING_LEFT_PCT,
+  GREETING_RIGHT_PCT,
   PEEK_LIFT_PCT,
+  PEEK_TRANSLATE_PCT,
   WHISPER_ARC_BASELINE_Y_PX,
   WHISPER_ARC_CHAR_WIDTH_PX,
   WHISPER_ARC_MAX_WIDTH_PX,
@@ -198,7 +199,9 @@ export function EntranceGreeting({
   if (placement === "above") {
     transforms.push("translateX(-50%)");
   } else if (peeking) {
-    transforms.push(`translateY(-${PEEK_LIFT_PCT}%)`);
+    transforms.push(
+      `translateX(${PEEK_TRANSLATE_PCT}%) translateY(-${PEEK_LIFT_PCT}%)`
+    );
   }
 
   if (!visible) transforms.push("translateY(4px)");
@@ -213,7 +216,7 @@ export function EntranceGreeting({
         }
       : {
           bottom: `${GREETING_BOTTOM_PCT}%`,
-          left: `${GREETING_LEFT_PCT}%`,
+          right: `${GREETING_RIGHT_PCT}%`,
           transform: transforms.join(" ") || undefined,
         };
 

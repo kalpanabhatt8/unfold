@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import "./global.css";
-import "./book.css";
 
 // Google Fonts
 import {

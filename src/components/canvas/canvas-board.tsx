@@ -545,6 +545,8 @@ type CanvasBoardProps = {
  */
 export type CanvasBoardHandle = {
   captureForClose: () => CanvasSnapshot;
+  /** Imperative focus for parents (e.g. auto-focus a freshly created entry). */
+  focus: (position?: "start" | "end") => void;
 };
 
 function CanvasBoardInner(
@@ -1054,6 +1056,9 @@ function CanvasBoardInner(
         snapshotEditedAtRef.current = Date.now();
         return buildSnapshot();
       },
+      focus: (position) => {
+        journalEditorRef.current?.focus(position);
+      },
     }),
     [buildSnapshot, blob, companion]
   );
@@ -1245,10 +1250,11 @@ function CanvasBoardInner(
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
-      {/* Sunflower — fixed bottom-left, always on screen */}
-      <div className="pointer-events-auto fixed bottom-3 left-3 z-20 overflow-visible sm:bottom-5 sm:left-5">
+      {/* Sunflower — fixed bottom-right, stacked above the seal stamp; keeps the left edge clear for the sidebar */}
+      <div className="pointer-events-auto fixed bottom-24 right-1 z-20 overflow-visible sm:bottom-20 sm:right-5">
         <div ref={blobAnchorRef} className="relative">
-          {blob.greeting ? (
+          {/* Peek/sneak greeting text disabled — was shown beside the flower as it sneaks in */}
+          {/* blob.greeting ? (
             <EntranceGreeting
               visible={blob.greetingVisible}
               peeking={blob.pose === "peek"}
@@ -1257,7 +1263,7 @@ function CanvasBoardInner(
             >
               {blob.greeting}
             </EntranceGreeting>
-          ) : blob.whisper ? (
+          ) : */ blob.whisper ? (
             <EntranceGreeting
               visible={blob.whisperVisible}
               placement="above"
@@ -1414,7 +1420,7 @@ function CanvasBoardInner(
                       setSignatureFieldOpen(true);
                       requestAnimationFrame(() => signatureRef.current?.focus());
                     }}
-                    className="mt-16 w-fit border-0 bg-transparent p-0 text-left text-[var(--canvas-ink-secondary)] outline-none transition-colors hover:text-[var(--canvas-ink)]"
+                    className="mt-16 w-fit border-0 bg-transparent p-0 text-left text-(--canvas-ink-secondary) outline-none transition-colors hover:text-(--canvas-ink)"
                     style={{
                       fontFamily: "var(--font-body), system-ui, sans-serif",
                       fontSize: WRITING_FONT_SIZE,
@@ -1488,8 +1494,8 @@ function CanvasBoardInner(
                     className={clsx(
                       "inline-flex h-7 w-7 items-center justify-center rounded-lg transition",
                       activeTextKind === kind
-                        ? "bg-black/10 text-[var(--color-canvas-toolbar-icon)]"
-                        : "text-[var(--color-canvas-toolbar-icon)]/70 hover:bg-black/[0.05] hover:text-[var(--color-canvas-toolbar-icon)]"
+                        ? "bg-black/10 text-(--color-canvas-toolbar-icon)"
+                        : "text-(--color-canvas-toolbar-icon)/70 hover:bg-black/[0.05] hover:text-(--color-canvas-toolbar-icon)"
                     )}
                   >
                     {icon}
@@ -1777,7 +1783,7 @@ function PolaroidImage({
           onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => e.stopPropagation()}
           onFocus={onSelect}
-          className="w-full border-0 bg-transparent p-0 text-center text-xs italic tracking-tight text-[var(--canvas-ink-secondary)] outline-none placeholder:text-[var(--canvas-writing-placeholder)]"
+          className="w-full border-0 bg-transparent p-0 text-center text-xs italic tracking-tight text-(--canvas-ink-secondary) outline-none placeholder:text-(--canvas-writing-placeholder)"
           style={{
             fontFamily: "var(--font-body)",
           }}
@@ -1931,8 +1937,8 @@ function CanvasHeader({
         spellCheck={false}
         aria-label="Book title"
         className={clsx(
-          "header-lg col-start-1 row-start-1 w-full max-w-[55%] self-end border-0 bg-transparent p-0 text-left font-medium tracking-tight outline-none focus:outline-none placeholder:text-[var(--canvas-title-placeholder)]",
-          hasTitle ? "text-[var(--canvas-title-ink)]" : "text-[var(--canvas-title-placeholder)]"
+          "header-lg col-start-1 row-start-1 w-full max-w-[55%] self-end border-0 bg-transparent p-0 text-left font-medium tracking-tight outline-none focus:outline-none placeholder:text-(--canvas-title-placeholder)",
+          hasTitle ? "text-(--canvas-title-ink)" : "text-(--canvas-title-placeholder)"
         )}
         style={{ fontFamily: "var(--font-heading)" }}
       />
@@ -1942,13 +1948,13 @@ function CanvasHeader({
         style={{ lineHeight: 1.45 }}
       >
         {isSealed && signedStamp ? (
-          <span className="text-[var(--canvas-date-time)]">{signedStamp}</span>
+          <span className="text-(--canvas-date-time)">{signedStamp}</span>
         ) : (
           <>
-            <span className="text-[var(--canvas-date-time)] mb-[-1px]">
+            <span className="text-(--canvas-date-time) mb-[-1px]">
               {editedStamp.date},{" "}
             </span>
-            <span className="text-[var(--canvas-date-time)]">
+            <span className="text-(--canvas-date-time)">
               {editedStamp.time}
             </span>
           </>
@@ -1957,7 +1963,7 @@ function CanvasHeader({
       {showSaving ? (
         <p
           aria-live="polite"
-          className="col-start-2 row-start-2 block text-right text-sm tracking-[0.01em] text-[var(--canvas-time)]"
+          className="col-start-2 row-start-2 block text-right text-sm tracking-[0.01em] text-(--canvas-time)"
           style={{ lineHeight: 1.45 }}
         >
           saving

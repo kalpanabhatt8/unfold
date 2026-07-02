@@ -5,19 +5,22 @@
 @theme inline {
   --font-sans: var(--font-dm-sans), system-ui, sans-serif;
 
-  --text-xs: 0.6875rem;
+  /* Sizes are rem (scale with the root font) but floored at 10px via max()
+     so text never renders below 10px. Color is applied separately through the
+     text-system state classes (.text-active / .text-secondary / …). */
+  --text-xs: max(10px, 0.6875rem);
   --text-xs--line-height: 1.5;
 
-  --text-sm: 0.75rem;
+  --text-sm: max(10px, 0.75rem);
   --text-sm--line-height: 1.5;
 
-  --text-md: 1rem;
+  --text-md: max(10px, 0.9rem);
   --text-md--line-height: 1.6;
 
-  --text-lg: 1.25rem;
+  --text-lg: max(10px, 1.25rem);
   --text-lg--line-height: 1.3;
 
-  --text-xl: 1.75rem;
+  --text-xl: max(10px, 1.75rem);
   --text-xl--line-height: 1.2;
 }
 
@@ -125,6 +128,17 @@
   --canvas-date-time: #6d6d6d;
   --canvas-muted: #85766b;
 
+  /* Sidebar — calm, neutral shell with a whisper of lavender (Notion-like) */
+  --sidebar-bg: #fbfbfc;
+  --sidebar-border: #ecebf0;
+  --sidebar-tab-track: #f1f0f4;
+  --sidebar-hover-bg: #f3f2f6;
+  --sidebar-active-bg: #edecf2;
+  --sidebar-active-ink: #45414d;
+  --sidebar-ink: #3a3740;
+  --sidebar-ink-soft: #9a97a2;
+  --sidebar-icon: #8b8794;
+
   /* Color semantics - surfaces */
   --surface-0: var(--app-bg);
   --surface: var(--gray-50);
@@ -181,6 +195,16 @@
   --font-signature: var(--font-covered-by-your-grace), var(--font-caveat), cursive;
   --stamp-signature-tilt: -12deg;
   --stamp-imprint-tilt: -18deg;
+
+  /* ---- Text system — COLOR only -------------------------------------------
+     Four semantic states: active / secondary / tertiary / disabled.
+     Color is fully decoupled from size: pair any color state class
+     (.text-active / .text-secondary / .text-tertiary / .text-disabled) with
+     any size utility (text-xs / text-sm / text-md / text-lg / text-xl). */
+  --text-color-active: #2c2933;
+  --text-color-secondary: #56525f;
+  --text-color-tertiary: #908d99;
+  --text-color-disabled: #c2c0c8;
 }
 
 /* Shared tooltip bubble — bg #190E05, white text */
@@ -245,6 +269,27 @@ h6 {
   font-family: var(--font-heading);
 }
 
+/* Text system — COLOR state helpers (size stays separate: text-xs/sm/md/lg).
+   Kept in the components layer so Tailwind utilities (e.g. hover:text-*)
+   still override the base state color. */
+@layer components {
+  .text-active {
+    color: var(--text-color-active);
+  }
+
+  .text-secondary {
+    color: var(--text-color-secondary);
+  }
+
+  .text-tertiary {
+    color: var(--text-color-tertiary);
+  }
+
+  .text-disabled {
+    color: var(--text-color-disabled);
+  }
+}
+
 
 /* Buttons (kept minimal, calm) */
 .button-primary,
@@ -286,19 +331,6 @@ h6 {
 .cl-formButtonPrimary,
 .cl-headerTitle {
   font-family: var(--font-body) !important;
-}
-
-/* Starter carousel: remove glow, keep scrolling behavior */
-.starter-carousel__glow {
-  display: none;
-}
-
-.starter-carousel__track {
-  scrollbar-width: none;
-}
-
-.starter-carousel__track::-webkit-scrollbar {
-  display: none;
 }
 
 /* Misc: remove novelty cursor */
@@ -343,21 +375,6 @@ h6 {
   font-family: var(--font-heading);
 }
 
-.surface-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  border-radius: 0.75rem;
-  /* border: 1px solid rgb(0 0 0 / 0.06); */
-  padding: 0.5rem 0.5rem 0.5rem 0.65rem;
-  /* box-shadow: 0 8px 28px rgb(15 15 15 / 0.06); */
-  backdrop-filter: blur(12px);
-  background-color: var(--cover-editor-bg);
-}
-
-
 /* Buttons (kept minimal, calm) */
 .button-primary,
 .button-secondary {
@@ -398,19 +415,6 @@ h6 {
 .cl-formButtonPrimary,
 .cl-headerTitle {
   font-family: var(--font-body) !important;
-}
-
-/* Starter carousel: remove glow, keep spacing */
-.starter-carousel__glow {
-  display: none;
-}
-
-.starter-carousel__track {
-  scrollbar-width: none;
-}
-
-.starter-carousel__track::-webkit-scrollbar {
-  display: none;
 }
 
 .button-primary {
@@ -526,189 +530,6 @@ button:hover {
 .cl-cardBox,
 .cl-cardBox div {
   font-family: var(--font-body) !important;
-}
-
-/* BookCover + dashboard book grid styles moved to `book.css` */
-
-.starter-carousel {
-  position: relative;
-  /* padding: 0 1.5rem; */
-}
-
-.starter-carousel__glow {
-  display: none;
-}
-
-.starter-carousel__track {
-  display: flex;
-  gap: var(--value-32);
-  overflow-x: auto;
-  padding: var(--value-16) var(--value-22) var(--value-64) var(--value-0);
-  scroll-snap-type: x mandatory;
-  scrollbar-width: none;
-}
-
-.starter-carousel__track::-webkit-scrollbar {
-  display: none;
-}
-
-.starter-card {
-  flex: 0 0 auto;
-  width: calc(var(--value-100) + var(--value-20));
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--value-8);
-  scroll-snap-align: center;
-  transition: transform 200ms ease;
-}
-
-.starter-card:hover {
-  transform: translateY(-6px);
-}
-
-.starter-card__label {
-  font-size: var(--text-xs);
-  letter-spacing: 0.2em;
-  text-transform: uppercase;
-  color: var(--color-ink-muted);
-}
-
-.starter-actions {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.starter-actions__button {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--value-6);
-  padding: var(--value-6) var(--value-12);
-  border-radius: var(--radius-pill);
-  border: 1px solid var(--border);
-  background: var(--surface-solid);
-  font-size: var(--text-xs);
-  letter-spacing: 0.05em;
-  /* text-transform: uppercase; */
-  color: var(--color-ink);
-  transition: transform 180ms ease, border-color 180ms ease,
-    box-shadow 180ms ease;
-}
-
-.starter-actions__button:hover {
-  transform: translateY(-2px);
-  border-color: var(--color-border-emphasis);
-  box-shadow: none;
-}
-
-/* BookCover + dashboard book grid styles moved to `book.css` */
-
-@media (max-width: 48rem) {
-  .starter-carousel__track {
-    gap: var(--value-16);
-  }
-
-  .starter-card {
-    width: calc(var(--value-100) + var(--value-10));
-  }
-}
-
-/* .bg-popup-content {
-  position: fixed !important;
-  left: 50% !important;
-  top: 50% !important;
-  transform: translate(-50%, -50%) !important; 
-  width: fit-content !important;
-  max-width: min(92vw, 60rem) !important; 
-  z-index: 9999 !important;
-} */
-
-.bg-popup-content {
-  position: fixed !important;
-  left: 50% !important;
-  bottom: 12% !important;
-  transform: translateX(-50%) !important;
-  /* only center on X */
-  width: fit-content !important;
-  z-index: 9999 !important;
-  /* padding: 0 !important; */
-}
-
-/* Target the draggable dot */
-.color-picker .react-colorful__pointer {
-  width: 1.125rem !important;
-  /* smaller size */
-  height: 1.125rem !important;
-  border: 2px solid var(--gray-50);
-  /* clean border */
-  box-shadow: none !important;
-  /* remove shadow */
-}
-
-.react-colorful__saturation,
-.react-colorful__hue,
-.react-colorful__alpha {
-  border-radius: var(--radius-8);
-  overflow: hidden;
-  margin-bottom: var(--value-12);
-}
-
-.no-fill-icon {
-  position: relative;
-  width: 1.25rem;
-  height: 1.25rem;
-  border-radius: 50%;
-  background: var(--gray-50);
-  border: 1px solid var(--color-border-subtle);
-}
-
-.no-fill-icon::after {
-  content: "";
-  position: absolute;
-  top: 0.125rem;
-  left: 0.125rem;
-  width: 1rem;
-  height: 0.125rem;
-  background: var(--gray-900);
-  transform: rotate(45deg);
-}
-
-.react-colorful__saturation {
-  border-radius: var(--radius-8) !important;
-}
-
-.react-colorful__hue {
-  height: 0.75rem !important;
-  margin-bottom: var(--value-8) !important;
-}
-
-.react-colorful__pointer {
-  width: 0.875rem !important;
-  height: 0.875rem !important;
-  z-index: 40 !important;
-}
-
-.react-colorful__alpha {
-  height: 0.75rem !important;
-  border-radius: var(--radius-pill) !important;
-  margin-bottom: var(--value-8) !important;
-}
-
-.react-colorful{
-  width: 100% !important;
-}
-
-.react-colorful .react-colorful__saturation{
-  border-radius: var(--radius-sm) !important;
-}
-
-.react-colorful .react-colorful__hue{
-  border-radius: var(--radius-sm) !important;
-}
-
-.react-colorful .react-colorful__alpha{
-  border-radius: var(--radius-sm) !important;
 }
 
 /* Chrome, Safari, Edge, Opera */

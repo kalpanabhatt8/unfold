@@ -726,7 +726,7 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
               onPointerEnter={onStampHover}
               onFocus={onStampHover}
               aria-label="Sign this entry"
-              className={`group shrink-0 cursor-pointer select-none outline-none ${btnIcon("lg")} ${btnState.default} ${btnState.hover} ${btnState.active}`}
+              className={`group shrink-0 cursor-pointer select-none outline-none ${btnIcon("md")} ${btnState.default} ${btnState.hover} ${btnState.active}`}
             >
               <Signature
                 size={iconPx("lg")}

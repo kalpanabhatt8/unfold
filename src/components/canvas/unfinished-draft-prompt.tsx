@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { btnRadius, btnState, btnText } from "@/components/ui/button-system";
+import { btnState, btnText } from "@/components/ui/button-system";
 
 export type UnfinishedDraftPromptProps = {
   open: boolean;
@@ -26,12 +26,12 @@ export function UnfinishedDraftPrompt({
         role="dialog"
         aria-modal="true"
         aria-labelledby="unfinished-draft-heading"
-        className="w-full max-w-sm rounded-2xl border border-black/[0.08] bg-[var(--canvas-bg,#faf8f5)] p-5 shadow-lg"
+        className="w-full max-w-sm rounded-2xl border border-black/[0.08] bg-(--canvas-bg,#faf8f5) p-5 shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
         <h2
           id="unfinished-draft-heading"
-          className="text-base font-semibold tracking-tight text-[var(--canvas-ink)]"
+          className="text-base font-semibold tracking-tight text-(--canvas-ink)"
           style={{ fontFamily: "var(--font-heading)" }}
         >
           This entry was left unfinished. Sign it?
@@ -44,14 +44,14 @@ export function UnfinishedDraftPrompt({
           <button
             type="button"
             onClick={onKeepEditing}
-            className={`${btnRadius.soft} ${btnText("sm")} ${btnState.default} ${btnState.hover} ${btnState.active}`}
+            className={`${btnText("sm", "soft")} ${btnState.default} ${btnState.hover} ${btnState.active}`}
           >
             Keep editing
           </button>
           <button
             type="button"
             onClick={onSeal}
-            className={`${btnRadius.soft} ${btnText("sm")} bg-[var(--canvas-ink)] text-white hover:bg-black/80 active:bg-black/90`}
+            className={`${btnText("sm", "soft")} bg-(--canvas-ink) text-white hover:bg-black/80 active:bg-black/90`}
           >
             Sign it
           </button>

@@ -1,0 +1,151 @@
+/**
+ * Journal entry metadata — the sidebar's single source of truth.
+ *
+ * Entry {
+ *   id, title, createdAt, updatedAt, sealedAt, searchText
+ * }
+ *
+ * `content` itself is NOT stored here — the canvas owns it entirely at
+ * `keeps-board-{id}` (a `CanvasSnapshot`, untouched by this file). We only
+ * cache a flattened plain-text copy (`searchText`) alongside the metadata so
+ * the sidebar can search titles + content without re-reading every board
+ * snapshot on each keystroke.
+ */
+
+export const ENTRY_DRAFTS_STORAGE_KEY = "keeps-drafts";
+export const ENTRIES_UPDATED_EVENT = "keeps-recents-updated";
+export const ENTRY_BOARD_STORAGE_PREFIX = "keeps-board-";
+
+export type JournalEntry = {
+  id: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  /** Canvas header stamp — frozen for the whole editing session. */
+  lastEditedAt?: number;
+  /** Unix ms when sealed; `null`/absent = still a draft. */
+  sealedAt?: number | null;
+  /** Flattened plain text of the entry's blocks, used for content search. */
+  searchText?: string;
+};
+
+type EntryRecord = JournalEntry & Record<string, unknown>;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null;
+
+const normalizeEntry = (value: unknown): JournalEntry | null => {
+  if (!isRecord(value)) return null;
+  const { id, title } = value;
+  if (typeof id !== "string" || typeof title !== "string") return null;
+
+  const updatedAtRaw = value.updatedAt;
+  const updatedAt =
+    typeof updatedAtRaw === "number" && Number.isFinite(updatedAtRaw)
+      ? updatedAtRaw
+      : 0;
+
+  const createdAtRaw = value.createdAt;
+  const createdAt =
+    typeof createdAtRaw === "number" && Number.isFinite(createdAtRaw)
+      ? createdAtRaw
+      : updatedAt;
+
+  const normalized: JournalEntry = { id, title, createdAt, updatedAt };
+
+  if (
+    typeof value.lastEditedAt === "number" &&
+    Number.isFinite(value.lastEditedAt)
+  ) {
+    normalized.lastEditedAt = value.lastEditedAt;
+  }
+
+  if (typeof value.sealedAt === "number" && Number.isFinite(value.sealedAt)) {
+    normalized.sealedAt = value.sealedAt;
+  } else if (value.sealedAt === null) {
+    normalized.sealedAt = null;
+  }
+
+  if (typeof value.searchText === "string") {
+    normalized.searchText = value.searchText;
+  }
+
+  return normalized;
+};
+
+const readDraftsRaw = (): Record<string, unknown> => {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(ENTRY_DRAFTS_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return isRecord(parsed) ? parsed : {};
+  } catch (error) {
+    console.error("Failed to read journal entries", error);
+    return {};
+  }
+};
+
+const writeDraftsRaw = (drafts: Record<string, unknown>) => {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      ENTRY_DRAFTS_STORAGE_KEY,
+      JSON.stringify(drafts),
+    );
+    window.dispatchEvent(new Event(ENTRIES_UPDATED_EVENT));
+  } catch (error) {
+    console.error("Failed to save journal entries", error);
+  }
+};
+
+export const createEntryId = () =>
+  `entry-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+
+export const readEntryById = (id: string): JournalEntry | null => {
+  const drafts = readDraftsRaw();
+  const entry = drafts[id];
+  if (!isRecord(entry)) return null;
+  return normalizeEntry({ ...entry, id });
+};
+
+/** All journal entries, newest `createdAt` first. No cap — the sidebar is the only nav surface. */
+export const readAllEntries = (): JournalEntry[] => {
+  const drafts = readDraftsRaw();
+  return Object.entries(drafts)
+    .map(([id, value]) => normalizeEntry({ ...(value as object), id }))
+    .filter((item): item is JournalEntry => Boolean(item))
+    .sort((a, b) => b.createdAt - a.createdAt);
+};
+
+/** Merge fields into an entry's stored record (creating it if needed) and notify the sidebar. */
+export const upsertEntry = (
+  id: string,
+  updates: Partial<Omit<JournalEntry, "id">>,
+): JournalEntry => {
+  const now = Date.now();
+  const drafts = readDraftsRaw();
+  const existing = isRecord(drafts[id])
+    ? (drafts[id] as EntryRecord)
+    : undefined;
+
+  const next: EntryRecord = {
+    ...(existing ?? {}),
+    ...updates,
+    id,
+    title: updates.title !== undefined ? updates.title : existing?.title ?? "",
+    createdAt: existing?.createdAt ?? updates.createdAt ?? now,
+    updatedAt: updates.updatedAt ?? now,
+  };
+
+  drafts[id] = next;
+  writeDraftsRaw(drafts);
+  return normalizeEntry(next) ?? next;
+};
+
+export const deleteEntry = (id: string) => {
+  const drafts = readDraftsRaw();
+  if (!(id in drafts)) return;
+  delete drafts[id];
+  writeDraftsRaw(drafts);
+};

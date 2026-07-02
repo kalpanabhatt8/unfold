@@ -341,7 +341,7 @@ export default function BlobCharacter({
     width: "100%",
     height: "100%",
     transformOrigin: PEEK_TRANSFORM_ORIGIN,
-    "--peek-translate": `-${PEEK_TRANSLATE_PCT}%`,
+    "--peek-translate": `${PEEK_TRANSLATE_PCT}%`,
     "--peek-lift": `-${PEEK_LIFT_PCT}%`,
     "--peek-rotate": `${PEEK_ROTATE_DEG}deg`,
     ...(isPeek
@@ -875,7 +875,7 @@ export default function BlobCharacter({
           pointer-events: none;
         }
 
-        /* ── ENTRANCE — slide left→right and straighten into place ───── */
+        /* ── ENTRANCE — slide right→left and straighten into place ───── */
         :global(.blob-entering) {
           transform-origin: ${PEEK_TRANSFORM_ORIGIN};
           animation: blob-entrance ${ENTRANCE_DURATION_S}s cubic-bezier(0.22, 0.9, 0.3, 1) forwards;
@@ -886,10 +886,10 @@ export default function BlobCharacter({
               rotate(var(--peek-rotate));
           }
           55% {
-            transform: translateX(4%) translateY(-2%) rotate(2.5deg);
+            transform: translateX(-4%) translateY(-2%) rotate(-2.5deg);
           }
           78% {
-            transform: translateX(-1.5%) translateY(0) rotate(-1deg);
+            transform: translateX(1.5%) translateY(0) rotate(1deg);
           }
           100% {
             transform: translateX(0) translateY(0) rotate(0deg);

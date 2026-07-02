@@ -78,27 +78,26 @@ export const SLEEP_LEFT_BLUSH_CX = 22;
 export const SLEEP_RIGHT_BLUSH_CX = 38;
 export const SLEEP_BLUSH_CY = 27;
 
-/** Pivot while peeking — bottom-left matches the idle anchor (no vertical jump). */
-export const PEEK_TRANSFORM_ORIGIN = "left bottom";
+/** Pivot while peeking — bottom-right matches the idle anchor (no vertical jump). */
+export const PEEK_TRANSFORM_ORIGIN = "right bottom";
 /**
- * Peek tilt — leans the head into the canvas (clockwise in CSS).
- * Figma panel shows −16.73° on the asset; with `PEEK_TRANSFORM_ORIGIN`
- * we use the opposite sign so the flower leans right like the mock.
+ * Peek tilt — leans the head into the canvas (counter-clockwise in CSS).
+ * Mirrored from the left-peek mock so the flower leans left into frame.
  */
-export const PEEK_ROTATE_DEG = 12;
+export const PEEK_ROTATE_DEG = -12;
 /**
  * How much of the flower width stays visible while sneaking (0–100).
  * 50 = half the body peeks in; raise to show more, lower to hide more.
  */
 export const PEEK_VISIBLE_PCT = 40;
-/** Derived — shifts the flower left so only `PEEK_VISIBLE_PCT` stays on screen. */
+/** Derived — shifts the flower right so only `PEEK_VISIBLE_PCT` stays on screen. */
 export const PEEK_TRANSLATE_PCT = 100 - PEEK_VISIBLE_PCT;
 /** Lift up while peeking (% of height) so the tilted pose lines up with idle. */
 export const PEEK_LIFT_PCT = 14;
 /** @deprecated kept for back-compat; use PEEK_TRANSLATE_PCT. */
 export const PEEK_OFFSET_RATIO = PEEK_TRANSLATE_PCT / 100;
 
-/** Entrance slide from left (pairs with `enter` pose). */
+/** Entrance slide from right (pairs with `enter` pose). */
 export const ENTRANCE_OFFSET_PX = 46;
 export const ENTRANCE_DURATION_S = 0.95;
 export const ENTRANCE_DURATION_MS = ENTRANCE_DURATION_S * 1000;
@@ -113,8 +112,8 @@ export const PEEK_HOLD_MS = 2000;
 export const GREETING_FONT_SIZE_PX = 16;
 export const GREETING_COLOR = "#3C2605";
 export const GREETING_FONT_FAMILY = "var(--font-balsamiq-sans), sans-serif";
-/** Horizontal offset (% of flower box width) — peek greeting beside tilted head. */
-export const GREETING_LEFT_PCT = 62;
+/** Horizontal inset (% of flower box width) — peek greeting beside tilted head. */
+export const GREETING_RIGHT_PCT = 62;
 /** Vertical offset (% from bottom of flower box) — raise to move text up. */
 export const GREETING_BOTTOM_PCT = 78;
 /** Gap between whisper bubble and top of flower box (px). */
@@ -130,8 +129,8 @@ export const WHISPER_ARC_MIN_FONT_SIZE_PX = 11;
 export const WHISPER_ARC_SIDE_MARGIN_PX = 12;
 export const WHISPER_ARC_TEXT_PADDING_PX = 10;
 /** Sunflower render size on the canvas writing surface. */
-export const BLOB_SIZE_MOBILE_PX = 148;
-export const BLOB_SIZE_DESKTOP_PX = 140;
+export const BLOB_SIZE_MOBILE_PX = 60;
+export const BLOB_SIZE_DESKTOP_PX = 80;
 export const SEAL_WHISPER_FADE_IN_MS = 1_000;
 export const SEAL_WHISPER_STAY_MS = 5_000;
 export const SEAL_WHISPER_FADE_OUT_MS = 1_500;
