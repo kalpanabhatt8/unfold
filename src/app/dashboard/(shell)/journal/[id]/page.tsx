@@ -23,6 +23,7 @@ import {
   upsertEntry,
   type JournalEntry,
 } from "@/lib/journal-entries";
+import { notifyEntryCompleted } from "@/lib/patterns/entry-completion";
 
 /** Flatten a snapshot's written blocks + captions into one lowercase-searchable string. */
 const flattenSnapshotText = (snapshot: CanvasSnapshot): string => {
@@ -59,6 +60,19 @@ const JournalEntryPage = () => {
   const [sessionEditedAt, setSessionEditedAt] = useState<number | null>(null);
   const entryRef = useRef<JournalEntry | null>(null);
   const isHydratedRef = useRef(false);
+  const completionFiredRef = useRef(false);
+
+  // Generic "entry completion" trigger. V1 source = seal: fire once when the
+  // snapshot transitions to sealed. The analysis pipeline is agnostic to this.
+  const maybeNotifyCompletion = useCallback(
+    (sealedAt: number | null | undefined) => {
+      if (completionFiredRef.current) return;
+      if (typeof sealedAt !== "number") return;
+      completionFiredRef.current = true;
+      void notifyEntryCompleted(entryId, "seal");
+    },
+    [entryId],
+  );
 
   useLayoutEffect(() => {
     const existing = readEntryById(entryId);
@@ -76,6 +90,9 @@ const JournalEntryPage = () => {
     entryRef.current = hydrated;
     setEntry(hydrated);
     setIsHydrated(true);
+    // Already-sealed entries were completed in a prior session (the reconciler
+    // covers any missing analysis) — only a fresh seal this session counts.
+    completionFiredRef.current = typeof existing?.sealedAt === "number";
   }, [entryId]);
 
   useEffect(() => {
@@ -124,8 +141,9 @@ const JournalEntryPage = () => {
         updatedAt: entryRef.current?.updatedAt,
       });
       entryRef.current = next;
+      maybeNotifyCompletion(snapshot.sealedAt);
     },
-    [entryId],
+    [entryId, maybeNotifyCompletion],
   );
 
   // Milestone save — fires ~7s after typing stops; this is the point we treat
@@ -139,8 +157,9 @@ const JournalEntryPage = () => {
       });
       entryRef.current = next;
       setEntry(next);
+      maybeNotifyCompletion(snapshot.sealedAt);
     },
-    [entryId],
+    [entryId, maybeNotifyCompletion],
   );
 
   const boardStorageKey = useMemo(

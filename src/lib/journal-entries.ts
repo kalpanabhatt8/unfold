@@ -148,4 +148,11 @@ export const deleteEntry = (id: string) => {
   if (!(id in drafts)) return;
   delete drafts[id];
   writeDraftsRaw(drafts);
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.removeItem(`${ENTRY_BOARD_STORAGE_PREFIX}${id}`);
+    } catch {
+      // ignore storage cleanup errors
+    }
+  }
 };

@@ -7,6 +7,8 @@ const isPublicRoute = createRouteMatcher([
   '/dashboard(.*)',
   '/api/companion',
   '/api/journal-title',
+  '/api/entry-analysis',
+  '/api/pattern-insight',
   '/dev(.*)',
 ])
 

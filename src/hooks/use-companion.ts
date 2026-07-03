@@ -455,12 +455,16 @@ export function useCompanion({
     scheduleMilestoneSave();
     startPollInterval();
 
-    // Net deletion this edit → debounce; threshold checked once deleting stops.
+    // Net deletion this edit → neutral immediately; debounce re-classify once settled.
     if (currentWordCount < previousWordCount) {
       if (deletedWords > 0) {
         console.log(
-          `[🌻 companion] 🗑️ deleting (${previousWordCount} → ${currentWordCount}) — debouncing`
+          `[🌻 companion] 🗑️ deleting (${previousWordCount} → ${currentWordCount}) — neutral + debouncing`
         );
+        // Drop in-flight / queued analysis so a stale emotion can't re-apply.
+        analysisGenerationRef.current += 1;
+        queuedRunRef.current = null;
+        blobRef.current?.onEmotionFromWriting("neutral");
       }
       scheduleDeletionAnalysis();
       return;

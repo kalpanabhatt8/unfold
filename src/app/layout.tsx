@@ -30,7 +30,7 @@ const dmSans = DM_Sans({
 
 const figtree = Figtree({
   subsets: ["latin"],
-  weight: ["400", "500", "600"],
+  weight: ["300", "400", "500", "600"],
   display: "swap",
   variable: "--font-figtree",
 });

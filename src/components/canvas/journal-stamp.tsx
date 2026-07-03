@@ -21,9 +21,8 @@ import {
   iconStroke,
 } from "@/components/ui/button-system";
 import { Tooltip } from "@/components/ui/tooltip";
+import { useViewportLayout } from "@/hooks/use-viewport-layout";
 
-/** Equal visual inset from viewport bottom and right (px). */
-const STAMP_EDGE_INSET_PX = 32;
 /** Text-only imprint box — width fits long names; height fits two lines at 2× font. */
 const STAMP_WIDTH = 180;
 const STAMP_HEIGHT = 80;
@@ -60,31 +59,6 @@ function stampAlignedCornerInsets(
     right: insetPx + overflow,
   };
 }
-
-const stampImprintInsets = stampAlignedCornerInsets(
-  STAMP_WIDTH,
-  STAMP_HEIGHT,
-  STAMP_EDGE_INSET_PX,
-  STAMP_TILT_DEG,
-);
-
-/** Seal icon button — true corner inset. */
-const stampCornerAnchor: React.CSSProperties = {
-  position: "fixed",
-  bottom: STAMP_EDGE_INSET_PX,
-  right: STAMP_EDGE_INSET_PX,
-  zIndex: 20,
-};
-
-/** Stamp imprint — optical corner inset after tilt. */
-const stampImprintShell: React.CSSProperties = {
-  position: "fixed",
-  ...stampImprintInsets,
-  zIndex: 20,
-  width: STAMP_WIDTH,
-  height: STAMP_HEIGHT,
-  overflow: "visible",
-};
 
 const STAMP_IMAGE = "/Images/stamp.svg";
 const STAMP_INK = "158, 118, 90"; // #9E765A — matches stamp.svg border
@@ -476,6 +450,37 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
   const { isSignedIn, sessionClaims, isLoaded: authLoaded } = useAuth();
   const { session, isLoaded: sessionLoaded } = useSession();
   const user = clerk.user;
+  const viewport = useViewportLayout();
+
+  const stampCornerAnchor = useMemo(
+    (): React.CSSProperties => ({
+      position: "fixed",
+      bottom: `calc(${viewport.stampCornerInsetPx}px + env(safe-area-inset-bottom, 0px))`,
+      right: `calc(${viewport.stampCornerInsetPx}px + env(safe-area-inset-right, 0px))`,
+      zIndex: 20,
+    }),
+    [viewport.stampCornerInsetPx],
+  );
+
+  const stampImprintShell = useMemo((): React.CSSProperties => {
+    const imprintInsets = stampAlignedCornerInsets(
+      STAMP_WIDTH,
+      STAMP_HEIGHT,
+      viewport.stampCornerInsetPx,
+      STAMP_TILT_DEG,
+    );
+    return {
+      position: "fixed",
+      bottom: `calc(${imprintInsets.bottom}px + env(safe-area-inset-bottom, 0px))`,
+      right: `calc(${imprintInsets.right}px + env(safe-area-inset-right, 0px))`,
+      zIndex: 20,
+      width: STAMP_WIDTH,
+      height: STAMP_HEIGHT,
+      overflow: "visible",
+    };
+  }, [viewport.stampCornerInsetPx]);
+
+  const stampButtonSize = viewport.stampButtonSizePx >= 36 ? "md" : "sm";
 
   const hasClerkPublishableKey = Boolean(
     process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
@@ -726,11 +731,11 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
               onPointerEnter={onStampHover}
               onFocus={onStampHover}
               aria-label="Sign this entry"
-              className={`group shrink-0 cursor-pointer select-none outline-none ${btnIcon("md")} ${btnState.default} ${btnState.hover} ${btnState.active}`}
+              className={`group shrink-0 cursor-pointer select-none outline-none ${btnIcon(stampButtonSize, "soft")} ${btnState.default} ${btnState.hover} ${btnState.active}`}
             >
               <Signature
-                size={iconPx("lg")}
-                strokeWidth={iconStroke("lg")}
+                size={iconPx(stampButtonSize)}
+                strokeWidth={iconStroke(stampButtonSize)}
                 aria-hidden
                 className={`${iconFixed} origin-center transition-transform duration-200 ease-out group-hover:rotate-0`}
               />

@@ -26,12 +26,12 @@ export function UnfinishedDraftPrompt({
         role="dialog"
         aria-modal="true"
         aria-labelledby="unfinished-draft-heading"
-        className="w-full max-w-sm rounded-2xl border border-black/[0.08] bg-(--canvas-bg,#faf8f5) p-5 shadow-lg"
+        className="w-full max-w-sm rounded-2xl border border-black/[0.08] bg-(--canvas-bg,#faf8f5) p-4 shadow-lg sm:p-5"
         onClick={(e) => e.stopPropagation()}
       >
         <h2
           id="unfinished-draft-heading"
-          className="text-base font-semibold tracking-tight text-(--canvas-ink)"
+          className="text-sm font-semibold tracking-tight text-(--canvas-ink) sm:text-base"
           style={{ fontFamily: "var(--font-heading)" }}
         >
           This entry was left unfinished. Sign it?
@@ -40,7 +40,7 @@ export function UnfinishedDraftPrompt({
           Your draft is still open. Signing makes it permanent — or keep writing.
         </p>
 
-        <div className="mt-5 flex justify-end gap-2">
+        <div className="mt-4 flex flex-col-reverse gap-2 sm:mt-5 sm:flex-row sm:justify-end">
           <button
             type="button"
             onClick={onKeepEditing}

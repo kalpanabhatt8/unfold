@@ -561,7 +561,7 @@ export default function BlobCharacter({
             </g>
           ) : null}
 
-          {leavesKind !== "hidden" ? (
+          {/* {leavesKind !== "hidden" ? (
             <>
               <g
                 transform={`translate(${LEAF_LEFT_POS.x} ${LEAF_LEFT_POS.y}) scale(${LEAF_SCALE})`}
@@ -612,7 +612,7 @@ export default function BlobCharacter({
                 </g>
               </g>
             </>
-          ) : null}
+          ) : null} */}
         </g>
 
         {cfg.extras === "sparkle-burst" ? (

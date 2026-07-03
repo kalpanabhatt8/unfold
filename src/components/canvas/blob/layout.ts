@@ -131,6 +131,14 @@ export const WHISPER_ARC_TEXT_PADDING_PX = 10;
 /** Sunflower render size on the canvas writing surface. */
 export const BLOB_SIZE_MOBILE_PX = 60;
 export const BLOB_SIZE_DESKTOP_PX = 80;
+
+/** Companion anchor — stacked above the seal stamp (matches journal-stamp corner insets). */
+export const STAMP_CORNER_INSET_PX = 32;
+export const STAMP_BUTTON_SIZE_PX = 40;
+export const COMPANION_ABOVE_SIGN_GAP_PX = 24;
+export const COMPANION_CORNER_BOTTOM_PX =
+  STAMP_CORNER_INSET_PX + STAMP_BUTTON_SIZE_PX + COMPANION_ABOVE_SIGN_GAP_PX;
+export const COMPANION_CORNER_RIGHT_PX = STAMP_CORNER_INSET_PX;
 export const SEAL_WHISPER_FADE_IN_MS = 1_000;
 export const SEAL_WHISPER_STAY_MS = 5_000;
 export const SEAL_WHISPER_FADE_OUT_MS = 1_500;

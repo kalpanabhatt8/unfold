@@ -127,11 +127,10 @@ export default function BlobDevPage() {
               {live.greeting ? (
                 <EntranceGreeting
                   as="span"
+                  text={live.greeting}
                   visible={live.greetingVisible}
                   peeking={live.pose === "peek"}
-                >
-                  {live.greeting}
-                </EntranceGreeting>
+                />
               ) : null}
             </div>
             <textarea

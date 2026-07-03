@@ -44,8 +44,7 @@ import {
 } from "@/components/canvas/journal-tiptap-editor";
 import { UnfinishedDraftPrompt } from "@/components/canvas/unfinished-draft-prompt";
 import { iconStrokePx } from "@/components/ui/button-system";
-import { Tooltip } from "@/components/ui/tooltip";
-import { hasBookTitle, BOOK_TITLE_PLACEHOLDER, clampBookTitle, commitBookTitle, MAX_BOOK_TITLE_CHARS } from "@/lib/book-title";
+import { hasBookTitle, BOOK_TITLE_PLACEHOLDER, clampBookTitle, commitBookTitle } from "@/lib/book-title";
 import {
   JOURNAL_SEAL_ANIM_MS,
   JOURNAL_SEAL_AURORA_MS,
@@ -57,6 +56,7 @@ import BlobCharacter, {
   useBlobState,
 } from "@/components/canvas/blob-character";
 import { EntranceGreeting } from "@/components/canvas/blob/entrance-greeting";
+import { useViewportLayout } from "@/hooks/use-viewport-layout";
 import { useCompanion } from "@/hooks/use-companion";
 import {
   collectJournalWordTokens,
@@ -147,11 +147,6 @@ export const CANVAS_RECESS = "var(--canvas-recess)";
 
 /** Centered writing column width. */
 const WRITING_COLUMN_MAX_WIDTH = "min(92vw, 700px)";
-
-/** Vertical breathing room at the top and bottom of the page. */
-const PAGE_PADDING_Y = 88;
-/** Keep active typing line comfortably above the viewport bottom. */
-const SCROLL_COMFORT_BOTTOM = 72;
 
 /** Writing typography — Rethink Sans, 16px body size (breathable). */
 const WRITING_FONT_SIZE = "var(--text-md)";
@@ -600,6 +595,12 @@ function CanvasBoardInner(
   const [headerDisplayedAt] = useState(() => sessionEditedAt);
 
 
+  const viewport = useViewportLayout();
+  const pagePaddingY = viewport.pagePaddingYPx;
+  const scrollComfortBottom = viewport.scrollComfortBottomPx;
+  const companionBottom = viewport.companionCornerBottomPx;
+  const companionRight = viewport.companionCornerRightPx;
+
   const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
 
   const outerRef = useRef<HTMLDivElement | null>(null);
@@ -691,9 +692,19 @@ function CanvasBoardInner(
     };
   }, [columns, imageBlocks, journalBlocks, sealedAt]);
 
+  /** Live journal text from the editor ref — not React state (onUpdate fires before re-render). */
   const buildLiveCompanionSnapshot = useCallback((): CanvasSnapshot => {
-    return buildSnapshot();
-  }, [buildSnapshot]);
+    return {
+      version: CANVAS_SNAPSHOT_VERSION,
+      textColumns: [journalBlocksRef.current],
+      imageBlocks,
+      background: CANVAS_BACKGROUND,
+      columns,
+      signature: "",
+      sealedAt: sealedAt ?? undefined,
+      updatedAt: snapshotEditedAtRef.current,
+    };
+  }, [columns, imageBlocks, sealedAt]);
 
   const buildLiveCompanionSnapshotRef = useRef(buildLiveCompanionSnapshot);
   buildLiveCompanionSnapshotRef.current = buildLiveCompanionSnapshot;
@@ -1250,37 +1261,35 @@ function CanvasBoardInner(
       onDragOver={handleDragOver}
       onDrop={handleDrop}
     >
-      {/* Sunflower — fixed bottom-right, stacked above the seal stamp; keeps the left edge clear for the sidebar */}
-      <div className="pointer-events-auto fixed bottom-24 right-1 z-20 overflow-visible sm:bottom-20 sm:right-5">
-        <div ref={blobAnchorRef} className="relative">
-          {/* Peek/sneak greeting text disabled — was shown beside the flower as it sneaks in */}
-          {/* blob.greeting ? (
-            <EntranceGreeting
-              visible={blob.greetingVisible}
-              peeking={blob.pose === "peek"}
-              placement="beside"
-              layoutAnchorRef={blobAnchorRef}
-            >
-              {blob.greeting}
-            </EntranceGreeting>
-          ) : */ blob.whisper ? (
-            <EntranceGreeting
-              visible={blob.whisperVisible}
-              placement="above"
-              fadeDurationMs={blob.whisperFadeMs}
-              layoutAnchorRef={blobAnchorRef}
-            >
-              {blob.whisper}
-            </EntranceGreeting>
-          ) : null}
-          <BlobCharacter
-            pose={blob.pose}
-            emotion={blob.emotion}
-            hidden={blob.hidden}
-            onWake={companion.onCanvasActivity}
-          />
+      {/* Sunflower — temporarily disabled */}
+      {false && (
+        <div
+          className="pointer-events-auto fixed z-10 overflow-visible"
+          style={{
+            bottom: `calc(${companionBottom}px + env(safe-area-inset-bottom, 0px))`,
+            right: `calc(${companionRight}px + env(safe-area-inset-right, 0px))`,
+          }}
+        >
+          <div ref={blobAnchorRef} className="relative">
+            {/* Peek/sneak greeting text disabled — was shown beside the flower as it sneaks in */}
+            {blob.whisper != null ? (
+              <EntranceGreeting
+                text={blob.whisper as string}
+                visible={blob.whisperVisible}
+                placement="above"
+                fadeDurationMs={blob.whisperFadeMs}
+                layoutAnchorRef={blobAnchorRef}
+              />
+            ) : null}
+            <BlobCharacter
+              pose={blob.pose}
+              emotion={blob.emotion}
+              hidden={blob.hidden}
+              onWake={companion.onCanvasActivity}
+            />
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Stamp — physical rubber-stamp interaction; manages its own visibility */}
       <JournalStamp
@@ -1312,14 +1321,14 @@ function CanvasBoardInner(
           className="relative flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain"
           onScroll={() => companion.onCanvasActivity()}
           style={{
-            paddingTop: PAGE_PADDING_Y,
-            paddingBottom: PAGE_PADDING_Y,
-            scrollPaddingTop: PAGE_PADDING_Y,
-            scrollPaddingBottom: PAGE_PADDING_Y + SCROLL_COMFORT_BOTTOM,
+            paddingTop: pagePaddingY,
+            paddingBottom: pagePaddingY,
+            scrollPaddingTop: pagePaddingY,
+            scrollPaddingBottom: pagePaddingY + scrollComfortBottom,
           }}
         >
           <div
-            className="mx-auto flex w-full min-h-0 flex-1 flex-col px-6"
+            className="mx-auto flex w-full min-h-0 flex-1 flex-col px-4 sm:px-5 lg:px-6"
             style={{ maxWidth: WRITING_COLUMN_MAX_WIDTH }}
           >
             <CanvasHeader
@@ -1359,7 +1368,7 @@ function CanvasBoardInner(
 
                 {!sealedAt ? (
                   <div
-                    className="min-h-[min(50vh,24rem)] flex-1 cursor-text"
+                    className="min-h-[min(40vh,18rem)] flex-1 cursor-text sm:min-h-[min(50vh,24rem)]"
                     aria-hidden
                     onPointerDown={(e) => {
                       e.preventDefault();
@@ -1372,7 +1381,7 @@ function CanvasBoardInner(
                 {/* Signature — disabled for now
                 {!sealedAt && !signatureFieldOpen ? (
                   <div
-                    className="min-h-[min(50vh,24rem)] flex-1 cursor-text"
+                    className="min-h-[min(40vh,18rem)] flex-1 cursor-text sm:min-h-[min(50vh,24rem)]"
                     aria-hidden
                     onPointerDown={(e) => {
                       e.preventDefault();
@@ -1459,7 +1468,7 @@ function CanvasBoardInner(
             style={{ left: textCtxPos.x, top: textCtxPos.y - 8 }}
           >
             <div
-              className="flex items-center gap-0.5 rounded-xl border border-black/[0.06] bg-white/95 px-1.5 py-1 shadow-[0_4px_20px_rgba(15,15,15,0.10)] backdrop-blur-md"
+              className="flex items-center gap-0.5 rounded-lg border border-black/[0.06] bg-white/95 px-1 py-0.5 shadow-[0_4px_20px_rgba(15,15,15,0.10)] backdrop-blur-md sm:rounded-xl sm:px-1.5 sm:py-1"
               style={{
                 fontFamily:
                   "var(--font-body)",
@@ -1486,21 +1495,20 @@ function CanvasBoardInner(
                   },
                 ] as const
               ).map(({ kind, icon, label }) => (
-                <Tooltip key={kind} content={label}>
-                  <button
-                    type="button"
-                    aria-label={label}
-                    onClick={() => setBlockKind(activeBlockId, kind)}
-                    className={clsx(
-                      "inline-flex h-7 w-7 items-center justify-center rounded-lg transition",
-                      activeTextKind === kind
-                        ? "bg-black/10 text-(--color-canvas-toolbar-icon)"
-                        : "text-(--color-canvas-toolbar-icon)/70 hover:bg-black/[0.05] hover:text-(--color-canvas-toolbar-icon)"
-                    )}
-                  >
-                    {icon}
-                  </button>
-                </Tooltip>
+                <button
+                  key={kind}
+                  type="button"
+                  aria-label={label}
+                  onClick={() => setBlockKind(activeBlockId, kind)}
+                  className={clsx(
+                    "inline-flex h-6 w-6 items-center justify-center rounded-md transition sm:h-7 sm:w-7 sm:rounded-lg",
+                    activeTextKind === kind
+                      ? "bg-black/10 text-(--color-canvas-toolbar-icon)"
+                      : "text-(--color-canvas-toolbar-icon)/70 hover:bg-black/[0.05] hover:text-(--color-canvas-toolbar-icon)"
+                  )}
+                >
+                  {icon}
+                </button>
               ))}
             </div>
           </div>
@@ -1791,20 +1799,18 @@ function PolaroidImage({
       </figcaption>
 
       {selected && (
-        <Tooltip content="Remove image" className="absolute -right-2 -top-2">
-          <button
-            type="button"
-            aria-label="Remove image"
-            onClick={(e) => {
-              e.stopPropagation();
-              onRemove();
-            }}
-            onPointerDown={(e) => e.stopPropagation()}
-            className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-black/10 bg-white text-black/55 shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition hover:text-red-500"
-          >
-            <Trash2 size={12} strokeWidth={iconStrokePx(12)} />
-          </button>
-        </Tooltip>
+        <button
+          type="button"
+          aria-label="Remove image"
+          onClick={(e) => {
+            e.stopPropagation();
+            onRemove();
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+          className="absolute -right-2 -top-2 inline-flex h-6 w-6 items-center justify-center rounded-full border border-black/10 bg-white text-black/55 shadow-[0_2px_8px_rgba(0,0,0,0.08)] transition hover:text-red-500"
+        >
+          <Trash2 size={12} strokeWidth={iconStrokePx(12)} />
+        </button>
       )}
     </figure>
   );
@@ -1908,7 +1914,7 @@ function CanvasHeader({
 
   return (
     <header
-      className="mb-14 grid w-full grid-cols-[1fr_auto] items-end gap-x-10 gap-y-1"
+      className="mb-8 grid w-full grid-cols-1 items-end gap-y-1.5 sm:mb-10 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-x-4 sm:gap-y-0 md:gap-x-6 lg:mb-14 lg:gap-x-8 xl:gap-x-12"
       style={{
         fontFamily:
           "var(--font-body)",
@@ -1920,7 +1926,6 @@ function CanvasHeader({
         readOnly={isSealed}
         tabIndex={isSealed ? -1 : undefined}
         onChange={(event) => setValue(clampBookTitle(event.target.value))}
-        maxLength={MAX_BOOK_TITLE_CHARS}
         onFocus={() => {
           isTitleFocusedRef.current = true;
         }}
@@ -1937,14 +1942,14 @@ function CanvasHeader({
         spellCheck={false}
         aria-label="Book title"
         className={clsx(
-          "header-lg col-start-1 row-start-1 w-full max-w-[55%] self-end border-0 bg-transparent p-0 text-left font-medium tracking-tight outline-none focus:outline-none placeholder:text-(--canvas-title-placeholder)",
+          "header-lg col-start-1 row-start-1 min-w-0 w-full truncate self-end border-0 bg-transparent p-0 text-left font-medium tracking-tight outline-none focus:outline-none placeholder:text-(--canvas-title-placeholder)",
           hasTitle ? "text-(--canvas-title-ink)" : "text-(--canvas-title-placeholder)"
         )}
         style={{ fontFamily: "var(--font-heading)" }}
       />
       <time
         dateTime={isoDateTime}
-        className="col-start-2 row-start-1 block text-right text-sm tracking-[0.04em]"
+        className="col-start-1 row-start-2 block text-left font-light text-xs tracking-[0.04em] sm:col-start-2 sm:row-start-1 sm:text-right sm:text-sm"
         style={{ lineHeight: 1.45 }}
       >
         {isSealed && signedStamp ? (
@@ -1963,7 +1968,7 @@ function CanvasHeader({
       {showSaving ? (
         <p
           aria-live="polite"
-          className="col-start-2 row-start-2 block text-right text-sm tracking-[0.01em] text-(--canvas-time)"
+          className="col-start-1 row-start-3 block text-left text-xs tracking-[0.01em] text-(--canvas-time) sm:col-start-2 sm:row-start-2 sm:text-right sm:text-sm"
           style={{ lineHeight: 1.45 }}
         >
           saving

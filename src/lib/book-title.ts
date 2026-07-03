@@ -1,7 +1,7 @@
 /** Canvas header placeholder — not persisted as the draft title. */
 export const BOOK_TITLE_PLACEHOLDER = "New book";
 
-/** Max characters users may type for a book title (cover + canvas). */
+/** Max characters for AI-generated seal titles on the cover stamp. */
 export const MAX_BOOK_TITLE_CHARS = 24;
 
 export function hasBookTitle(title: string | undefined | null): boolean {
@@ -13,9 +13,7 @@ export function resolveBookDisplayTitle(title: string | undefined | null): strin
 }
 
 export function clampBookTitle(raw: string): string {
-  const cleaned = raw.replace(/\s+/g, " ");
-  if (cleaned.length <= MAX_BOOK_TITLE_CHARS) return cleaned;
-  return cleaned.slice(0, MAX_BOOK_TITLE_CHARS);
+  return raw.replace(/\s+/g, " ");
 }
 
 /** Trim edges for persisted / displayed titles — use on blur, not while typing. */

@@ -5,10 +5,10 @@ export const btnBase =
 export const btnRadius = {
   pill: "rounded-full",
   soft: "rounded-[0.6rem]",
-  xs: "rounded-[0.5rem]",   // 8px
-  sm: "rounded-[0.625rem]", // 10px
-  md: "rounded-[0.75rem]",  // 12px
-  lg: "rounded-[1.5rem]",   // 24px
+  xs: "rounded-[6px]",
+  sm: "rounded-[7px]",
+  md: "rounded-[8px]",
+  lg: "rounded-[10px]",
   xl: "rounded-xl",
 } as const;
 
@@ -16,32 +16,32 @@ export type BtnRadius = keyof typeof btnRadius;
 
 export const buttonSize = {
   xs: {
-    iconButton: "h-8 w-8 p-0",
-    textButton: "h-8 px-2.5 gap-1 text-xs font-medium whitespace-nowrap",
+    iconButton: "h-7 w-7 p-0",
+    textButton: "h-7 px-2.5 gap-1 text-xs font-medium whitespace-nowrap",
     icon: 14,
     stroke: 1.75,
     radius: btnRadius.xs,
   },
   sm: {
-    iconButton: "h-10 w-10 p-0",
-    textButton: "h-10 px-3 gap-1.5 text-sm font-medium whitespace-nowrap",
+    iconButton: "h-8 w-8 p-0",
+    textButton: "h-8 px-3 gap-1.5 text-sm font-medium whitespace-nowrap",
     icon: 16,
     stroke: 1.75,
     radius: btnRadius.sm,
   },
   md: {
-    iconButton: "h-12 w-12 p-0",
-    textButton: "h-12 px-3.5 gap-1.5 text-sm font-medium whitespace-nowrap",
+    iconButton: "h-9 w-9 p-0",
+    textButton: "h-9 px-3.5 gap-1.5 text-sm font-medium whitespace-nowrap",
     icon: 18,
     stroke: 1.85,
     radius: btnRadius.md,
   },
   lg: {
-    iconButton: "h-16 w-16 p-0",
-    textButton: "h-16 px-4 gap-2 text-md font-medium whitespace-nowrap",
+    iconButton: "h-10 w-10 p-0",
+    textButton: "h-10 px-4 gap-2 text-md font-medium whitespace-nowrap",
     icon: 20,
     stroke: 1.9,
-    radius: btnRadius.xl,
+    radius: btnRadius.lg,
   },
 } as const;
 

@@ -23,7 +23,7 @@ import {
 } from "./layout";
 
 type EntranceGreetingProps = {
-  children: string;
+  text: string;
   visible: boolean;
   peeking?: boolean;
   /** Peek greeting sits beside the flower; whispers float above it. */
@@ -139,19 +139,19 @@ function useArcLayout(
 }
 
 function CurvedWhisper({
-  children,
+  text,
   color,
   italic,
   pathId,
   layoutAnchorRef,
 }: {
-  children: string;
+  text: string;
   color: string;
   italic: boolean;
   pathId: string;
   layoutAnchorRef?: RefObject<HTMLElement | null>;
 }) {
-  const { width, fontSize } = useArcLayout(children, layoutAnchorRef);
+  const { width, fontSize } = useArcLayout(text, layoutAnchorRef);
   const pathD = `M 0 ${WHISPER_ARC_BASELINE_Y_PX} Q ${width / 2} ${WHISPER_ARC_PEAK_Y_PX} ${width} ${WHISPER_ARC_BASELINE_Y_PX}`;
   const textLength = useMemo(() => width * 0.94, [width]);
 
@@ -174,7 +174,7 @@ function CurvedWhisper({
         lengthAdjust="spacingAndGlyphs"
       >
         <textPath href={`#${pathId}`} startOffset="50%" textAnchor="middle">
-          {children}
+          {text}
         </textPath>
       </text>
     </svg>
@@ -182,7 +182,7 @@ function CurvedWhisper({
 }
 
 export function EntranceGreeting({
-  children,
+  text,
   visible,
   peeking = false,
   placement = "beside",
@@ -235,12 +235,11 @@ export function EntranceGreeting({
       >
         <CurvedWhisper
           pathId={curvedPathId}
+          text={text}
           color={color}
           italic={italic}
           layoutAnchorRef={layoutAnchorRef}
-        >
-          {children}
-        </CurvedWhisper>
+        />
       </Tag>
     );
   }
@@ -260,7 +259,7 @@ export function EntranceGreeting({
         color,
       }}
     >
-      {children}
+      {text}
     </Tag>
   );
 }
