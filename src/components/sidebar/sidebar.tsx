@@ -4,14 +4,14 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import clsx from "clsx";
 import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
 import {
-  Archive,
-  BookOpen,
-  PanelLeftOpen,
-  RefreshCw,
+  ChevronsLeft,
+  Menu,
+  Plus,
   Search,
-  SquarePen,
   Trash2,
+  Waypoints,
   X,
 } from "lucide-react";
 import {
@@ -22,6 +22,7 @@ import {
   iconPx,
   iconStroke,
 } from "@/components/ui/button-system";
+import { Tooltip } from "@/components/ui/tooltip";
 import {
   createEntryId,
   deleteEntry,
@@ -31,15 +32,14 @@ import {
   upsertEntry,
   type JournalEntry,
 } from "@/lib/journal-entries";
-import { SidebarNavItem } from "@/components/sidebar/sidebar-tab";
 import { useMediaQuery } from "@/hooks/use-media-query";
 
 const UNTITLED_ENTRY = "Untitled";
 const OVERLAY_NAV_QUERY = "(max-width: 1023px)";
 const SIDEBAR_COLLAPSED_KEY = "keeps-sidebar-collapsed";
-const MENU_OPEN_BUTTON_SIZE = "md" as const;
+const SIDEBAR_TOGGLE_SIZE = "xs" as const;
 const SIDEBAR_ACTION_SIZE = "xs" as const;
-const menuOpenButtonClass = `${btnIcon(MENU_OPEN_BUTTON_SIZE, "soft")} ${btnState.default} ${btnState.hover} ${btnState.active}`;
+const sidebarToggleFilledClass = `${btnIcon(SIDEBAR_TOGGLE_SIZE, "soft")} ${btnState.default} ${btnState.hover} ${btnState.active}`;
 const OVERLAY_OPACITY_TRANSITION =
   "transition-opacity duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none";
 const OVERLAY_TRANSFORM_TRANSITION =
@@ -84,6 +84,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const params = useParams<{ id?: string }>();
   const activeEntryId = params?.id;
+  const { user, isLoaded } = useUser();
 
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [query, setQuery] = useState("");
@@ -150,10 +151,12 @@ export function Sidebar() {
   }, [entries, query]);
 
   const isPatternsActive = pathname?.startsWith("/dashboard/patterns") ?? false;
-  const isEntriesActive =
-    !isPatternsActive &&
-    (pathname === "/dashboard" ||
-      (pathname?.startsWith("/dashboard/journal") ?? false));
+
+  const displayName = !isLoaded
+    ? null
+    : user
+      ? (user.firstName ?? user.username ?? null)
+      : "Anonymous";
 
   const handleNewEntry = () => {
     const id = createEntryId();
@@ -164,7 +167,19 @@ export function Sidebar() {
   const handleDeleteEntry = (id: string) => {
     const wasActive = id === activeEntryId;
     deleteEntry(id);
-    if (wasActive) router.push("/dashboard");
+    setEntries((prev) => prev.filter((entry) => entry.id !== id));
+
+    if (!wasActive) return;
+
+    const remaining = readAllEntries();
+    if (remaining.length > 0) {
+      router.replace(`/dashboard/journal/${remaining[0].id}`);
+      return;
+    }
+
+    const newId = createEntryId();
+    upsertEntry(newId, { title: "" });
+    router.replace(`/dashboard/journal/${newId}?new=1`);
   };
 
   const closeSearch = () => {
@@ -202,53 +217,35 @@ export function Sidebar() {
   };
 
   const menuToggle = (
-    <button
-      type="button"
-      onClick={expandSidebar}
-      aria-label="Open menu"
-      className={`shrink-0 ${menuOpenButtonClass}`}
-    >
-      <PanelLeftOpen
-        size={iconPx(MENU_OPEN_BUTTON_SIZE)}
-        strokeWidth={iconStroke(MENU_OPEN_BUTTON_SIZE)}
-        aria-hidden
-        className={iconFixed}
-      />
-    </button>
+    <Tooltip content="Open menu">
+      <button
+        type="button"
+        onClick={expandSidebar}
+        aria-label="Open menu"
+        className={`shrink-0 ${sidebarToggleFilledClass}`}
+      >
+        <Menu
+          size={iconPx(SIDEBAR_TOGGLE_SIZE)}
+          strokeWidth={iconStroke(SIDEBAR_TOGGLE_SIZE)}
+          aria-hidden
+          className={iconFixed}
+        />
+      </button>
+    </Tooltip>
   );
 
   if (collapsed && !isOverlayNav) {
     return (
-      <div className="fixed left-3 top-[max(1rem,env(safe-area-inset-top))] z-30 sm:left-4 lg:top-6">
+      <div className="fixed left-4 top-6 z-30">
         {menuToggle}
       </div>
     );
   }
 
-  const searchButton = (
-    <button
-      type="button"
-      onClick={(event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        setSearchOpen(true);
-      }}
-      aria-label="Search entries"
-      className={`shrink-0 ${btnIconTransparent(SIDEBAR_ACTION_SIZE)}`}
-    >
-      <Search
-        size={iconPx(SIDEBAR_ACTION_SIZE)}
-        strokeWidth={iconStroke(SIDEBAR_ACTION_SIZE)}
-        aria-hidden
-        className={iconFixed}
-      />
-    </button>
-  );
-
   const sidebarPanel = (
     <aside
       className={clsx(
-        "flex h-full min-h-0 w-[min(304px,88vw)] shrink-0 flex-col overflow-hidden border-r border-(--sidebar-border) bg-(--sidebar-bg) sm:w-[288px]",
+        "flex md:gap-6 h-full min-h-0 w-[min(304px,88vw)] shrink-0 flex-col overflow-hidden border-r border-(--sidebar-border) bg-(--sidebar-bg) sm:w-[288px]",
         isOverlayNav && "shadow-[4px_0_24px_rgba(0,0,0,0.08)]",
         !isOverlayNav && "relative",
       )}
@@ -256,179 +253,222 @@ export function Sidebar() {
       inert={isOverlayNav && collapsed ? true : undefined}
     >
       {/* Header */}
-      <div className="shrink-0 px-5 pt-6 pb-5">
-        <div className="flex items-center justify-between gap-3">
-          <p
-            className="min-w-0 truncate text-[1.375rem] leading-none text-(--canvas-title-ink)"
-            style={{ fontFamily: "var(--font-bonheur-royale)" }}
-          >
-            _Unfold
-          </p>
-          <button
-            type="button"
-            onClick={handleNewEntry}
-            aria-label="New entry"
-            className={`shrink-0 ${btnIconTransparent("sm")} text-(--sidebar-icon) hover:text-(--sidebar-ink)`}
-          >
-            <SquarePen
-              size={iconPx("sm")}
-              strokeWidth={iconStroke("sm")}
-              aria-hidden
-              className={iconFixed}
-            />
-          </button>
+      <div className="flex shrink-0 items-center justify-between gap-3 px-3 py-5">
+        <p
+          className="min-w-0 flex-1 truncate text-[1rem] font-bold leading-tight tracking-tight text-(--canvas-title-ink)"
+          style={{ fontFamily: "var(--font-heading)" }}
+        >
+          {displayName ? `${displayName}\u2019s ` : ""}Unfold
+        </p>
+        <div className="flex shrink-0 items-center gap-0.5">
+          <Tooltip content="Patterns">
+            <Link
+              href="/dashboard/patterns"
+              onClick={closeOverlayNav}
+              aria-label="Patterns"
+              aria-current={isPatternsActive ? "page" : undefined}
+              className={clsx(
+                btnIconTransparent(SIDEBAR_ACTION_SIZE),
+                isPatternsActive
+                  ? "text-(--sidebar-ink)"
+                  : "text-(--sidebar-icon) hover:text-(--sidebar-ink)",
+              )}
+            >
+              <Waypoints
+                size={iconPx(SIDEBAR_ACTION_SIZE)}
+                strokeWidth={iconStroke(SIDEBAR_ACTION_SIZE)}
+                aria-hidden
+                className={iconFixed}
+              />
+            </Link>
+          </Tooltip>
+          <Tooltip content="Close menu">
+            <button
+              type="button"
+              onClick={toggleCollapsed}
+              aria-label="Close menu"
+              className={`shrink-0 ${btnIconTransparent(SIDEBAR_TOGGLE_SIZE)}`}
+            >
+              <ChevronsLeft
+                size={iconPx(SIDEBAR_TOGGLE_SIZE)}
+                strokeWidth={iconStroke(SIDEBAR_TOGGLE_SIZE)}
+                aria-hidden
+                className={iconFixed}
+              />
+            </button>
+          </Tooltip>
         </div>
       </div>
 
-      {/* Main navigation */}
-      <nav
-        className="flex shrink-0 flex-col gap-0.5 px-4"
-        aria-label="Main navigation"
-      >
-        {searchOpen ? (
-          <div className="flex items-center gap-2 rounded-lg bg-(--sidebar-hover-bg) px-3 py-2">
-            <Search
-              size={14}
-              strokeWidth={1.75}
-              className="shrink-0 text-(--sidebar-icon)"
-              aria-hidden
-            />
-            <input
-              ref={searchInputRef}
-              type="text"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Escape") closeSearch();
-              }}
-              placeholder="Search entries"
-              aria-label="Search entries"
-              className="w-full bg-transparent text-sm text-(--sidebar-ink) outline-none placeholder:text-(--sidebar-ink-soft)"
-            />
-            <button
-              type="button"
-              onClick={closeSearch}
-              aria-label="Close search"
-              className="flex shrink-0 items-center justify-center text-(--sidebar-icon) transition-colors duration-150 hover:text-(--sidebar-ink)"
-            >
-              <X size={14} strokeWidth={1.9} aria-hidden />
-            </button>
-          </div>
-        ) : (
-          <SidebarNavItem
-            href="/dashboard"
-            icon={BookOpen}
-            label="Entries"
-            active={isEntriesActive}
-            trailing={searchButton}
-            onClick={closeOverlayNav}
-          />
-        )}
-        <SidebarNavItem
-          href="/dashboard/patterns"
-          icon={RefreshCw}
-          label="Patterns"
-          active={isPatternsActive}
-          onClick={closeOverlayNav}
-        />
-        <SidebarNavItem icon={Archive} label="Archive" disabled />
-      </nav>
-
-      {/* Recent entries */}
+      {/* Entries + recent list */}
       <section
-        className="mt-6 flex min-h-0 flex-1 flex-col px-4 pb-4"
-        aria-label="Recent entries"
+        className="flex min-h-0 flex-1 flex-col gap-2"
+        aria-label="Entries"
       >
-        <h2 className="mb-2 px-1 text-[0.6875rem] font-medium tracking-[0.08em] text-(--sidebar-ink-soft) uppercase">
-          Recent entries
-        </h2>
+        <div className="mb-1 flex h-9 shrink-0 items-center px-2.5">
+          {searchOpen ? (
+            <div className="flex h-full w-full items-center gap-2 rounded-[7px] bg-(--sidebar-hover-bg) px-2.5">
+              <Search
+                size={14}
+                strokeWidth={1.75}
+                className="shrink-0 text-(--sidebar-icon)"
+                aria-hidden
+              />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Escape") closeSearch();
+                }}
+                placeholder="Search"
+                aria-label="Search entries"
+                className="w-full min-w-0 bg-transparent text-sm text-(--sidebar-ink) outline-none placeholder:text-(--sidebar-ink-soft)"
+              />
+              <button
+                type="button"
+                onClick={closeSearch}
+                aria-label="Close search"
+                className="flex shrink-0 items-center justify-center text-(--sidebar-icon) transition-colors duration-150 hover:text-(--sidebar-ink)"
+              >
+                <X size={14} strokeWidth={1.9} aria-hidden />
+              </button>
+            </div>
+          ) : (
+            <>
+              <span className="ml-2.5 text-xs font-medium text-tertiary">ENTRIES</span>
+              <div className="ml-auto flex items-center gap-0.5">
+                <Tooltip content="Search entries">
+                  <button
+                    type="button"
+                    onClick={() => setSearchOpen(true)}
+                    aria-label="Search entries"
+                    className={`shrink-0 ${btnIconTransparent(SIDEBAR_ACTION_SIZE)}`}
+                  >
+                    <Search
+                      size={iconPx(SIDEBAR_ACTION_SIZE)}
+                      strokeWidth={iconStroke(SIDEBAR_ACTION_SIZE)}
+                      aria-hidden
+                      className={iconFixed}
+                    />
+                  </button>
+                </Tooltip>
+                <Tooltip content="New entry">
+                  <button
+                    type="button"
+                    onClick={handleNewEntry}
+                    aria-label="New entry"
+                    className={`shrink-0 ${btnIconTransparent(SIDEBAR_ACTION_SIZE)}`}
+                  >
+                    <Plus
+                      size={iconPx(SIDEBAR_ACTION_SIZE)}
+                      strokeWidth={iconStroke(SIDEBAR_ACTION_SIZE)}
+                      aria-hidden
+                      className={iconFixed}
+                    />
+                  </button>
+                </Tooltip>
+              </div>
+            </>
+          )}
+        </div>
 
         <nav
           className="sidebar-entries-scroll min-h-0 flex-1 overflow-y-auto overscroll-y-contain"
-          aria-label="Journal entries"
+          aria-label="Entries"
         >
-          {filteredEntries.length === 0 ? (
-            <p className="py-5 text-center text-sm text-(--sidebar-ink-soft)">
-              {entries.length === 0 ? "No entries yet" : "No matches"}
-            </p>
-          ) : (
-            <ul className="flex flex-col gap-0.5">
-              {filteredEntries.map((entry) => {
-                const isActive = entry.id === activeEntryId;
-                const isSealed = typeof entry.sealedAt === "number";
-                const displayTitle = resolveEntryTitle(entry.title);
-                const isPlaceholder = displayTitle === UNTITLED_ENTRY;
-                const preview = entryPreview(entry);
-                const relativeTime = formatRelativeTime(entry.createdAt);
+        {filteredEntries.length === 0 ? (
+          <p className="px-5 py-6 text-center text-sm text-(--sidebar-ink-soft)">
+            {entries.length === 0 ? "No entries yet" : "No matches"}
+          </p>
+        ) : (
+          <ul className="flex flex-col gap-0.75 px-2.5 pb-4">
+            {filteredEntries.map((entry) => {
+              const isActive = entry.id === activeEntryId;
+              const isSealed = typeof entry.sealedAt === "number";
+              const displayTitle = resolveEntryTitle(entry.title);
+              const isPlaceholder = displayTitle === UNTITLED_ENTRY;
+              const preview = entryPreview(entry);
+              const relativeTime = formatRelativeTime(entry.createdAt);
 
-                return (
-                  <li
-                    key={entry.id}
+              return (
+                <li
+                  key={entry.id}
+                  className={clsx(
+                    "group relative rounded-md transition-colors duration-150",
+                    isActive
+                      ? "bg-(--sidebar-active-bg)"
+                      : "hover:bg-(--sidebar-hover-bg)",
+                  )}
+                >
+                  <Link
+                    href={`/dashboard/journal/${entry.id}`}
+                    onClick={closeOverlayNav}
+                    aria-label={`Open ${displayTitle}`}
+                    className="absolute inset-0 z-0 rounded-lg"
+                  />
+                  <div
                     className={clsx(
-                      "group relative rounded-lg transition-colors duration-150",
-                      isActive
-                        ? "bg-(--sidebar-active-bg)"
-                        : "hover:bg-(--sidebar-hover-bg)",
+                      "pointer-events-none relative flex flex-col gap-0.5 px-2.75 py-2.5",
+                      isSealed && "opacity-78",
                     )}
                   >
-                    <Link
-                      href={`/dashboard/journal/${entry.id}`}
-                      onClick={closeOverlayNav}
-                      aria-label={`Open ${displayTitle}`}
-                      className="absolute inset-0 z-0 rounded-lg"
-                    />
-                    <div className="pointer-events-none relative flex flex-col gap-0.5 px-3 py-2.5">
-                      <span className="flex items-start justify-between gap-3">
-                        <span
-                          className={clsx(
-                            "block min-w-0 flex-1 truncate text-sm leading-snug",
-                            isSealed && "text-sealed",
-                            !isSealed &&
-                              (isActive ? "font-semibold text-active" : "font-semibold text-primary"),
-                            !isSealed && isPlaceholder && "font-medium",
-                          )}
-                        >
-                          {displayTitle}
-                        </span>
-                        <span className="flex shrink-0 items-center gap-1.5 pt-0.5 text-xs text-(--sidebar-ink-soft)">
-                          <span className="tabular-nums leading-none">
-                            {relativeTime}
-                          </span>
-                          <button
-                            type="button"
-                            aria-label="Delete entry"
-                            onClick={(event) => {
-                              event.preventDefault();
-                              event.stopPropagation();
-                              handleDeleteEntry(entry.id);
-                            }}
-                            className="pointer-events-auto hidden h-3 w-3 shrink-0 items-center justify-center border-0 bg-transparent p-0 text-(--sidebar-icon) transition-[color] duration-150 hover:text-(--sidebar-ink) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20 group-hover:inline-flex group-focus-within:inline-flex"
-                          >
-                            <Trash2
-                              size={12}
-                              strokeWidth={1.75}
-                              aria-hidden
-                              className={iconFixed}
-                            />
-                          </button>
-                        </span>
-                      </span>
+                    <span className="flex items-start justify-between gap-3">
                       <span
                         className={clsx(
-                          "truncate text-sm font-normal leading-snug",
-                          isSealed
-                            ? "text-sealed opacity-76"
-                            : "text-(--sidebar-ink-soft)",
+                          "block min-w-0 flex-1 truncate text-sm leading-snug font-medium text-secondary",
+                          isSealed && " text-sealed",
+                          !isSealed &&
+                            (isActive
+                              ? "font-semibold text-active"
+                              : "font-semibold text-active"),
+                          !isSealed && isPlaceholder && "font-medium text-secondary",
                         )}
                       >
-                        {preview || "No additional text"}
+                        {displayTitle}
                       </span>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
+                      <span className="flex shrink-0 items-center gap-1.5 pt-0.5 text-xs text-(--sidebar-ink-soft)">
+                        <span className="tabular-nums leading-none">
+                          {relativeTime}
+                        </span>
+                        <button
+                          type="button"
+                          aria-label="Delete entry"
+                          onMouseDown={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                          }}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            handleDeleteEntry(entry.id);
+                          }}
+                          className="pointer-events-auto hidden h-3 w-3 shrink-0 items-center justify-center border-0 bg-transparent p-0 text-(--sidebar-icon) transition-[color] duration-150 hover:text-(--sidebar-ink) focus-visible:inline-flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20 group-hover:inline-flex"
+                        >
+                          <Trash2
+                            size={12}
+                            strokeWidth={1.75}
+                            aria-hidden
+                            className={iconFixed}
+                          />
+                        </button>
+                      </span>
+                    </span>
+                    <span
+                      className={clsx(
+                        "truncate text-sm font-normal leading-snug w-[88%]",
+                        isSealed ? "text-sealed" : "text-(--sidebar-ink-soft)",
+                      )}
+                    >
+                      {preview || "No additional text"}
+                    </span>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
         </nav>
       </section>
     </aside>
@@ -441,11 +481,9 @@ export function Sidebar() {
       <>
         <div
           className={clsx(
-            "fixed left-3 top-[max(1rem,env(safe-area-inset-top))] z-50 sm:left-4",
+            "fixed left-4 top-[max(1.5rem,env(safe-area-inset-top))] z-50",
             OVERLAY_OPACITY_TRANSITION,
-            drawerOpen
-              ? "pointer-events-none opacity-0"
-              : "opacity-100",
+            drawerOpen ? "pointer-events-none opacity-0" : "opacity-100",
           )}
         >
           {menuToggle}

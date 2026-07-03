@@ -53,7 +53,7 @@ export function SidebarNavItem({
     "flex items-center text-sm font-medium transition-colors duration-150",
     iconOnly
       ? btnIconTransparent("sm")
-      : "gap-1.5 rounded-[7px] px-2.5 py-1.5",
+      : "gap-1.5 rounded-sm px-2.5 py-2",
     !iconOnly &&
       (disabled
         ? "text-disabled pointer-events-none"
