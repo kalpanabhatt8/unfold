@@ -4,14 +4,14 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import clsx from "clsx";
 import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
-import { useUser } from "@clerk/nextjs";
 import {
-  ChevronsLeft,
-  Menu,
-  Plus,
+  Archive,
+  BookOpen,
+  PanelLeftOpen,
+  RefreshCw,
   Search,
+  SquarePen,
   Trash2,
-  Waypoints,
   X,
 } from "lucide-react";
 import {
@@ -22,7 +22,6 @@ import {
   iconPx,
   iconStroke,
 } from "@/components/ui/button-system";
-import { Tooltip } from "@/components/ui/tooltip";
 import {
   createEntryId,
   deleteEntry,
@@ -32,14 +31,15 @@ import {
   upsertEntry,
   type JournalEntry,
 } from "@/lib/journal-entries";
+import { SidebarNavItem } from "@/components/sidebar/sidebar-tab";
 import { useMediaQuery } from "@/hooks/use-media-query";
 
 const UNTITLED_ENTRY = "Untitled";
 const OVERLAY_NAV_QUERY = "(max-width: 1023px)";
 const SIDEBAR_COLLAPSED_KEY = "keeps-sidebar-collapsed";
-const SIDEBAR_TOGGLE_SIZE = "xs" as const;
+const MENU_OPEN_BUTTON_SIZE = "md" as const;
 const SIDEBAR_ACTION_SIZE = "xs" as const;
-const sidebarToggleFilledClass = `${btnIcon(SIDEBAR_TOGGLE_SIZE, "soft")} ${btnState.default} ${btnState.hover} ${btnState.active}`;
+const menuOpenButtonClass = `${btnIcon(MENU_OPEN_BUTTON_SIZE, "soft")} ${btnState.default} ${btnState.hover} ${btnState.active}`;
 const OVERLAY_OPACITY_TRANSITION =
   "transition-opacity duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none";
 const OVERLAY_TRANSFORM_TRANSITION =
@@ -84,7 +84,6 @@ export function Sidebar() {
   const pathname = usePathname();
   const params = useParams<{ id?: string }>();
   const activeEntryId = params?.id;
-  const { user, isLoaded } = useUser();
 
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [query, setQuery] = useState("");
@@ -151,12 +150,10 @@ export function Sidebar() {
   }, [entries, query]);
 
   const isPatternsActive = pathname?.startsWith("/dashboard/patterns") ?? false;
-
-  const displayName = !isLoaded
-    ? null
-    : user
-      ? (user.firstName ?? user.username ?? null)
-      : "Anonymous";
+  const isEntriesActive =
+    !isPatternsActive &&
+    (pathname === "/dashboard" ||
+      (pathname?.startsWith("/dashboard/journal") ?? false));
 
   const handleNewEntry = () => {
     const id = createEntryId();
@@ -205,167 +202,153 @@ export function Sidebar() {
   };
 
   const menuToggle = (
-    <Tooltip content="Open menu">
-      <button
-        type="button"
-        onClick={expandSidebar}
-        aria-label="Open menu"
-        className={`shrink-0 ${sidebarToggleFilledClass}`}
-      >
-        <Menu
-          size={iconPx(SIDEBAR_TOGGLE_SIZE)}
-          strokeWidth={iconStroke(SIDEBAR_TOGGLE_SIZE)}
-          aria-hidden
-          className={iconFixed}
-        />
-      </button>
-    </Tooltip>
+    <button
+      type="button"
+      onClick={expandSidebar}
+      aria-label="Open menu"
+      className={`shrink-0 ${menuOpenButtonClass}`}
+    >
+      <PanelLeftOpen
+        size={iconPx(MENU_OPEN_BUTTON_SIZE)}
+        strokeWidth={iconStroke(MENU_OPEN_BUTTON_SIZE)}
+        aria-hidden
+        className={iconFixed}
+      />
+    </button>
   );
 
   if (collapsed && !isOverlayNav) {
     return (
-      <div className="fixed left-4 top-6 z-30">
+      <div className="fixed left-3 top-[max(1rem,env(safe-area-inset-top))] z-30 sm:left-4 lg:top-6">
         {menuToggle}
       </div>
     );
   }
 
+  const searchButton = (
+    <button
+      type="button"
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        setSearchOpen(true);
+      }}
+      aria-label="Search entries"
+      className={`shrink-0 ${btnIconTransparent(SIDEBAR_ACTION_SIZE)}`}
+    >
+      <Search
+        size={iconPx(SIDEBAR_ACTION_SIZE)}
+        strokeWidth={iconStroke(SIDEBAR_ACTION_SIZE)}
+        aria-hidden
+        className={iconFixed}
+      />
+    </button>
+  );
+
   const sidebarPanel = (
     <aside
       className={clsx(
-        "flex h-full min-h-0 w-[min(280px,88vw)] shrink-0 flex-col overflow-hidden border-r border-(--sidebar-border) bg-(--sidebar-bg) sm:w-[264px]",
+        "flex h-full min-h-0 w-[min(304px,88vw)] shrink-0 flex-col overflow-hidden border-r border-(--sidebar-border) bg-(--sidebar-bg) sm:w-[288px]",
         isOverlayNav && "shadow-[4px_0_24px_rgba(0,0,0,0.08)]",
         !isOverlayNav && "relative",
       )}
       aria-hidden={isOverlayNav && collapsed ? true : undefined}
       inert={isOverlayNav && collapsed ? true : undefined}
     >
-      <div className="flex min-h-0 flex-1 flex-col px-5">
-        {/* Header */}
-        <div className="flex shrink-0 items-center justify-between gap-3 pt-6 pb-8">
+      {/* Header */}
+      <div className="shrink-0 px-5 pt-6 pb-5">
+        <div className="flex items-center justify-between gap-3">
           <p
-            className="min-w-0 flex-1 truncate text-[1rem] font-bold leading-tight tracking-tight text-(--canvas-title-ink)"
-            style={{ fontFamily: "var(--font-heading)" }}
+            className="min-w-0 truncate text-[1.375rem] leading-none text-(--canvas-title-ink)"
+            style={{ fontFamily: "var(--font-bonheur-royale)" }}
           >
-            {displayName ? `${displayName}\u2019s ` : ""}Unfold
+            _Unfold
           </p>
-          <div className="flex shrink-0 items-center gap-0.5">
-            <Tooltip content="Patterns">
-              <Link
-                href="/dashboard/patterns"
-                onClick={closeOverlayNav}
-                aria-label="Patterns"
-                aria-current={isPatternsActive ? "page" : undefined}
-                className={clsx(
-                  btnIconTransparent(SIDEBAR_ACTION_SIZE),
-                  isPatternsActive
-                    ? "text-(--sidebar-ink)"
-                    : "text-(--sidebar-icon) hover:text-(--sidebar-ink)",
-                )}
-              >
-                <Waypoints
-                  size={iconPx(SIDEBAR_ACTION_SIZE)}
-                  strokeWidth={iconStroke(SIDEBAR_ACTION_SIZE)}
-                  aria-hidden
-                  className={iconFixed}
-                />
-              </Link>
-            </Tooltip>
-            <Tooltip content="Close menu">
-              <button
-                type="button"
-                onClick={toggleCollapsed}
-                aria-label="Close menu"
-                className={`shrink-0 ${btnIconTransparent(SIDEBAR_TOGGLE_SIZE)}`}
-              >
-                <ChevronsLeft
-                  size={iconPx(SIDEBAR_TOGGLE_SIZE)}
-                  strokeWidth={iconStroke(SIDEBAR_TOGGLE_SIZE)}
-                  aria-hidden
-                  className={iconFixed}
-                />
-              </button>
-            </Tooltip>
+          <button
+            type="button"
+            onClick={handleNewEntry}
+            aria-label="New entry"
+            className={`shrink-0 ${btnIconTransparent("sm")} text-(--sidebar-icon) hover:text-(--sidebar-ink)`}
+          >
+            <SquarePen
+              size={iconPx("sm")}
+              strokeWidth={iconStroke("sm")}
+              aria-hidden
+              className={iconFixed}
+            />
+          </button>
+        </div>
+      </div>
+
+      {/* Main navigation */}
+      <nav
+        className="flex shrink-0 flex-col gap-0.5 px-4"
+        aria-label="Main navigation"
+      >
+        {searchOpen ? (
+          <div className="flex items-center gap-2 rounded-lg bg-(--sidebar-hover-bg) px-3 py-2">
+            <Search
+              size={14}
+              strokeWidth={1.75}
+              className="shrink-0 text-(--sidebar-icon)"
+              aria-hidden
+            />
+            <input
+              ref={searchInputRef}
+              type="text"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") closeSearch();
+              }}
+              placeholder="Search entries"
+              aria-label="Search entries"
+              className="w-full bg-transparent text-sm text-(--sidebar-ink) outline-none placeholder:text-(--sidebar-ink-soft)"
+            />
+            <button
+              type="button"
+              onClick={closeSearch}
+              aria-label="Close search"
+              className="flex shrink-0 items-center justify-center text-(--sidebar-icon) transition-colors duration-150 hover:text-(--sidebar-ink)"
+            >
+              <X size={14} strokeWidth={1.9} aria-hidden />
+            </button>
           </div>
-        </div>
+        ) : (
+          <SidebarNavItem
+            href="/dashboard"
+            icon={BookOpen}
+            label="Entries"
+            active={isEntriesActive}
+            trailing={searchButton}
+            onClick={closeOverlayNav}
+          />
+        )}
+        <SidebarNavItem
+          href="/dashboard/patterns"
+          icon={RefreshCw}
+          label="Patterns"
+          active={isPatternsActive}
+          onClick={closeOverlayNav}
+        />
+        <SidebarNavItem icon={Archive} label="Archive" disabled />
+      </nav>
 
-        {/* Entries section header (swaps to inline search when active) */}
-        <div className="mb-3 flex h-8 shrink-0 items-center justify-between">
-          {searchOpen ? (
-            <div className="flex h-full w-full items-center gap-2 rounded-[7px] bg-(--sidebar-hover-bg) px-2.5">
-              <Search
-                size={14}
-                strokeWidth={1.75}
-                className="shrink-0 text-(--sidebar-icon)"
-                aria-hidden
-              />
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Escape") closeSearch();
-                }}
-                placeholder="Search entries"
-                aria-label="Search entries"
-                className="w-full bg-transparent text-sm text-(--sidebar-ink) outline-none placeholder:text-(--sidebar-ink-soft)"
-              />
-              <button
-                type="button"
-                onClick={closeSearch}
-                aria-label="Close search"
-                className="flex shrink-0 items-center justify-center text-(--sidebar-icon) transition-colors duration-150 hover:text-(--sidebar-ink)"
-              >
-                <X size={14} strokeWidth={1.9} aria-hidden />
-              </button>
-            </div>
-          ) : (
-            <>
-              <span className="text-sm font-medium text-tertiary">Entries</span>
-              <div className="flex items-center gap-0.5">
-                <Tooltip content="Search entries">
-                  <button
-                    type="button"
-                    onClick={() => setSearchOpen(true)}
-                    aria-label="Search entries"
-                    className={`shrink-0 ${btnIconTransparent(SIDEBAR_ACTION_SIZE)}`}
-                  >
-                    <Search
-                      size={iconPx(SIDEBAR_ACTION_SIZE)}
-                      strokeWidth={iconStroke(SIDEBAR_ACTION_SIZE)}
-                      aria-hidden
-                      className={iconFixed}
-                    />
-                  </button>
-                </Tooltip>
-                <Tooltip content="New entry">
-                  <button
-                    type="button"
-                    onClick={handleNewEntry}
-                    aria-label="New entry"
-                    className={`shrink-0 ${btnIconTransparent(SIDEBAR_ACTION_SIZE)}`}
-                  >
-                    <Plus
-                      size={iconPx(SIDEBAR_ACTION_SIZE)}
-                      strokeWidth={iconStroke(SIDEBAR_ACTION_SIZE)}
-                      aria-hidden
-                      className={iconFixed}
-                    />
-                  </button>
-                </Tooltip>
-              </div>
-            </>
-          )}
-        </div>
+      {/* Recent entries */}
+      <section
+        className="mt-6 flex min-h-0 flex-1 flex-col px-4 pb-4"
+        aria-label="Recent entries"
+      >
+        <h2 className="mb-2 px-1 text-[0.6875rem] font-medium tracking-[0.08em] text-(--sidebar-ink-soft) uppercase">
+          Recent entries
+        </h2>
 
-        {/* Entry list */}
         <nav
-          className="sidebar-entries-scroll min-h-0 flex-1 overflow-y-auto overscroll-y-contain pb-4"
+          className="sidebar-entries-scroll min-h-0 flex-1 overflow-y-auto overscroll-y-contain"
           aria-label="Journal entries"
         >
           {filteredEntries.length === 0 ? (
-            <p className="py-6 text-center text-sm text-(--sidebar-ink-soft)">
+            <p className="py-5 text-center text-sm text-(--sidebar-ink-soft)">
               {entries.length === 0 ? "No entries yet" : "No matches"}
             </p>
           ) : (
@@ -399,12 +382,10 @@ export function Sidebar() {
                         <span
                           className={clsx(
                             "block min-w-0 flex-1 truncate text-sm leading-snug",
-                            isSealed && "text-disabled",
+                            isSealed && "text-sealed",
                             !isSealed &&
-                              (isActive
-                                ? "font-semibold text-active"
-                                : "font-semibold text-active"),
-                            !isSealed && isPlaceholder && "font-medium text-secondary",
+                              (isActive ? "font-semibold text-active" : "font-semibold text-primary"),
+                            !isSealed && isPlaceholder && "font-medium",
                           )}
                         >
                           {displayTitle}
@@ -436,7 +417,7 @@ export function Sidebar() {
                         className={clsx(
                           "truncate text-sm font-normal leading-snug",
                           isSealed
-                            ? "text-disabled"
+                            ? "text-sealed opacity-76"
                             : "text-(--sidebar-ink-soft)",
                         )}
                       >
@@ -449,7 +430,7 @@ export function Sidebar() {
             </ul>
           )}
         </nav>
-      </div>
+      </section>
     </aside>
   );
 
@@ -460,9 +441,11 @@ export function Sidebar() {
       <>
         <div
           className={clsx(
-            "fixed left-4 top-[max(1.5rem,env(safe-area-inset-top))] z-50",
+            "fixed left-3 top-[max(1rem,env(safe-area-inset-top))] z-50 sm:left-4",
             OVERLAY_OPACITY_TRANSITION,
-            drawerOpen ? "pointer-events-none opacity-0" : "opacity-100",
+            drawerOpen
+              ? "pointer-events-none opacity-0"
+              : "opacity-100",
           )}
         >
           {menuToggle}

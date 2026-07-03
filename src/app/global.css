@@ -120,7 +120,8 @@
   --canvas-brown: #7e675f;
   /* --canvas-title-ink: #421024; */
   --canvas-title-ink: #421024;
-  --canvas-ink: #585456;
+  --canvas-ink: var(--text-primary);
+  /* --canvas-ink: #585456; */
   --canvas-ink-secondary: #85766b;
   /* --canvas-title-placeholder: #aba7a8; */
   --canvas-title-placeholder: #9f9b9c;
@@ -182,10 +183,10 @@
   /* Tooltips */
   --tooltip-bg: #190e05;
   --tooltip-fg: #ffffff;
-  --tooltip-font-size: var(--text-sm);
+  --tooltip-font-size: var(--text-xs);
   --tooltip-letter-spacing: 0.03em;
-  --tooltip-padding-y: 0.45rem;
-  --tooltip-padding-x: 0.7rem;
+  --tooltip-padding-y: 0.3rem;
+  --tooltip-padding-x: 0.55rem;
 
   /* Typography — body vs heading */
   --font-body: var(--font-figtree), system-ui, -apple-system, "Segoe UI",
@@ -290,6 +291,10 @@ h6 {
 @layer components {
   .text-active {
     color: var(--text-color-active);
+  }
+
+  .text-primary {
+    color: var(--text-primary);
   }
 
   .text-secondary {

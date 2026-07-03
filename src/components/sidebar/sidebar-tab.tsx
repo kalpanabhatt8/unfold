@@ -12,7 +12,7 @@ import {
   iconStroke,
 } from "@/components/ui/button-system";
 
-export type SidebarTabProps = {
+export type SidebarNavItemProps = {
   /** Destination route. Omit for a non-navigating tab (pair with `onClick`). */
   href?: string;
   icon: LucideIcon;
@@ -23,6 +23,8 @@ export type SidebarTabProps = {
   disabled?: boolean;
   /** Icon-only layout for collapsed sidebar. */
   iconOnly?: boolean;
+  /** Optional element rendered at the end of the row (e.g. an action button). */
+  trailing?: React.ReactNode;
   onClick?: () => void;
   className?: string;
 };
@@ -34,16 +36,17 @@ export type SidebarTabProps = {
  *   - disabled: `text-disabled`, non-interactive
  * Renders as a `Link` when `href` is set, otherwise a `button`.
  */
-export function SidebarTab({
+export function SidebarNavItem({
   href,
   icon: Icon,
   label,
   active = false,
   disabled = false,
   iconOnly = false,
+  trailing,
   onClick,
   className,
-}: SidebarTabProps) {
+}: SidebarNavItemProps) {
   const iconSize = iconOnly ? "sm" : "xs";
 
   const classes = clsx(
@@ -74,7 +77,10 @@ export function SidebarTab({
         aria-hidden
         className={iconFixed}
       />
-      {!iconOnly ? label : null}
+      {!iconOnly ? <span className="min-w-0 flex-1 truncate">{label}</span> : null}
+      {!iconOnly && trailing ? (
+        <span className="flex shrink-0 items-center">{trailing}</span>
+      ) : null}
     </>
   );
 
