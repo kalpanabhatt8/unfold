@@ -26,7 +26,7 @@ export default function Landing() {
           </div>
         </section>
       </div>
-      <p className="text-sm text-ink-muted mt-4 accent-font text-center">
+      <p className="text-sm text-ink-muted mt-4 text-center">
         All your vibes stay on this device.{" "}
         <Link
           href="/sign-up"

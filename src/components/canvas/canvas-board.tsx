@@ -34,7 +34,6 @@ import {
   JournalTiptapEditor,
   type JournalTiptapEditorHandle,
 } from "@/components/canvas/journal-tiptap-editor";
-import { UnfinishedDraftPrompt } from "@/components/canvas/unfinished-draft-prompt";
 import { iconStrokePx } from "@/components/ui/button-system";
 import { hasBookTitle, BOOK_TITLE_PLACEHOLDER, clampBookTitle, commitBookTitle } from "@/lib/book-title";
 import {
@@ -144,8 +143,6 @@ const LOCAL_MIRROR_DEBOUNCE_MS = 600;
 const SAVING_LABEL_DELAY_MS = 800;
 /** Milestone save (persists `lastEditedAt`) fires after this typing pause. */
 const MILESTONE_SAVE_INACTIVITY_MS = 7_000;
-/** Unsealed draft with content idle this long → prompt to seal on next open. */
-const UNFINISHED_DRAFT_PROMPT_MS = 24 * 60 * 60 * 1000;
 
 /** Minimum selected-character count before the text format bar appears. */
 const TEXT_CTX_SELECTION_MIN = 4;
@@ -531,8 +528,6 @@ function CanvasBoardInner(
   const sealAnimTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sealAuroraStartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const writingZoneRef = useRef<HTMLDivElement | null>(null);
-  const [showUnfinishedPrompt, setShowUnfinishedPrompt] = useState(false);
-  const unfinishedPromptCheckedRef = useRef(false);
   // Column layout has been retired from the UI; we keep the snapshot field
   // for backward-compat (legacy notebooks still deserialize) but always
   // render as a single column going forward.
@@ -825,25 +820,6 @@ function CanvasBoardInner(
     stampRef.current?.playSealAnimation();
   }, []);
 
-  useEffect(() => {
-    if (!isContentReady || sealedAt !== null || unfinishedPromptCheckedRef.current) {
-      return;
-    }
-    unfinishedPromptCheckedRef.current = true;
-
-    const snap = buildSnapshot();
-    const wordCount = collectJournalWordTokens(snap).length;
-    if (wordCount === 0) return;
-
-    const lastActivityAt =
-      typeof lastEditedAt === "number" && Number.isFinite(lastEditedAt)
-        ? lastEditedAt
-        : snap.updatedAt;
-    if (Date.now() - lastActivityAt < UNFINISHED_DRAFT_PROMPT_MS) return;
-
-    setShowUnfinishedPrompt(true);
-  }, [buildSnapshot, isContentReady, lastEditedAt, sealedAt]);
-
   // Imperative seam used by the page-level back button: capture state in
   // memory. The page navigates immediately and persists to localStorage
   // afterward so large snapshots don't block.
@@ -1063,15 +1039,6 @@ function CanvasBoardInner(
         isSealed={!!sealedAt}
         onStampBegin={beginSealSideEffects}
         onStampHover={maybePrefetchSealTitle}
-      />
-
-      <UnfinishedDraftPrompt
-        open={showUnfinishedPrompt}
-        onSeal={() => {
-          setShowUnfinishedPrompt(false);
-          beginSealAnimation();
-        }}
-        onKeepEditing={() => setShowUnfinishedPrompt(false)}
       />
 
       {/* —————————— Full-width centered writing area —————————— */}

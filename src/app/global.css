@@ -187,7 +187,7 @@
   --font-body: var(--font-figtree), system-ui, -apple-system, "Segoe UI",
     Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
   --font-heading: var(--font-bricolage), system-ui, sans-serif;
-  --font-accent: var(--font-caveat), var(--font-dm-sans), system-ui, sans-serif;
+  --font-accent: var(--font-body);
   --font-signature: var(--font-covered-by-your-grace), var(--font-caveat), cursive;
   --stamp-signature-tilt: -12deg;
   --stamp-imprint-tilt: -18deg;
@@ -217,7 +217,7 @@
   }
 }
 
-/* Sign-it hint — casual handwritten nudge */
+/* Sign-it hint — casual nudge on the seal control */
 .tooltip-bubble-stamp {
   background: color-mix(in srgb, var(--gray-900) 92%, #3d2a1f);
   color: #fff8f2;

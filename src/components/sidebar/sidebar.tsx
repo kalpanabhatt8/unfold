@@ -289,9 +289,9 @@ export function Sidebar() {
         />
       ) : null}
 
-      <div className="relative z-10 flex shrink-0 items-center justify-between gap-3 pb-3 pt-5">
+      <div className="relative z-10 flex shrink-0 items-center justify-between gap-3 pb-3 pt-5 pl-2">
         <p
-          className="min-w-0 flex-1 truncate text-[1rem] font-bold leading-tight tracking-tight text-(--canvas-title-ink) pl-2"
+          className="min-w-0 flex-1 truncate text-[1rem] font-bold leading-tight tracking-tight text-(--canvas-title-ink)"
           style={{ fontFamily: "var(--font-heading)" }}
         >
           {displayName ? `${displayName}\u2019s ` : ""}Unfold
@@ -317,7 +317,7 @@ export function Sidebar() {
       >
         <div className="flex h-9 shrink-0 items-center px-2">
           {searchOpen ? (
-            <div className="flex h-full w-full items-center gap-2 rounded-md bg-[color-mix(in_srgb,var(--sidebar-hover-bg)_55%,var(--sidebar-bg))] px-3">
+            <div className="flex h-full w-full items-center gap-2 rounded-md bg-(--sidebar-active-bg) px-3">
               <Search
                 size={14}
                 strokeWidth={1.75}
@@ -347,10 +347,10 @@ export function Sidebar() {
             </div>
           ) : (
             <>
-              <span className="min-w-0 flex-1 truncate text-xs font-medium tracking-[0.01em] text-tertiary">
+              <span className="min-w-0 flex-1 truncate text-xs font-medium tracking-[0.01em] text-tertiary ">
                 Recent entries
               </span>
-              <div className="flex shrink-0 items-center gap-0.5">
+              <div className="flex shrink-0 items-center gap-1">
                 <button
                   type="button"
                   onClick={() => setSearchOpen(true)}
@@ -426,18 +426,23 @@ export function Sidebar() {
                       <span className="flex items-start justify-between gap-3">
                         <span
                           className={clsx(
-                            "block min-w-0 flex-1 truncate text-sm leading-snug font-medium text-secondary",
-                            isSealed && " text-sealed",
-                            !isSealed &&
-                              (isActive
-                                ? "font-semibold text-active"
-                                : "font-semibold text-active"),
-                            !isSealed && isPlaceholder && "font-medium text-secondary",
+                            "block min-w-0 flex-1 truncate text-sm leading-snug",
+                            isSealed
+                              ? "font-medium text-sealed"
+                              : clsx(
+                                  isPlaceholder ? "font-medium" : "font-semibold",
+                                  "text-primary opacity-80",
+                                ),
                           )}
                         >
                           {displayTitle}
                         </span>
-                        <span className="flex shrink-0 items-center gap-1.5 pt-0.5 text-xs text-(--sidebar-ink-soft)">
+                        <span
+                          className={clsx(
+                            "flex shrink-0 items-center gap-1.5 pt-0.5 text-xs",
+                            isSealed ? "text-sealed" : "text-secondary opacity-90",
+                          )}
+                        >
                           <span className="tabular-nums leading-none">
                             {relativeTime}
                           </span>
@@ -467,7 +472,9 @@ export function Sidebar() {
                       <span
                         className={clsx(
                           "min-w-0 max-w-[88%] truncate text-sm font-normal leading-snug",
-                          isSealed ? "text-sealed" : "text-(--sidebar-ink-soft)",
+                          isSealed
+                            ? "text-sealed"
+                            : "text-secondary opacity-90",
                         )}
                       >
                         {preview || "No additional text"}

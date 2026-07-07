@@ -92,7 +92,7 @@ export function PatternPassage({
 
   return (
     <section className="sm:grid sm:grid-cols-[minmax(4.5rem,6.5rem)_minmax(0,1fr)] sm:gap-x-7">
-      {/* ── Margin: date range (+ handwritten time note when unfolded) ── */}
+      {/* ── Margin: date range (+ time note when unfolded) ── */}
       <div className="pt-[3px] sm:text-right">
         <p className="text-[0.7rem] font-medium tabular-nums tracking-[0.02em] text-tertiary">
           {formatRange(pattern.evidence)}
@@ -101,7 +101,6 @@ export function PatternPassage({
           <p
             aria-hidden
             className="mt-1 hidden -rotate-2 text-[1.05rem] leading-tight text-tertiary sm:block"
-            style={{ fontFamily: "var(--font-accent)" }}
           >
             {pattern.timeHint}
           </p>
@@ -161,7 +160,6 @@ export function PatternPassage({
                 <p
                   aria-hidden
                   className="mt-2 -rotate-1 text-base leading-tight text-tertiary sm:hidden"
-                  style={{ fontFamily: "var(--font-accent)" }}
                 >
                   {pattern.timeHint}
                 </p>
