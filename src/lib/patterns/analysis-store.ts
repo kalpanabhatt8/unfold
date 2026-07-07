@@ -16,13 +16,43 @@ export const ANALYSES_UPDATED_EVENT = "keeps-analyses-updated";
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null;
 
+/**
+ * Migration: the real-time emotion pipeline was removed, so `emotion` is no
+ * longer part of an analysis. Strip it from any legacy stored records. Returns
+ * true when something was removed so callers can persist the cleaned map once.
+ */
+const stripLegacyEmotion = (map: Record<string, EntryAnalysis>): boolean => {
+  let changed = false;
+  for (const value of Object.values(map)) {
+    if (isRecord(value) && "emotion" in value) {
+      delete (value as Record<string, unknown>).emotion;
+      changed = true;
+    }
+  }
+  return changed;
+};
+
 const readAll = (): Record<string, EntryAnalysis> => {
   if (typeof window === "undefined") return {};
   try {
     const raw = window.localStorage.getItem(ENTRY_ANALYSES_STORAGE_KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw);
-    return isRecord(parsed) ? (parsed as Record<string, EntryAnalysis>) : {};
+    if (!isRecord(parsed)) return {};
+    const map = parsed as Record<string, EntryAnalysis>;
+    // Quietly persist the migration once (no event — this is not a data change
+    // from the reader's perspective, and it happens on the first read).
+    if (stripLegacyEmotion(map)) {
+      try {
+        window.localStorage.setItem(
+          ENTRY_ANALYSES_STORAGE_KEY,
+          JSON.stringify(map),
+        );
+      } catch {
+        /* best-effort migration */
+      }
+    }
+    return map;
   } catch (error) {
     console.error("Failed to read entry analyses", error);
     return {};

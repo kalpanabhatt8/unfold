@@ -31,6 +31,11 @@ const bucketForHour = (hour: number): DayPart | null =>
   DAY_PARTS.find((part) => part.ranges.some((range) => inRange(hour, range))) ??
   null;
 
+/** Human day-part for a timestamp, e.g. "late evening" — for journey rows. */
+export function dayPartLabel(timestamp: number): string | null {
+  return bucketForHour(new Date(timestamp).getHours())?.label ?? null;
+}
+
 /** e.g. "usually late evening" — null when timing is mixed or too few entries. */
 export function deriveTimeHint(
   evidence: PatternEvidenceItem[],

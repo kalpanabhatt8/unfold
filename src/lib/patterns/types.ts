@@ -2,7 +2,7 @@
  * Unfold — entry analysis + aggregation types (V1, minimal).
  */
 
-import type { AnalysisEmotion, PatternName } from "@/lib/patterns/vocabulary";
+import type { PatternName } from "@/lib/patterns/vocabulary";
 
 /** A single detected pattern within one entry. */
 export type PatternMatch = {
@@ -13,7 +13,6 @@ export type PatternMatch = {
 
 /** The semantic payload returned by the analysis route. */
 export type AnalysisPayload = {
-  emotion: AnalysisEmotion;
   topics: string[]; // 1–2
   patterns: PatternMatch[]; // 0–3
 };

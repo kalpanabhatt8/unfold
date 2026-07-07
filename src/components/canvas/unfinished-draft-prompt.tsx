@@ -18,7 +18,7 @@ export function UnfinishedDraftPrompt({
 
   return (
     <div
-      className="fixed inset-0 z-[55] flex items-center justify-center bg-black/15 px-4 backdrop-blur-[1px]"
+      className="fixed inset-0 z-[55] flex items-center justify-center bg-black/15 px-[max(1rem,env(safe-area-inset-left))] py-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] pr-[max(1rem,env(safe-area-inset-right))] backdrop-blur-[1px]"
       role="presentation"
       onClick={onKeepEditing}
     >

@@ -131,14 +131,17 @@
 
   /* Sidebar — dusty rose, warm via pink (no beige) */
   --sidebar-bg: #faf8f9;
+  --sidebar-bg-lightest: #fefcfd;
   --sidebar-border: #e4d8de;
   --sidebar-tab-track: #ede4e9;
+  --sidebar-tab-selected-bg: #e7dde2;
   --sidebar-hover-bg: #f6f3f5;
   --sidebar-active-bg: #f0eaed;
   --sidebar-active-ink: #443c42;
   --sidebar-ink: #38343a;
   --sidebar-ink-soft: #928a90;
   --sidebar-icon: #827a80;
+  --sidebar-width: 88vw;
 
   /* Color semantics - surfaces */
   --surface-0: var(--app-bg);
@@ -180,14 +183,6 @@
   --popup-shadow: var(--shadow);
   --color-focus-ring: var(--gray-900);
 
-  /* Tooltips */
-  --tooltip-bg: #190e05;
-  --tooltip-fg: #ffffff;
-  --tooltip-font-size: var(--text-xs);
-  --tooltip-letter-spacing: 0.03em;
-  --tooltip-padding-y: 0.3rem;
-  --tooltip-padding-x: 0.55rem;
-
   /* Typography — body vs heading */
   --font-body: var(--font-figtree), system-ui, -apple-system, "Segoe UI",
     Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
@@ -209,19 +204,47 @@
   --text-color-disabled: #c2bbbf;
 }
 
-/* Shared tooltip bubble — bg #190E05, white text */
-.tooltip-bubble {
-  background: var(--tooltip-bg);
-  color: var(--tooltip-fg);
-  font-family: var(--font-body);
-  font-size: var(--tooltip-font-size);
-  font-weight: 500;
-  letter-spacing: var(--tooltip-letter-spacing);
-  line-height: 1.45;
+/* Sidebar width — scales with viewport; caps on large screens */
+@media (min-width: 768px) {
+  :root {
+    --sidebar-width: 40vw;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --sidebar-width: min(20vw, 20rem);
+  }
+}
+
+/* Sign-it hint — casual handwritten nudge */
+.tooltip-bubble-stamp {
+  background: color-mix(in srgb, var(--gray-900) 92%, #3d2a1f);
+  color: #fff8f2;
+  font-family: var(--font-accent);
+  font-size: max(13px, 0.9rem);
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  line-height: 1;
   white-space: nowrap;
-  padding: var(--tooltip-padding-y) var(--tooltip-padding-x);
-  border-radius: var(--radius-sm);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+  padding: 0.38rem 0.72rem 0.42rem;
+  border-radius: 999px;
+  box-shadow:
+    0 6px 18px rgba(25, 14, 5, 0.28),
+    0 0 0 1px rgba(255, 248, 242, 0.08) inset;
+  transform: rotate(-2deg);
+  transform-origin: center bottom;
+  transition:
+    opacity 180ms ease,
+    transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.tooltip-bubble-stamp.tooltip-bubble-open {
+  transform: rotate(-2deg) scale(1);
+}
+
+.tooltip-bubble-stamp:not(.tooltip-bubble-open) {
+  transform: rotate(-2deg) scale(0.88);
 }
 
 /* Base element styling */
@@ -753,8 +776,8 @@ input[type='number'] {
 }
 
 [data-writing-zone][data-sealing] .journal-tiptap p.journal-block {
-  color: transparent;
-  -webkit-text-fill-color: transparent;
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
   opacity: 1;
   background-image: linear-gradient(
     135deg,
@@ -784,34 +807,44 @@ input[type='number'] {
   pointer-events: none;
 }
 
-[data-writing-zone][data-sealed] .journal-tiptap p.journal-block {
-  color: var(--seal-sealed-ink-visible);
-  -webkit-text-fill-color: currentColor;
-  background-image: none;
+/* Final sealed ink — suppressed while aurora runs (both attrs can be set once
+   the seal commits in the background before the sweep finishes). */
+[data-writing-zone][data-sealed]:not([data-sealing]) .journal-tiptap p.journal-block {
+  color: var(--seal-sealed-ink-visible) !important;
+  -webkit-text-fill-color: currentColor !important;
+  background-image: none !important;
   background-clip: border-box;
   -webkit-background-clip: border-box;
   opacity: 1;
 }
 
-[data-writing-zone][data-sealed] .journal-tiptap p.journal-block.is-checklist.is-checked {
+[data-writing-zone][data-sealed]:not([data-sealing])
+  .journal-tiptap
+  p.journal-block.is-checklist.is-checked {
   opacity: 1;
   color: color-mix(
     in srgb,
     color-mix(in srgb, var(--canvas-muted) 88%, var(--canvas-ink) 12%) calc(var(--seal-sealed-opacity) * 100%),
     var(--canvas-bg)
-  );
+  ) !important;
 }
 
 [data-writing-zone][data-sealed] .journal-tiptap .ProseMirror {
   pointer-events: none;
 }
 
+@media (max-width: 767px) {
+  [data-writing-zone][data-sealing] .journal-tiptap p.journal-block {
+    background-attachment: scroll;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   [data-writing-zone][data-sealing] .journal-tiptap p.journal-block {
     animation: none;
-    color: var(--seal-sealed-ink-visible);
-    -webkit-text-fill-color: currentColor;
-    background-image: none;
+    color: var(--seal-sealed-ink-visible) !important;
+    -webkit-text-fill-color: currentColor !important;
+    background-image: none !important;
     opacity: 1;
   }
 }

@@ -1,34 +1,14 @@
-import { ClerkProvider, SignIn } from "@clerk/nextjs";
+import { SignIn } from "@clerk/nextjs";
 
 export default function Signin() {
   return (
-    <ClerkProvider
-      appearance={{
-        theme: "simple",
-        variables: {
-          colorPrimary: "var(--color-primary)",
-        },
-        elements: {
-          componentContainer: {
-            border: "var(--popup-border)",
-          },
-          developmentOrTestModeBox: {
-            background: "var(--color-surface-raised)",
-            border: "var(--popup-border)",
-          },
-          headerTitle: {},
-        },
-      }}
-    >
-      <div className="flex justify-center items-center w-[100%] h-[100vh]">
-        <SignIn
-          routing="path"
-          path="/sign-in"
-          afterSignInUrl="/dashboard"
-          afterSignUpUrl="/dashboard"
-        />
-        
-      </div>
-    </ClerkProvider>
+    <div className="flex min-h-svh w-full items-center justify-center px-4 py-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
+      <SignIn
+        routing="path"
+        path="/sign-in"
+        afterSignInUrl="/dashboard"
+        afterSignUpUrl="/dashboard"
+      />
+    </div>
   );
 }

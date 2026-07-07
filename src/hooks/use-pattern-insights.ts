@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import { listAnalyses } from "@/lib/patterns/analysis-store";
-import { fetchPatternInsight } from "@/lib/patterns/fetch-pattern-insight";
+import { fetchPatternInsight } from "@/lib/ai/pattern-reflection/client";
 import type { PatternsAggregate, SurfacedPattern } from "@/lib/patterns/types";
 
 /** Collect quotes + topics from the entries behind a surfaced pattern. */

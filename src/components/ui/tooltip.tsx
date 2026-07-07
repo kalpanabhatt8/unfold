@@ -21,6 +21,7 @@ type TooltipProps = {
   content: string;
   side?: TooltipSide;
   className?: string;
+  bubbleClassName?: string;
   children: ReactNode;
 };
 
@@ -76,6 +77,7 @@ export function Tooltip({
   content,
   side = "top",
   className,
+  bubbleClassName,
   children,
 }: TooltipProps) {
   const rootRef = useRef<HTMLSpanElement>(null);
@@ -126,8 +128,9 @@ export function Tooltip({
       ref={bubbleRef}
       role="tooltip"
       className={clsx(
-        "tooltip-bubble pointer-events-none whitespace-nowrap transition-opacity duration-150",
-        open ? "opacity-100" : "opacity-0",
+        "pointer-events-none whitespace-nowrap",
+        bubbleClassName ?? "tooltip-bubble",
+        open ? "tooltip-bubble-open opacity-100" : "opacity-0",
       )}
       style={bubbleStyle}
     >

@@ -134,7 +134,7 @@ function resolveFromPublicUserData(
   if (sessionName) return sessionName;
 
   if (publicUserData.identifier.includes("@")) {
-    return nameFromEmail(publicUserData.identifier);
+    return nameFromEmail("name");
   }
 
   return publicUserData.identifier.trim();
@@ -177,82 +177,6 @@ function resolveStampUserName(
   if (username) return username;
 
   return "";
-}
-
-function logStampNameDebug({
-  hasClerkPublishableKey,
-  clerkLoaded,
-  authLoaded,
-  sessionLoaded,
-  isSignedIn,
-  user,
-  publicUserData,
-  sessionClaims,
-  resolved,
-  cached,
-}: {
-  hasClerkPublishableKey: boolean;
-  clerkLoaded: boolean;
-  authLoaded: boolean;
-  sessionLoaded: boolean;
-  isSignedIn: boolean | undefined;
-  user: UserResource | null | undefined;
-  publicUserData: PublicUserData | undefined;
-  sessionClaims: Record<string, unknown> | null | undefined;
-  resolved: string;
-  cached: string;
-}) {
-  const googleAccount = user?.externalAccounts?.find(
-    (account) => account.provider === "google",
-  );
-  const claimsFirst =
-    typeof sessionClaims?.first_name === "string"
-      ? sessionClaims.first_name
-      : undefined;
-  const claimsLast =
-    typeof sessionClaims?.last_name === "string"
-      ? sessionClaims.last_name
-      : undefined;
-
-  console.group("[🪪 stamp] name resolution");
-  console.log("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY set:", hasClerkPublishableKey);
-  console.log("signed in:", isSignedIn);
-  console.log("clerk loaded:", { clerkLoaded, authLoaded, sessionLoaded });
-  console.log("session.publicUserData:", publicUserData);
-  console.log("sessionClaims.first_name / last_name:", claimsFirst, claimsLast);
-  console.log("user:", user
-    ? {
-        id: user.id,
-        fullName: user.fullName,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        username: user.username,
-        primaryEmail: user.primaryEmailAddress?.emailAddress,
-        emailAddresses: user.emailAddresses.map((e) => e.emailAddress),
-      }
-    : null);
-  console.log("google external account:", googleAccount
-    ? {
-        firstName: googleAccount.firstName,
-        lastName: googleAccount.lastName,
-        emailAddress: googleAccount.emailAddress,
-      }
-    : null);
-  console.log(
-    "resolved stamp name:",
-    resolved ? `"${resolved}"` : "(empty — stamp shows border only)",
-  );
-  console.log("cached stamp name:", cached ? `"${cached}"` : "(none)");
-  if (!hasClerkPublishableKey) {
-    console.warn(
-      "[🪪 stamp] Add NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY to .env.local, then sign in with Google.",
-    );
-  } else if (clerkLoaded && !isSignedIn) {
-    console.warn(
-      "[🪪 stamp] Not signed in — visit /sign-in with Google to personalize the stamp.",
-    );
-  }
-  console.groupEnd();
 }
 
 /* ─── Name layout ────────────────────────────────────────────────────────── */
@@ -447,8 +371,8 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
     ref,
   ) {
   const clerk = useClerk();
-  const { isSignedIn, sessionClaims, isLoaded: authLoaded } = useAuth();
-  const { session, isLoaded: sessionLoaded } = useSession();
+  const { sessionClaims } = useAuth();
+  const { session } = useSession();
   const user = clerk.user;
   const viewport = useViewportLayout();
 
@@ -482,10 +406,6 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
 
   const stampButtonSize = viewport.stampButtonSizePx >= 36 ? "md" : "sm";
 
-  const hasClerkPublishableKey = Boolean(
-    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
-  );
-
   const userName = useMemo(() => {
     const cached = readCachedStampName();
 
@@ -510,74 +430,6 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
 
     return cached;
   }, [clerk.loaded, sessionClaims, user, session?.publicUserData]);
-
-  /** Stable primitive key — avoids re-logging when Clerk object refs change on parent re-render. */
-  const authDebugFingerprint = useMemo(() => {
-    const publicUserData = session?.publicUserData;
-    const claimsFirst =
-      typeof sessionClaims?.first_name === "string"
-        ? sessionClaims.first_name
-        : "";
-    const claimsLast =
-      typeof sessionClaims?.last_name === "string"
-        ? sessionClaims.last_name
-        : "";
-    return [
-      hasClerkPublishableKey,
-      clerk.loaded,
-      authLoaded,
-      sessionLoaded,
-      isSignedIn,
-      user?.id ?? "",
-      publicUserData?.firstName ?? "",
-      publicUserData?.lastName ?? "",
-      publicUserData?.identifier ?? "",
-      claimsFirst,
-      claimsLast,
-      userName,
-    ].join("|");
-  }, [
-    hasClerkPublishableKey,
-    clerk.loaded,
-    authLoaded,
-    sessionLoaded,
-    isSignedIn,
-    user?.id,
-    session?.publicUserData?.firstName,
-    session?.publicUserData?.lastName,
-    session?.publicUserData?.identifier,
-    sessionClaims?.first_name,
-    sessionClaims?.last_name,
-    userName,
-  ]);
-
-  useEffect(() => {
-    const cached = readCachedStampName();
-    console.log("[🪪 stamp] auth snapshot", {
-      hasClerkPublishableKey,
-      clerkLoaded: clerk.loaded,
-      authLoaded,
-      sessionLoaded,
-      isSignedIn,
-      userNameOnStamp: userName || "(empty)",
-      cachedName: cached || "(none)",
-    });
-
-    logStampNameDebug({
-      hasClerkPublishableKey,
-      clerkLoaded: clerk.loaded,
-      authLoaded,
-      sessionLoaded,
-      isSignedIn,
-      user,
-      publicUserData: session?.publicUserData,
-      sessionClaims: sessionClaims as Record<string, unknown> | null | undefined,
-      resolved: userName,
-      cached,
-    });
-    // Log only when authDebugFingerprint changes (mount + real auth/name updates).
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- fingerprint encodes all auth primitives
-  }, [authDebugFingerprint]);
 
   useEffect(() => {
     if (!clerk.loaded || !user || userName) return;
@@ -622,11 +474,6 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
     if (sealStartedRef.current || isSealed) return;
     sealStartedRef.current = true;
 
-    console.log(
-      "[🪪 stamp] seal animation started — name:",
-      userName ? `"${userName}"` : "(none)",
-    );
-
     onStampBegin?.();
 
     const push = (cb: () => void, delay: number) => {
@@ -651,7 +498,7 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
         }, STAMP_INK_FADE_MS);
       }, STAMP_IMPACT_HOLD_MS);
     }, STAMP_PRESS_MS);
-  }, [isSealed, onStampBegin, onStampImpact, userName]);
+  }, [isSealed, onStampBegin, onStampImpact]);
 
   useImperativeHandle(ref, () => ({ playSealAnimation }), [playSealAnimation]);
 
@@ -686,17 +533,6 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
             : "none",
   };
 
-  const prevShowImprintRef = useRef(false);
-
-  useEffect(() => {
-    if (!isOnPaper || prevShowImprintRef.current) return;
-    prevShowImprintRef.current = true;
-    console.log(
-      "[🪪 stamp] imprint on page — name:",
-      userName ? `"${userName}"` : "(none — sign in with Google or add Clerk keys)",
-    );
-  }, [isOnPaper, userName]);
-
   return (
     <>
       {showRubberStamp && (
@@ -715,7 +551,7 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
       {/* ── Sign control — icon at rest; press animation leaves signature imprint ── */}
       {showSealButton && (
         <div className="pointer-events-auto" style={stampCornerAnchor}>
-          <Tooltip content="Sign it">
+          <Tooltip content="sign it ✍" bubbleClassName="tooltip-bubble-stamp">
             <button
               type="button"
               onPointerDown={(e) => {

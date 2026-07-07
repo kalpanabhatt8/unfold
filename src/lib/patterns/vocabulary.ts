@@ -4,7 +4,7 @@
  * Single source of truth shared by the Claude prompt (server route) and the
  * client aggregation/UI. These are MENTAL PATTERNS — the *how* of thinking —
  * kept deliberately small (10) for classification consistency. Topics (the
- * *what*) and emotion (the *feeling*) are separate dimensions.
+ * *what*) are a separate dimension.
  */
 
 /** The 10 V1 mental patterns. `need_for_control` + `guilt` are deferred to V2. */
@@ -59,32 +59,6 @@ export const PATTERN_DEFINITIONS: Record<PatternName, string> = {
   self_criticism: "harsh self-talk or blaming themselves.",
   all_or_nothing: "black-and-white thinking with no middle ground.",
 };
-
-/**
- * Emotion taxonomy for entry analysis. Distinct from the companion blob's set —
- * here we add `uncertain` and `overwhelmed`, which are common in reflective
- * writing.
- */
-export const ANALYSIS_EMOTIONS = [
-  "love",
-  "excited",
-  "neutral",
-  "happy",
-  "sad",
-  "anxious",
-  "tired",
-  "confused",
-  "shocked",
-  "uncertain",
-  "overwhelmed",
-] as const;
-
-export type AnalysisEmotion = (typeof ANALYSIS_EMOTIONS)[number];
-
-const EMOTION_SET: ReadonlySet<string> = new Set(ANALYSIS_EMOTIONS);
-
-export const isAnalysisEmotion = (value: unknown): value is AnalysisEmotion =>
-  typeof value === "string" && EMOTION_SET.has(value);
 
 /** Minimum confidence for a pattern to be emitted/kept. */
 export const PATTERN_CONFIDENCE_FLOOR = 0.5;

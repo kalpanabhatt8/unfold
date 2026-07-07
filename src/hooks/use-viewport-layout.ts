@@ -1,33 +1,29 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { BREAKPOINT_LG, BREAKPOINT_MD } from "@/lib/breakpoints";
 
 export type ViewportLayout = {
-  /** Stamp / companion inset from viewport edges (px). */
+  /** Stamp inset from viewport edges (px). */
   stampCornerInsetPx: number;
   stampButtonSizePx: number;
-  companionAboveSignGapPx: number;
-  companionCornerBottomPx: number;
-  companionCornerRightPx: number;
   /** Canvas vertical page padding (px). */
   pagePaddingYPx: number;
   scrollComfortBottomPx: number;
 };
 
 function computeViewportLayout(width: number): ViewportLayout {
-  const stampCornerInsetPx = width >= 1024 ? 32 : width >= 768 ? 24 : 16;
-  const stampButtonSizePx = width >= 768 ? 36 : 32;
-  const companionAboveSignGapPx = width >= 1024 ? 24 : width >= 768 ? 22 : 18;
-  const pagePaddingYPx = width >= 1024 ? 88 : width >= 768 ? 64 : 48;
-  const scrollComfortBottomPx = width >= 1024 ? 72 : width >= 768 ? 56 : 44;
+  const stampCornerInsetPx =
+    width >= BREAKPOINT_LG ? 32 : width >= BREAKPOINT_MD ? 24 : 16;
+  const stampButtonSizePx = width >= BREAKPOINT_MD ? 36 : 32;
+  const pagePaddingYPx =
+    width >= BREAKPOINT_LG ? 88 : width >= BREAKPOINT_MD ? 64 : 48;
+  const scrollComfortBottomPx =
+    width >= BREAKPOINT_LG ? 72 : width >= BREAKPOINT_MD ? 56 : 44;
 
   return {
     stampCornerInsetPx,
     stampButtonSizePx,
-    companionAboveSignGapPx,
-    companionCornerBottomPx:
-      stampCornerInsetPx + stampButtonSizePx + companionAboveSignGapPx,
-    companionCornerRightPx: stampCornerInsetPx,
     pagePaddingYPx,
     scrollComfortBottomPx,
   };

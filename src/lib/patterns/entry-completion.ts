@@ -14,7 +14,7 @@ import { readAllEntries, type JournalEntry } from "@/lib/journal-entries";
 import type { CompletionSource } from "@/lib/patterns/types";
 import { hasAnalysis, putAnalysis } from "@/lib/patterns/analysis-store";
 import { countWords, readEntryText } from "@/lib/patterns/entry-text";
-import { fetchEntryAnalysis } from "@/lib/patterns/analyze-client";
+import { fetchEntryAnalysis } from "@/lib/ai/pattern-extraction/client";
 
 /** Idle time before an unsealed draft counts as complete for patterns only. */
 export const IMPLICIT_SEAL_INACTIVITY_MS = 24 * 60 * 60 * 1000;

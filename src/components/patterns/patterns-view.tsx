@@ -1,39 +1,30 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Waypoints } from "lucide-react";
-import { ENTRIES_UPDATED_EVENT } from "@/lib/journal-entries";
+import { ChevronLeft } from "lucide-react";
+import { ENTRIES_UPDATED_EVENT, readAllEntries } from "@/lib/journal-entries";
 import { aggregateAnalyses } from "@/lib/patterns/aggregate";
-import {
-  ANALYSES_UPDATED_EVENT,
-} from "@/lib/patterns/analysis-store";
+import { ANALYSES_UPDATED_EVENT } from "@/lib/patterns/analysis-store";
 import { reconcileAnalyses } from "@/lib/patterns/entry-completion";
-import { SURFACE_MIN_ENTRIES } from "@/lib/patterns/vocabulary";
 import type { PatternsAggregate, SurfacedPattern } from "@/lib/patterns/types";
-import { PatternCard } from "@/components/patterns/pattern-card";
-import { EvidencePanel } from "@/components/patterns/evidence-panel";
+import { PatternPassage } from "@/components/patterns/pattern-passage";
 import { usePatternInsights } from "@/hooks/use-pattern-insights";
 
 /**
- * Patterns surface. Aggregates stored per-entry analyses (no LLM at read time),
- * kicks a rate-limited backfill for completed entries missing analysis (sealed
- * or 24h-idle drafts with 50+ words), and
- * wires the evidence side panel + entry navigation.
+ * Patterns surface — a continuous page of folded passages, one per surfaced
+ * pattern. Only reachable once at least one pattern has crossed the threshold.
  */
 export function PatternsView() {
   const router = useRouter();
   const [aggregate, setAggregate] = useState<PatternsAggregate | null>(null);
-  const [selected, setSelected] = useState<SurfacedPattern | null>(null);
+  const [openName, setOpenName] = useState<string | null>(null);
 
   const mergeInsights = useCallback((enriched: SurfacedPattern[]) => {
     setAggregate((prev) =>
       prev ? { ...prev, surfaced: enriched } : prev,
     );
-    setSelected((prev) => {
-      if (!prev) return prev;
-      return enriched.find((p) => p.name === prev.name) ?? prev;
-    });
   }, []);
 
   usePatternInsights(aggregate, mergeInsights);
@@ -49,9 +40,6 @@ export function PatternsView() {
     };
 
     refresh();
-
-    // Self-healing: analyze completed entries missing analysis, then refresh
-    // once they land.
     void reconcileAnalyses();
 
     const onStorage = (event: StorageEvent) => {
@@ -67,75 +55,76 @@ export function PatternsView() {
     };
   }, []);
 
+  const surfaced = aggregate?.surfaced ?? [];
+  const hasSurfaced = surfaced.length > 0;
+
+  useEffect(() => {
+    if (aggregate === null) return;
+    if (!hasSurfaced) {
+      router.replace("/dashboard");
+    }
+  }, [aggregate, hasSurfaced, router]);
+
   const handleOpenEntry = useCallback(
     (entryId: string) => {
-      setSelected(null);
       router.push(`/dashboard/journal/${entryId}`);
     },
     [router],
   );
 
-  const surfaced = aggregate?.surfaced ?? [];
-  const hasSurfaced = surfaced.length > 0;
+  const entriesHref = useMemo(() => {
+    const entries = readAllEntries();
+    return entries[0] ? `/dashboard/journal/${entries[0].id}` : "/dashboard";
+  }, []);
+
+  if (aggregate === null || !hasSurfaced) {
+    return null;
+  }
 
   return (
-    <main className="min-h-0 flex-1 overflow-y-auto px-4 py-8 sm:px-6 sm:py-10 lg:py-12">
+    <main className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-[max(1.25rem,env(safe-area-inset-left))] py-10 pr-[max(1.25rem,env(safe-area-inset-right))] pb-[max(2.5rem,env(safe-area-inset-bottom))] sm:px-8 sm:py-14 lg:py-16">
       <div className="mx-auto w-full max-w-2xl">
-        <header className="mb-6 sm:mb-8">
+        <Link
+          href={entriesHref}
+          className="mb-8 inline-flex items-center gap-1 text-sm text-(--sidebar-ink-soft) transition-colors duration-150 hover:text-(--sidebar-ink) sm:mb-10"
+        >
+          <ChevronLeft size={16} strokeWidth={1.75} aria-hidden />
+          Entries
+        </Link>
+
+        <header className="mb-10 sm:mb-14">
           <h1
             className="text-xl font-bold tracking-tight text-(--canvas-title-ink) sm:text-2xl"
             style={{ fontFamily: "var(--font-heading)" }}
           >
             Patterns
           </h1>
-          <p className="mt-1 max-w-prose text-sm leading-relaxed text-secondary sm:mt-1.5">
-            What keeps returning across your sealed entries.
+          <p className="mt-1.5 max-w-prose text-sm leading-relaxed text-secondary">
+            A few thoughts have been returning lately.
           </p>
         </header>
 
-        {aggregate === null ? null : hasSurfaced ? (
-          <div className="flex flex-col gap-3 sm:gap-4">
-            {surfaced.map((pattern) => (
-              <PatternCard
-                key={pattern.name}
+        <div className="flex flex-col">
+          {surfaced.map((pattern, index) => (
+            <div key={pattern.name}>
+              {index > 0 ? (
+                <hr className="my-8 border-t border-black/[0.06] sm:my-10" />
+              ) : null}
+              <PatternPassage
                 pattern={pattern}
-                onOpen={setSelected}
+                analyzedEntryCount={aggregate.analyzedEntryCount}
+                open={openName === pattern.name}
+                onToggle={() =>
+                  setOpenName((prev) =>
+                    prev === pattern.name ? null : pattern.name,
+                  )
+                }
+                onOpenEntry={handleOpenEntry}
               />
-            ))}
-          </div>
-        ) : (
-          <EmptyState />
-        )}
+            </div>
+          ))}
+        </div>
       </div>
-
-      <EvidencePanel
-        pattern={selected}
-        onClose={() => setSelected(null)}
-        onOpenEntry={handleOpenEntry}
-      />
     </main>
-  );
-}
-
-function EmptyState() {
-  return (
-    <div className="flex flex-col items-center gap-2.5 rounded-2xl border border-dashed border-black/[0.10] bg-white/40 px-4 py-12 text-center sm:px-6 sm:py-16">
-      <span
-        className="flex h-11 w-11 items-center justify-center rounded-full bg-black/[0.04] text-(--canvas-title-ink)"
-        aria-hidden
-      >
-        <Waypoints size={20} strokeWidth={1.75} />
-      </span>
-      <p
-        className="text-base font-medium text-(--canvas-title-ink)"
-        style={{ fontFamily: "var(--font-heading)" }}
-      >
-        No patterns yet
-      </p>
-      <p className="max-w-sm text-sm leading-relaxed text-secondary">
-        A pattern appears once it shows up in {SURFACE_MIN_ENTRIES}+ sealed
-        entries. Keep writing and sealing — the patterns will surface here.
-      </p>
-    </div>
   );
 }

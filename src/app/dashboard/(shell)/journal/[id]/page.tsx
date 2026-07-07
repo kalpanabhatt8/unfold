@@ -167,10 +167,6 @@ const JournalEntryPage = () => {
     [entryId],
   );
 
-  useEffect(() => {
-    router.prefetch("/dashboard/patterns");
-  }, [router]);
-
   // "+" in the sidebar opens a brand-new entry with `?new=1` — focus the
   // editor once the canvas has actually mounted, then drop the query flag.
   useEffect(() => {
@@ -190,7 +186,6 @@ const JournalEntryPage = () => {
         <CanvasBoard
           key={entryId}
           ref={boardRef}
-          bookId={entryId}
           storageKey={boardStorageKey}
           onSnapshotChange={handleSnapshotChange}
           onSave={handleMilestoneSave}
