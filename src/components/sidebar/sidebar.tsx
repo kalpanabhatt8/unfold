@@ -91,15 +91,20 @@ export function Sidebar() {
   const [query, setQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const isOverlayNav = useMediaQuery(OVERLAY_NAV_QUERY);
-  const [collapsed, setCollapsed] = useState(() => {
-    if (typeof window === "undefined") return false;
-    if (window.matchMedia(OVERLAY_NAV_QUERY).matches) return true;
-    try {
-      return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true";
-    } catch {
-      return false;
+  const [collapsed, setCollapsed] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.matchMedia(OVERLAY_NAV_QUERY).matches) {
+      setCollapsed(true);
+      return;
     }
-  });
+    try {
+      setCollapsed(localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "true");
+    } catch {
+      // ignore storage read errors
+    }
+  }, []);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const prevPathnameRef = useRef(pathname);
   const { hasSurfaced: hasSurfacedPatterns, count: surfacedPatternCount } =

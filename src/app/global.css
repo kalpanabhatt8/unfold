@@ -849,3 +849,81 @@ input[type='number'] {
   }
 }
 
+/* ── Pattern reflection — reading typography (sidebar palette only) ── */
+.reflection-body {
+  font-family: var(--font-lora);
+  font-size: 1.0625rem;
+  line-height: 1.72;
+  letter-spacing: -0.01em;
+  color: var(--sidebar-ink);
+}
+
+.reflection-meta {
+  font-size: 0.75rem;
+  line-height: 1.5;
+  color: var(--sidebar-ink-soft);
+}
+
+.reflection-label {
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--sidebar-ink-soft) 72%, transparent);
+}
+
+/* Journal excerpt chip — soft paper snippet */
+.journal-snippet {
+  padding: 1.125rem 1.25rem;
+  border-radius: 14px;
+  background-color: color-mix(in srgb, var(--sidebar-hover-bg) 65%, transparent);
+  cursor: default;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    background-color 180ms ease;
+}
+
+.journal-snippet:hover,
+.journal-snippet:focus-visible {
+  outline: none;
+  transform: translateY(-1px);
+  background-color: color-mix(in srgb, var(--sidebar-active-bg) 80%, transparent);
+  box-shadow: 0 4px 18px color-mix(in srgb, var(--sidebar-ink) 7%, transparent);
+}
+
+.journal-snippet--compact {
+  padding: 0.875rem 1rem;
+}
+
+.journal-snippet--compact .reflection-body {
+  font-size: 0.9375rem;
+  line-height: 1.65;
+}
+
+.journal-snippet .reflection-meta span {
+  color: color-mix(in srgb, var(--sidebar-ink-soft) 80%, transparent);
+}
+
+/* Hover peek for overflow moments — sidebar list style */
+.more-moments-peek {
+  border-radius: 0.75rem;
+  background-color: var(--sidebar-bg-lightest);
+  box-shadow:
+    0 2px 8px color-mix(in srgb, var(--sidebar-ink) 5%, transparent),
+    0 12px 32px color-mix(in srgb, var(--sidebar-ink) 9%, transparent);
+  max-height: min(20rem, 42vh);
+  overflow-y: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .journal-snippet {
+    transition: background-color 180ms ease;
+  }
+
+  .journal-snippet:hover,
+  .journal-snippet:focus-visible {
+    transform: none;
+  }
+}
+

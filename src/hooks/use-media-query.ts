@@ -3,13 +3,11 @@
 import { useEffect, useState } from "react";
 
 /**
- * Subscribe to a CSS media query. Defaults to `false` during SSR.
+ * Subscribe to a CSS media query. Defaults to `false` during SSR and the
+ * first client render so server HTML matches hydration (sync in useEffect).
  */
 export function useMediaQuery(query: string): boolean {
-  const [matches, setMatches] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.matchMedia(query).matches;
-  });
+  const [matches, setMatches] = useState(false);
 
   useEffect(() => {
     const mq = window.matchMedia(query);

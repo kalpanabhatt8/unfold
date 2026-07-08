@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "review:shapes": "npx tsx scripts/review-pattern-shapes.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.32.0",

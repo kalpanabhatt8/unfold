@@ -62,6 +62,14 @@ export type PatternInsight = {
   commonThread: string;
 };
 
+/** Landing-page identity for a surfaced pattern — independent of guided passage. */
+export type PatternDisplay = {
+  displayTitle: string;
+  summary: string | null;
+  sourceEvidenceKey: string;
+  createdAt: number;
+};
+
 /** A pattern that crossed the surfacing threshold, with its evidence. */
 export type SurfacedPattern = {
   name: PatternName;
@@ -74,6 +82,8 @@ export type SurfacedPattern = {
   coPatterns: string[];
   /** Populated async after aggregation; null while loading or unavailable. */
   insight: PatternInsight | null;
+  /** Landing card copy — populated async; independent of PatternPassage. */
+  display: PatternDisplay | null;
 };
 
 /** The full aggregate the Patterns page renders. */

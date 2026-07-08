@@ -10,7 +10,6 @@ import { readAllEntries, type JournalEntry } from "@/lib/journal-entries";
 import { resolveBookDisplayTitle } from "@/lib/book-title";
 import { listAnalyses } from "@/lib/patterns/analysis-store";
 import { deriveCoPatterns } from "@/lib/patterns/co-patterns";
-import { getCachedInsight } from "@/lib/patterns/pattern-insight-store";
 import { deriveTimeHint } from "@/lib/patterns/time-hint";
 import { SURFACE_MIN_ENTRIES, type PatternName } from "@/lib/patterns/vocabulary";
 import type {
@@ -70,7 +69,8 @@ export function aggregateAnalyses(): PatternsAggregate {
       evidence,
       timeHint: deriveTimeHint(evidence),
       coPatterns: deriveCoPatterns(name, entryIds),
-      insight: getCachedInsight(name, entryIds),
+      insight: null,
+      display: null,
     });
   }
 
