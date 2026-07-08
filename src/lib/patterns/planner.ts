@@ -173,8 +173,18 @@ const SHAPES: ShapeDef[] = [
     eligible: ({ evidenceSignals }) => evidenceSignals.hasEcho,
   },
   {
-    // Evidence-dominant recognition: two evidence cards earn a single quiet
-    // realization + soft close. The journal stays the primary voice.
+    // Guided discovery: one evidence pool, recognition question, optional
+    // evidence-grounded observation, reflection question.
+    id: "discovery",
+    slotKinds: ["moments", "line", "line", "close:question"],
+    depthTier: "recognition",
+    endingKind: "question",
+    eligible: ({ lifecycle, evidenceSignals }) =>
+      evidenceSignals.selectedQuotes.length >= 3 &&
+      (lifecycle === "strengthening" || lifecycle === "strong"),
+  },
+  {
+    // Legacy — kept for cached passages; discovery is preferred.
     id: "recognition",
     slotKinds: ["moments", "moments", "line", "close:line"],
     depthTier: "recognition",
@@ -230,13 +240,14 @@ const rankCandidate = (shape: ShapeDef, ctx: PlannerContext): number => {
     hasRecognitionDepth(ctx.evidenceSignals)
   ) {
     // Prefer the deep arc when there is enough evidence to earn a second layer.
+    if (shape.id === "discovery") return 0;
     if (
       shape.id === "recognition_deep" &&
       ctx.evidenceSignals.selectedQuotes.length >= 5
     ) {
-      return 0;
+      return 1;
     }
-    if (shape.id === "recognition" || shape.id === "recognition_q") return 1;
+    if (shape.id === "recognition" || shape.id === "recognition_q") return 2;
     if (shape.id === "echo") return 2;
     if (shape.id === "pair_line") return 3;
   } else if (ctx.evidenceSignals.hasEcho && shape.id === "echo") {
@@ -297,11 +308,14 @@ const splitMomentsRecognition = (quotes: QuoteRef[]): QuoteRef[][] => {
 };
 
 const collidesWithNeighbor = (shape: ShapeDef, neighbors: NeighborShape[]): boolean =>
-  neighbors.some(
-    (n) =>
+  neighbors.some((n) => {
+    // Each pattern earns its own guided discovery arc.
+    if (shape.id === "discovery" && n.shapeId === "discovery") return false;
+    return (
       (n.depthTier === shape.depthTier && n.endingKind === shape.endingKind) ||
-      n.shapeId === shape.id,
-  );
+      n.shapeId === shape.id
+    );
+  });
 
 const filterCandidates = (
   ctx: PlannerContext,

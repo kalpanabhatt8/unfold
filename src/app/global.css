@@ -115,7 +115,7 @@
 
   /* Canvas — source of truth for Keeps warm palette */
   --canvas-bg: #fffcf7;
-  --canvas-bg-gradient: #FEFEFE;
+  --canvas-bg-gradient: var( --discovery-canvas-bg);
   --canvas-recess: #f2efeb;
   --canvas-brown: #7e675f;
   /* --canvas-title-ink: #421024; */
@@ -142,6 +142,12 @@
   --sidebar-ink-soft: #928a90;
   --sidebar-icon: #827a80;
   --sidebar-width: 88vw;
+  /* Discovery canvas — near-white with a whisper of the sidebar rose */
+  --discovery-canvas-bg: color-mix(
+    in srgb,
+    var(--sidebar-bg-lightest) 90%,
+    var(--sidebar-tab-track)
+  );
 
   /* Color semantics - surfaces */
   --surface-0: var(--app-bg);
@@ -905,7 +911,169 @@ input[type='number'] {
   color: color-mix(in srgb, var(--sidebar-ink-soft) 80%, transparent);
 }
 
-/* Hover peek for overflow moments — sidebar list style */
+/* Discovery canvas — evolving guided reflection */
+.discovery-canvas {
+  position: relative;
+}
+
+/* Pinned above the scroll container — never part of the scrolling content. */
+.discovery-headline {
+  padding-top: 0.5rem;
+  padding-bottom: 1.25rem;
+}
+
+/* Fade the words, never the background — it masks passing content. */
+.discovery-headline > * {
+  transition: opacity 550ms ease;
+}
+
+.discovery-headline[data-faded="true"] > * {
+  opacity: 0.55;
+}
+
+/* When evidence arrives, collapse the headline so quotes feel adjacent. */
+.discovery-headline[data-faded="true"] {
+  padding-bottom: 0.75rem;
+}
+
+.discovery-headline[data-faded="true"] .reflection-meta {
+  display: none;
+}
+
+/*
+ * The single scrollable reading area. Scrolling works normally but the
+ * scrollbar is never shown — the page should read as one quiet surface.
+ */
+.discovery-scroll {
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  /* Beats dissolve as they slide up beneath the pinned heading. */
+  mask-image: linear-gradient(to bottom, transparent 0, black 1.5rem);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 1.5rem);
+}
+
+.discovery-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.discovery-stream {
+  display: flex;
+  flex-direction: column;
+  /* Start below the top fade mask so the first line is never dimmed. */
+  padding-top: 2.25rem;
+}
+
+/* Runway below the last beat so even a short focus beat can settle directly
+   under the heading — keeps the reading position fixed on every Continue. */
+.discovery-tail {
+  height: 55vh;
+  flex-shrink: 0;
+}
+
+/* Pinned below the scroll container — the CTA never scrolls away. */
+.discovery-footer {
+  padding-top: 1.25rem;
+  padding-bottom: 2.75rem;
+}
+
+/*
+ * Typographic hierarchy — the role of each beat, not just its content:
+ *   quotes (journal-snippet)        = reading, unchanged
+ *   observation                     = realization, between quote and question
+ *   recognition + reflection        = contemplation, the visual focus
+ */
+.discovery-question {
+  font-family: var(--font-lora);
+  font-size: clamp(1.875rem, 4.5vw, 2.75rem);
+  font-weight: 400;
+  line-height: 1.42;
+  letter-spacing: -0.02em;
+  color: var(--sidebar-ink);
+  /* Narrow measure so the question wraps and slows the reading pace. */
+  max-width: 21ch;
+  text-wrap: balance;
+}
+
+.discovery-observation {
+  font-family: var(--font-lora);
+  font-size: clamp(1.1875rem, 2.4vw, 1.4375rem);
+  line-height: 1.6;
+  letter-spacing: -0.01em;
+  color: color-mix(in srgb, var(--sidebar-ink) 78%, var(--sidebar-ink-soft) 22%);
+  max-width: 30rem;
+}
+
+.discovery-question--final {
+  color: var(--sidebar-active-ink);
+}
+
+/*
+ * Unfolding page — each beat is deposited below the last and recedes as
+ * newer beats arrive. One animation on entry, one eased transition after.
+ */
+.discovery-layer {
+  transition:
+    opacity 550ms ease,
+    transform 550ms ease,
+    margin 550ms ease;
+}
+
+/* Entry animation only while focused — its fill would otherwise pin opacity. */
+.discovery-layer[data-state="focus"] {
+  animation: discovery-reveal 550ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.discovery-layer + .discovery-layer {
+  margin-top: 3rem;
+}
+
+.discovery-layer[data-state="past"] {
+  opacity: 0.55;
+  transform: translateY(-6px);
+}
+
+.discovery-layer[data-state="past"] + .discovery-layer[data-state="past"],
+.discovery-layer[data-state="past"] + .discovery-layer[data-state="distant"],
+.discovery-layer[data-state="distant"] + .discovery-layer[data-state="distant"] {
+  margin-top: 2rem;
+}
+
+.discovery-layer[data-state="distant"] {
+  opacity: 0.3;
+  transform: translateY(-8px);
+}
+
+.discovery-layer[data-age="3"],
+.discovery-layer[data-age="4"],
+.discovery-layer[data-age="5"] {
+  opacity: 0.25;
+}
+
+@keyframes discovery-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .discovery-headline > * {
+    transition: opacity 150ms ease;
+  }
+
+  .discovery-layer,
+  .discovery-layer[data-state="focus"] {
+    animation: none;
+    transition: opacity 150ms ease;
+    transform: none !important;
+  }
+}
+
 .more-moments-peek {
   border-radius: 0.75rem;
   background-color: var(--sidebar-bg-lightest);

@@ -10,8 +10,8 @@
  * weekend gap or a slow week doesn't flip a pattern, short enough that a
  * pattern quiet for half a month reads as genuinely inactive while the user
  * is still writing elsewhere. Used with SURFACE_MIN_ENTRIES to bound
- * `emerging`: young patterns at minimum surface depth stay evidence-only;
- * patterns with more entries graduate to partial/recognition shapes.
+ * `emerging`: young patterns below minimum surface depth stay evidence-only;
+ * patterns at SURFACE_MIN_ENTRIES or above graduate to strengthening/recognition.
  *
  * HALF_LIFE (21d) — three weeks, slightly longer than the recent window.
  * Older evidence still counts but fades smoothly; a burst from a month ago

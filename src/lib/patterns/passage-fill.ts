@@ -15,19 +15,67 @@ const SHAPES_REQUIRING_VOICE: Record<
 > = {
   single: { line: true, closeAi: false },
   pair_line: { line: true, closeAi: false },
+  discovery: { line: true, closeAi: true },
   recognition: { line: true, closeAi: true },
   recognition_q: { line: true, closeAi: true },
   recognition_deep: { line: true, closeAi: true },
 };
 
-const isRecognitionShape = (shapeId: string): boolean =>
+const isVoiceShape = (shapeId: string): boolean =>
+  shapeId === "discovery" ||
   shapeId === "recognition" ||
   shapeId === "recognition_q" ||
   shapeId === "recognition_deep";
 
+/**
+ * Function words that carry no insight content. Counting these as overlap
+ * made distinct lines look like echoes ("you keep the…" ≈ 40% of a short
+ * line), which invalidated cached passages and forced regeneration on
+ * every page open.
+ */
+const VOICE_STOPWORDS = new Set([
+  "a", "an", "the", "and", "or", "but", "to", "of", "in", "on", "at",
+  "for", "with", "from", "by", "as", "is", "are", "was", "were", "be",
+  "been", "being", "it", "its", "it's", "this", "that", "these", "those",
+  "you", "your", "you're", "i", "we", "they", "them", "their", "my",
+  "me", "our", "us", "what", "when", "where", "which", "who", "how",
+  "why", "do", "does", "did", "don't", "doesn't", "not", "no", "so",
+  "if", "then", "than", "there", "here", "about", "into", "over",
+  "under", "again", "still", "just", "same", "each", "every", "keep",
+  "keeps", "kept", "one", "more", "before", "after",
+]);
+
+const contentTokens = (text: string): string[] =>
+  text
+    .toLowerCase()
+    .split(/\s+/)
+    .map((w) => w.replace(/[^\w']/g, ""))
+    .filter((w) => w.length >= 3 && !VOICE_STOPWORDS.has(w));
+
+/**
+ * Two AI voice lines saying the same thing. Shared between generation
+ * validation and cache reconciliation — the checks MUST agree, otherwise
+ * generation stores voice the orchestrator later rejects, and the passage
+ * regenerates forever.
+ */
+export const voiceLinesEcho = (a: string, b: string): boolean => {
+  const normA = a.trim().toLowerCase();
+  const normB = b.trim().toLowerCase();
+  if (!normA || !normB) return false;
+  if (normA === normB) return true;
+
+  const wordsA = contentTokens(a);
+  const wordsB = contentTokens(b);
+  if (wordsA.length < 2 || wordsB.length < 2) return false;
+
+  const setB = new Set(wordsB);
+  const shared = wordsA.filter((w) => setB.has(w)).length;
+  return shared / Math.min(wordsA.length, wordsB.length) >= 0.6;
+};
+
 /** Any two AI voice lines that say the same thing — a repeated insight. */
 export const passageVoiceEchoes = (passage: PatternPassage): boolean => {
-  if (!isRecognitionShape(passage.shapeId)) return false;
+  if (!isVoiceShape(passage.shapeId)) return false;
 
   const voiceTexts: string[] = [];
   for (const slot of passage.slots) {
@@ -44,26 +92,9 @@ export const passageVoiceEchoes = (passage: PatternPassage): boolean => {
   }
   if (voiceTexts.length < 2) return false;
 
-  const tokens = (text: string): string[] =>
-    text
-      .toLowerCase()
-      .split(/\s+/)
-      .map((w) => w.replace(/[^\w']/g, ""))
-      .filter((w) => w.length >= 2);
-
-  const overlap = (a: string, b: string): number => {
-    const wordsA = tokens(a);
-    const setB = new Set(tokens(b));
-    if (wordsA.length === 0) return 0;
-    return wordsA.filter((w) => setB.has(w)).length / wordsA.length;
-  };
-
   for (let i = 0; i < voiceTexts.length; i += 1) {
     for (let j = i + 1; j < voiceTexts.length; j += 1) {
-      const a = voiceTexts[i];
-      const b = voiceTexts[j];
-      if (a.toLowerCase() === b.toLowerCase()) return true;
-      if (overlap(a, b) >= 0.4 || overlap(b, a) >= 0.4) return true;
+      if (voiceLinesEcho(voiceTexts[i], voiceTexts[j])) return true;
     }
   }
   return false;

@@ -90,7 +90,11 @@ const coversAllSlots = (
   return voiceSlots.every((s) => filled.has(s.index));
 };
 
-const isRecognitionShape = (shapeId: string): boolean =>
+const isDiscoveryShape = (shapeId: string): boolean =>
+  shapeId === "discovery";
+
+const isSequentialShape = (shapeId: string): boolean =>
+  isDiscoveryShape(shapeId) ||
   shapeId === "recognition" ||
   shapeId === "recognition_q" ||
   shapeId === "recognition_deep";
@@ -151,7 +155,7 @@ export async function generateSlotFills(
   apiKey: string,
   input: SlotGenerationInput,
 ): Promise<SlotGenerationResult> {
-  if (isRecognitionShape(input.shapeId) && input.voiceSlots.length > 0) {
+  if (isSequentialShape(input.shapeId) && input.voiceSlots.length > 0) {
     return generateRecognitionSlots(apiKey, input);
   }
 

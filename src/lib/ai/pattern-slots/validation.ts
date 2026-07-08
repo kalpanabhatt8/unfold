@@ -6,6 +6,7 @@ import {
 } from "@/lib/ai/pattern-slots/constants";
 import type { PriorVoiceSlot, VoiceSlotRequest } from "@/lib/ai/pattern-slots/input";
 import type { ParsedSlotFill } from "@/lib/ai/pattern-slots/parse";
+import { voiceLinesEcho } from "@/lib/patterns/passage-fill";
 
 const ADVICE_MARKERS =
   /\b(should|try to|you need to|you must|consider|remember to|it's important|i recommend|you could)\b/i;
@@ -73,24 +74,14 @@ const echoesLabel = (text: string, label: string): boolean => {
   return text.toLowerCase().includes(phrase);
 };
 
-/** Reject lines that mostly reuse another voice slot (connection ≈ realization). */
-const wordOverlapRatio = (a: string, b: string): number => {
-  const wordsA = tokens(a);
-  const wordsB = new Set(tokens(b));
-  if (wordsA.length === 0) return 0;
-  return wordsA.filter((w) => wordsB.has(w)).length / wordsA.length;
-};
-
-const repeatsVoiceLine = (text: string, others: string[]): boolean => {
-  const normalized = text.trim().toLowerCase();
-  for (const other of others) {
-    const otherNorm = other.trim().toLowerCase();
-    if (!otherNorm) continue;
-    if (normalized === otherNorm) return true;
-    if (wordOverlapRatio(text, other) >= 0.4) return true;
-  }
-  return false;
-};
+/**
+ * Reject lines that mostly reuse another voice slot (connection ≈
+ * realization). Uses the SAME predicate as the cache reconciler
+ * (passageVoiceEchoes) — if they disagree, accepted voice gets invalidated
+ * on the next open and the passage regenerates forever.
+ */
+const repeatsVoiceLine = (text: string, others: string[]): boolean =>
+  others.some((other) => voiceLinesEcho(text, other));
 
 /** Reject lines that mostly reuse quote wording (paraphrase). */
 const paraphrasesQuotes = (text: string, quotes: string[]): boolean => {
@@ -123,18 +114,22 @@ const validateLine = (
   label: string,
   otherVoice: string[],
 ): string | null => {
-  if (
-    (spec.role === "connection" || spec.role === "realization" || spec.role === "ending") &&
-    repeatsVoiceLine(text, otherVoice)
-  ) {
-    return "slot_echo";
+  if (repeatsVoiceLine(text, otherVoice)) return "slot_echo";
+
+  if (spec.role === "observation" && paraphrasesQuotes(text, [...allQuotes, ...spec.precedingQuotes])) {
+    return "paraphrase";
   }
 
-  if (
-    (spec.role === "connection" || spec.role === "realization") &&
-    paraphrasesQuotes(text, [...allQuotes, ...spec.precedingQuotes])
-  ) {
-    return "paraphrase";
+  if (spec.role === "recognition") {
+    const q = validateQuestion(text);
+    if (q) return q;
+    return null;
+  }
+
+  if (spec.role === "observation") {
+    if (text.endsWith("?")) return "not_statement";
+    if (/^you\b/i.test(text)) return "you_opener";
+    if (INTERPRETIVE_MARKERS.test(text)) return "interpretive_voice";
   }
 
   if (TEMPLATE_MARKERS.test(text)) return "template_voice";
@@ -163,6 +158,9 @@ const validateLine = (
   return null;
 };
 
+const INTERPRETIVE_MARKERS =
+  /\b(avoidance|permission|fear|anxiety|because you|trying to|means you|shows you|became the)\b/i;
+
 const validateOne = (
   fill: ParsedSlotFill,
   spec: VoiceSlotRequest,
@@ -174,7 +172,7 @@ const validateOne = (
   const { text } = fill;
   if (!text) return "empty";
 
-  if (spec.endingKind === "question") {
+  if (spec.endingKind === "question" || spec.role === "reflection") {
     const q = validateQuestion(text);
     if (q) return q;
     if (repeatsVoiceLine(text, otherVoice)) return "slot_echo";

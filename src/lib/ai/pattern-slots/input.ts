@@ -3,8 +3,9 @@ import {
   SLOT_MAX_QUOTES,
 } from "@/lib/ai/pattern-slots/constants";
 import type { PatternPassage, PassageSlot } from "@/lib/patterns/passage-types";
+import { DISCOVERY_SHAPE_ID } from "@/lib/patterns/discovery-arc";
 
-export type VoiceSlotRole = "connection" | "realization" | "ending" | "observation";
+export type VoiceSlotRole = "recognition" | "observation" | "reflection";
 
 export type VoiceSlotRequest = {
   index: number;
@@ -28,7 +29,6 @@ export type SlotGenerationInput = {
   quotes: string[];
   voiceSlots: VoiceSlotRequest[];
   shapeId: string;
-  /** Voice slots already filled — realization must not echo connection. */
   priorVoice: PriorVoiceSlot[];
 };
 
@@ -45,7 +45,10 @@ const quoteTextsFromSlot = (slot: PassageSlot): string[] => {
   }
 };
 
-const isRecognitionShape = (shapeId: string): boolean =>
+const isDiscoveryShape = (shapeId: string): boolean =>
+  shapeId === DISCOVERY_SHAPE_ID;
+
+const isLegacyRecognitionShape = (shapeId: string): boolean =>
   shapeId === "recognition" ||
   shapeId === "recognition_q" ||
   shapeId === "recognition_deep";
@@ -60,8 +63,8 @@ export function buildSlotGenerationInput(
   const priorVoice: PriorVoiceSlot[] = [];
   const seenQuotes: string[] = [];
   let lineIndex = 0;
-  const recognition = isRecognitionShape(passage.shapeId);
   const totalLines = passage.slots.filter((s) => s.kind === "line").length;
+  const legacyRecognition = isLegacyRecognitionShape(passage.shapeId);
 
   passage.slots.forEach((slot, index) => {
     const texts = quoteTextsFromSlot(slot);
@@ -69,13 +72,14 @@ export function buildSlotGenerationInput(
 
     if (slot.kind === "line") {
       lineIndex += 1;
-      // The final line is the earned realization; an earlier line is the
-      // lighter connection. A single-line arc goes straight to realization.
-      const role: VoiceSlotRole = recognition
-        ? lineIndex === totalLines
-          ? "realization"
-          : "connection"
-        : "observation";
+      let role: VoiceSlotRole;
+      if (isDiscoveryShape(passage.shapeId)) {
+        role = lineIndex === 1 ? "recognition" : "observation";
+      } else if (legacyRecognition) {
+        role = lineIndex === totalLines ? "observation" : "recognition";
+      } else {
+        role = "observation";
+      }
 
       if (slot.text) {
         priorVoice.push({ index, role, text: slot.text });
@@ -93,8 +97,10 @@ export function buildSlotGenerationInput(
     }
 
     if (slot.kind === "close" && slot.endingKind !== "quote") {
+      const role: VoiceSlotRole = "reflection";
+
       if (slot.text) {
-        priorVoice.push({ index, role: "ending", text: slot.text });
+        priorVoice.push({ index, role, text: slot.text });
         return;
       }
 
@@ -102,7 +108,7 @@ export function buildSlotGenerationInput(
         index,
         kind: "close",
         endingKind: slot.endingKind,
-        role: "ending",
+        role,
         precedingQuotes: [...seenQuotes],
       });
     }

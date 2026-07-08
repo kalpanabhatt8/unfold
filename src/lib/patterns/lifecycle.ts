@@ -136,7 +136,7 @@ export function classifyRaw(s: LifecycleSignals): Lifecycle {
 
   if (
     s.ageDays <= RECENT_WINDOW_DAYS &&
-    s.entryCount <= SURFACE_MIN_ENTRIES
+    s.entryCount < SURFACE_MIN_ENTRIES
   ) {
     return "emerging";
   }

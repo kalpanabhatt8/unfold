@@ -68,15 +68,34 @@ const materializePreservingVoice = (
 };
 
 /** Cached passages that no longer match planner policy — force one re-plan. */
+const EVIDENCE_ONLY_SHAPES = new Set([
+  "bare",
+  "bare_close",
+  "echo",
+  "pair",
+]);
+
+const isDiscoveryEligible = (
+  lifecycle: Lifecycle,
+  quoteCount: number,
+): boolean =>
+  quoteCount >= 3 &&
+  (lifecycle === "strengthening" || lifecycle === "strong");
+
 const isPassageShapeStale = (
   passage: PatternPassage,
   lifecycle: Lifecycle,
   quoteCount: number,
 ): boolean => {
   if (
+    isDiscoveryEligible(lifecycle, quoteCount) &&
+    EVIDENCE_ONLY_SHAPES.has(passage.shapeId)
+  ) {
+    return true;
+  }
+  if (
     passage.shapeId === "single" &&
-    (lifecycle === "strengthening" || lifecycle === "strong") &&
-    quoteCount >= 3
+    isDiscoveryEligible(lifecycle, quoteCount)
   ) {
     return true;
   }
@@ -85,6 +104,16 @@ const isPassageShapeStale = (
   //  - moments,line,line      (one quote → three AI cards; too AI-heavy)
   if (passage.signature.includes("moments,line,moments")) return true;
   if (passage.signature.includes("moments,line,line")) return true;
+  if (
+    isDiscoveryEligible(lifecycle, quoteCount) &&
+    passage.shapeId !== "discovery" &&
+    (passage.shapeId === "recognition" ||
+      passage.shapeId === "recognition_q" ||
+      passage.shapeId === "recognition_deep" ||
+      passage.shapeId === "single")
+  ) {
+    return true;
+  }
   return false;
 };
 
