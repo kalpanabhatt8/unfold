@@ -7,6 +7,7 @@
 
 import type { PatternDisplay } from "@/lib/patterns/types";
 import type { PatternName } from "@/lib/patterns/vocabulary";
+import { markPatternsDirty } from "@/lib/sync/local-flags";
 
 export const PATTERN_DISPLAY_STORAGE_KEY = "keeps-pattern-display";
 
@@ -66,6 +67,16 @@ export const getCachedDisplay = (
   return hit;
 };
 
+/** All cached displays with their cache-key pattern names, for sync. */
+export const listCachedDisplays = (): Array<{
+  patternName: string;
+  display: PatternDisplay;
+}> =>
+  Object.entries(readAll()).map(([key, display]) => ({
+    patternName: key.split("|")[0] ?? "",
+    display,
+  }));
+
 export const putCachedDisplay = (
   name: PatternName,
   evidenceKey: string,
@@ -83,5 +94,6 @@ export const putCachedDisplay = (
   const map = readAll();
   map[cacheKey(name, evidenceKey)] = record;
   writeAll(map);
+  markPatternsDirty();
   return record;
 };

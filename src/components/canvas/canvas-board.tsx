@@ -62,6 +62,7 @@ import {
   entryIdFromBoardStorageKey,
 } from "@/lib/journal-seal";
 import { readEntryById } from "@/lib/journal-entries";
+import { uploadEntryImage } from "@/lib/attachments/client";
 
 /* -------------------------------------------------------------------------- */
 /*  Types                                                                     */
@@ -854,23 +855,37 @@ function CanvasBoardInner(
 
   /* ------------------------------ Images --------------------------------- */
 
-  const insertImageFile = useCallback(async (file: File) => {
-    if (!file.type.startsWith("image/")) return;
-    const src = await fileToDataUrl(file);
-    const dims = await loadImageDims(src);
-    const ratio = dims.width > 0 ? dims.height / dims.width : 0.66;
-    const id = newId();
-    setImageBlocks((bs) => [
-      ...bs,
-      {
-        id,
-        src,
-        ratio,
-        order: bs.length,
-      },
-    ]);
-    setSelectedImageId(id);
-  }, []);
+  const insertImageFile = useCallback(
+    async (file: File) => {
+      if (!file.type.startsWith("image/")) return;
+      const src = await fileToDataUrl(file);
+      const dims = await loadImageDims(src);
+      const ratio = dims.width > 0 ? dims.height / dims.width : 0.66;
+      const id = newId();
+      setImageBlocks((bs) => [
+        ...bs,
+        {
+          id,
+          src,
+          ratio,
+          order: bs.length,
+        },
+      ]);
+      setSelectedImageId(id);
+
+      // Persist bytes to object storage in the background and swap the
+      // data URL for the attachment URL, so snapshots never carry base64
+      // long-term. On failure (offline etc.) the data URL simply stays.
+      const entryId = storageKey.replace(/^keeps-board-/, "");
+      void uploadEntryImage(entryId, file, ratio).then((uploaded) => {
+        if (!uploaded) return;
+        setImageBlocks((bs) =>
+          bs.map((b) => (b.id === id ? { ...b, src: uploaded.url } : b)),
+        );
+      });
+    },
+    [storageKey],
+  );
 
   const updateImage = useCallback(
     (id: string, patch: Partial<JournalImage>) => {

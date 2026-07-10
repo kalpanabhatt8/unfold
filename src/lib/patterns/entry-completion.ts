@@ -15,6 +15,7 @@ import type { CompletionSource } from "@/lib/patterns/types";
 import { hasAnalysis, putAnalysis } from "@/lib/patterns/analysis-store";
 import { countWords, readEntryText } from "@/lib/patterns/entry-text";
 import { fetchEntryAnalysis } from "@/lib/ai/pattern-extraction/client";
+import { contentHash } from "@/lib/content-hash";
 
 /** Idle time before an unsealed draft counts as complete for patterns only. */
 export const IMPLICIT_SEAL_INACTIVITY_MS = 24 * 60 * 60 * 1000;
@@ -68,7 +69,7 @@ export async function notifyEntryCompleted(
     const payload = await fetchEntryAnalysis(text);
     if (!payload) return; // failure → not stored → retried by reconciler later
 
-    putAnalysis({ entryId, ...payload });
+    putAnalysis({ entryId, sourceContentHash: contentHash(text), ...payload });
   } catch (error) {
     console.error("Entry completion analysis failed", error);
   } finally {

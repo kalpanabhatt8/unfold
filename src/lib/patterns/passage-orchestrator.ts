@@ -6,8 +6,10 @@
  * or when no valid cached passage exists.
  */
 
+import { isVoiceArcShape } from "@/lib/patterns/discovery-arc";
 import { deriveGlobalActivityAt } from "@/lib/patterns/evidence-signals";
 import { deriveEvidenceSignals } from "@/lib/patterns/evidence-signals";
+import { isVoiceGenerationActive } from "@/lib/patterns/pattern-lifecycle";
 import {
   applySlotFills,
   passageStructureValid,
@@ -23,8 +25,11 @@ import {
 } from "@/lib/patterns/passage-types";
 import {
   advancePatternState,
+  createDiscoveryPlan,
   createPlan,
+  pickPlannedShape,
   type NeighborShape,
+  type PlanContext,
 } from "@/lib/patterns/planner";
 import {
   getState,
@@ -61,10 +66,16 @@ const materializePreservingVoice = (
 ): PatternPassage => {
   const fresh = materializePassage(name, plan, evidenceKey, now);
   const existing = getCachedPassage(name);
-  if (!existing || existing.cacheKey !== fresh.cacheKey) return fresh;
-  if (passageVoiceEchoes(existing)) return fresh;
+  if (!existing) return fresh;
+
   const fills = voiceFillsFrom(existing);
-  return fills.length > 0 ? applySlotFills(fresh, fills) : fresh;
+  if (fills.length === 0) return fresh;
+
+  // Re-plans may change cacheKey while slot indices stay aligned — keep voice
+  // text instead of wiping it and forcing another multi-second generation pass.
+  const applied = applySlotFills(fresh, fills);
+  if (passageVoiceEchoes(applied)) return fresh;
+  return applied;
 };
 
 /** Cached passages that no longer match planner policy — force one re-plan. */
@@ -80,32 +91,92 @@ const isDiscoveryEligible = (
   quoteCount: number,
 ): boolean =>
   quoteCount >= 3 &&
-  (lifecycle === "strengthening" || lifecycle === "strong");
+  lifecycle !== "resting" &&
+  lifecycle !== "emerging";
+
+const countPassageQuotes = (passage: PatternPassage): number => {
+  let n = 0;
+  for (const slot of passage.slots) {
+    if (slot.kind === "moments" || slot.kind === "pair") n += slot.quotes.length;
+    if (slot.kind === "echo") n += slot.quotes.length;
+  }
+  return n;
+};
+
+/** Quote count for upgrade/stale checks — bound passage quotes count too. */
+const effectiveQuoteCount = (
+  signalQuoteCount: number,
+  passage: PatternPassage | null,
+): number =>
+  passage
+    ? Math.max(signalQuoteCount, countPassageQuotes(passage))
+    : signalQuoteCount;
+
+/**
+ * Retired arc layouts (exact slot lists, the part of the signature before
+ * the first "|"). NEVER match these as substrings: the current discovery
+ * signature ("moments,line,line,close:question|…") CONTAINS
+ * "moments,line,line", so a substring check flags every healthy discovery
+ * passage as stale — forcing a replan on every open, poisoning the
+ * planner's signature memory, and oscillating the shape (and beat count)
+ * between opens.
+ */
+const LEGACY_SLOT_LAYOUTS = new Set([
+  "moments,line,moments",
+  "moments,line,line",
+]);
+
+const slotLayoutOf = (signature: string): string =>
+  signature.split("|")[0] ?? "";
+
+const passageEvidenceKey = (cacheKey: string): string =>
+  cacheKey.split("|")[1] ?? "";
+
+const isReusableVoiceArc = (passage: PatternPassage): boolean =>
+  isVoiceArcShape(passage.shapeId) &&
+  !passageNeedsGeneration(passage) &&
+  passageStructureValid(passage) &&
+  !passageVoiceEchoes(passage);
+
+/** Discovery for the same evidence — complete or still generating. */
+const isContinuableDiscovery = (
+  passage: PatternPassage,
+  evidenceKey: string,
+): boolean =>
+  passage.shapeId === "discovery" &&
+  passageEvidenceKey(passage.cacheKey) === evidenceKey &&
+  passageStructureValid(passage) &&
+  !passageVoiceEchoes(passage);
+
+const wouldDowngradeDiscovery = (
+  cached: PatternPassage,
+  planShapeId: string,
+  evidenceKey: string,
+): boolean =>
+  isContinuableDiscovery(cached, evidenceKey) &&
+  EVIDENCE_ONLY_SHAPES.has(planShapeId);
 
 const isPassageShapeStale = (
   passage: PatternPassage,
   lifecycle: Lifecycle,
   quoteCount: number,
 ): boolean => {
+  const eligibleQuotes = effectiveQuoteCount(quoteCount, passage);
   if (
-    isDiscoveryEligible(lifecycle, quoteCount) &&
+    isDiscoveryEligible(lifecycle, eligibleQuotes) &&
     EVIDENCE_ONLY_SHAPES.has(passage.shapeId)
   ) {
     return true;
   }
   if (
     passage.shapeId === "single" &&
-    isDiscoveryEligible(lifecycle, quoteCount)
+    isDiscoveryEligible(lifecycle, eligibleQuotes)
   ) {
     return true;
   }
-  // Old recognition arcs — regenerate into the evidence-dominant shape:
-  //  - moments,line,moments  (evidence → summary → more evidence → quote)
-  //  - moments,line,line      (one quote → three AI cards; too AI-heavy)
-  if (passage.signature.includes("moments,line,moments")) return true;
-  if (passage.signature.includes("moments,line,line")) return true;
+  if (LEGACY_SLOT_LAYOUTS.has(slotLayoutOf(passage.signature))) return true;
   if (
-    isDiscoveryEligible(lifecycle, quoteCount) &&
+    isDiscoveryEligible(lifecycle, eligibleQuotes) &&
     passage.shapeId !== "discovery" &&
     (passage.shapeId === "recognition" ||
       passage.shapeId === "recognition_q" ||
@@ -148,24 +219,16 @@ export function reconcilePatternPassage(
   const prevState =
     ctx.prevState !== undefined ? ctx.prevState : getState(ctx.name);
   const persist = ctx.persist !== false;
-  const advanced = advancePatternState({
+  const planCtx: PlanContext = {
     name: ctx.name,
     evidence: ctx.evidence,
     globalActivityAt: ctx.globalActivityAt,
     prevState,
     neighbors: ctx.neighbors,
     now: ctx.now,
-  });
-
+  };
+  const advanced = advancePatternState(planCtx);
   const cached = getCachedPassage(ctx.name);
-  const cacheKeyMatches =
-    cached !== null &&
-    cached.cacheKey ===
-      buildPassageCacheKey(
-        advanced.evidenceKey,
-        advanced.lifecycle,
-        cached.signature,
-      );
 
   const quoteCount = deriveEvidenceSignals(
     ctx.evidence,
@@ -173,9 +236,101 @@ export function reconcilePatternPassage(
     ctx.now,
   ).selectedQuotes.length;
 
+  const discoveryQuotes = effectiveQuoteCount(quoteCount, cached);
+
+  const identityUnchanged =
+    !advanced.evidenceChanged && !advanced.lifecycleChanged;
+
+  const returnCached = (
+    passage: PatternPassage,
+    needsGeneration: boolean,
+  ): ReconcileResult => {
+    if (persist) putState(advanced.state);
+    return {
+      passage,
+      state: advanced.state,
+      regenerated: false,
+      needsGeneration,
+      evidenceChanged: false,
+      lifecycleChanged: false,
+    };
+  };
+
+  // Voice generation in flight — never replan; keep reading from cache.
+  if (cached !== null && identityUnchanged && isVoiceGenerationActive(ctx.name)) {
+    return returnCached(cached, passageNeedsGeneration(cached));
+  }
+
+  // Same evidence: reuse complete voice-arc passage (planner lottery ignored).
+  if (
+    cached !== null &&
+    identityUnchanged &&
+    passageEvidenceKey(cached.cacheKey) === advanced.evidenceKey &&
+    isReusableVoiceArc(cached)
+  ) {
+    return returnCached(cached, false);
+  }
+
+  // Same evidence: keep discovery in progress or complete — never downgrade.
+  if (
+    cached !== null &&
+    identityUnchanged &&
+    isContinuableDiscovery(cached, advanced.evidenceKey)
+  ) {
+    return returnCached(cached, passageNeedsGeneration(cached));
+  }
+
+  const cachedMatchesEvidence =
+    cached !== null &&
+    passageEvidenceKey(cached.cacheKey) === advanced.evidenceKey;
+
+  // Deterministic upgrade: stale evidence-only → discovery (skip planner lottery).
+  if (
+    cachedMatchesEvidence &&
+    isDiscoveryEligible(advanced.lifecycle, discoveryQuotes) &&
+    EVIDENCE_ONLY_SHAPES.has(cached.shapeId) &&
+    isPassageShapeStale(cached, advanced.lifecycle, quoteCount) &&
+    !isVoiceGenerationActive(ctx.name)
+  ) {
+    const upgraded = createDiscoveryPlan(planCtx, advanced);
+    if (upgraded) {
+      const passage = materializePreservingVoice(
+        ctx.name,
+        upgraded.plan,
+        advanced.evidenceKey,
+        ctx.now,
+      );
+      putCachedPassage(passage);
+      if (persist) putState(upgraded.state);
+      return {
+        passage,
+        state: upgraded.state,
+        regenerated: true,
+        needsGeneration: passageNeedsGeneration(passage),
+        evidenceChanged: advanced.evidenceChanged,
+        lifecycleChanged: advanced.lifecycleChanged,
+      };
+    }
+  }
+
+  const planned = pickPlannedShape(planCtx, advanced);
+
+  // Match against the planner's current composition — not the cached passage's
+  // own signature. Self-referential matching let stale evidence-only passages
+  // reuse their cache key while the planner had moved on to discovery, producing
+  // a 2-beat arc (Done at evidence) on first open and the full arc on reopen.
+  const expectedCacheKey = buildPassageCacheKey(
+    advanced.evidenceKey,
+    advanced.lifecycle,
+    planned.signature,
+  );
+  const cacheKeyMatches =
+    cached !== null && cached.cacheKey === expectedCacheKey;
+
   const cacheUsable =
     cached !== null &&
     cacheKeyMatches &&
+    cached.shapeId === planned.shapeId &&
     passageStructureValid(cached) &&
     !passageVoiceEchoes(cached) &&
     !isPassageShapeStale(cached, advanced.lifecycle, quoteCount);
@@ -197,7 +352,12 @@ export function reconcilePatternPassage(
     };
   }
 
-  const { plan, state: plannedState } = createPlan(
+  const staleOnlyReplan =
+    cached !== null &&
+    identityUnchanged &&
+    isPassageShapeStale(cached, advanced.lifecycle, quoteCount);
+
+  let { plan, state: plannedState } = createPlan(
     {
       name: ctx.name,
       evidence: ctx.evidence,
@@ -209,11 +369,35 @@ export function reconcilePatternPassage(
     advanced,
   );
 
+  // Stale echo/bare must upgrade to discovery when eligible — not re-lottery
+  // into echo again because discovery is in recentSignatures.
+  const cachedIsStaleEvidenceOnly =
+    cached !== null &&
+    isDiscoveryEligible(advanced.lifecycle, discoveryQuotes) &&
+    EVIDENCE_ONLY_SHAPES.has(cached.shapeId) &&
+    isPassageShapeStale(cached, advanced.lifecycle, quoteCount);
+
+  if (cachedIsStaleEvidenceOnly && EVIDENCE_ONLY_SHAPES.has(plan.shapeId)) {
+    const upgraded = createDiscoveryPlan(planCtx, advanced);
+    if (upgraded) {
+      plan = upgraded.plan;
+      plannedState = upgraded.state;
+    }
+  }
+
+  // Last guard: never materialize evidence-only over an existing discovery.
+  if (
+    cached !== null &&
+    identityUnchanged &&
+    wouldDowngradeDiscovery(cached, plan.shapeId, advanced.evidenceKey)
+  ) {
+    return returnCached(cached, passageNeedsGeneration(cached));
+  }
+
   const recordPlan =
     advanced.evidenceChanged ||
     advanced.lifecycleChanged ||
-    (cached !== null &&
-      isPassageShapeStale(cached, advanced.lifecycle, quoteCount));
+    staleOnlyReplan;
 
   const state = recordPlan ? plannedState : advanced.state;
 

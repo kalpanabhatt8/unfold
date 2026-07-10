@@ -1,8 +1,12 @@
 import {
   SLOT_MAX_LINE_CHARS,
   SLOT_MAX_LINE_WORDS,
+  SLOT_MAX_MECHANISM_CHARS,
+  SLOT_MAX_MECHANISM_SENTENCES,
+  SLOT_MAX_MECHANISM_WORDS,
   SLOT_MAX_PASSAGE_AI_WORDS,
   SLOT_MAX_QUESTION_CHARS,
+  SLOT_MIN_MECHANISM_SENTENCES,
 } from "@/lib/ai/pattern-slots/constants";
 import type { PriorVoiceSlot, VoiceSlotRequest } from "@/lib/ai/pattern-slots/input";
 import type { ParsedSlotFill } from "@/lib/ai/pattern-slots/parse";
@@ -106,6 +110,23 @@ const validateQuestion = (text: string): string | null => {
   return null;
 };
 
+const INTERPRETIVE_MARKERS =
+  /\b(avoidance|permission|fear|anxiety|because you|trying to|means you|shows you|became the)\b/i;
+
+/** Comma-separated activity lists — summary, not a chain of events. */
+const MECHANISM_SUMMARY_MARKERS =
+  /^\s*\w+ing(?:,\s*\w+ing){1,}/i;
+
+/** "X filled the day while Y remained" — behavior summary, not sequence. */
+const MECHANISM_WHILE_SUMMARY =
+  /\bwhile\b.{0,40}\b(remained|stayed|untouched|waiting|in place)\b/i;
+
+const sentenceCount = (text: string): number =>
+  (text.match(/[.!?]/g) ?? []).length;
+
+const soundsLikeSummary = (text: string): boolean =>
+  MECHANISM_SUMMARY_MARKERS.test(text) || MECHANISM_WHILE_SUMMARY.test(text);
+
 const validateLine = (
   text: string,
   allQuotes: string[],
@@ -116,20 +137,15 @@ const validateLine = (
 ): string | null => {
   if (repeatsVoiceLine(text, otherVoice)) return "slot_echo";
 
-  if (spec.role === "observation" && paraphrasesQuotes(text, [...allQuotes, ...spec.precedingQuotes])) {
+  if (spec.role === "mechanism" && paraphrasesQuotes(text, [...allQuotes, ...spec.precedingQuotes])) {
     return "paraphrase";
   }
 
-  if (spec.role === "recognition") {
-    const q = validateQuestion(text);
-    if (q) return q;
-    return null;
-  }
-
-  if (spec.role === "observation") {
+  if (spec.role === "mechanism") {
     if (text.endsWith("?")) return "not_statement";
     if (/^you\b/i.test(text)) return "you_opener";
     if (INTERPRETIVE_MARKERS.test(text)) return "interpretive_voice";
+    if (soundsLikeSummary(text)) return "summary_voice";
   }
 
   if (TEMPLATE_MARKERS.test(text)) return "template_voice";
@@ -145,8 +161,18 @@ const validateLine = (
   }
 
   if (text.includes(";")) return "multiple_sentences";
-  const punct = text.match(/[.!?]/g) ?? [];
-  if (punct.length > 1) return "multiple_sentences";
+  const punctCount = sentenceCount(text);
+
+  if (spec.role === "mechanism") {
+    // Mechanism replays an event chain: 2–4 sentences, each adding a step.
+    if (punctCount < SLOT_MIN_MECHANISM_SENTENCES) return "too_few_sentences";
+    if (punctCount > SLOT_MAX_MECHANISM_SENTENCES) return "too_many_sentences";
+    if (text.length > SLOT_MAX_MECHANISM_CHARS) return "too_long";
+    if (wordCount(text) > SLOT_MAX_MECHANISM_WORDS) return "too_many_words";
+    return null;
+  }
+
+  if (punctCount > 1) return "multiple_sentences";
 
   if (/\b(and|but)\b/i.test(text) && wordCount(text) > 9) {
     return "clause_join";
@@ -157,9 +183,6 @@ const validateLine = (
 
   return null;
 };
-
-const INTERPRETIVE_MARKERS =
-  /\b(avoidance|permission|fear|anxiety|because you|trying to|means you|shows you|became the)\b/i;
 
 const validateOne = (
   fill: ParsedSlotFill,

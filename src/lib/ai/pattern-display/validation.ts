@@ -12,13 +12,19 @@ const ADVICE_MARKERS =
 const THERAPY_MARKERS =
   /\b(healing|mindfulness|self-care|trauma|wellness|journey|growth mindset|inner child|attachment|boundaries)\b/i;
 
-const ABSTRACT_MARKERS =
-  /\b(searching for the right|preparing instead|safer version|deeper issue|underlying|root cause|true self|real reason|holding you back)\b/i;
-
 const CONTRAST_MARKERS = /\binstead of\b|\brather than\b/i;
 
-const DIAGNOSIS_MARKERS =
-  /\b(avoidance pattern|fear of|anxiety about|perfectionism|impostor|self-sabotag)\b/i;
+const PSYCHOLOGY_LABEL_MARKERS =
+  /\b(avoidance|perfectionism|procrastinat|overthink|catastrophiz|people[- ]pleas|self[- ]doubt|self[- ]critic|all[- ]or[- ]nothing|fear of judgment|impostor|self-sabotag)\b/i;
+
+const BEHAVIOR_SUMMARY_MARKERS =
+  /\b(fixing small things|tweaking details|waiting until it feels|searching for the perfect|one more pass on|rewriting the|cleaning before|pros.and.cons|preparing instead)\b/i;
+
+const BEHAVIOR_DESCRIPTION =
+  /^(fixing|tweaking|rewriting|cleaning|waiting for|searching for|preparing to|checking the|editing the|polishing the|adjusting the|redoing the|putting off|delaying the|postponing the|making another|starting to)\b/i;
+
+const TENSION_SIGNALS =
+  /\b(why|what|how|still|not|never|until|almost|left|waiting|waited|stopped|didn't|won't|yet|again|here|tomorrow|easier|end|ended|moved|done|changed|last|important|unfinished)\b/i;
 
 const BANNED_SELF_HELP = [
   "moving forward",
@@ -68,6 +74,8 @@ const echoesDefinition = (text: string, definition: string): boolean => {
 };
 
 const isGrounded = (text: string, quotes: string[]): boolean => {
+  if (TENSION_SIGNALS.test(text)) return true;
+
   const words = tokens(text);
   if (words.length === 0) return false;
   const corpus = tokens(quotes.join(" "));
@@ -126,16 +134,15 @@ const validateTitle = (
 
   if (/^you\b/i.test(title) || /^your\b/i.test(title)) return "you_voice";
   if (CONTRAST_MARKERS.test(title)) return "contrast_voice";
-  if (ABSTRACT_MARKERS.test(title)) return "abstract_voice";
+  if (BEHAVIOR_DESCRIPTION.test(title.trim())) return "behavior_voice";
+  if (BEHAVIOR_SUMMARY_MARKERS.test(title)) return "behavior_voice";
+  if (PSYCHOLOGY_LABEL_MARKERS.test(title)) return "label_voice";
   if (
     ADVICE_MARKERS.test(title) ||
     THERAPY_MARKERS.test(title) ||
     usesBannedSelfHelp(title)
   ) {
     return "banned_voice";
-  }
-  if (DIAGNOSIS_MARKERS.test(title) && echoesLabel(title, label)) {
-    return "label_echo";
   }
   if (echoesLabel(title, label)) return "label_echo";
   if (echoesDefinition(title, definition)) return "definition_echo";

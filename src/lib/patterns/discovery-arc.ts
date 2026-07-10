@@ -1,7 +1,10 @@
 /**
- * Discovery arc — five-beat guided reflection (presentation layer).
+ * Discovery arc — four-beat guided reflection (presentation layer).
  *
- * Headline → Evidence → Recognition → Observation? → Reflection
+ * Headline → Evidence → Mechanism? → Reflection
+ *
+ * The mechanism beat replays the chain of events that leads into the pattern —
+ * never a summary of the entries or a description of behavior.
  */
 
 import type { QuoteRef } from "@/lib/patterns/evidence-signals";
@@ -13,16 +16,14 @@ export const DISCOVERY_EVIDENCE_VISIBLE = 3;
 export type DiscoveryPhase =
   | "headline"
   | "evidence"
-  | "recognition"
-  | "observation"
+  | "mechanism"
   | "reflection";
 
 export type DiscoveryArc = {
   phases: DiscoveryPhase[];
   headline: { title: string; orienting: string };
   evidence: { visible: QuoteRef[]; overflow: QuoteRef[] };
-  recognition: { question: string };
-  observation: { text: string } | null;
+  mechanism: { text: string } | null;
   reflection: { question: string; quote: QuoteRef | null };
 };
 
@@ -68,38 +69,39 @@ type CloseSlot = Extract<PassageSlot, { kind: "close" }>;
  * fills arrive, and across regenerations of the same plan — otherwise the
  * beat count (and the Continue/Done CTA) changes between opens.
  */
+/**
+ * Pick the line slot that backs the mechanism beat.
+ *
+ * Legacy plans may still carry a first line that was the old recognition
+ * question — skip it and use the mechanism line that followed.
+ */
+const selectMechanismSlot = (
+  lineSlots: LineSlot[],
+  shapeId?: string,
+): LineSlot | null => {
+  if (lineSlots.length === 0) return null;
+  if (isDiscoveryShape(shapeId) && lineSlots.length >= 2) {
+    return lineSlots[1];
+  }
+  if (!isDiscoveryShape(shapeId) && lineSlots.length >= 2) {
+    return lineSlots[lineSlots.length - 1];
+  }
+  return lineSlots[0];
+};
+
 const selectArcSlots = (
   slots: PassageSlot[],
   shapeId?: string,
 ): {
-  recognitionSlot: LineSlot | null;
-  observationSlot: LineSlot | null;
+  mechanismSlot: LineSlot | null;
   closeSlot: CloseSlot | null;
 } => {
   const lineSlots = slots.filter((s): s is LineSlot => s.kind === "line");
   const closeSlot =
     slots.find((s): s is CloseSlot => s.kind === "close") ?? null;
 
-  if (isDiscoveryShape(shapeId)) {
-    return {
-      recognitionSlot: lineSlots[0] ?? null,
-      observationSlot: lineSlots[1] ?? null,
-      closeSlot,
-    };
-  }
-
-  if (lineSlots.length >= 2) {
-    return {
-      recognitionSlot: lineSlots[0],
-      observationSlot: lineSlots[lineSlots.length - 1],
-      closeSlot,
-    };
-  }
-
-  // A single line reads as the realization, whatever its text turns out to be.
   return {
-    recognitionSlot: null,
-    observationSlot: lineSlots[0] ?? null,
+    mechanismSlot: selectMechanismSlot(lineSlots, shapeId),
     closeSlot,
   };
 };
@@ -127,15 +129,11 @@ export function buildDiscoveryArc(
   const visible = allQuotes.slice(0, DISCOVERY_EVIDENCE_VISIBLE);
   const overflow = allQuotes.slice(DISCOVERY_EVIDENCE_VISIBLE);
 
-  const { recognitionSlot, observationSlot, closeSlot } = selectArcSlots(
-    slots,
-    shapeId,
-  );
+  const { mechanismSlot, closeSlot } = selectArcSlots(slots, shapeId);
 
   const phases: DiscoveryPhase[] = ["headline"];
   if (allQuotes.length > 0) phases.push("evidence");
-  if (recognitionSlot) phases.push("recognition");
-  if (observationSlot) phases.push("observation");
+  if (mechanismSlot) phases.push("mechanism");
   if (closeSlot) phases.push("reflection");
 
   const closeQuote =
@@ -152,9 +150,8 @@ export function buildDiscoveryArc(
       orienting: orienting ?? buildOrientingLine(allQuotes.length),
     },
     evidence: { visible, overflow },
-    recognition: { question: recognitionSlot?.text?.trim() ?? "" },
-    observation: observationSlot
-      ? { text: observationSlot.text?.trim() ?? "" }
+    mechanism: mechanismSlot
+      ? { text: mechanismSlot.text?.trim() ?? "" }
       : null,
     reflection: { question: closeText, quote: closeQuote },
   };
@@ -177,8 +174,7 @@ export function buildEvidenceArc(
       orienting: orienting ?? buildOrientingLine(allQuotes.length),
     },
     evidence: { visible, overflow },
-    recognition: { question: "" },
-    observation: null,
+    mechanism: null,
     reflection: { question: "", quote: null },
   };
 }
@@ -229,7 +225,7 @@ export function explainArc(
   });
 
   if (!voiceRoute) {
-    for (const beat of ["recognition", "observation", "reflection"] as const) {
+    for (const beat of ["mechanism", "reflection"] as const) {
       trace.push({
         beat,
         status: "removed",
@@ -239,31 +235,17 @@ export function explainArc(
     return { trace, route };
   }
 
-  const { recognitionSlot, observationSlot, closeSlot } = selectArcSlots(
-    slots,
-    shapeId,
-  );
+  const { mechanismSlot, closeSlot } = selectArcSlots(slots, shapeId);
 
   trace.push({
-    beat: "recognition",
-    status: recognitionSlot ? "created" : "removed",
-    reason: recognitionSlot
-      ? recognitionSlot.text?.trim()
+    beat: "mechanism",
+    status: mechanismSlot ? "created" : "removed",
+    reason: mechanismSlot
+      ? mechanismSlot.text?.trim()
         ? "line slot, filled"
         : "line slot, awaiting voice"
-      : "no connection line slot in plan",
-    text: recognitionSlot?.text ?? undefined,
-  });
-
-  trace.push({
-    beat: "observation",
-    status: observationSlot ? "created" : "removed",
-    reason: observationSlot
-      ? observationSlot.text?.trim()
-        ? "line slot, filled"
-        : "line slot, awaiting voice"
-      : "no realization line slot in plan",
-    text: observationSlot?.text ?? undefined,
+      : "no mechanism line slot in plan",
+    text: mechanismSlot?.text ?? undefined,
   });
 
   trace.push({
@@ -296,10 +278,8 @@ const phaseHasContent = (arc: DiscoveryArc, phase: DiscoveryPhase): boolean => {
       return true;
     case "evidence":
       return arc.evidence.visible.length > 0;
-    case "recognition":
-      return arc.recognition.question.trim().length > 0;
-    case "observation":
-      return arc.observation !== null;
+    case "mechanism":
+      return arc.mechanism !== null;
     case "reflection":
       return (
         arc.reflection.question.trim().length > 0 ||
@@ -353,10 +333,8 @@ export const discoveryAwaitingVoice = (
     case "headline":
     case "evidence":
       return false;
-    case "recognition":
-      return arc.recognition.question.trim().length === 0;
-    case "observation":
-      return (arc.observation?.text.trim().length ?? 0) === 0;
+    case "mechanism":
+      return (arc.mechanism?.text.trim().length ?? 0) === 0;
     case "reflection":
       return (
         arc.reflection.quote === null &&

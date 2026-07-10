@@ -1,0 +1,314 @@
+/**
+ * Client sync engine — localStorage stays the instant write-through cache,
+ * the server is authoritative. Last-write-wins at whole-entry granularity
+ * (client `updatedAt` clock); the pattern layer syncs as whole snapshots.
+ *
+ * Flow (`fullSync`):
+ *   1. one-time import of pre-cloud local data
+ *   2. pull entries changed since the last cursor (incl. tombstones) + apply
+ *   3. pull the pattern layer + apply
+ *   4. push dirty entries and, when flagged, the pattern snapshot
+ */
+
+import type { CanvasSnapshot } from "@/components/canvas/canvas-board";
+import { contentHash } from "@/lib/content-hash";
+import {
+  applyRemoteDelete,
+  applyRemoteEntry,
+  ENTRY_BOARD_STORAGE_PREFIX,
+  readAllEntries,
+  readEntryById,
+  type JournalEntry,
+} from "@/lib/journal-entries";
+import { listAnalyses, putAnalysis } from "@/lib/patterns/analysis-store";
+import {
+  listCachedDisplays,
+  putCachedDisplay,
+} from "@/lib/patterns/pattern-display-store";
+import { getState, listStates, putState } from "@/lib/patterns/pattern-state";
+import {
+  listCachedPassages,
+  putCachedPassage,
+} from "@/lib/patterns/passage-store";
+import { isPatternName } from "@/lib/patterns/vocabulary";
+import {
+  clearPatternsDirty,
+  getPullCursor,
+  isImported,
+  isPatternsDirty,
+  markPatternsDirty,
+  restoreDirtyEntries,
+  restoreEntryTombstones,
+  setImported,
+  setPullCursor,
+  takeDirtyEntries,
+  takeEntryTombstones,
+  withDirtyTrackingSuppressed,
+} from "@/lib/sync/local-flags";
+import type {
+  EntriesPullResponse,
+  EntryPushResult,
+  PatternsSnapshot,
+  WireEntry,
+} from "@/lib/sync/wire-types";
+
+// ── Local readers ───────────────────────────────────────────────────────────
+
+const readBoardSnapshot = (entryId: string): CanvasSnapshot | null => {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(
+      `${ENTRY_BOARD_STORAGE_PREFIX}${entryId}`,
+    );
+    return raw ? (JSON.parse(raw) as CanvasSnapshot) : null;
+  } catch {
+    return null;
+  }
+};
+
+const writeBoardSnapshot = (entryId: string, snapshot: CanvasSnapshot) => {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      `${ENTRY_BOARD_STORAGE_PREFIX}${entryId}`,
+      JSON.stringify(snapshot),
+    );
+  } catch {
+    /* best effort */
+  }
+};
+
+const toWireEntry = (entry: JournalEntry): WireEntry => ({
+  id: entry.id,
+  title: entry.title,
+  createdAt: entry.createdAt,
+  updatedAt: entry.updatedAt,
+  lastEditedAt: entry.lastEditedAt ?? null,
+  sealedAt: entry.sealedAt ?? null,
+  deletedAt: null,
+  searchText: entry.searchText ?? "",
+  contentHash: contentHash(entry.searchText ?? ""),
+  content: readBoardSnapshot(entry.id),
+});
+
+const collectPatternsSnapshot = (): PatternsSnapshot => ({
+  analyses: listAnalyses(),
+  states: listStates(),
+  passages: listCachedPassages(),
+  displays: listCachedDisplays().map(({ patternName, display }) => ({
+    patternName,
+    evidenceKey: display.sourceEvidenceKey,
+    displayTitle: display.displayTitle,
+    summary: display.summary,
+    createdAt: display.createdAt,
+  })),
+});
+
+// ── Applying server data locally (dirty tracking suppressed) ────────────────
+
+const applyServerEntry = (wire: WireEntry) => {
+  if (wire.deletedAt) {
+    withDirtyTrackingSuppressed(() => applyRemoteDelete(wire.id));
+    return;
+  }
+
+  const local = readEntryById(wire.id);
+  if (local && local.updatedAt >= wire.updatedAt) return; // local copy wins
+
+  withDirtyTrackingSuppressed(() => {
+    applyRemoteEntry({
+      id: wire.id,
+      title: wire.title,
+      createdAt: wire.createdAt,
+      updatedAt: wire.updatedAt,
+      lastEditedAt: wire.lastEditedAt ?? undefined,
+      sealedAt: wire.sealedAt ?? null,
+      searchText: wire.searchText,
+    });
+    if (wire.content) {
+      writeBoardSnapshot(wire.id, wire.content);
+    }
+  });
+};
+
+const applyServerPatterns = (snapshot: PatternsSnapshot) => {
+  withDirtyTrackingSuppressed(() => {
+    for (const analysis of snapshot.analyses) {
+      putAnalysis(analysis);
+    }
+    for (const state of snapshot.states) {
+      // Local state may be ahead (device kept planning offline) — prefer the
+      // copy with the later plan activity.
+      const local = getState(state.name);
+      if (local && local.lastPlanAt >= state.lastPlanAt) continue;
+      putState(state);
+    }
+    for (const passage of snapshot.passages) {
+      putCachedPassage(passage);
+    }
+    for (const { patternName, evidenceKey, displayTitle, summary, createdAt } of
+      snapshot.displays) {
+      if (!isPatternName(patternName)) continue;
+      putCachedDisplay(patternName, evidenceKey, {
+        displayTitle,
+        summary,
+        createdAt,
+      });
+    }
+  });
+};
+
+// ── Network steps ───────────────────────────────────────────────────────────
+
+const pullAndApplyEntries = async (): Promise<void> => {
+  const since = getPullCursor();
+  const response = await fetch(`/api/sync/entries?since=${since}`);
+  if (!response.ok) return;
+  const payload = (await response.json()) as EntriesPullResponse;
+  for (const entry of payload.entries) {
+    applyServerEntry(entry);
+  }
+  setPullCursor(payload.cursor);
+};
+
+const pullAndApplyPatterns = async (): Promise<void> => {
+  const response = await fetch("/api/sync/patterns");
+  if (!response.ok) return;
+  const snapshot = (await response.json()) as PatternsSnapshot;
+  applyServerPatterns(snapshot);
+};
+
+const pushDirtyEntries = async (): Promise<void> => {
+  const dirtyIds = takeDirtyEntries();
+  const tombstones = takeEntryTombstones();
+  if (dirtyIds.length === 0 && tombstones.length === 0) return;
+
+  const now = Date.now();
+  const entries: WireEntry[] = [];
+  for (const id of dirtyIds) {
+    const entry = readEntryById(id);
+    if (entry) entries.push(toWireEntry(entry));
+  }
+  for (const tombstone of tombstones) {
+    entries.push({
+      id: tombstone.id,
+      title: "",
+      createdAt: tombstone.deletedAt,
+      updatedAt: now,
+      deletedAt: tombstone.deletedAt,
+      searchText: "",
+      contentHash: "",
+      content: null,
+    });
+  }
+  if (entries.length === 0) return;
+
+  try {
+    const response = await fetch("/api/sync/entries", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ entries }),
+    });
+    if (!response.ok) throw new Error(`push failed: ${response.status}`);
+
+    const { results } = (await response.json()) as {
+      results: EntryPushResult[];
+    };
+    for (const result of results) {
+      if (!result.accepted && result.server) {
+        applyServerEntry(result.server);
+      }
+    }
+  } catch {
+    // Offline or server error — restore the queues for the next attempt.
+    restoreDirtyEntries(dirtyIds);
+    restoreEntryTombstones(tombstones);
+  }
+};
+
+const pushPatternsIfDirty = async (): Promise<void> => {
+  if (!isPatternsDirty()) return;
+  clearPatternsDirty();
+  try {
+    const response = await fetch("/api/sync/patterns", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(collectPatternsSnapshot()),
+    });
+    if (!response.ok) throw new Error(`push failed: ${response.status}`);
+  } catch {
+    markPatternsDirty();
+  }
+};
+
+// ── One-time import of pre-cloud local data ─────────────────────────────────
+
+const maybeImport = async (): Promise<void> => {
+  if (isImported()) return;
+
+  const status = await fetch("/api/import");
+  if (!status.ok) return; // signed out / server issue — retry next sync
+  const { hasServerData } = (await status.json()) as {
+    hasServerData: boolean;
+  };
+
+  if (hasServerData) {
+    // Account already has cloud data — pulls will populate this device.
+    setImported();
+    return;
+  }
+
+  const entries = readAllEntries();
+  // One entry per request: embedded base64 images can make payloads large.
+  for (const entry of entries) {
+    const response = await fetch("/api/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ entries: [toWireEntry(entry)] }),
+    });
+    if (!response.ok) return; // abort — flag stays unset, retried next sync
+  }
+
+  const response = await fetch("/api/import", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ patterns: collectPatternsSnapshot() }),
+  });
+  if (!response.ok) return;
+
+  setImported();
+};
+
+// ── Entry point ─────────────────────────────────────────────────────────────
+
+let syncInFlight = false;
+
+export const fullSync = async (): Promise<void> => {
+  if (typeof window === "undefined" || syncInFlight) return;
+  syncInFlight = true;
+  try {
+    await maybeImport();
+    await pullAndApplyEntries();
+    await pullAndApplyPatterns();
+    await pushDirtyEntries();
+    await pushPatternsIfDirty();
+  } catch (error) {
+    console.error("Sync failed", error);
+  } finally {
+    syncInFlight = false;
+  }
+};
+
+/** Push-only pass — used on the dirty-event debounce between full syncs. */
+export const pushSync = async (): Promise<void> => {
+  if (typeof window === "undefined" || syncInFlight) return;
+  syncInFlight = true;
+  try {
+    await pushDirtyEntries();
+    await pushPatternsIfDirty();
+  } catch (error) {
+    console.error("Sync push failed", error);
+  } finally {
+    syncInFlight = false;
+  }
+};

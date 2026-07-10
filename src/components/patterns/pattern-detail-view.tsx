@@ -16,6 +16,8 @@ import {
   buildOrientingLine,
   explainArc,
   getInitialRevealIndex,
+  isVoiceArcShape,
+  phaseAtIndex,
   type DiscoveryArc,
 } from "@/lib/patterns/discovery-arc";
 import { passageStructureValid } from "@/lib/patterns/passage-fill";
@@ -29,6 +31,12 @@ import { usePatternDisplay } from "@/hooks/use-pattern-display";
 import { usePatternPassages } from "@/hooks/use-pattern-passages";
 import { usePatternsAggregate } from "@/hooks/use-patterns-aggregate";
 import "@/lib/patterns/passage-debug";
+import {
+  beginPatternSession,
+  logCtaReady,
+  logCtaWaiting,
+  logStageAtIndex,
+} from "@/lib/patterns/pattern-timing";
 
 export type PatternDetailViewProps = {
   patternName: PatternName;
@@ -52,13 +60,27 @@ export function PatternDetailView({ patternName }: PatternDetailViewProps) {
   const router = useRouter();
   const aggregate = usePatternsAggregate();
   const displayPatterns = usePatternDisplay(aggregate);
-  const patterns = usePatternPassages(aggregate);
+  const patterns = usePatternPassages(aggregate, patternName);
   const [phaseIndex, setPhaseIndex] = useState(0);
+  const [readerReady, setReaderReady] = useState(false);
   const initializedKeyRef = useRef<string | null>(null);
+  const stablePassageRef = useRef<PatternPassage | null>(null);
+  const timingStartedRef = useRef(false);
 
   const pattern = patterns.find((p) => p.name === patternName);
   const displayPattern = displayPatterns.find((p) => p.name === patternName);
   const passage: PatternPassage | null = pattern?.passage ?? null;
+
+  useLayoutEffect(() => {
+    stablePassageRef.current = null;
+  }, [patternName, passage?.cacheKey ?? ""]);
+
+  if (passage && isVoiceArcShape(passage.shapeId)) {
+    stablePassageRef.current = passage;
+  }
+
+  const activePassage = stablePassageRef.current ?? passage;
+  const cacheKey = activePassage?.cacheKey ?? "";
 
   const headlineTitle = useMemo(() => {
     const behavioral = displayPattern?.display?.displayTitle?.trim();
@@ -69,49 +91,84 @@ export function PatternDetailView({ patternName }: PatternDetailViewProps) {
   // Headline + evidence need no AI, so the arc renders immediately. The CTA
   // is the only thing gated on full generation: the beat count isn't final
   // until every voice slot is filled, so the canvas hides the button (never
-  // guessing between Continue/Done) until flowReady.
-  const flowReady = passage !== null && !passageNeedsGeneration(passage);
+  // guessing between Continue/Done) until voice is ready.
+  const voiceReady =
+    activePassage !== null && !passageNeedsGeneration(activePassage);
 
   const arc: DiscoveryArc | null = useMemo(() => {
-    if (!passage || !pattern) return null;
+    if (!activePassage || !pattern) return null;
     const momentCount = pattern.evidence.length;
     return buildArcFromPassage(
-      passage.slots,
-      passage.shapeId,
+      activePassage.slots,
+      activePassage.shapeId,
       headlineTitle,
       buildOrientingLine(momentCount),
     );
-  }, [passage, pattern, headlineTitle]);
+  }, [activePassage, pattern, headlineTitle]);
 
-  const cacheKey = passage?.cacheKey ?? "";
+  const ctaReady = voiceReady && readerReady;
 
-  // Initialize the reading position exactly once per passage. Later arc
-  // rebuilds (e.g. the display title arriving) must not reset progress.
   useLayoutEffect(() => {
-    if (!arc) return;
+    initializedKeyRef.current = null;
+    setReaderReady(false);
+    timingStartedRef.current = false;
+  }, [patternName]);
+
+  useLayoutEffect(() => {
+    if (!pattern || timingStartedRef.current) return;
+    timingStartedRef.current = true;
+    beginPatternSession(patternName);
+  }, [pattern, patternName]);
+
+  // Initialize reading position whenever the passage identity changes.
+  useLayoutEffect(() => {
+    if (!arc || !cacheKey) {
+      setReaderReady(false);
+      return;
+    }
     if (initializedKeyRef.current === cacheKey) return;
     initializedKeyRef.current = cacheKey;
     setPhaseIndex(getInitialRevealIndex(arc));
+    setReaderReady(true);
   }, [arc, cacheKey]);
 
   useEffect(() => {
-    if (!passage) return;
-    const beatPlan = passageToBeats(passage.slots, passage.shapeId);
+    if (!arc) return;
+    const phase = phaseAtIndex(arc, phaseIndex);
+    logStageAtIndex(phase, phaseIndex, arc.phases);
+  }, [arc, phaseIndex]);
+
+  useEffect(() => {
+    if (!arc) return;
+    if (ctaReady) {
+      logCtaReady();
+      return;
+    }
+    if (!readerReady) {
+      logCtaWaiting("reader not ready");
+    } else if (!voiceReady) {
+      logCtaWaiting("voice pending");
+    }
+  }, [arc, ctaReady, readerReady, voiceReady]);
+
+  useEffect(() => {
+    if (!activePassage) return;
+    const beatPlan = passageToBeats(activePassage.slots, activePassage.shapeId);
     console.group(`[patterns] ${patternName}`);
-    console.log("PatternPassage", passage);
-    console.log("slots", passage.slots.map((s, i) => ({ i, ...s })));
+    console.log("PatternPassage", activePassage);
+    console.log("slots", activePassage.slots.map((s, i) => ({ i, ...s })));
     console.log("beats (legacy)", beatPlan);
     console.log("discovery arc", arc);
     console.log("arc phases", arc?.phases);
-    const { trace, route } = explainArc(passage.slots, passage.shapeId);
+    const { trace, route } = explainArc(activePassage.slots, activePassage.shapeId);
     console.log("arc route", route);
     console.table(trace);
     console.log({
-      shapeId: passage.shapeId,
-      lifecycle: passage.lifecycle,
-      needsGeneration: passageNeedsGeneration(passage),
-      structureValid: passageStructureValid(passage),
-      voiceTexts: passage.slots.flatMap((s) => {
+      shapeId: activePassage.shapeId,
+      lifecycle: activePassage.lifecycle,
+      needsGeneration: passageNeedsGeneration(activePassage),
+      structureValid: passageStructureValid(activePassage),
+      voiceTexts: activePassage.slots.flatMap((s) => {
         if (s.kind === "line") return [{ kind: "line", text: s.text }];
         if (s.kind === "close" && s.endingKind !== "quote")
           return [{ kind: "close", endingKind: s.endingKind, text: s.text }];
@@ -119,7 +176,7 @@ export function PatternDetailView({ patternName }: PatternDetailViewProps) {
       }),
     });
     console.groupEnd();
-  }, [passage, patternName, arc]);
+  }, [activePassage, patternName, arc]);
 
   useEffect(() => {
     if (aggregate === null) return;
@@ -136,13 +193,13 @@ export function PatternDetailView({ patternName }: PatternDetailViewProps) {
   );
 
   const handleContinue = useCallback(() => {
-    if (!arc || !flowReady) return;
+    if (!arc || !ctaReady) return;
     if (phaseIndex >= arc.phases.length - 1) {
       router.push("/dashboard/patterns");
       return;
     }
     setPhaseIndex((i) => i + 1);
-  }, [arc, flowReady, phaseIndex, router]);
+  }, [arc, ctaReady, phaseIndex, router]);
 
   if (aggregate === null || !pattern) {
     return null;
@@ -166,7 +223,7 @@ export function PatternDetailView({ patternName }: PatternDetailViewProps) {
             arc={arc}
             phaseIndex={phaseIndex}
             revealKey={cacheKey}
-            ctaReady={flowReady}
+            ctaReady={ctaReady}
             onContinue={handleContinue}
             onOpenEntry={handleOpenEntry}
           />

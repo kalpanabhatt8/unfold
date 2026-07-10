@@ -117,7 +117,7 @@ const depthTierFor = (lifecycle: Lifecycle): DepthTier[] => {
 };
 
 /** Material-driven shapes may appear at any lifecycle when evidence supports them. */
-const MATERIAL_SHAPE_IDS = new Set(["echo", "pair", "pair_line"]);
+const MATERIAL_SHAPE_IDS = new Set(["echo", "pair", "pair_line", "discovery"]);
 
 // ── Shape catalog ──────────────────────────────────────────────────────────
 
@@ -173,15 +173,15 @@ const SHAPES: ShapeDef[] = [
     eligible: ({ evidenceSignals }) => evidenceSignals.hasEcho,
   },
   {
-    // Guided discovery: one evidence pool, recognition question, optional
-    // evidence-grounded observation, reflection question.
+    // Guided discovery: evidence pool, mechanism line (event chain), reflection question.
     id: "discovery",
-    slotKinds: ["moments", "line", "line", "close:question"],
+    slotKinds: ["moments", "line", "close:question"],
     depthTier: "recognition",
     endingKind: "question",
     eligible: ({ lifecycle, evidenceSignals }) =>
       evidenceSignals.selectedQuotes.length >= 3 &&
-      (lifecycle === "strengthening" || lifecycle === "strong"),
+      lifecycle !== "resting" &&
+      lifecycle !== "emerging",
   },
   {
     // Legacy — kept for cached passages; discovery is preferred.
@@ -203,10 +203,9 @@ const SHAPES: ShapeDef[] = [
       (lifecycle === "strengthening" || lifecycle === "strong"),
   },
   {
-    // Deeper recognition for evidence-rich patterns: a second realization is
-    // only earned when there are enough distinct moments to sustain it.
+    // Legacy — kept for cached passages; discovery is preferred.
     id: "recognition_deep",
-    slotKinds: ["moments", "moments", "line", "line", "close:question"],
+    slotKinds: ["moments", "moments", "line", "close:question"],
     depthTier: "recognition",
     endingKind: "question",
     eligible: ({ lifecycle, evidenceSignals }) =>
@@ -235,12 +234,14 @@ const signatureFor = signatureForShape;
 
 const rankCandidate = (shape: ShapeDef, ctx: PlannerContext): number => {
   if (ctx.lifecycle === "returning" && shape.id.startsWith("pair")) return 0;
+  if (hasRecognitionDepth(ctx.evidenceSignals)) {
+    if (shape.id === "discovery") return 0;
+  }
   if (
     isDeepLifecycle(ctx.lifecycle) &&
     hasRecognitionDepth(ctx.evidenceSignals)
   ) {
     // Prefer the deep arc when there is enough evidence to earn a second layer.
-    if (shape.id === "discovery") return 0;
     if (
       shape.id === "recognition_deep" &&
       ctx.evidenceSignals.selectedQuotes.length >= 5
@@ -309,8 +310,9 @@ const splitMomentsRecognition = (quotes: QuoteRef[]): QuoteRef[][] => {
 
 const collidesWithNeighbor = (shape: ShapeDef, neighbors: NeighborShape[]): boolean =>
   neighbors.some((n) => {
-    // Each pattern earns its own guided discovery arc.
-    if (shape.id === "discovery" && n.shapeId === "discovery") return false;
+    // Each surfaced pattern earns its own guided discovery arc — never block
+    // discovery because a neighbor already used recognition depth / question.
+    if (shape.id === "discovery") return false;
     return (
       (n.depthTier === shape.depthTier && n.endingKind === shape.endingKind) ||
       n.shapeId === shape.id
@@ -362,6 +364,17 @@ const relaxAndPick = (
       return tierOk && shape.eligible(ctx);
     });
 
+  const guidedDiscoveryPool = (): ShapeDef[] => {
+    if (
+      !hasRecognitionDepth(ctx.evidenceSignals) ||
+      ctx.lifecycle === "resting" ||
+      ctx.lifecycle === "emerging"
+    ) {
+      return [];
+    }
+    return base().filter((s) => s.id === "discovery");
+  };
+
   const stages: Array<() => ShapeDef[]> = [
     () => filterCandidates(ctx, state, neighbors),
     () => {
@@ -370,6 +383,7 @@ const relaxAndPick = (
       );
       return c.length > 0 ? c : base();
     },
+    guidedDiscoveryPool,
     () => base(),
     () => [BARE_SHAPE],
   ];
@@ -518,6 +532,45 @@ export function createPlan(
   );
   const signature = signatureFor(shape);
 
+  const plan: PatternPlan = {
+    shapeId: shape.id,
+    signature,
+    depthTier: shape.depthTier,
+    endingKind: shape.endingKind,
+    lifecycle: advanced.lifecycle,
+    slots: materializePlanSlots(shape, advanced.evidenceSignals),
+    quotes: advanced.evidenceSignals.selectedQuotes,
+  };
+
+  const state = withPlan(
+    advanced.state,
+    signature,
+    shape.endingKind,
+    ctx.now,
+  );
+
+  return { plan, state };
+}
+
+/**
+ * Deterministic discovery composition — used when upgrading a stale
+ * evidence-only cache without running the full shape lottery.
+ */
+export function createDiscoveryPlan(
+  ctx: PlanContext,
+  advanced: StateAdvanceResult,
+): { plan: PatternPlan; state: PatternState } | null {
+  const shape = SHAPES.find((s) => s.id === "discovery");
+  if (!shape) return null;
+
+  const plannerCtx: PlannerContext = {
+    lifecycle: advanced.lifecycle,
+    signals: advanced.signals,
+    evidenceSignals: advanced.evidenceSignals,
+  };
+  if (!shape.eligible(plannerCtx)) return null;
+
+  const signature = signatureFor(shape);
   const plan: PatternPlan = {
     shapeId: shape.id,
     signature,

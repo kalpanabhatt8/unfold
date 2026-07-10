@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { QuoteRef } from "@/lib/patterns/evidence-signals";
+import { logPopoverReady } from "@/lib/patterns/pattern-timing";
 
 const formatDay = (ts: number): string => {
   const date = new Date(ts);
@@ -62,6 +63,10 @@ export function MoreMomentsPopover({
   }, []);
 
   useEffect(() => {
+    if (quotes.length > 0) logPopoverReady(quotes.length);
+  }, [quotes.length]);
+
+  useEffect(() => {
     if (!open) return;
     updatePosition();
     const onScrollOrResize = () => updatePosition();
@@ -110,18 +115,17 @@ export function MoreMomentsPopover({
                       onClick={() => onOpenEntry(quote.entryId)}
                       className="w-full rounded-md text-left"
                     >
-                      <div className="flex flex-col gap-0.5 px-2.75 py-2.5">
-                        <span className="flex items-start justify-between gap-3">
-                          <span className="block min-w-0 flex-1 truncate text-sm font-semibold leading-snug text-primary opacity-80">
-                            {quote.entryTitle}
+                      <div className="flex flex-col gap-1.5 px-2.75 py-2.5">
+                        <p className="journal-snippet__context reflection-meta tabular-nums text-[0.7rem]!">
+                          {formatDay(quote.anchorTs)}
+                          <span className="journal-snippet__entry-title">
+                            {" "}
+                            · {quote.entryTitle}
                           </span>
-                          <span className="shrink-0 pt-0.5 text-xs leading-none text-secondary opacity-90 tabular-nums">
-                            {formatDay(quote.anchorTs)}
-                          </span>
-                        </span>
-                        <span className="line-clamp-2 min-w-0 text-sm font-normal leading-snug text-secondary opacity-90">
-                          {quote.text}
-                        </span>
+                        </p>
+                        <p className="reflection-body line-clamp-3 min-w-0 text-[0.9rem]! leading-snug">
+                          &ldquo;{quote.text}&rdquo;
+                        </p>
                       </div>
                     </button>
                   </li>

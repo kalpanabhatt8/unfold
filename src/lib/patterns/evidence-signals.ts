@@ -2,23 +2,24 @@
  * Unfold — deterministic evidence signals for the planner.
  *
  * Extracts pair/echo candidates, builds the evidence fingerprint (regeneration
- * trigger), and selects quotes via a deterministic confidence + recency blend.
- * The highest-confidence quote is always pinned; remaining slots rank by score.
+ * trigger), and selects quotes by inner-experience strength — moments where
+ * the user reveals what it felt like from the inside — not keyword confidence.
+ * Entry diversity and near-duplicate filtering keep the 5–7 surfaced quotes
+ * distinct and each revealing a different part of the pattern.
  */
 
 import {
   PAIR_MIN_GAP_DAYS,
-  QUOTE_CONFIDENCE_WEIGHT,
-  QUOTE_RECENCY_WEIGHT,
   QUOTE_SELECTION_HALF_LIFE_DAYS,
 } from "@/lib/patterns/lifecycle-config";
+import { voiceLinesEcho } from "@/lib/patterns/passage-fill";
 import type { Lifecycle } from "@/lib/patterns/pattern-state";
 import type { PatternEvidenceItem } from "@/lib/patterns/types";
 
 const DAY_MS = 86_400_000;
 
-/** Max quotes surfaced in a passage. */
-export const MAX_PASSAGE_QUOTES = 8;
+/** Max quotes surfaced in a passage — only the strongest moments. */
+export const MAX_PASSAGE_QUOTES = 7;
 
 const ECHO_MIN_TOKEN_LEN = 4;
 const ECHO_MIN_ENTRIES = 2;
@@ -47,9 +48,67 @@ const daysBetween = (a: number, b: number): number => Math.abs(a - b) / DAY_MS;
 const recencyWeight = (anchorTs: number, now: number): number =>
   0.5 ** (daysBetween(now, anchorTs) / QUOTE_SELECTION_HALF_LIFE_DAYS);
 
-const quoteScore = (quote: QuoteRef, now: number): number =>
-  QUOTE_CONFIDENCE_WEIGHT * quote.confidence +
-  QUOTE_RECENCY_WEIGHT * recencyWeight(quote.anchorTs, now);
+/** Interior voice — felt experience, tension, self-reflection. */
+const INTERIOR_MARKERS =
+  /\b(felt|feeling|feel like|feels like|somehow|quietly|told myself|realized|meant to|supposed to|actually|still (?:waiting|there|stuck|sitting|un)?|never (?:moved|started|sent|finished|got)|nothing (?:actually|really)|even though|although|instead of|rather than|but nothing|learning something|good enough|not ready|too (?:big|much|hard|overwhelming)|easier|harder|stuck|relief|guilty|productive|empty|dread|anxious|overwhelm|restless|numb|avoiding|wondering|noticed|knew|thought)\b/i;
+
+/** Surface activity without inner frame. */
+const SURFACE_ACTIVITY =
+  /\b(watched|opened|clicked|cleaned|organized|refreshed|scrolled|checked|went to|finished|made|sent|read|looked at|browsed|replied to|updated|fixed|renamed|deployed|committed|pushed|pulled|installed|downloaded|uploaded|videos?|emails?|tabs?)\b/i;
+
+const wordCount = (text: string): number =>
+  text.trim().split(/\s+/).filter(Boolean).length;
+
+/**
+ * Rank how much a quote reveals inner experience vs surface activity.
+ * Prefer "It felt productive but nothing changed" over "I watched three videos."
+ */
+export function innerExperienceScore(text: string): number {
+  const t = text.trim();
+  if (!t) return 0;
+
+  let score = 0;
+  const words = wordCount(t);
+  const hasInterior =
+    INTERIOR_MARKERS.test(t) ||
+    /\bI (?:felt|feel|kept telling|told|realized|thought|knew|noticed|wondered)\b/i.test(
+      t,
+    );
+
+  if (hasInterior) score += 1.2;
+
+  if (/\bbut\b/i.test(t) && words >= 8) score += 0.45;
+  if (/\b(yet|although|even though|instead)\b/i.test(t)) score += 0.35;
+
+  if (
+    /\b(?:productive|busy|active|progress|learning)\b/i.test(t) &&
+    /\b(?:but|yet|nothing|never|still|didn't|without)\b/i.test(t)
+  ) {
+    score += 0.5;
+  }
+
+  if (SURFACE_ACTIVITY.test(t) && !hasInterior) score -= 0.7;
+
+  if (
+    /\b(?:one|two|three|four|five|six|\d+)\s+\w+/i.test(t) &&
+    words <= 12 &&
+    !hasInterior
+  ) {
+    score -= 0.55;
+  }
+
+  if (words <= 5 && !hasInterior) score -= 0.35;
+  if (words >= 10 && hasInterior) score += 0.15;
+  if (words >= 16 && hasInterior) score += 0.1;
+
+  return score;
+}
+
+/** Experiential rank first; recency and entry confidence are tiebreakers only. */
+const quoteRankScore = (quote: QuoteRef, now: number): number =>
+  innerExperienceScore(quote.text) +
+  recencyWeight(quote.anchorTs, now) * 0.2 +
+  quote.confidence * 0.1;
 
 /** Fingerprint for regeneration — changes on new/deleted entry or confidence/quote change. */
 export function buildEvidenceKey(evidence: PatternEvidenceItem[]): string {
@@ -63,8 +122,13 @@ export function buildEvidenceKey(evidence: PatternEvidenceItem[]): string {
 }
 
 /**
- * Select quotes: pin the highest-confidence quote, fill remaining slots by
- * confidence + recency blend. Deterministic tiebreaks.
+ * Select quotes: pin the strongest inner-experience moment, then fill to
+ * MAX_PASSAGE_QUOTES with:
+ *
+ *  1. Entry diversity — one quote per entry until every entry is represented.
+ *  2. No near-duplicates — skip quotes that mostly repeat an already-selected one.
+ *
+ * Ranking prioritizes felt experience over keyword confidence or recency.
  */
 export function selectQuotes(
   evidence: PatternEvidenceItem[],
@@ -86,14 +150,19 @@ export function selectQuotes(
 
   if (refs.length === 0) return [];
 
-  const pin = [...refs].sort((a, b) => {
-    if (b.confidence !== a.confidence) return b.confidence - a.confidence;
+  const compareQuotes = (a: QuoteRef, b: QuoteRef): number => {
+    const expDiff = innerExperienceScore(b.text) - innerExperienceScore(a.text);
+    if (expDiff !== 0) return expDiff;
+    const rankDiff = quoteRankScore(b, now) - quoteRankScore(a, now);
+    if (rankDiff !== 0) return rankDiff;
     if (b.anchorTs !== a.anchorTs) return b.anchorTs - a.anchorTs;
     if (a.entryId !== b.entryId) return a.entryId.localeCompare(b.entryId);
     return a.text.localeCompare(b.text);
-  })[0];
+  };
 
-  const rest = refs
+  const pin = [...refs].sort(compareQuotes)[0];
+
+  const ranked = refs
     .filter(
       (q) =>
         !(
@@ -102,14 +171,31 @@ export function selectQuotes(
           q.anchorTs === pin.anchorTs
         ),
     )
-    .sort((a, b) => {
-      const scoreDiff = quoteScore(b, now) - quoteScore(a, now);
-      if (scoreDiff !== 0) return scoreDiff;
-      if (a.entryId !== b.entryId) return a.entryId.localeCompare(b.entryId);
-      return a.text.localeCompare(b.text);
-    });
+    .sort(compareQuotes);
 
-  return [pin, ...rest].slice(0, MAX_PASSAGE_QUOTES);
+  const selected: QuoteRef[] = [pin];
+  const isNearDuplicate = (q: QuoteRef): boolean =>
+    selected.some((s) => voiceLinesEcho(s.text, q.text));
+
+  // Pass 1: strongest quote from each not-yet-represented entry.
+  const seenEntries = new Set([pin.entryId]);
+  for (const q of ranked) {
+    if (selected.length >= MAX_PASSAGE_QUOTES) break;
+    if (seenEntries.has(q.entryId)) continue;
+    if (isNearDuplicate(q)) continue;
+    selected.push(q);
+    seenEntries.add(q.entryId);
+  }
+
+  // Pass 2: fill remaining slots with the next-strongest distinct quotes.
+  for (const q of ranked) {
+    if (selected.length >= MAX_PASSAGE_QUOTES) break;
+    if (selected.includes(q)) continue;
+    if (isNearDuplicate(q)) continue;
+    selected.push(q);
+  }
+
+  return selected;
 }
 
 const tokenize = (text: string): string[] =>

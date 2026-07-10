@@ -7,6 +7,7 @@
 
 import type { PatternPassage } from "@/lib/patterns/passage-types";
 import { isPatternName, type PatternName } from "@/lib/patterns/vocabulary";
+import { markPatternsDirty } from "@/lib/sync/local-flags";
 
 export const PATTERN_PASSAGES_STORAGE_KEY = "keeps-pattern-passages";
 
@@ -61,11 +62,15 @@ const writeAll = (map: Record<string, PatternPassage>) => {
 export const getCachedPassage = (name: PatternName): PatternPassage | null =>
   readAll()[name] ?? null;
 
+export const listCachedPassages = (): PatternPassage[] =>
+  Object.values(readAll());
+
 export const putCachedPassage = (passage: PatternPassage): void => {
   if (!isValidPassage(passage)) return;
   const map = readAll();
   map[passage.name] = passage;
   writeAll(map);
+  markPatternsDirty();
 };
 
 export const deleteCachedPassage = (name: PatternName): void => {

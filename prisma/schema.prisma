@@ -1,0 +1,181 @@
+// Unfold — production schema.
+//
+// Design notes (see plan "Unfold Production Database Architecture"):
+// - `users.id` IS the Clerk user ID; Clerk owns identity, this row anchors FKs
+//   and holds app preferences.
+// - `journal_entries` is the single source of truth. Everything else is either
+//   AI-generated about entries (analyses, passages, displays) or deterministic
+//   planner memory (pattern_states).
+// - Derived state (aggregates, lifecycle signals, plans, beats, discovery
+//   arcs, time hints, co-patterns) is deliberately NOT persisted.
+// - Timestamps that mirror client unix-ms values use Timestamptz(3); the data
+//   access layer converts to/from numbers at the boundary.
+// - `server_updated_at` is the pull-sync cursor (server clock); `updated_at`
+//   is the client clock used for last-write-wins.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id          String   @id @map("id") // Clerk user ID
+  displayName String?  @map("display_name")
+  preferences Json     @default("{}")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  entries       JournalEntry[]
+  analyses      EntryAnalysis[]
+  patternStates PatternState[]
+  passages      PatternPassage[]
+  displays      PatternDisplay[]
+  attachments   Attachment[]
+
+  @@map("users")
+}
+
+model JournalEntry {
+  id     String @id // client-generated "entry-…" IDs are kept
+  userId String @map("user_id")
+
+  title        String    @default("")
+  createdAt    DateTime  @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime  @map("updated_at") @db.Timestamptz(3) // client clock, LWW
+  lastEditedAt DateTime? @map("last_edited_at") @db.Timestamptz(3)
+  sealedAt     DateTime? @map("sealed_at") @db.Timestamptz(3) // null = draft
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(3) // soft-delete tombstone
+
+  /// Flattened plain text for sidebar search (derivable, stored for cheap list search).
+  searchText  String @default("") @map("search_text")
+  /// Hash of the flattened content — re-analysis trigger when it drifts from
+  /// entry_analyses.source_content_hash.
+  contentHash String @default("") @map("content_hash")
+
+  /// The full CanvasSnapshot (images as attachment references, never base64).
+  content Json?
+
+  /// Server clock, maintained on every write — the pull-sync cursor.
+  serverUpdatedAt DateTime @updatedAt @map("server_updated_at") @db.Timestamptz(3)
+
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  analysis    EntryAnalysis?
+  attachments Attachment[]
+
+  @@index([userId, updatedAt(sort: Desc)])
+  @@index([userId, serverUpdatedAt])
+  @@index([userId, sealedAt])
+  @@map("journal_entries")
+}
+
+/// One AI extraction per entry — expensive, durable, foundation of the
+/// pattern system. Regenerated only when content_hash drifts or on deliberate
+/// prompt-version bumps.
+model EntryAnalysis {
+  entryId String @id @map("entry_id")
+  userId  String @map("user_id")
+
+  topics   String[]
+  /// 0–3 PatternMatch objects: { name, confidence, evidence[] }.
+  patterns Json
+
+  modelId           String?  @map("model_id")
+  promptVersion     String?  @map("prompt_version")
+  sourceContentHash String?  @map("source_content_hash")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  entry JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  user  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("entry_analyses")
+}
+
+/// Deterministic planner memory — small but NOT regenerable (hysteresis,
+/// signature memory, plan epoch encode history a recompute can't rebuild).
+/// Never deleted when a pattern disappears; that history detects returns.
+model PatternState {
+  userId      String @map("user_id")
+  patternName String @map("pattern_name")
+
+  lifecycle        String
+  lifecycleSince   DateTime @map("lifecycle_since") @db.Timestamptz(3)
+  recentSignatures String[] @map("recent_signatures") // capped at 3 by the app
+  lastEndingKind   String   @map("last_ending_kind")
+  planEpoch        Int      @map("plan_epoch")
+  evidenceKey      String   @map("evidence_key")
+  lastPlanAt       DateTime @map("last_plan_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, patternName])
+  @@map("pattern_states")
+}
+
+/// AI cache — one materialized passage per pattern, safe to truncate.
+model PatternPassage {
+  userId      String @map("user_id")
+  patternName String @map("pattern_name")
+
+  /// evidenceKey|lifecycle|signature
+  cacheKey String @map("cache_key")
+  /// Full PatternPassage JSON incl. AI-filled voice slot text.
+  passage  Json
+
+  modelId       String?  @map("model_id")
+  promptVersion String?  @map("prompt_version")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, patternName])
+  @@map("pattern_passages")
+}
+
+/// AI cache — landing card copy, keyed by evidence fingerprint. Upsert prunes
+/// stale evidence keys so at most one row per (user, pattern) survives.
+model PatternDisplay {
+  userId      String @map("user_id")
+  patternName String @map("pattern_name")
+  evidenceKey String @map("evidence_key")
+
+  displayTitle String  @map("display_title")
+  summary      String?
+
+  modelId       String?  @map("model_id")
+  promptVersion String?  @map("prompt_version")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, patternName, evidenceKey])
+  @@map("pattern_displays")
+}
+
+/// Image bytes live in object storage keyed by {userId}/{entryId}/{id};
+/// Postgres holds only the reference and display metadata.
+model Attachment {
+  id      String @id @default(cuid())
+  userId  String @map("user_id")
+  entryId String @map("entry_id")
+
+  storageKey String @map("storage_key") // blob pathname
+  url        String // public blob URL embedded in snapshots
+  mimeType   String @map("mime_type")
+  sizeBytes  Int    @map("size_bytes")
+
+  ratio     Float?
+  caption   String?
+  sortOrder Int     @default(0) @map("sort_order")
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  entry JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  user  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([entryId, sortOrder])
+  @@map("attachments")
+}

@@ -56,7 +56,7 @@ export function PatternsView() {
 
         <header className="mb-12 sm:mb-14">
           <h1
-            className="text-xl font-bold tracking-tight text-(--sidebar-active-ink) sm:text-2xl"
+            className="header-lg font-medium tracking-tight text-(--sidebar-active-ink) sm:text-2xl"
             style={{ fontFamily: "var(--font-heading)" }}
           >
             Patterns

@@ -29,7 +29,7 @@ const STAMP_HEIGHT = 80;
 const STAMP_TEXT_PADDING = 12;
 /** Baseline used for font scale — keeps 2× sizing vs the old 132px stamp. */
 const STAMP_FONT_REFERENCE = 132;
-const STAMP_TILT_DEG = 24;
+const STAMP_TILT_DEG = 26;
 const STAMP_PRESS_MS = 200;
 const STAMP_IMPACT_HOLD_MS = 150;
 const STAMP_INK_FADE_MS = 420;

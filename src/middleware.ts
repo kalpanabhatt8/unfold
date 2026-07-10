@@ -1,15 +1,12 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 
+// Only the landing page and auth screens are public. The dashboard, all data
+// sync routes, and all AI routes require a signed-in user — every DB row is
+// scoped to the Clerk userId.
 const isPublicRoute = createRouteMatcher([
   '/',
   '/sign-in(.*)',
   '/sign-up(.*)',
-  '/dashboard(.*)',
-  '/api/journal-title',
-  '/api/entry-analysis',
-  '/api/pattern-display',
-  '/api/pattern-insight',
-  '/api/pattern-slots',
   '/dev(.*)',
 ])
 

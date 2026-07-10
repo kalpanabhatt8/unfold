@@ -45,7 +45,6 @@ const JournalEntryPage = () => {
   const entryId = params?.id ?? "untitled";
   const searchParams = useSearchParams();
   const shouldAutoFocus = searchParams.get("new") === "1";
-  const hasAutoFocusedRef = useRef(false);
 
   const prevEntryIdRef = useRef<string | null>(null);
   if (prevEntryIdRef.current !== null && prevEntryIdRef.current !== entryId) {
@@ -171,8 +170,6 @@ const JournalEntryPage = () => {
   // editor once the canvas has actually mounted, then drop the query flag.
   useEffect(() => {
     if (!shouldAutoFocus || sessionEditedAt === null) return;
-    if (hasAutoFocusedRef.current) return;
-    hasAutoFocusedRef.current = true;
     const frame = requestAnimationFrame(() => {
       boardRef.current?.focus("end");
     });

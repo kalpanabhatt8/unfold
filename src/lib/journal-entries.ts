@@ -12,6 +12,8 @@
  * snapshot on each keystroke.
  */
 
+import { markEntryDirty, recordEntryTombstone } from "@/lib/sync/local-flags";
+
 export const ENTRY_DRAFTS_STORAGE_KEY = "keeps-drafts";
 export const ENTRIES_UPDATED_EVENT = "keeps-recents-updated";
 export const ENTRY_BOARD_STORAGE_PREFIX = "keeps-board-";
@@ -140,6 +142,7 @@ export const upsertEntry = (
 
   drafts[id] = next;
   writeDraftsRaw(drafts);
+  markEntryDirty(id);
   return normalizeEntry(next) ?? next;
 };
 
@@ -148,6 +151,33 @@ export const deleteEntry = (id: string) => {
   if (!(id in drafts)) return;
   delete drafts[id];
   writeDraftsRaw(drafts);
+  recordEntryTombstone(id);
+  if (typeof window !== "undefined") {
+    try {
+      window.localStorage.removeItem(`${ENTRY_BOARD_STORAGE_PREFIX}${id}`);
+    } catch {
+      // ignore storage cleanup errors
+    }
+  }
+};
+
+/**
+ * Apply a server-won copy locally WITHOUT re-marking it dirty — used by the
+ * sync engine so pull-applies don't ping-pong back to the server.
+ */
+export const applyRemoteEntry = (entry: JournalEntry) => {
+  const drafts = readDraftsRaw();
+  drafts[entry.id] = { ...entry };
+  writeDraftsRaw(drafts);
+};
+
+/** Apply a server-side delete locally without recording a new tombstone. */
+export const applyRemoteDelete = (id: string) => {
+  const drafts = readDraftsRaw();
+  if (id in drafts) {
+    delete drafts[id];
+    writeDraftsRaw(drafts);
+  }
   if (typeof window !== "undefined") {
     try {
       window.localStorage.removeItem(`${ENTRY_BOARD_STORAGE_PREFIX}${id}`);

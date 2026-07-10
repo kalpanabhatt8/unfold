@@ -1,14 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import { generatePassageSlots } from "@/lib/ai/pattern-slots/client";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { generatePassageVoiceForPattern } from "@/lib/ai/pattern-slots/client";
 import { buildEvidenceKey } from "@/lib/patterns/evidence-signals";
+import { isVoiceArcShape } from "@/lib/patterns/discovery-arc";
+import { getVoiceGenerationPromise } from "@/lib/patterns/pattern-lifecycle";
 import { getCachedPassage } from "@/lib/patterns/passage-store";
 import {
-  reconcileAllPassages,
-  type ReconcileResult,
-} from "@/lib/patterns/passage-orchestrator";
-import { getState } from "@/lib/patterns/pattern-state";
+  logPassageVoiceReady,
+  logReconcileStart,
+  logVoiceGenerationBatchEnd,
+  logVoiceGenerationBatchStart,
+} from "@/lib/patterns/pattern-timing";
+import { reconcileAllPassages } from "@/lib/patterns/passage-orchestrator";
 import { passageNeedsGeneration } from "@/lib/patterns/passage-types";
 import type { PatternPassage } from "@/lib/patterns/passage-types";
 import type { PatternsAggregate, SurfacedPattern } from "@/lib/patterns/types";
@@ -24,55 +28,99 @@ const evidenceFingerprint = (aggregate: PatternsAggregate): string =>
     .sort()
     .join("|");
 
-let reconcileInflight: {
-  key: string;
-  promise: Promise<Map<PatternName, ReconcileResult>>;
-} | null = null;
-
-const reconcileBatchDeduped = (
+const mergePassageFromCache = (
   surfaced: SurfacedPattern[],
-  now: number,
-): Promise<Map<PatternName, ReconcileResult>> => {
-  const key = surfaced
-    .map((p) => {
-      const lifecycle = getState(p.name)?.lifecycle ?? "";
-      return `${p.name}:${buildEvidenceKey(p.evidence)}:${lifecycle}`;
-    })
-    .sort()
-    .join("|");
+): PatternWithPassage[] =>
+  surfaced.map((p) => ({
+    ...p,
+    passage: getCachedPassage(p.name),
+  }));
 
-  if (reconcileInflight?.key === key) {
-    return reconcileInflight.promise;
-  }
+const passageEvidencePart = (cacheKey: string): string =>
+  cacheKey.split("|")[1] ?? "";
 
-  const promise = Promise.resolve().then(() => {
-    const results = reconcileAllPassages(
-      surfaced.map((p) => ({
-        name: p.name,
-        evidence: p.evidence,
-      })),
-      now,
-    );
-    if (reconcileInflight?.key === key) reconcileInflight = null;
-    return results;
+const EVIDENCE_ONLY_SHAPES = new Set(["bare", "bare_close", "echo", "pair"]);
+
+const mergeReconciledPassages = (
+  surfaced: SurfacedPattern[],
+  reconciled: ReturnType<typeof reconcileAllPassages>,
+): PatternWithPassage[] =>
+  surfaced.map((p) => {
+    const result = reconciled.get(p.name as PatternName);
+    const cached = getCachedPassage(p.name as PatternName);
+    const passage = preferPassage(result?.passage, cached ?? undefined);
+    return { ...p, passage };
   });
 
-  reconcileInflight = { key, promise };
-  return promise;
-};
+/** Don't swap a voice-complete passage for an incomplete replan mid-session. */
+const preferPassage = (
+  next: PatternPassage | null | undefined,
+  current: PatternPassage | null | undefined,
+): PatternPassage | null => {
+  if (!next) return current ?? null;
+  if (!current) return next;
 
-const mergePassageFromCache = (
-  merged: PatternWithPassage[],
-): PatternWithPassage[] =>
-  merged.map((p) => ({
-    ...p,
-    passage: getCachedPassage(p.name) ?? p.passage,
-  }));
+  const sameEvidence =
+    passageEvidencePart(current.cacheKey) === passageEvidencePart(next.cacheKey);
+
+  // Never downgrade discovery to evidence-only.
+  if (
+    sameEvidence &&
+    current.shapeId === "discovery" &&
+    EVIDENCE_ONLY_SHAPES.has(next.shapeId)
+  ) {
+    return current;
+  }
+
+  // Always take a voice-arc upgrade over a complete evidence-only passage.
+  if (
+    sameEvidence &&
+    isVoiceArcShape(next.shapeId) &&
+    EVIDENCE_ONLY_SHAPES.has(current.shapeId)
+  ) {
+    return next;
+  }
+
+  if (
+    !passageNeedsGeneration(current) &&
+    passageNeedsGeneration(next) &&
+    sameEvidence &&
+    current.shapeId === "discovery"
+  ) {
+    return current;
+  }
+
+  if (
+    !passageNeedsGeneration(current) &&
+    passageNeedsGeneration(next) &&
+    sameEvidence
+  ) {
+    return current;
+  }
+
+  if (
+    !passageNeedsGeneration(current) &&
+    !passageNeedsGeneration(next) &&
+    sameEvidence &&
+    isVoiceArcShape(current.shapeId) &&
+    !isVoiceArcShape(next.shapeId)
+  ) {
+    return current;
+  }
+
+  return next;
+};
 
 export function usePatternPassages(
   aggregate: PatternsAggregate | null,
+  /** When set, voice generation runs only for this pattern (detail view). */
+  voiceForPattern?: PatternName,
 ): PatternWithPassage[] {
-  const [patterns, setPatterns] = useState<PatternWithPassage[]>([]);
+  const [patterns, setPatterns] = useState<PatternWithPassage[]>(() =>
+    aggregate?.surfaced.length ? mergePassageFromCache(aggregate.surfaced) : [],
+  );
+  const patternsRef = useRef(patterns);
+  patternsRef.current = patterns;
   const aggregateRef = useRef(aggregate);
   aggregateRef.current = aggregate;
 
@@ -85,10 +133,32 @@ export function usePatternPassages(
   evidenceKeyRef.current = evidenceKey;
   const reconcileGenRef = useRef(0);
 
-  useEffect(() => {
+  // Sync reconcile before paint so reopen reads the same passage as localStorage.
+  useLayoutEffect(() => {
     const current = aggregateRef.current;
     if (!current?.surfaced.length) {
       setPatterns([]);
+      return;
+    }
+
+    const surfaced = current.surfaced;
+    const finishReconcile = logReconcileStart();
+    const reconciled = reconcileAllPassages(
+      surfaced.map((p) => ({
+        name: p.name as PatternName,
+        evidence: p.evidence,
+      })),
+      Date.now(),
+    );
+    finishReconcile();
+
+    const merged = mergeReconciledPassages(surfaced, reconciled);
+    setPatterns(merged);
+  }, [evidenceKey]);
+
+  useEffect(() => {
+    const current = aggregateRef.current;
+    if (!current?.surfaced.length) {
       return;
     }
 
@@ -98,30 +168,26 @@ export function usePatternPassages(
     reconcileGenRef.current = generation;
 
     const run = async () => {
-      console.log("[use-pattern-passages] reconcile", {
-        evidenceKey: keyAtStart,
-        patterns: surfaced.map((p) => p.name),
-      });
+      const merged = mergeReconciledPassages(
+        surfaced,
+        reconcileAllPassages(
+          surfaced.map((p) => ({
+            name: p.name as PatternName,
+            evidence: p.evidence,
+          })),
+          Date.now(),
+        ),
+      );
 
-      const reconciled = await reconcileBatchDeduped(surfaced, Date.now());
-
-      let merged: PatternWithPassage[] = surfaced.map((p) => {
-        const result = reconciled.get(p.name);
-        return {
-          ...p,
-          passage: result?.passage ?? null,
-        };
-      });
-
-      merged = mergePassageFromCache(merged);
-
-      for (const p of merged) {
-        if (!p.passage) continue;
-        console.log(`[use-pattern-passages] ${p.name}`, {
-          shapeId: p.passage.shapeId,
-          lifecycle: p.passage.lifecycle,
-          slotKinds: p.passage.slots.map((s) => s.kind),
-          needsGeneration: passageNeedsGeneration(p.passage),
+      for (const row of merged) {
+        if (!row.passage) continue;
+        const prev = patternsRef.current.find((x) => x.name === row.name)?.passage;
+        logPassageVoiceReady(prev ?? null, row.passage);
+        console.log(`[use-pattern-passages] ${row.name}`, {
+          shapeId: row.passage.shapeId,
+          lifecycle: row.passage.lifecycle,
+          slotKinds: row.passage.slots.map((s) => s.kind),
+          needsGeneration: passageNeedsGeneration(row.passage),
         });
       }
 
@@ -133,6 +199,10 @@ export function usePatternPassages(
         (p) => p.passage && passageNeedsGeneration(p.passage),
       );
 
+      if (voiceForPattern) {
+        pending = pending.filter((p) => p.name === voiceForPattern);
+      }
+
       if (pending.length === 0) {
         console.log("[use-pattern-passages] no generation pending");
         return;
@@ -143,53 +213,58 @@ export function usePatternPassages(
         pending.map((p) => p.name),
       );
 
-      const filled = await generatePassageSlots(
-        pending.map((p) => ({
-          name: p.name as PatternName,
-          passage: p.passage!,
-        })),
+      const batchNames = pending.map((p) => p.name);
+      const batchStart = performance.now();
+      logVoiceGenerationBatchStart(batchNames);
+
+      const filled = new Map<PatternName, PatternPassage>();
+      await Promise.all(
+        pending.map(async (p) => {
+          const name = p.name as PatternName;
+          const inflight = getVoiceGenerationPromise(name);
+          const passage = inflight
+            ? await inflight
+            : await generatePassageVoiceForPattern({
+                name,
+                passage: p.passage!,
+              });
+          filled.set(name, passage);
+        }),
       );
 
-      merged = merged.map((p) => {
-        const next = filled.get(p.name) ?? getCachedPassage(p.name) ?? p.passage;
-        if (next && next !== p.passage) {
-          console.log(`[use-pattern-passages] filled ${p.name}`, {
-            shapeId: next.shapeId,
-            slotKinds: next.slots.map((s) => s.kind),
-            needsGeneration: passageNeedsGeneration(next),
-            voice: next.slots.flatMap((s) => {
-              if (s.kind === "line" && s.text) return [s.text];
-              if (s.kind === "close" && s.text) return [s.text];
-              return [];
-            }),
-          });
-        }
-        return { ...p, passage: next };
+      logVoiceGenerationBatchEnd(batchNames, batchStart);
+
+      const filledMerged = merged.map((p) => {
+        const prev = p.passage;
+        const next =
+          filled.get(p.name as PatternName) ??
+          getCachedPassage(p.name as PatternName) ??
+          p.passage;
+        if (prev && next) logPassageVoiceReady(prev, next);
+        return { ...p, passage: preferPassage(next, prev) };
       });
 
-      // Always apply — fills are persisted to localStorage even if this
-      // effect was superseded by HMR. Skip only when evidence changed.
       if (keyAtStart === evidenceKeyRef.current && generation === reconcileGenRef.current) {
-        setPatterns(merged);
+        setPatterns(filledMerged);
       } else {
         console.log(
           "[use-pattern-passages] evidence changed during generation — cache updated",
         );
       }
 
-      pending = merged.filter(
+      const stillPending = filledMerged.filter(
         (p) => p.passage && passageNeedsGeneration(p.passage),
       );
-      if (pending.length > 0) {
+      if (stillPending.length > 0) {
         console.warn(
           "[use-pattern-passages] voice still incomplete for",
-          pending.map((p) => p.name),
+          stillPending.map((p) => p.name),
         );
       }
     };
 
     void run();
-  }, [evidenceKey]);
+  }, [evidenceKey, voiceForPattern]);
 
   return patterns;
 }

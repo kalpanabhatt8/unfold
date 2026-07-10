@@ -16,6 +16,13 @@ import {
 } from "@/lib/patterns/discovery-arc";
 import { EvidenceSection } from "@/components/patterns/evidence-section";
 import { JournalSnippet } from "@/components/patterns/journal-snippet";
+import { MechanismChain } from "@/components/patterns/mechanism-chain";
+import {
+  logMechanismRendered,
+  logPopoverReady,
+  logQuestionRendered,
+  logQuotesRendered,
+} from "@/lib/patterns/pattern-timing";
 
 export type DiscoveryCanvasProps = {
   arc: DiscoveryArc;
@@ -114,6 +121,33 @@ export function DiscoveryCanvas({
   const headlineFaded =
     evidenceIdx >= 0 ? currentIndex >= evidenceIdx : currentIndex > 0;
 
+  const evidenceVisible =
+    hasReachedPhase(arc, currentIndex, "evidence") &&
+    arc.evidence.visible.length > 0;
+  const mechanismVisible =
+    hasReachedPhase(arc, currentIndex, "mechanism") && arc.mechanism !== null;
+  const questionVisible =
+    hasReachedPhase(arc, currentIndex, "reflection") &&
+    (arc.reflection.quote !== null || arc.reflection.question.trim().length > 0);
+
+  useEffect(() => {
+    if (!evidenceVisible) return;
+    logQuotesRendered(arc.evidence.visible.length);
+    if (arc.evidence.overflow.length > 0) {
+      logPopoverReady(arc.evidence.overflow.length);
+    }
+  }, [evidenceVisible, arc.evidence.visible.length, arc.evidence.overflow.length]);
+
+  useEffect(() => {
+    if (!mechanismVisible || !arc.mechanism?.text.trim()) return;
+    logMechanismRendered();
+  }, [mechanismVisible, arc.mechanism?.text]);
+
+  useEffect(() => {
+    if (!questionVisible) return;
+    logQuestionRendered();
+  }, [questionVisible]);
+
   const age = (phase: DiscoveryPhase) => layerAge(arc, phase, currentIndex);
 
   const handleContinue = useCallback(() => {
@@ -190,27 +224,18 @@ export function DiscoveryCanvas({
             </Layer>
           ) : null}
 
-          {hasReachedPhase(arc, currentIndex, "recognition") &&
-          arc.recognition.question.trim() ? (
+          {hasReachedPhase(arc, currentIndex, "mechanism") &&
+          arc.mechanism ? (
             <Layer
-              phase="recognition"
-              age={age("recognition")}
-              isFocus={focusPhase === "recognition"}
+              phase="mechanism"
+              age={age("mechanism")}
+              isFocus={focusPhase === "mechanism"}
               focusRef={focusRef}
             >
-              <p className="discovery-question">{arc.recognition.question}</p>
-            </Layer>
-          ) : null}
-
-          {hasReachedPhase(arc, currentIndex, "observation") &&
-          arc.observation ? (
-            <Layer
-              phase="observation"
-              age={age("observation")}
-              isFocus={focusPhase === "observation"}
-              focusRef={focusRef}
-            >
-              <p className="discovery-observation">{arc.observation.text}</p>
+              <MechanismChain
+                text={arc.mechanism.text}
+                animate={focusPhase === "mechanism"}
+              />
             </Layer>
           ) : null}
 

@@ -36,12 +36,22 @@ export type PatternPassage = {
   createdAt: number;
 };
 
-/** Cache key: evidence fingerprint + lifecycle + composition signature. */
+/**
+ * Bump when the voice contract or evidence selection changes in a way that
+ * makes previously cached passages wrong (they regenerate once per pattern).
+ * v2: observation beat replaced by shape beat; evidence selection dedup.
+ * v3: shape beat replaced by mechanism generation (event chain, 2–4 sentences).
+ * v4: evidence selection prioritizes inner experience over keyword confidence.
+ */
+const PASSAGE_CACHE_VERSION = "v4";
+
+/** Cache key: version + evidence fingerprint + lifecycle + composition signature. */
 export const buildPassageCacheKey = (
   evidenceKey: string,
   lifecycle: Lifecycle,
   signature: string,
-): string => `${evidenceKey}|${lifecycle}|${signature}`;
+): string =>
+  `${PASSAGE_CACHE_VERSION}|${evidenceKey}|${lifecycle}|${signature}`;
 
 export const passageNeedsGeneration = (passage: PatternPassage): boolean =>
   passage.slots.some(

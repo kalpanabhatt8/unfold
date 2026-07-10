@@ -20,6 +20,9 @@ export type AnalysisPayload = {
 /** What we persist per completed entry (minimal V1 shape). */
 export type EntryAnalysis = {
   entryId: string;
+  /** Fingerprint of the text this analysis was generated from — when the
+   * entry's current hash drifts, the analysis is stale and may re-run. */
+  sourceContentHash?: string;
 } & AnalysisPayload;
 
 /** What fired the completion trigger. Wiring-only; not persisted. */

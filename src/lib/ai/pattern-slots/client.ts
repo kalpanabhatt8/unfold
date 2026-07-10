@@ -5,12 +5,17 @@ import {
   type PatternPassage,
 } from "@/lib/patterns/passage-types";
 import {
+  logVoiceFetchEnd,
+  logVoiceFetchStart,
+} from "@/lib/patterns/pattern-timing";
+import {
   PATTERN_DEFINITIONS,
   PATTERN_LABELS,
   type PatternName,
 } from "@/lib/patterns/vocabulary";
 import { SLOT_CLIENT_TIMEOUT_MS } from "@/lib/ai/pattern-slots/constants";
 import { buildSlotGenerationInput } from "@/lib/ai/pattern-slots/input";
+import { trackVoiceGeneration } from "@/lib/patterns/pattern-lifecycle";
 
 const inflight = new Map<string, Promise<PatternPassage>>();
 
@@ -36,6 +41,7 @@ async function fetchPatternSlotFillsOnce(
 
   if (!input) return passage;
 
+  const finishVoice = logVoiceFetchStart(passage);
   const controller = new AbortController();
   const timeoutId = window.setTimeout(
     () => controller.abort(),
@@ -63,7 +69,9 @@ async function fetchPatternSlotFillsOnce(
         res.status,
         errText.slice(0, 200),
       );
-      return applySlotFills(passage, []);
+      const empty = applySlotFills(passage, []);
+      logVoiceFetchEnd(passage, empty);
+      return empty;
     }
 
     const body = (await res.json()) as {
@@ -80,6 +88,7 @@ async function fetchPatternSlotFillsOnce(
     }
 
     const filled = applySlotFills(passage, body.fills ?? []);
+    logVoiceFetchEnd(passage, filled);
 
     // Persist every round — including partial fills — so HMR / remounts
     // can resume from cache instead of losing completed voice slots.
@@ -102,8 +111,11 @@ async function fetchPatternSlotFillsOnce(
     return filled;
   } catch (error) {
     console.warn("[pattern-slots] generation failed", error);
-    return applySlotFills(passage, []);
+    const empty = applySlotFills(passage, []);
+    logVoiceFetchEnd(passage, empty);
+    return empty;
   } finally {
+    finishVoice();
     window.clearTimeout(timeoutId);
   }
 }
@@ -162,4 +174,15 @@ export async function generatePassageSlots(
   }
 
   return results;
+}
+
+/** Generate voice for one pattern — reattaches if a batch is already in flight. */
+export async function generatePassageVoiceForPattern(
+  target: PassageGenerationTarget,
+): Promise<PatternPassage> {
+  const run = async (): Promise<PatternPassage> => {
+    const results = await generatePassageSlots([target]);
+    return results.get(target.name) ?? target.passage;
+  };
+  return trackVoiceGeneration(target.name, run());
 }

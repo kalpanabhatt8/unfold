@@ -41,10 +41,13 @@ export function JournalSnippet({
       className={`journal-snippet ${compact ? "journal-snippet--compact" : ""}`}
     >
       <p className="reflection-body">&ldquo;{quote.text}&rdquo;</p>
-      <p className="reflection-meta mt-3 tabular-nums">
+      <p className="journal-snippet__context reflection-meta mt-3 tabular-nums">
         {formatDay(quote.anchorTs)}
         {dayPart ? ` · ${dayPart}` : ""}
-        <span className="text-(--sidebar-ink-soft)/80"> · {quote.entryTitle}</span>
+        <span className="journal-snippet__entry-title">
+          {" "}
+          · {quote.entryTitle}
+        </span>
       </p>
     </div>
   );

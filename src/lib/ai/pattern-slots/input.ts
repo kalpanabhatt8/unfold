@@ -3,9 +3,8 @@ import {
   SLOT_MAX_QUOTES,
 } from "@/lib/ai/pattern-slots/constants";
 import type { PatternPassage, PassageSlot } from "@/lib/patterns/passage-types";
-import { DISCOVERY_SHAPE_ID } from "@/lib/patterns/discovery-arc";
 
-export type VoiceSlotRole = "recognition" | "observation" | "reflection";
+export type VoiceSlotRole = "mechanism" | "reflection";
 
 export type VoiceSlotRequest = {
   index: number;
@@ -45,14 +44,6 @@ const quoteTextsFromSlot = (slot: PassageSlot): string[] => {
   }
 };
 
-const isDiscoveryShape = (shapeId: string): boolean =>
-  shapeId === DISCOVERY_SHAPE_ID;
-
-const isLegacyRecognitionShape = (shapeId: string): boolean =>
-  shapeId === "recognition" ||
-  shapeId === "recognition_q" ||
-  shapeId === "recognition_deep";
-
 /** Collect voice slots that still need Claude, with preceding evidence context. */
 export function buildSlotGenerationInput(
   passage: PatternPassage,
@@ -62,24 +53,13 @@ export function buildSlotGenerationInput(
   const voiceSlots: VoiceSlotRequest[] = [];
   const priorVoice: PriorVoiceSlot[] = [];
   const seenQuotes: string[] = [];
-  let lineIndex = 0;
-  const totalLines = passage.slots.filter((s) => s.kind === "line").length;
-  const legacyRecognition = isLegacyRecognitionShape(passage.shapeId);
 
   passage.slots.forEach((slot, index) => {
     const texts = quoteTextsFromSlot(slot);
     if (texts.length > 0) seenQuotes.push(...texts);
 
     if (slot.kind === "line") {
-      lineIndex += 1;
-      let role: VoiceSlotRole;
-      if (isDiscoveryShape(passage.shapeId)) {
-        role = lineIndex === 1 ? "recognition" : "observation";
-      } else if (legacyRecognition) {
-        role = lineIndex === totalLines ? "observation" : "recognition";
-      } else {
-        role = "observation";
-      }
+      const role: VoiceSlotRole = "mechanism";
 
       if (slot.text) {
         priorVoice.push({ index, role, text: slot.text });

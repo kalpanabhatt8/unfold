@@ -94,21 +94,20 @@ export function PatternListItem({
       ) : (
         <div className="flex flex-col gap-2">
           {title ? (
-            <h2
+            <p
               className="text-[0.9375rem] font-semibold leading-snug tracking-tight text-(--sidebar-active-ink) sm:text-base"
-              style={{ fontFamily: "var(--font-heading)" }}
             >
               {title}
-            </h2>
+            </p>
           ) : (
-            <h2 className="text-[0.9375rem] font-semibold leading-snug text-(--sidebar-ink-soft) sm:text-base">
+            <p className="text-[0.9375rem] font-semibold leading-snug text-(--sidebar-ink-soft) sm:text-base">
               {label}
-            </h2>
+            </p>
           )}
 
           {quote ? (
             <p
-              className="line-clamp-2 text-[0.8125rem] leading-relaxed text-(--sidebar-ink)"
+              className="line-clamp-2 text-[0.9rem] leading-relaxed text-(--canvas-ink-secondary)!"
               style={{ fontFamily: "var(--font-lora)" }}
             >
               &ldquo;{quote}&rdquo;
@@ -117,11 +116,11 @@ export function PatternListItem({
 
           <div className="mt-0.5 flex items-baseline justify-between gap-4">
             <p className="min-w-0 text-[0.6875rem] leading-relaxed tracking-[0.01em] text-(--sidebar-ink-soft)">
-              {metaParts.join(" · ")}
+              {metaParts.join("  ·  ")}
             </p>
-            <span className="shrink-0 text-[0.75rem] text-(--sidebar-icon) transition-colors duration-150 group-hover:text-(--sidebar-ink)">
+            {/* <span className="shrink-0 text-[0.75rem] text-(--sidebar-icon) transition-colors duration-150 group-hover:text-(--sidebar-ink)">
               Open →
-            </span>
+            </span> */}
           </div>
         </div>
       )}

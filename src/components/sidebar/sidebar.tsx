@@ -20,14 +20,13 @@ import {
   iconStroke,
 } from "@/components/ui/button-system";
 import {
-  createEntryId,
   deleteEntry,
   ENTRIES_UPDATED_EVENT,
   ENTRY_DRAFTS_STORAGE_KEY,
   readAllEntries,
-  upsertEntry,
   type JournalEntry,
 } from "@/lib/journal-entries";
+import { resolveNewEntryTarget } from "@/lib/entry-draft";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useSurfacedPatterns } from "@/hooks/use-surfaced-patterns";
 import { PatternsSidebarLink } from "@/components/sidebar/patterns-sidebar-link";
@@ -160,8 +159,7 @@ export function Sidebar() {
       : "Anonymous";
 
   const handleNewEntry = () => {
-    const id = createEntryId();
-    upsertEntry(id, { title: "" });
+    const { id } = resolveNewEntryTarget();
     router.push(`/dashboard/journal/${id}?new=1`);
   };
 
@@ -178,8 +176,7 @@ export function Sidebar() {
       return;
     }
 
-    const newId = createEntryId();
-    upsertEntry(newId, { title: "" });
+    const { id: newId } = resolveNewEntryTarget();
     router.replace(`/dashboard/journal/${newId}?new=1`);
   };
 

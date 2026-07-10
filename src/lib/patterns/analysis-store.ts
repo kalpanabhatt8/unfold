@@ -9,6 +9,7 @@
  */
 
 import type { EntryAnalysis } from "@/lib/patterns/types";
+import { markPatternsDirty } from "@/lib/sync/local-flags";
 
 export const ENTRY_ANALYSES_STORAGE_KEY = "keeps-entry-analyses";
 export const ANALYSES_UPDATED_EVENT = "keeps-analyses-updated";
@@ -83,6 +84,7 @@ export const putAnalysis = (analysis: EntryAnalysis): void => {
   const map = readAll();
   map[analysis.entryId] = analysis;
   writeAll(map);
+  markPatternsDirty();
 };
 
 export const deleteAnalysis = (entryId: string): void => {
@@ -90,4 +92,5 @@ export const deleteAnalysis = (entryId: string): void => {
   if (!(entryId in map)) return;
   delete map[entryId];
   writeAll(map);
+  markPatternsDirty();
 };

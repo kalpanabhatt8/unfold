@@ -19,6 +19,7 @@
  */
 
 import { isPatternName, type PatternName } from "@/lib/patterns/vocabulary";
+import { markPatternsDirty } from "@/lib/sync/local-flags";
 
 export const PATTERN_STATE_STORAGE_KEY = "keeps-pattern-state";
 
@@ -206,6 +207,7 @@ export const putState = (state: PatternState): void => {
   const map = readAll();
   map[state.name] = state;
   writeAll(map);
+  markPatternsDirty();
 };
 
 /**

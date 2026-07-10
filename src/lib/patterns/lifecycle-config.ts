@@ -56,6 +56,6 @@ export const PAIR_MIN_GAP_DAYS = 14;
 /** Half-life for quote-selection recency weight (may match HALF_LIFE_DAYS). */
 export const QUOTE_SELECTION_HALF_LIFE_DAYS = 21;
 
-/** Weighted blend for ranking quotes: score = wC·confidence + wR·recency. */
+/** Weighted blend for legacy ranking — passage quote selection now uses innerExperienceScore in evidence-signals.ts. */
 export const QUOTE_CONFIDENCE_WEIGHT = 0.6;
 export const QUOTE_RECENCY_WEIGHT = 0.4;
