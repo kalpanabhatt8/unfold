@@ -2,6 +2,7 @@ import {
   SLOT_MAX_QUOTE_CHARS,
   SLOT_MAX_QUOTES,
 } from "@/lib/ai/pattern-slots/constants";
+import type { QuoteRef } from "@/lib/patterns/evidence-signals";
 import type { PatternPassage, PassageSlot } from "@/lib/patterns/passage-types";
 
 export type VoiceSlotRole = "mechanism" | "reflection";
@@ -25,24 +26,72 @@ export type SlotGenerationInput = {
   patternName: string;
   label: string;
   definition: string;
+  /** Chronological evidence quotes (index 1 in the prompt = quotes[0]). */
   quotes: string[];
   voiceSlots: VoiceSlotRequest[];
   shapeId: string;
   priorVoice: PriorVoiceSlot[];
 };
 
-const quoteTextsFromSlot = (slot: PassageSlot): string[] => {
+const quoteRefsFromSlot = (slot: PassageSlot): QuoteRef[] => {
   switch (slot.kind) {
     case "moments":
-      return slot.quotes.map((q) => q.text);
+      return slot.quotes;
     case "pair":
-      return slot.quotes.map((q) => q.text);
+      return [...slot.quotes];
     case "echo":
-      return slot.quotes.map((q) => q.text);
+      return slot.quotes;
     default:
       return [];
   }
 };
+
+const quoteTextsFromSlot = (slot: PassageSlot): string[] =>
+  quoteRefsFromSlot(slot).map((q) => q.text);
+
+/**
+ * Chronological unique QuoteRefs for Loop generation / evidence display.
+ * Order matches prompt indexes (1-based): quotes[0] is index 1.
+ */
+export const chronologicalQuoteRefs = (
+  slotsOrPassage: PassageSlot[] | PatternPassage,
+): QuoteRef[] => {
+  const slots = Array.isArray(slotsOrPassage)
+    ? slotsOrPassage
+    : slotsOrPassage.slots;
+
+  const refs: QuoteRef[] = [];
+  for (const slot of slots) {
+    refs.push(...quoteRefsFromSlot(slot));
+  }
+
+  const sorted = [...refs].sort((a, b) => {
+    if (a.anchorTs !== b.anchorTs) return a.anchorTs - b.anchorTs;
+    return a.entryId.localeCompare(b.entryId);
+  });
+
+  const seen = new Set<string>();
+  const out: QuoteRef[] = [];
+  for (const q of sorted) {
+    const key = `${q.entryId}\0${q.text.trim()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const t = q.text.trim();
+    if (!t) continue;
+    out.push(q);
+    if (out.length >= SLOT_MAX_QUOTES) break;
+  }
+  return out;
+};
+
+/** Chronological unique quote texts for Loop generation (earliest first). */
+export const chronologicalQuoteTexts = (passage: PatternPassage): string[] =>
+  chronologicalQuoteRefs(passage).map((q) => {
+    const t = q.text.trim();
+    return t.length > SLOT_MAX_QUOTE_CHARS
+      ? t.slice(0, SLOT_MAX_QUOTE_CHARS).trim()
+      : t;
+  });
 
 /** Collect voice slots that still need Claude, with preceding evidence context. */
 export function buildSlotGenerationInput(
@@ -96,19 +145,7 @@ export function buildSlotGenerationInput(
 
   if (voiceSlots.length === 0) return null;
 
-  const allQuotes = [
-    ...new Set(
-      passage.slots.flatMap(quoteTextsFromSlot).map((q) => q.trim()),
-    ),
-  ]
-    .filter(Boolean)
-    .map((q) =>
-      q.length > SLOT_MAX_QUOTE_CHARS
-        ? q.slice(0, SLOT_MAX_QUOTE_CHARS).trim()
-        : q,
-    )
-    .slice(0, SLOT_MAX_QUOTES);
-
+  const allQuotes = chronologicalQuoteTexts(passage);
   if (allQuotes.length === 0) return null;
 
   return {

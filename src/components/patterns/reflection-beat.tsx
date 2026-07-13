@@ -6,7 +6,7 @@ import { JournalSnippet } from "@/components/patterns/journal-snippet";
 
 export type ReflectionBeatProps = {
   beat: ReflectionBeat;
-  onOpenEntry: (entryId: string) => void;
+  onOpenEntry: (entryId: string, quoteText?: string) => void;
 };
 
 /** Main reading content — uniform typography on every beat. */

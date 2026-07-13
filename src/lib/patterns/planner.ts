@@ -10,6 +10,11 @@
  */
 
 import {
+  hasOpenQuestion,
+  selectClosingSignal,
+  type ClosingSignal,
+} from "@/lib/patterns/closing-signals";
+import {
   buildEvidenceKey,
   deriveEvidenceSignals,
   type EvidenceSignals,
@@ -39,7 +44,8 @@ export type SlotSpec =
   | { kind: "moments"; quotes: QuoteRef[] }
   | { kind: "pair"; quotes: [QuoteRef, QuoteRef] }
   | { kind: "echo"; phrase: string; quotes: QuoteRef[] }
-  | { kind: "line" }
+  /** Prefill `text` for deterministic closings (e.g. silence) — skips AI. */
+  | { kind: "line"; text?: string }
   | { kind: "close"; endingKind: Exclude<EndingKind, "none"> };
 
 export type PatternPlan = {
@@ -173,11 +179,14 @@ const SHAPES: ShapeDef[] = [
     eligible: ({ evidenceSignals }) => evidenceSignals.hasEcho,
   },
   {
-    // Guided discovery: evidence pool, mechanism line (event chain), reflection question.
+    // Guided discovery: moments + one closing signal (silence/drift/phrase/
+    // mechanism/none). Reflection question is appended only when the user's
+    // own writing already holds an open question — never by default.
+    // slotKinds here are a template; materializeDiscoverySlots replaces them.
     id: "discovery",
-    slotKinds: ["moments", "line", "close:question"],
+    slotKinds: ["moments", "line"],
     depthTier: "recognition",
-    endingKind: "question",
+    endingKind: "line",
     eligible: ({ lifecycle, evidenceSignals }) =>
       evidenceSignals.selectedQuotes.length >= 3 &&
       lifecycle !== "resting" &&
@@ -231,6 +240,14 @@ export const signatureForShape = (shape: {
 }): string => `${shape.slotKinds.join(",")}|${shape.depthTier}|${shape.endingKind}`;
 
 const signatureFor = signatureForShape;
+
+/** Discovery signatures encode the chosen closing signal, not a fixed template. */
+export const signatureForDiscovery = (
+  signatureKinds: string[],
+  depthTier: DepthTier,
+  endingKind: EndingKind,
+): string =>
+  `${signatureKinds.join(",")}|${depthTier}|${endingKind}`;
 
 const rankCandidate = (shape: ShapeDef, ctx: PlannerContext): number => {
   if (ctx.lifecycle === "returning" && shape.id.startsWith("pair")) return 0;
@@ -405,10 +422,68 @@ const tokenFrom = (text: string): string => {
   return match?.[0] ?? text.slice(0, 12);
 };
 
+/**
+ * Build discovery slots from the strongest closing signal present in the data.
+ * Only one closing form is used. Reflection is optional and rare.
+ */
+export const materializeDiscoverySlots = (
+  evidenceSignals: EvidenceSignals,
+  signal: ClosingSignal = selectClosingSignal(evidenceSignals),
+): { slots: SlotSpec[]; endingKind: EndingKind; signatureKinds: string[] } => {
+  const { selectedQuotes } = evidenceSignals;
+  const slots: SlotSpec[] = [
+    { kind: "moments", quotes: sortChronological(selectedQuotes) },
+  ];
+  const signatureKinds: string[] = ["moments"];
+
+  switch (signal.kind) {
+    case "silence":
+      // Prefill — no AI. Materializer copies text onto the line slot.
+      slots.push({ kind: "line", text: signal.text });
+      signatureKinds.push("silence");
+      break;
+    case "drift":
+      slots.push({ kind: "pair", quotes: [signal.early, signal.recent] });
+      signatureKinds.push("drift");
+      break;
+    case "phrase":
+      slots.push({
+        kind: "echo",
+        phrase: signal.phrase,
+        quotes: signal.quotes,
+      });
+      signatureKinds.push("phrase");
+      break;
+    case "mechanism":
+      slots.push({ kind: "line" });
+      signatureKinds.push("mechanism");
+      break;
+    case "none":
+      break;
+  }
+
+  let endingKind: EndingKind =
+    signal.kind === "mechanism" || signal.kind === "silence"
+      ? "line"
+      : "none";
+
+  if (hasOpenQuestion(selectedQuotes)) {
+    slots.push({ kind: "close", endingKind: "question" });
+    signatureKinds.push("close:question");
+    endingKind = "question";
+  }
+
+  return { slots, endingKind, signatureKinds };
+};
+
 export const materializePlanSlots = (
   shape: ShapeDef,
   evidenceSignals: EvidenceSignals,
 ): SlotSpec[] => {
+  if (shape.id === "discovery") {
+    return materializeDiscoverySlots(evidenceSignals).slots;
+  }
+
   const { selectedQuotes, pair, echo } = evidenceSignals;
   const momentsCount = shape.slotKinds.filter((k) => k === "moments").length;
   const momentsGroups =
@@ -504,6 +579,20 @@ export function pickPlannedShape(
     seed,
   );
 
+  if (shape.id === "discovery") {
+    const composed = materializeDiscoverySlots(advanced.evidenceSignals);
+    return {
+      shapeId: shape.id,
+      signature: signatureForDiscovery(
+        composed.signatureKinds,
+        shape.depthTier,
+        composed.endingKind,
+      ),
+      depthTier: shape.depthTier,
+      endingKind: composed.endingKind,
+    };
+  }
+
   return {
     shapeId: shape.id,
     signature: signatureFor(shape),
@@ -530,6 +619,27 @@ export function createPlan(
     ctx.neighbors,
     seed,
   );
+
+  if (shape.id === "discovery") {
+    const composed = materializeDiscoverySlots(advanced.evidenceSignals);
+    const signature = signatureForDiscovery(
+      composed.signatureKinds,
+      shape.depthTier,
+      composed.endingKind,
+    );
+    const plan: PatternPlan = {
+      shapeId: shape.id,
+      signature,
+      depthTier: shape.depthTier,
+      endingKind: composed.endingKind,
+      lifecycle: advanced.lifecycle,
+      slots: composed.slots,
+      quotes: advanced.evidenceSignals.selectedQuotes,
+    };
+    const state = withPlan(advanced.state, signature, composed.endingKind, ctx.now);
+    return { plan, state };
+  }
+
   const signature = signatureFor(shape);
 
   const plan: PatternPlan = {
@@ -570,21 +680,26 @@ export function createDiscoveryPlan(
   };
   if (!shape.eligible(plannerCtx)) return null;
 
-  const signature = signatureFor(shape);
+  const composed = materializeDiscoverySlots(advanced.evidenceSignals);
+  const signature = signatureForDiscovery(
+    composed.signatureKinds,
+    shape.depthTier,
+    composed.endingKind,
+  );
   const plan: PatternPlan = {
     shapeId: shape.id,
     signature,
     depthTier: shape.depthTier,
-    endingKind: shape.endingKind,
+    endingKind: composed.endingKind,
     lifecycle: advanced.lifecycle,
-    slots: materializePlanSlots(shape, advanced.evidenceSignals),
+    slots: composed.slots,
     quotes: advanced.evidenceSignals.selectedQuotes,
   };
 
   const state = withPlan(
     advanced.state,
     signature,
-    shape.endingKind,
+    composed.endingKind,
     ctx.now,
   );
 

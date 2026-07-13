@@ -183,12 +183,6 @@ export function usePatternPassages(
         if (!row.passage) continue;
         const prev = patternsRef.current.find((x) => x.name === row.name)?.passage;
         logPassageVoiceReady(prev ?? null, row.passage);
-        console.log(`[use-pattern-passages] ${row.name}`, {
-          shapeId: row.passage.shapeId,
-          lifecycle: row.passage.lifecycle,
-          slotKinds: row.passage.slots.map((s) => s.kind),
-          needsGeneration: passageNeedsGeneration(row.passage),
-        });
       }
 
       if (keyAtStart === evidenceKeyRef.current && generation === reconcileGenRef.current) {
@@ -204,14 +198,8 @@ export function usePatternPassages(
       }
 
       if (pending.length === 0) {
-        console.log("[use-pattern-passages] no generation pending");
         return;
       }
-
-      console.log(
-        "[use-pattern-passages] generating voice for",
-        pending.map((p) => p.name),
-      );
 
       const batchNames = pending.map((p) => p.name);
       const batchStart = performance.now();
@@ -246,20 +234,6 @@ export function usePatternPassages(
 
       if (keyAtStart === evidenceKeyRef.current && generation === reconcileGenRef.current) {
         setPatterns(filledMerged);
-      } else {
-        console.log(
-          "[use-pattern-passages] evidence changed during generation — cache updated",
-        );
-      }
-
-      const stillPending = filledMerged.filter(
-        (p) => p.passage && passageNeedsGeneration(p.passage),
-      );
-      if (stillPending.length > 0) {
-        console.warn(
-          "[use-pattern-passages] voice still incomplete for",
-          stillPending.map((p) => p.name),
-        );
       }
     };
 

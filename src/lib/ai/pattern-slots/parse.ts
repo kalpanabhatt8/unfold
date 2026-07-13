@@ -1,9 +1,54 @@
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null;
 
-export type ParsedSlotFill = { index: number; text: string };
+/** One Loop sentence with supporting evidence quote indexes (1-based). */
+export type LoopStepFill = {
+  text: string;
+  /** 1-based indexes into the chronological evidence quote list. */
+  quoteIndexes: number[];
+};
 
-/** Parse `[{"index":1,"text":"..."}]` from model output. */
+export type ParsedSlotFill = {
+  index: number;
+  text: string;
+  /** Present on Loop/mechanism fills — retained for user-facing evidence. */
+  steps?: LoopStepFill[];
+};
+
+const parseQuoteIndexes = (raw: unknown): number[] => {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((n): n is number => typeof n === "number" && Number.isFinite(n))
+    .map((n) => Math.trunc(n))
+    .filter((n) => n >= 1);
+};
+
+const parseSteps = (raw: unknown): LoopStepFill[] | undefined => {
+  if (!Array.isArray(raw)) return undefined;
+  const steps: LoopStepFill[] = [];
+  for (const item of raw) {
+    if (!isRecord(item)) continue;
+    const text = typeof item.text === "string" ? item.text.trim() : "";
+    if (!text) continue;
+    steps.push({
+      text,
+      quoteIndexes: parseQuoteIndexes(item.quoteIndexes),
+    });
+  }
+  return steps.length > 0 ? steps : undefined;
+};
+
+const joinSteps = (steps: LoopStepFill[]): string =>
+  steps
+    .map((s) => {
+      const t = s.text.trim();
+      if (!t) return "";
+      return /[.!?]$/.test(t) ? t : `${t}.`;
+    })
+    .filter(Boolean)
+    .join(" ");
+
+/** Parse `[{"index":1,"text":"...","steps":[...]}]` from model output. */
 export function parseSlotResponse(raw: string): ParsedSlotFill[] | null {
   const trimmed = raw.trim();
   const start = trimmed.indexOf("[");
@@ -18,9 +63,14 @@ export function parseSlotResponse(raw: string): ParsedSlotFill[] | null {
     for (const item of parsed) {
       if (!isRecord(item)) continue;
       const index = item.index;
-      const text = typeof item.text === "string" ? item.text.trim() : "";
-      if (typeof index !== "number" || !text) continue;
-      fills.push({ index, text });
+      if (typeof index !== "number") continue;
+
+      const steps = parseSteps(item.steps);
+      let text = typeof item.text === "string" ? item.text.trim() : "";
+      if (!text && steps) text = joinSteps(steps);
+      if (!text) continue;
+
+      fills.push(steps ? { index, text, steps } : { index, text });
     }
 
     return fills.length > 0 ? fills : null;

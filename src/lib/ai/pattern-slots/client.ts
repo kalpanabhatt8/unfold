@@ -75,7 +75,11 @@ async function fetchPatternSlotFillsOnce(
     }
 
     const body = (await res.json()) as {
-      fills: Array<{ index: number; text: string }>;
+      fills: Array<{
+        index: number;
+        text: string;
+        steps?: Array<{ text: string; quoteIndexes: number[] }>;
+      }>;
       rejected?: Array<{ index: number; text: string; reason: string }>;
     };
 

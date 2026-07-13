@@ -15,11 +15,13 @@ import Placeholder from "@tiptap/extension-placeholder";
 import type { TextBlockKind, JournalTextBlock } from "@/components/canvas/canvas-board";
 import { JournalBlock } from "@/components/canvas/extensions/journal-block";
 import { JournalMaxBlocks } from "@/components/canvas/extensions/journal-max-blocks";
+import { JournalQuoteHighlight } from "@/components/canvas/extensions/journal-quote-highlight";
 import { applyBlockKind } from "@/lib/journal-blocks";
 import {
   blocksToDoc,
   docToBlocks,
 } from "@/lib/journal-blocks-bridge";
+import { findQuoteRange } from "@/lib/journal-quote-focus";
 
 const JournalDocument = Document.extend({
   content: "journalBlock+",
@@ -38,6 +40,14 @@ export type JournalTiptapEditorHandle = {
   getActiveBlockId: () => string | null;
   getSelectionRect: () => DOMRect | null;
   getSelectedTextLength: () => number;
+  /** Highlight a Patterns quote; returns the range when found. */
+  highlightQuote: (quote: string) => { from: number; to: number } | null;
+  clearQuoteHighlight: () => void;
+  /** Viewport coords for a doc range (for scrolling the writing column). */
+  getRangeCoords: (
+    from: number,
+    to: number,
+  ) => { top: number; bottom: number } | null;
 };
 
 type JournalTiptapEditorProps = {
@@ -104,6 +114,7 @@ export const JournalTiptapEditor = forwardRef<
       History,
       JournalBlock,
       JournalMaxBlocks,
+      JournalQuoteHighlight,
       Placeholder.configure({
         showOnlyCurrent: true,
         includeChildren: false,
@@ -255,6 +266,29 @@ export const JournalTiptapEditor = forwardRef<
         if (!editor) return 0;
         const { from, to } = editor.state.selection;
         return Math.abs(to - from);
+      },
+      highlightQuote(quote: string) {
+        if (!editor) return null;
+        const range = findQuoteRange(editor.state.doc, quote);
+        if (!range) return null;
+        editor.commands.setQuoteHighlight(range);
+        return range;
+      },
+      clearQuoteHighlight() {
+        editor?.commands.clearQuoteHighlight();
+      },
+      getRangeCoords(from: number, to: number) {
+        if (!editor) return null;
+        try {
+          const start = editor.view.coordsAtPos(from);
+          const end = editor.view.coordsAtPos(to);
+          return {
+            top: Math.min(start.top, end.top),
+            bottom: Math.max(start.bottom, end.bottom),
+          };
+        } catch {
+          return null;
+        }
       },
     }),
     [editor]

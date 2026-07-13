@@ -755,6 +755,41 @@ input[type='number'] {
   display: inline;
 }
 
+/* Patterns → Journal: temporary tint on the quoted passage. */
+.journal-quote-highlight {
+  background-color: color-mix(in srgb, var(--sidebar-active-bg) 88%, #c9a8b4 12%);
+  padding: 0.25rem 0rem;
+  border-radius: 0.15em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  animation: journal-quote-highlight-fade 20s ease forwards;
+}
+
+@keyframes journal-quote-highlight-fade {
+  0%,
+  92.5% {
+    background-color: color-mix(
+      in srgb,
+      var(--sidebar-active-bg) 88%,
+      #c9a8b4 12%
+    );
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .journal-quote-highlight {
+    animation: none;
+    background-color: color-mix(
+      in srgb,
+      var(--sidebar-active-bg) 70%,
+      transparent
+    );
+  }
+}
+
 /* —— Journal seal — top-left → bottom-right aurora sweep — */
 
 [data-writing-zone] {
@@ -984,15 +1019,28 @@ input[type='number'] {
  *   recognition + reflection        = contemplation, the visual focus
  */
 .discovery-question {
+  --q-scale: 0;
+  --q-size-reading: 1.0625rem;
+  --q-size-display: 2.75rem;
+  --q-display-boost: calc((1 - var(--q-scale)) * 1.6875rem);
+
   font-family: var(--font-lora);
-  font-size: clamp(1.875rem, 4.5vw, 2.75rem);
   font-weight: 400;
-  line-height: 1.42;
-  letter-spacing: -0.02em;
+  letter-spacing: calc(-0.02em + var(--q-scale) * 0.01em);
   color: var(--sidebar-ink);
-  /* Narrow measure so the question wraps and slows the reading pace. */
-  max-width: 21ch;
+  /* Short lines stay large; long passages scale down smoothly via --q-scale. */
+  font-size: clamp(
+    var(--q-size-reading),
+    calc(var(--q-size-reading) + var(--q-display-boost) + (1 - var(--q-scale)) * 2.5vw),
+    calc(var(--q-size-reading) + var(--q-display-boost))
+  );
+  line-height: calc(1.72 + (1 - var(--q-scale)) * -0.3);
+  max-width: calc(21ch + var(--q-scale) * 15ch);
   text-wrap: balance;
+}
+
+.discovery-question[data-reading="true"] {
+  text-wrap: pretty;
 }
 
 .discovery-observation {
@@ -1006,6 +1054,119 @@ input[type='number'] {
 
 .discovery-question--final {
   color: var(--sidebar-active-ink);
+}
+
+.discovery-mechanism-chain {
+  --mechanism-rail-width: 10px;
+  --mechanism-dot-size: 5px;
+  --mechanism-step-gap: 0.875rem;
+  --mechanism-line-height: 1.5rem;
+  --mechanism-line-color: color-mix(
+    in srgb,
+    var(--sidebar-ink-soft) 28%,
+    transparent
+  );
+  --mechanism-dot-color: color-mix(
+    in srgb,
+    var(--sidebar-ink-soft) 52%,
+    transparent
+  );
+
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-width: 34rem;
+}
+
+.discovery-mechanism-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.discovery-mechanism-step-row,
+.discovery-mechanism-gap {
+  display: grid;
+  grid-template-columns: var(--mechanism-rail-width) 1fr;
+  column-gap: 0.875rem;
+}
+
+.discovery-mechanism-chain[data-animate="true"] .discovery-mechanism-item {
+  animation: discovery-reveal 550ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.discovery-mechanism-rail {
+  display: flex;
+  justify-content: center;
+}
+
+.discovery-mechanism-step-row .discovery-mechanism-rail {
+  padding-top: 0.8em;
+}
+
+.discovery-mechanism-dot {
+  flex-shrink: 0;
+  width: var(--mechanism-dot-size);
+  height: var(--mechanism-dot-size);
+  border-radius: 50%;
+  background: var(--mechanism-dot-color);
+}
+
+/* Breathing room → line → breathing room, between steps only */
+.discovery-mechanism-gap .discovery-mechanism-rail {
+  flex-direction: column;
+  align-items: center;
+  padding: 0;
+}
+
+.discovery-mechanism-line {
+  flex-shrink: 0;
+  width: 1px;
+  height: var(--mechanism-line-height);
+  background: var(--mechanism-line-color);
+}
+
+.discovery-mechanism-step-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.discovery-mechanism-step {
+  margin: 0;
+  font-family: var(--font-lora);
+  font-size: clamp(1.05rem, 2.2vw, 1.2rem);
+  line-height: 1.55;
+  letter-spacing: -0.01em;
+  color: var(--sidebar-ink);
+}
+
+/* Supporting journal quote(s) under each Loop bridge */
+.discovery-mechanism-evidence {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.discovery-mechanism-evidence .journal-snippet {
+  padding: 0.625rem 0.75rem;
+  border-radius: 10px;
+}
+
+.discovery-mechanism-evidence .journal-snippet .reflection-body {
+  font-size: 0.875rem;
+  line-height: 1.55;
+}
+
+.discovery-mechanism-evidence .journal-snippet__context {
+  margin-top: 0.375rem;
+  font-size: 0.6875rem;
+}
+
+.discovery-recurrence {
+  max-width: 36rem;
 }
 
 /*

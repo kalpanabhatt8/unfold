@@ -2,7 +2,8 @@
  * Unfold — turn a composition plan into a materialized passage.
  *
  * Evidence slots are copied verbatim from the plan. Voice slots are scaffolded
- * with null text (or a bound quote for close:quote endings).
+ * with null text (or a bound quote for close:quote endings). Deterministic
+ * closings (e.g. silence) arrive prefilled and skip AI.
  */
 
 import type { PatternPlan, SlotSpec } from "@/lib/patterns/planner";
@@ -26,7 +27,7 @@ const materializeSlot = (spec: SlotSpec): PassageSlot => {
         quotes: spec.quotes,
       };
     case "line":
-      return { kind: "line", text: null };
+      return { kind: "line", text: spec.text ?? null, steps: null };
     case "close":
       return {
         kind: "close",
@@ -64,6 +65,9 @@ export const materializePassage = (
     slots,
     cacheKey: buildPassageCacheKey(evidenceKey, plan.lifecycle, plan.signature),
     createdAt: now,
+    discoveredAt: now,
+    discoveryEvidenceKey: evidenceKey,
+    occurrences: [],
   };
 };
 

@@ -8,8 +8,8 @@ import { readAllEntries } from "@/lib/journal-entries";
 import { PATTERN_LABELS } from "@/lib/patterns/vocabulary";
 import { PatternListItem } from "@/components/patterns/pattern-list-item";
 import { usePatternDisplay } from "@/hooks/use-pattern-display";
+import { usePatternPassages } from "@/hooks/use-pattern-passages";
 import { usePatternsAggregate } from "@/hooks/use-patterns-aggregate";
-import "@/lib/patterns/passage-debug";
 
 /** Match the journal writing column — centered, not full-bleed. */
 const PATTERNS_COLUMN_MAX_WIDTH = "min(92vw, 700px)";
@@ -21,6 +21,8 @@ export function PatternsView() {
   const router = useRouter();
   const aggregate = usePatternsAggregate();
   const patterns = usePatternDisplay(aggregate);
+  // Prefetch passage structure + voice so detail opens from cache.
+  usePatternPassages(aggregate);
 
   const hasSurfaced = (aggregate?.surfaced.length ?? 0) > 0;
 
@@ -72,9 +74,7 @@ export function PatternsView() {
               key={pattern.name}
               label={PATTERN_LABELS[pattern.name]}
               href={`/dashboard/patterns/${pattern.name}`}
-              entryCount={pattern.entryCount}
               evidence={pattern.evidence}
-              timeHint={pattern.timeHint}
               display={pattern.display}
             />
           ))}

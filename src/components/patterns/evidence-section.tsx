@@ -9,7 +9,7 @@ export const EVIDENCE_SECTION_LABEL = "From your journal";
 export type EvidenceSectionProps = {
   visible: QuoteRef[];
   overflow: QuoteRef[];
-  onOpenEntry: (entryId: string) => void;
+  onOpenEntry: (entryId: string, quoteText?: string) => void;
   label?: string;
 };
 

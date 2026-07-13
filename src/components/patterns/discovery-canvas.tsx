@@ -17,6 +17,11 @@ import {
 import { EvidenceSection } from "@/components/patterns/evidence-section";
 import { JournalSnippet } from "@/components/patterns/journal-snippet";
 import { MechanismChain } from "@/components/patterns/mechanism-chain";
+import { RecurrenceCard } from "@/components/patterns/recurrence-card";
+import {
+  discoveryQuestionIsReading,
+  discoveryQuestionTypographyStyle,
+} from "@/lib/patterns/display-typography";
 import {
   logMechanismRendered,
   logPopoverReady,
@@ -32,7 +37,7 @@ export type DiscoveryCanvasProps = {
   /** When false, the CTA waits (voice text still arriving). */
   ctaReady?: boolean;
   onContinue: () => void;
-  onOpenEntry: (entryId: string) => void;
+  onOpenEntry: (entryId: string, quoteText?: string) => void;
 };
 
 /** How long one reveal takes — Continue is locked for this window. */
@@ -45,10 +50,6 @@ const REVEAL_MS = 550;
  */
 const FOCUS_SCROLL_OFFSET_PX = 36;
 
-/**
- * Distance of a layer from the current focus, in revealed beats.
- * 0 = focus, 1 = previous, 2+ = older history.
- */
 const layerAge = (
   arc: DiscoveryArc,
   phase: DiscoveryPhase,
@@ -74,7 +75,6 @@ type LayerProps = {
   children: ReactNode;
 };
 
-/** One deposited layer of the unfolding page — never replaced, only recedes. */
 function Layer({
   phase,
   age,
@@ -97,11 +97,56 @@ function Layer({
   );
 }
 
+function ClosingLayer({
+  closing,
+  animate,
+  onOpenEntry,
+}: {
+  closing: NonNullable<DiscoveryArc["closing"]>;
+  animate: boolean;
+  onOpenEntry: (entryId: string, quoteText?: string) => void;
+}) {
+  if (closing.kind === "silence") {
+    return (
+      <p className="discovery-silence text-[1.05rem] leading-relaxed text-(--sidebar-ink)">
+        {closing.text}
+      </p>
+    );
+  }
+
+  if (closing.kind === "drift") {
+    return (
+      <div className="discovery-drift grid gap-5 sm:grid-cols-2 sm:gap-8">
+        <JournalSnippet quote={closing.early} onOpenEntry={onOpenEntry} />
+        <JournalSnippet quote={closing.recent} onOpenEntry={onOpenEntry} />
+      </div>
+    );
+  }
+
+  if (closing.kind === "phrase") {
+    return (
+      <p
+        className="discovery-phrase text-[1.25rem] font-medium leading-snug tracking-tight text-(--sidebar-ink)"
+        style={{ fontFamily: "var(--font-heading)" }}
+      >
+        {closing.phrase}
+      </p>
+    );
+  }
+
+  return (
+    <MechanismChain
+      text={closing.text}
+      steps={closing.steps}
+      animate={animate}
+      onOpenEntry={onOpenEntry}
+    />
+  );
+}
+
 /**
- * One evolving reflection canvas. The heading stays pinned at the top and
- * the CTA at the bottom; between them a single scrollable stream grows
- * downward. Each Continue deposits the next beat below the previous ones,
- * which recede upward but stay readable.
+ * One evolving reflection canvas.
+ * Beat order: Headline → Moments → Recurrence → Loop → reflection.
  */
 export function DiscoveryCanvas({
   arc,
@@ -124,8 +169,11 @@ export function DiscoveryCanvas({
   const evidenceVisible =
     hasReachedPhase(arc, currentIndex, "evidence") &&
     arc.evidence.visible.length > 0;
-  const mechanismVisible =
-    hasReachedPhase(arc, currentIndex, "mechanism") && arc.mechanism !== null;
+  const recurrenceVisible =
+    hasReachedPhase(arc, currentIndex, "recurrence") &&
+    arc.recurrence !== null;
+  const closingVisible =
+    hasReachedPhase(arc, currentIndex, "closing") && arc.closing !== null;
   const questionVisible =
     hasReachedPhase(arc, currentIndex, "reflection") &&
     (arc.reflection.quote !== null || arc.reflection.question.trim().length > 0);
@@ -139,9 +187,11 @@ export function DiscoveryCanvas({
   }, [evidenceVisible, arc.evidence.visible.length, arc.evidence.overflow.length]);
 
   useEffect(() => {
-    if (!mechanismVisible || !arc.mechanism?.text.trim()) return;
-    logMechanismRendered();
-  }, [mechanismVisible, arc.mechanism?.text]);
+    if (!closingVisible) return;
+    if (arc.closing?.kind === "mechanism" && arc.closing.text.trim()) {
+      logMechanismRendered();
+    }
+  }, [closingVisible, arc.closing]);
 
   useEffect(() => {
     if (!questionVisible) return;
@@ -172,8 +222,6 @@ export function DiscoveryCanvas({
     const layer = focusRef.current;
     if (!container || !layer) return;
 
-    // Let the reveal animation start before repositioning, then place the
-    // new beat directly below the pinned heading.
     const timer = window.setTimeout(() => {
       const containerRect = container.getBoundingClientRect();
       const layerRect = layer.getBoundingClientRect();
@@ -207,8 +255,7 @@ export function DiscoveryCanvas({
         className="discovery-scroll min-h-0 flex-1 overscroll-y-contain"
       >
         <div className="discovery-stream">
-          {hasReachedPhase(arc, currentIndex, "evidence") &&
-          arc.evidence.visible.length > 0 ? (
+          {evidenceVisible ? (
             <Layer
               phase="evidence"
               age={age("evidence")}
@@ -224,23 +271,36 @@ export function DiscoveryCanvas({
             </Layer>
           ) : null}
 
-          {hasReachedPhase(arc, currentIndex, "mechanism") &&
-          arc.mechanism ? (
+          {recurrenceVisible && arc.recurrence ? (
             <Layer
-              phase="mechanism"
-              age={age("mechanism")}
-              isFocus={focusPhase === "mechanism"}
+              phase="recurrence"
+              age={age("recurrence")}
+              isFocus={focusPhase === "recurrence"}
               focusRef={focusRef}
             >
-              <MechanismChain
-                text={arc.mechanism.text}
-                animate={focusPhase === "mechanism"}
+              <RecurrenceCard
+                card={arc.recurrence}
+                onOpenEntry={onOpenEntry}
               />
             </Layer>
           ) : null}
 
-          {hasReachedPhase(arc, currentIndex, "reflection") &&
-          (arc.reflection.quote || arc.reflection.question.trim()) ? (
+          {closingVisible && arc.closing ? (
+            <Layer
+              phase="closing"
+              age={age("closing")}
+              isFocus={focusPhase === "closing"}
+              focusRef={focusRef}
+            >
+              <ClosingLayer
+                closing={arc.closing}
+                animate={focusPhase === "closing"}
+                onOpenEntry={onOpenEntry}
+              />
+            </Layer>
+          ) : null}
+
+          {questionVisible ? (
             <Layer
               phase="reflection"
               age={age("reflection")}
@@ -253,14 +313,23 @@ export function DiscoveryCanvas({
                   onOpenEntry={onOpenEntry}
                 />
               ) : (
-                <p className="discovery-question discovery-question--final">
+                <p
+                  className="discovery-question discovery-question--final"
+                  style={discoveryQuestionTypographyStyle(
+                    arc.reflection.question,
+                  )}
+                  data-reading={
+                    discoveryQuestionIsReading(arc.reflection.question)
+                      ? "true"
+                      : undefined
+                  }
+                >
                   {arc.reflection.question}
                 </p>
               )}
             </Layer>
           ) : null}
 
-          {/* Runway so even a short focus beat can scroll up under the heading. */}
           <div className="discovery-tail" aria-hidden />
         </div>
       </div>

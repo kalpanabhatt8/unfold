@@ -14,14 +14,12 @@ import { ChevronLeft } from "lucide-react";
 import {
   buildArcFromPassage,
   buildOrientingLine,
-  explainArc,
+  discoveryAwaitingVoice,
   getInitialRevealIndex,
   isVoiceArcShape,
   phaseAtIndex,
   type DiscoveryArc,
 } from "@/lib/patterns/discovery-arc";
-import { passageStructureValid } from "@/lib/patterns/passage-fill";
-import { passageToBeats } from "@/lib/patterns/passage-beats";
 import { passageNeedsGeneration } from "@/lib/patterns/passage-types";
 import type { PatternName } from "@/lib/patterns/vocabulary";
 import type { PatternPassage } from "@/lib/patterns/passage-types";
@@ -30,7 +28,7 @@ import { DiscoveryCanvas } from "@/components/patterns/discovery-canvas";
 import { usePatternDisplay } from "@/hooks/use-pattern-display";
 import { usePatternPassages } from "@/hooks/use-pattern-passages";
 import { usePatternsAggregate } from "@/hooks/use-patterns-aggregate";
-import "@/lib/patterns/passage-debug";
+import { stashJournalQuoteFocus } from "@/lib/journal-quote-focus";
 import {
   beginPatternSession,
   logCtaReady,
@@ -53,6 +51,28 @@ function CanvasSkeleton() {
   );
 }
 
+/** True when advancing past currentIndex would reveal an unfilled voice beat. */
+const nextStepNeedsVoice = (
+  arc: DiscoveryArc,
+  currentIndex: number,
+): boolean => {
+  const next = arc.phases[currentIndex + 1];
+  if (!next) return false;
+  if (next === "closing") {
+    return (
+      arc.closing?.kind === "mechanism" &&
+      (arc.closing.text.trim().length ?? 0) === 0
+    );
+  }
+  if (next === "reflection") {
+    return (
+      arc.reflection.quote === null &&
+      arc.reflection.question.trim().length === 0
+    );
+  }
+  return false;
+};
+
 /**
  * Guided discovery — one evolving canvas, behavioral headline first.
  */
@@ -61,7 +81,7 @@ export function PatternDetailView({ patternName }: PatternDetailViewProps) {
   const aggregate = usePatternsAggregate();
   const displayPatterns = usePatternDisplay(aggregate);
   const patterns = usePatternPassages(aggregate, patternName);
-  const [phaseIndex, setPhaseIndex] = useState(0);
+  const [phaseIndexState, setPhaseIndex] = useState(0);
   const [readerReady, setReaderReady] = useState(false);
   const initializedKeyRef = useRef<string | null>(null);
   const stablePassageRef = useRef<PatternPassage | null>(null);
@@ -88,10 +108,9 @@ export function PatternDetailView({ patternName }: PatternDetailViewProps) {
     return PATTERN_LABELS[patternName];
   }, [displayPattern?.display?.displayTitle, patternName]);
 
-  // Headline + evidence need no AI, so the arc renders immediately. The CTA
-  // is the only thing gated on full generation: the beat count isn't final
-  // until every voice slot is filled, so the canvas hides the button (never
-  // guessing between Continue/Done) until voice is ready.
+  // Headline + evidence need no AI, so the arc renders immediately. Continue
+  // stays available through cached beats; it only waits when the *next* beat
+  // still needs voice text.
   const voiceReady =
     activePassage !== null && !passageNeedsGeneration(activePassage);
 
@@ -103,10 +122,19 @@ export function PatternDetailView({ patternName }: PatternDetailViewProps) {
       activePassage.shapeId,
       headlineTitle,
       buildOrientingLine(momentCount),
+      activePassage,
     );
   }, [activePassage, pattern, headlineTitle]);
 
-  const ctaReady = voiceReady && readerReady;
+  const ctaReady =
+    readerReady &&
+    (voiceReady ||
+      (arc !== null &&
+        !nextStepNeedsVoice(arc, phaseIndexState) &&
+        !discoveryAwaitingVoice(
+          arc,
+          phaseAtIndex(arc, phaseIndexState),
+        )));
 
   useLayoutEffect(() => {
     initializedKeyRef.current = null;
@@ -134,9 +162,9 @@ export function PatternDetailView({ patternName }: PatternDetailViewProps) {
 
   useEffect(() => {
     if (!arc) return;
-    const phase = phaseAtIndex(arc, phaseIndex);
-    logStageAtIndex(phase, phaseIndex, arc.phases);
-  }, [arc, phaseIndex]);
+    const phase = phaseAtIndex(arc, phaseIndexState);
+    logStageAtIndex(phase, phaseIndexState, arc.phases);
+  }, [arc, phaseIndexState]);
 
   useEffect(() => {
     if (!arc) return;
@@ -147,36 +175,9 @@ export function PatternDetailView({ patternName }: PatternDetailViewProps) {
     if (!readerReady) {
       logCtaWaiting("reader not ready");
     } else if (!voiceReady) {
-      logCtaWaiting("voice pending");
+      logCtaWaiting("voice pending for next beat");
     }
   }, [arc, ctaReady, readerReady, voiceReady]);
-
-  useEffect(() => {
-    if (!activePassage) return;
-    const beatPlan = passageToBeats(activePassage.slots, activePassage.shapeId);
-    console.group(`[patterns] ${patternName}`);
-    console.log("PatternPassage", activePassage);
-    console.log("slots", activePassage.slots.map((s, i) => ({ i, ...s })));
-    console.log("beats (legacy)", beatPlan);
-    console.log("discovery arc", arc);
-    console.log("arc phases", arc?.phases);
-    const { trace, route } = explainArc(activePassage.slots, activePassage.shapeId);
-    console.log("arc route", route);
-    console.table(trace);
-    console.log({
-      shapeId: activePassage.shapeId,
-      lifecycle: activePassage.lifecycle,
-      needsGeneration: passageNeedsGeneration(activePassage),
-      structureValid: passageStructureValid(activePassage),
-      voiceTexts: activePassage.slots.flatMap((s) => {
-        if (s.kind === "line") return [{ kind: "line", text: s.text }];
-        if (s.kind === "close" && s.endingKind !== "quote")
-          return [{ kind: "close", endingKind: s.endingKind, text: s.text }];
-        return [];
-      }),
-    });
-    console.groupEnd();
-  }, [activePassage, patternName, arc]);
 
   useEffect(() => {
     if (aggregate === null) return;
@@ -186,7 +187,8 @@ export function PatternDetailView({ patternName }: PatternDetailViewProps) {
   }, [aggregate, patternName, router]);
 
   const handleOpenEntry = useCallback(
-    (entryId: string) => {
+    (entryId: string, quoteText?: string) => {
+      if (quoteText) stashJournalQuoteFocus(entryId, quoteText);
       router.push(`/dashboard/journal/${entryId}`);
     },
     [router],
@@ -194,12 +196,12 @@ export function PatternDetailView({ patternName }: PatternDetailViewProps) {
 
   const handleContinue = useCallback(() => {
     if (!arc || !ctaReady) return;
-    if (phaseIndex >= arc.phases.length - 1) {
+    if (phaseIndexState >= arc.phases.length - 1) {
       router.push("/dashboard/patterns");
       return;
     }
     setPhaseIndex((i) => i + 1);
-  }, [arc, ctaReady, phaseIndex, router]);
+  }, [arc, ctaReady, phaseIndexState, router]);
 
   if (aggregate === null || !pattern) {
     return null;
@@ -221,7 +223,7 @@ export function PatternDetailView({ patternName }: PatternDetailViewProps) {
         {arc ? (
           <DiscoveryCanvas
             arc={arc}
-            phaseIndex={phaseIndex}
+            phaseIndex={phaseIndexState}
             revealKey={cacheKey}
             ctaReady={ctaReady}
             onContinue={handleContinue}

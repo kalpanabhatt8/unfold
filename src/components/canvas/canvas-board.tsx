@@ -8,7 +8,7 @@
  *  │  ─────────────────────────────────────────────────────────── │
  *  │  centered writing column (Rethink Sans)                      │
  *  │  signature (end)                                             │
- *  │  🌻 fixed bottom-left                                        │
+ *  │  🪷 fixed bottom-left                                        │
  *  └─────────────────────────────────────────────────────────────┘
  *
  * Save model:
@@ -144,6 +144,13 @@ const LOCAL_MIRROR_DEBOUNCE_MS = 600;
 const SAVING_LABEL_DELAY_MS = 800;
 /** Milestone save (persists `lastEditedAt`) fires after this typing pause. */
 const MILESTONE_SAVE_INACTIVITY_MS = 7_000;
+/** Patterns → Journal quote tint: visible hold, then CSS fade, then clear. */
+const QUOTE_HIGHLIGHT_HOLD_MS = 18_500;
+const QUOTE_HIGHLIGHT_FADE_MS = 1_500;
+const QUOTE_HIGHLIGHT_TOTAL_MS =
+  QUOTE_HIGHLIGHT_HOLD_MS + QUOTE_HIGHLIGHT_FADE_MS;
+/** Ignore scroll-dismiss while smooth-scrolling the quote into view. */
+const QUOTE_HIGHLIGHT_SCROLL_GUARD_MS = 750;
 
 /** Minimum selected-character count before the text format bar appears. */
 const TEXT_CTX_SELECTION_MIN = 4;
@@ -493,6 +500,11 @@ export type CanvasBoardHandle = {
   captureForClose: () => CanvasSnapshot;
   /** Imperative focus for parents (e.g. auto-focus a freshly created entry). */
   focus: (position?: "start" | "end") => void;
+  /**
+   * Highlight a Patterns quote in the writing column, scroll it into view,
+   * then fade/clear after a few seconds or on user scroll.
+   */
+  highlightQuote: (quote: string) => boolean;
 };
 
 function CanvasBoardInner(
@@ -536,6 +548,8 @@ function CanvasBoardInner(
   const [lastSavedAt, setLastSavedAt] = useState<number>(() => sessionEditedAt);
   const [showSavingLabel, setShowSavingLabel] = useState(false);
   const savingLabelTimerRef = useRef<number | null>(null);
+  const quoteHighlightClearTimerRef = useRef<number | null>(null);
+  const quoteHighlightDismissRef = useRef<(() => void) | null>(null);
   /** Snapshot `updatedAt` — frozen while editing; bumped only on close. */
   const snapshotEditedAtRef = useRef<number>(sessionEditedAt);
   /** Header stamp — frozen for this mount; never follows wall clock. */
@@ -824,6 +838,21 @@ function CanvasBoardInner(
   // Imperative seam used by the page-level back button: capture state in
   // memory. The page navigates immediately and persists to localStorage
   // afterward so large snapshots don't block.
+  const clearQuoteHighlightChrome = useCallback(() => {
+    if (quoteHighlightClearTimerRef.current !== null) {
+      window.clearTimeout(quoteHighlightClearTimerRef.current);
+      quoteHighlightClearTimerRef.current = null;
+    }
+    const dismiss = quoteHighlightDismissRef.current;
+    if (dismiss) {
+      dismiss();
+      quoteHighlightDismissRef.current = null;
+    }
+    journalEditorRef.current?.clearQuoteHighlight();
+  }, []);
+
+  useEffect(() => () => clearQuoteHighlightChrome(), [clearQuoteHighlightChrome]);
+
   useImperativeHandle(
     ref,
     () => ({
@@ -834,8 +863,55 @@ function CanvasBoardInner(
       focus: (position) => {
         journalEditorRef.current?.focus(position);
       },
+      highlightQuote: (quote) => {
+        const editor = journalEditorRef.current;
+        if (!editor || !isContentReady) return false;
+
+        clearQuoteHighlightChrome();
+        const range = editor.highlightQuote(quote);
+        if (!range) return false;
+
+        const scrollEl = writingScrollRef.current;
+        const coords = editor.getRangeCoords(range.from, range.to);
+        if (scrollEl && coords) {
+          const parentRect = scrollEl.getBoundingClientRect();
+          const targetTop =
+            coords.top - parentRect.top + scrollEl.scrollTop;
+          const desired =
+            targetTop - Math.min(scrollEl.clientHeight * 0.28, 140);
+          const ignoreScrollUntil = Date.now() + QUOTE_HIGHLIGHT_SCROLL_GUARD_MS;
+          scrollEl.scrollTo({
+            top: Math.max(0, desired),
+            behavior: "smooth",
+          });
+
+          const onUserNavigate = () => {
+            clearQuoteHighlightChrome();
+          };
+          const onScroll = () => {
+            if (Date.now() < ignoreScrollUntil) return;
+            clearQuoteHighlightChrome();
+          };
+          scrollEl.addEventListener("wheel", onUserNavigate, { passive: true });
+          scrollEl.addEventListener("touchmove", onUserNavigate, {
+            passive: true,
+          });
+          scrollEl.addEventListener("scroll", onScroll, { passive: true });
+          quoteHighlightDismissRef.current = () => {
+            scrollEl.removeEventListener("wheel", onUserNavigate);
+            scrollEl.removeEventListener("touchmove", onUserNavigate);
+            scrollEl.removeEventListener("scroll", onScroll);
+          };
+        }
+
+        quoteHighlightClearTimerRef.current = window.setTimeout(() => {
+          clearQuoteHighlightChrome();
+        }, QUOTE_HIGHLIGHT_TOTAL_MS);
+
+        return true;
+      },
     }),
-    [buildSnapshot]
+    [buildSnapshot, clearQuoteHighlightChrome, isContentReady]
   );
 
   /* --------------------------- Focus / selection --------------------------- */
@@ -1292,13 +1368,13 @@ function formatLastEditedStamp(ts: number): { date: string; time: string } {
   };
 }
 
-/** Sealed header — e.g. "🌻 Sealed · 26 Jun 2026". */
+/** Sealed header — e.g. "🪷 Sealed · 26 Jun 2026". */
 function formatSignedStamp(ts: number): string {
   const d = new Date(ts);
   const day = d.getDate();
   const month = d.toLocaleDateString(undefined, { month: "short" });
   const year = d.getFullYear();
-  return `🌻 Sealed · ${day} ${month} ${year}`;
+  return `🪷 Sealed · ${day} ${month} ${year}`;
 }
 
 type CanvasHeaderProps = {

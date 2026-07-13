@@ -15,7 +15,7 @@ const formatDay = (ts: number): string => {
 
 export type JournalSnippetProps = {
   quote: QuoteRef;
-  onOpenEntry: (entryId: string) => void;
+  onOpenEntry: (entryId: string, quoteText?: string) => void;
   compact?: boolean;
 };
 
@@ -31,11 +31,11 @@ export function JournalSnippet({
     <div
       role="link"
       tabIndex={0}
-      onClick={() => onOpenEntry(quote.entryId)}
+      onClick={() => onOpenEntry(quote.entryId, quote.text)}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          onOpenEntry(quote.entryId);
+          onOpenEntry(quote.entryId, quote.text);
         }
       }}
       className={`journal-snippet ${compact ? "journal-snippet--compact" : ""}`}

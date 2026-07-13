@@ -24,6 +24,7 @@ import {
   type JournalEntry,
 } from "@/lib/journal-entries";
 import { notifyEntryCompleted } from "@/lib/patterns/entry-completion";
+import { takeJournalQuoteFocus } from "@/lib/journal-quote-focus";
 
 /** Flatten a snapshot's written blocks + captions into one lowercase-searchable string. */
 const flattenSnapshotText = (snapshot: CanvasSnapshot): string => {
@@ -176,6 +177,30 @@ const JournalEntryPage = () => {
     router.replace(`/dashboard/journal/${entryId}`);
     return () => cancelAnimationFrame(frame);
   }, [shouldAutoFocus, sessionEditedAt, entryId, router]);
+
+  // Patterns → Journal: highlight the quoted passage after the board mounts.
+  useEffect(() => {
+    if (sessionEditedAt === null) return;
+    const quote = takeJournalQuoteFocus(entryId);
+    if (!quote) return;
+
+    let cancelled = false;
+    const started = Date.now();
+    let timer = 0;
+
+    const tryHighlight = () => {
+      if (cancelled) return;
+      if (boardRef.current?.highlightQuote(quote)) return;
+      if (Date.now() - started > 2_500) return;
+      timer = window.setTimeout(tryHighlight, 50);
+    };
+
+    timer = window.setTimeout(tryHighlight, 0);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [entryId, sessionEditedAt]);
 
   return (
     <main className="relative h-full min-h-0 w-full overflow-hidden">

@@ -11,7 +11,7 @@ export type ReflectionSheetProps = {
   loading?: boolean;
   dateRange?: string | null;
   onContinue: () => void;
-  onOpenEntry: (entryId: string) => void;
+  onOpenEntry: (entryId: string, quoteText?: string) => void;
 };
 
 /**

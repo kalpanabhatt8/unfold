@@ -24,6 +24,32 @@ export const MAX_PASSAGE_QUOTES = 7;
 const ECHO_MIN_TOKEN_LEN = 4;
 const ECHO_MIN_ENTRIES = 2;
 
+/**
+ * Common words that recur in journals without being a meaningful artifact.
+ * A closing "phrase" beat must be distinctive — not "kept", "written", etc.
+ */
+const ECHO_STOPWORDS = new Set([
+  "about", "after", "again", "being", "could", "doing", "every", "first",
+  "going", "have", "just", "keep", "kept", "know", "like", "made", "make",
+  "more", "much", "need", "never", "only", "other", "over", "same", "should",
+  "something", "still", "than", "that", "their", "then", "there", "these",
+  "they", "thing", "this", "those", "through", "very", "want", "was", "were",
+  "what", "when", "where", "which", "while", "with", "would", "write",
+  "writing", "written", "your", "really", "actually", "already", "always",
+  "because", "before", "between", "around", "almost", "another", "anything",
+]);
+
+export const isDistinctiveEchoPhrase = (phrase: string): boolean => {
+  const normalized = phrase.trim().toLowerCase();
+  if (!normalized) return false;
+  const parts = normalized.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return parts.some((p) => p.length >= ECHO_MIN_TOKEN_LEN && !ECHO_STOPWORDS.has(p));
+  }
+  if (normalized.length < 5) return false;
+  return !ECHO_STOPWORDS.has(normalized);
+};
+
 export type QuoteRef = {
   entryId: string;
   entryTitle: string;
@@ -205,36 +231,55 @@ const tokenize = (text: string): string[] =>
     .split(/\s+/)
     .filter((t) => t.length >= ECHO_MIN_TOKEN_LEN);
 
+/** Prefer recurring multi-word phrases; fall back to distinctive single tokens. */
 function findEcho(
   quotes: QuoteRef[],
 ): { phrase: string; quotes: QuoteRef[] } | null {
-  const byToken = new Map<string, Map<string, QuoteRef>>();
+  const byPhrase = new Map<string, Map<string, QuoteRef>>();
+
+  const add = (phrase: string, quote: QuoteRef) => {
+    if (!isDistinctiveEchoPhrase(phrase)) return;
+    let entries = byPhrase.get(phrase);
+    if (!entries) {
+      entries = new Map();
+      byPhrase.set(phrase, entries);
+    }
+    if (!entries.has(quote.entryId)) entries.set(quote.entryId, quote);
+  };
 
   for (const quote of quotes) {
+    const tokens = tokenize(quote.text);
     const seen = new Set<string>();
-    for (const token of tokenize(quote.text)) {
-      if (seen.has(token)) continue;
-      seen.add(token);
-      let entries = byToken.get(token);
-      if (!entries) {
-        entries = new Map();
-        byToken.set(token, entries);
+    for (let i = 0; i < tokens.length; i += 1) {
+      const unigram = tokens[i];
+      if (!seen.has(unigram)) {
+        seen.add(unigram);
+        add(unigram, quote);
       }
-      if (!entries.has(quote.entryId)) entries.set(quote.entryId, quote);
+      if (i + 1 < tokens.length) {
+        const bigram = `${tokens[i]} ${tokens[i + 1]}`;
+        if (!seen.has(bigram)) {
+          seen.add(bigram);
+          add(bigram, quote);
+        }
+      }
     }
   }
 
-  let best: { phrase: string; quotes: QuoteRef[] } | null = null;
-  for (const [phrase, entries] of byToken) {
+  let best: { phrase: string; quotes: QuoteRef[]; score: number } | null = null;
+  for (const [phrase, entries] of byPhrase) {
     if (entries.size < ECHO_MIN_ENTRIES) continue;
     const group = [...entries.values()].sort(
       (a, b) => a.anchorTs - b.anchorTs,
     );
-    if (!best || group.length > best.quotes.length) {
-      best = { phrase, quotes: group };
+    const words = phrase.split(/\s+/).length;
+    // Prefer multi-word phrases, then wider entry coverage.
+    const score = words * 10 + group.length;
+    if (!best || score > best.score) {
+      best = { phrase, quotes: group, score };
     }
   }
-  return best;
+  return best ? { phrase: best.phrase, quotes: best.quotes } : null;
 }
 
 type PairCandidate = { pair: [QuoteRef, QuoteRef]; gapDays: number };
