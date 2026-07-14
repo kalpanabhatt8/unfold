@@ -1060,7 +1060,7 @@ input[type='number'] {
   --mechanism-rail-width: 10px;
   --mechanism-dot-size: 5px;
   --mechanism-step-gap: 0.875rem;
-  --mechanism-line-height: 1.5rem;
+  --mechanism-line-height: 1.25rem;
   --mechanism-line-color: color-mix(
     in srgb,
     var(--sidebar-ink-soft) 28%,
@@ -1089,7 +1089,7 @@ input[type='number'] {
 .discovery-mechanism-gap {
   display: grid;
   grid-template-columns: var(--mechanism-rail-width) 1fr;
-  column-gap: 0.875rem;
+  column-gap: 0.5rem;
 }
 
 .discovery-mechanism-chain[data-animate="true"] .discovery-mechanism-item {
@@ -1102,7 +1102,10 @@ input[type='number'] {
 }
 
 .discovery-mechanism-step-row .discovery-mechanism-rail {
-  padding-top: 0.8em;
+  /* padding-top: 0.8em; */
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .discovery-mechanism-dot {
