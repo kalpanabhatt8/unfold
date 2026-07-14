@@ -90,12 +90,6 @@
   font-family: var(--font-body);
 }
 
-.lp-end-cta .lp-chrome__cta,
-.lp-end-cta__row .lp-chrome__cta,
-.lp-live__pattern-foot .lp-chrome__cta {
-  font-family: var(--font-heading);
-}
-
 .lp-chrome__cta:hover {
   background: var(--sidebar-tab-selected-bg);
 }
