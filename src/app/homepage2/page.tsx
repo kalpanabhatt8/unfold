@@ -1,7 +1,7 @@
 import { ReadingJourney } from "@/components/landing/reading-journey";
 
 export const metadata = {
-  title: "Keeps — Reading Journey",
+  title: "Unfold ",
   description: "Read through journal entries until a connection becomes visible.",
 };
 

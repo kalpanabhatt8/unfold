@@ -16,6 +16,9 @@ export type Moment = {
 
 export const BRAND = "UNFOLD";
 
+/** Hero line above the living canvas — fades as the frame rises. */
+export const TAGLINE = "Find patterns in your writing.";
+
 export const MOMENTS: Moment[] = [
   {
     id: "m1",

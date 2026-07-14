@@ -4,10 +4,15 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { ChevronsLeft, Plus, Search, Signature, Waypoints, X } from "lucide-react";
 import { LandingEndCta } from "./landing-chrome";
-import { CTA } from "./story";
 import { MechanismChain } from "@/components/patterns/mechanism-chain";
 import { Tooltip } from "@/components/ui/tooltip";
-import { LIVE_SCREEN2_CARDS, PATTERN, WRITE_NATURALLY } from "./story";
+import {
+  CTA,
+  LIVE_SCREEN2_CARDS,
+  PATTERN,
+  TAGLINE,
+  WRITE_NATURALLY,
+} from "./story";
 import {
   btnIcon,
   btnState,
@@ -247,10 +252,11 @@ export function LivingCanvas() {
     showCta = 0;
   }
 
-  const frameY = lerp(22, 0, rise);
+  const frameY = lerp(40, 0, rise);
   const frameScale = lerp(0.94, 1, rise);
   const frameRadius = lerp(20, 16, rise);
   const navOpacity = lerp(1, 0, stage(rise, 0.55, 1));
+  const taglineOpacity = lerp(1, 0, stage(rise, 0.05, 0.55));
   const interactive = rise > 0.85;
 
   const activeEntry =
@@ -355,6 +361,19 @@ export function LivingCanvas() {
               } as CSSProperties
             }
           >
+            <p
+              className="lp-live__tagline"
+              style={{ opacity: taglineOpacity }}
+              data-hidden={taglineOpacity < 0.05}
+              aria-hidden={taglineOpacity < 0.05}
+            >
+              {TAGLINE.split("\n").map((line, i, lines) => (
+                <span key={i}>
+                  {line}
+                  {i < lines.length - 1 ? <br /> : null}
+                </span>
+              ))}
+            </p>
             <div className="lp-live__frame">
               <div className="lp-live__desktop" data-interactive={interactive}>
               <aside className="lp-live__sidebar">

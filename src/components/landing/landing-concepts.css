@@ -353,6 +353,38 @@ html:has(.lp-live)::-webkit-scrollbar-button {
   background: #fdfcfc;
 }
 
+/* Hero tagline — anchored just above the live canvas card;
+   width matches the header / canvas frame */
+.lp-live__tagline {
+  position: absolute;
+  z-index: 3;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 4rem);
+  margin: 0;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  text-align: left;
+  font-family: var(--font-heading);
+  /* font-size: clamp(2.5rem, 9.8vw, 7.25rem); */
+  font-size: clamp(2rem, 7.5vw, 5.5rem);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  color: #E1CCD5;
+  pointer-events: none;
+  transition: opacity 120ms linear;
+  white-space: normal;
+  overflow-wrap: normal;
+  text-align: center;
+  line-height: tight;
+}
+
+.lp-live__tagline[data-hidden="true"] {
+  visibility: hidden;
+}
+
 /*
  * Shared motion: both layers share the same center + --frame-y nudge.
  */
@@ -361,7 +393,7 @@ html:has(.lp-live)::-webkit-scrollbar-button {
   position: absolute;
   left: 50%;
   top: 50%;
-  transform: translate(-50%, -50%) translateY(var(--frame-y, 22vh))
+  transform: translate(-50%, -50%) translateY(var(--frame-y, 50vh))
     scale(var(--frame-scale, 0.94));
   transform-origin: center center;
 }
@@ -395,6 +427,7 @@ html:has(.lp-live)::-webkit-scrollbar-button {
   border-radius: var(--frame-radius, 20px);
   overflow: hidden;
   background: var(--app-bg);
+  border: 8px solid #ffffff;
   box-shadow:
     0 1px 1px color-mix(in srgb, #2a1a22 3%, transparent),
     0 4px 18px color-mix(in srgb, #5a3a4a 4%, transparent);
