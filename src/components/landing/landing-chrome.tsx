@@ -20,11 +20,11 @@ export function LandingChrome({
       </Link>
       {showCta ? (
         <div className="lp-chrome__actions">
-          <Link href="/sign-in" className="lp-chrome__ghost">
-            {CTA.secondary}
+          <Link href={CTA.header.secondaryHref} className="lp-chrome__ghost">
+            {CTA.header.secondary}
           </Link>
-          <Link href="/dashboard" className="lp-chrome__cta">
-            {CTA.primary}
+          <Link href={CTA.header.primaryHref} className="lp-chrome__cta">
+            {CTA.header.primary}
           </Link>
         </div>
       ) : null}
@@ -37,11 +37,8 @@ export function LandingEndCta({ className = "" }: { className?: string }) {
     <div className={`lp-end-cta ${className}`}>
       <p className="lp-end-cta__whisper">{CTA.whisper}</p>
       <div className="lp-end-cta__row">
-        <Link href="/dashboard" className="lp-chrome__cta lp-chrome__cta--lg">
+        <Link href={CTA.href} className="lp-chrome__cta lp-chrome__cta--lg">
           {CTA.primary}
-        </Link>
-        <Link href="/sign-in" className="lp-chrome__ghost">
-          {CTA.secondary}
         </Link>
       </div>
     </div>

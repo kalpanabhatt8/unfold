@@ -74,7 +74,7 @@ const bonheurRoyale = Bonheur_Royale({
 });
 
 export const metadata: Metadata = {
-  title: "Keeps",
+  title: "Unfold",
   description: "A private, playful scrapbook to plan, rant, dream, and collect pretty things.",
 };
 

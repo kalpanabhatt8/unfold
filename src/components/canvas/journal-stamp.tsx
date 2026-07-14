@@ -551,7 +551,7 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
       {/* ── Sign control — icon at rest; press animation leaves signature imprint ── */}
       {showSealButton && (
         <div className="pointer-events-auto" style={stampCornerAnchor}>
-          <Tooltip content="sign it ✍" bubbleClassName="tooltip-bubble-stamp">
+          <Tooltip content="Seal entry" bubbleClassName="tooltip-bubble-stamp">
             <button
               type="button"
               onPointerDown={(e) => {
@@ -566,7 +566,7 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
               onClick={(e) => e.preventDefault()}
               onPointerEnter={onStampHover}
               onFocus={onStampHover}
-              aria-label="Sign this entry"
+              aria-label="Seal entry"
               className={`group shrink-0 cursor-pointer select-none outline-none ${btnIcon(stampButtonSize, "soft")} ${btnState.default} ${btnState.hover} ${btnState.active}`}
             >
               <Signature

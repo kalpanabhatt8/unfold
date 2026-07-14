@@ -16,7 +16,6 @@ const formatLastSeen = (timestamp: number): string => {
   const diffDays = Math.round((today - seenDay) / dayMs);
 
   if (diffDays <= 0) return "today";
-  if (diffDays === 1) return "yesterday";
   if (diffDays < 7) return `${diffDays}d ago`;
 
   const date = new Date(timestamp);

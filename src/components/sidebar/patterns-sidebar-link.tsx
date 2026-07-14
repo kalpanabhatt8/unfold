@@ -23,10 +23,7 @@ export function PatternsSidebarLink({
       aria-current={active ? "page" : undefined}
       aria-label={`Patterns, ${count} reflections`}
       className={clsx(
-        "flex shrink-0 items-center gap-2.5 rounded-xl px-3 py-2.5 transition-colors duration-150",
-        active
-          ? "bg-(--sidebar-tab-selected-bg) hover:bg-(--sidebar-active-bg)"
-          : "bg-white/55 hover:bg-(--sidebar-hover-bg)",
+        "flex shrink-0 items-center gap-2.5 rounded-xl px-3 py-2.5 transition-colors duration-150 bg-(--discovery-canvas-bg) hover:bg-(--sidebar-hover-bg)",
       )}
     >
       <Waypoints
@@ -39,12 +36,7 @@ export function PatternsSidebarLink({
         Patterns
       </span>
       <span
-        className={clsx(
-          "flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full px-1.5 text-xs font-medium tabular-nums text-(--sidebar-ink)",
-          active
-            ? "bg-(--sidebar-active-bg)"
-            : "bg-(--sidebar-tab-selected-bg)",
-        )}
+        className="flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full bg-(--sidebar-hover-bg) px-1.5 text-xs font-medium tabular-nums text-(--sidebar-ink)"
         aria-hidden
       >
         {count}

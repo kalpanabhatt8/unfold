@@ -60,6 +60,10 @@
   transition: color 180ms ease;
 }
 
+.lp-chrome__actions .lp-chrome__ghost {
+  font-size: 0.9375rem;
+}
+
 .lp-chrome__ghost:hover {
   color: var(--lp-ink);
 }
@@ -72,9 +76,24 @@
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--sidebar-tab-track) 70%, white);
   color: var(--canvas-title-ink);
+  font-family: var(--font-body);
+  font-weight: 500;
   font-size: 0.8125rem;
   text-decoration: none;
   transition: background-color 180ms ease;
+}
+
+.lp-chrome__actions .lp-chrome__cta,
+.lp-chrome__actions .lp-chrome__ghost,
+.lp-live__nav-actions .lp-chrome__cta,
+.lp-live__nav-login {
+  font-family: var(--font-body);
+}
+
+.lp-end-cta .lp-chrome__cta,
+.lp-end-cta__row .lp-chrome__cta,
+.lp-live__pattern-foot .lp-chrome__cta {
+  font-family: var(--font-heading);
 }
 
 .lp-chrome__cta:hover {
@@ -275,6 +294,7 @@ html:has(.lp-live)::-webkit-scrollbar-button {
   pointer-events: none;
   background: transparent;
   transition: opacity 200ms ease;
+  font-family: var(--font-heading);
 }
 
 .lp-live__nav[data-hidden="true"] {
@@ -290,22 +310,25 @@ html:has(.lp-live)::-webkit-scrollbar-button {
 }
 
 .lp-live__brand {
-  font-size: 1.35rem;
+  font-family: var(--font-heading);
+  font-size: 1.125rem;
   font-weight: 600;
-  letter-spacing: -0.02em;
-  color: #1a1a1a;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--canvas-title-ink);
   text-decoration: none;
 }
 
 .lp-live__nav-actions {
   display: flex;
   align-items: center;
-  gap: 1.35rem;
+  gap: 1.25rem;
 }
 
 .lp-live__nav-login {
   font-size: 0.9375rem;
-  color: #2a2a2a;
+  color: #342f30;
+  padding: 0rem 0.5rem ;
   text-decoration: none;
 }
 
@@ -481,18 +504,7 @@ html:has(.lp-live)::-webkit-scrollbar-button {
 }
 
 .lp-live__sidebar-fade {
-  position: absolute;
-  inset-inline: 0;
-  bottom: 0;
-  z-index: 0;
-  height: 8rem;
-  pointer-events: none;
-  background: linear-gradient(
-    to bottom,
-    transparent,
-    color-mix(in srgb, var(--sidebar-bg) 30%, transparent) 40%,
-    var(--sidebar-bg-lightest)
-  );
+  display: none;
 }
 
 .lp-live__sidebar-top {
@@ -611,41 +623,7 @@ html:has(.lp-live)::-webkit-scrollbar-button {
   z-index: 1;
   flex: 1;
   min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior-y: contain;
-  scrollbar-width: thin;
-  scrollbar-color: color-mix(in srgb, var(--sidebar-icon) 40%, transparent)
-    transparent;
-  mask-image: linear-gradient(to bottom, black 88%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to bottom, black 88%, transparent 100%);
-}
-
-.lp-live__entry-list::-webkit-scrollbar {
-  width: 3px;
-}
-
-.lp-live__entry-list::-webkit-scrollbar-track,
-.lp-live__entry-list::-webkit-scrollbar-corner {
-  background: transparent;
-  border: none;
-  box-shadow: none;
-}
-
-.lp-live__entry-list::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--sidebar-icon) 42%, transparent);
-  border: none;
-  border-radius: 999px;
-  box-shadow: none;
-}
-
-.lp-live__entry-list::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--sidebar-icon) 62%, transparent);
-}
-
-.lp-live__entry-list::-webkit-scrollbar-button {
-  display: none;
-  width: 0;
-  height: 0;
+  overflow: hidden;
 }
 
 .lp-live__entry-list ul {
@@ -758,7 +736,7 @@ html:has(.lp-live)::-webkit-scrollbar-button {
   padding: 0.45rem 0.6rem;
   border: 0;
   border-radius: 0.55rem;
-  background: color-mix(in srgb, white 55%, transparent);
+  background: var(--discovery-canvas-bg);
   color: var(--sidebar-ink);
   text-align: left;
   cursor: pointer;
@@ -770,11 +748,11 @@ html:has(.lp-live)::-webkit-scrollbar-button {
 }
 
 .lp-live__patterns-link[data-active="true"] {
-  background: var(--sidebar-tab-selected-bg);
+  background: var(--discovery-canvas-bg);
 }
 
 .lp-live__patterns-link[data-active="true"]:hover:not(:disabled) {
-  background: var(--sidebar-active-bg);
+  background: var(--sidebar-hover-bg);
 }
 
 .lp-live__patterns-link:disabled {
@@ -805,16 +783,12 @@ html:has(.lp-live)::-webkit-scrollbar-button {
   height: 1.2rem;
   padding: 0 0.3rem;
   border-radius: var(--radius-pill);
-  background: var(--sidebar-tab-selected-bg);
+  background: var(--sidebar-hover-bg);
   font-size: 0.6875rem;
   font-weight: 500;
   font-variant-numeric: tabular-nums;
   line-height: 1;
   color: var(--sidebar-ink);
-}
-
-.lp-live__patterns-link[data-active="true"] .lp-live__patterns-badge {
-  background: var(--sidebar-active-bg);
 }
 
 .lp-live__canvas {
@@ -1126,11 +1100,15 @@ html:has(.lp-live)::-webkit-scrollbar-button {
   gap: 1.75rem;
 }
 
-/* Question — product discovery-question (Lora); slightly restrained for landing */
-.lp-live__pattern-foot .lp-live__question.discovery-question {
+/* Closing question — match journal entry title scale */
+.lp-live__pattern-question {
   margin: 0;
-  --q-scale: 0.55;
+  font-family: var(--font-heading);
   font-weight: 500;
+  letter-spacing: -0.01em;
+  color: var(--canvas-title-ink);
+  text-wrap: balance;
+  white-space: normal;
 }
 
 .lp-live__pattern-foot .lp-end-cta {

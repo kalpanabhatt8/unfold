@@ -117,7 +117,7 @@ export const WRITE_NATURALLY = {
 };
 
 export const PATTERN = {
-  title: "Always There.",
+  title: "See Together.",
   // label: "A few thoughts have been returning lately.",
   label: "",
   evidenceLabel: "These moments kept showing up",
@@ -127,6 +127,7 @@ export const PATTERN = {
     "You just hadn't seen them that way yet.",
   ],
   reflection: "What would it mean to leave it as it is?",
+  closingQuestion: "Ready to reflect?",
 };
 
 export const JOURNAL_ENTRY_A = {
@@ -150,7 +151,13 @@ export const JOURNAL_ENTRY_B = {
 };
 
 export const CTA = {
-  primary: "Open your journal",
-  secondary: "Sign in",
+  primary: "Get started",
+  href: "/sign-in",
   whisper: "Your writing stays yours.",
+  header: {
+    secondary: "Sign in",
+    secondaryHref: "/sign-in",
+    primary: "Continue as Guest",
+    primaryHref: "/dashboard",
+  },
 };

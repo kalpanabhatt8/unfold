@@ -4,7 +4,9 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { ChevronsLeft, Plus, Search, Signature, Waypoints, X } from "lucide-react";
 import { LandingEndCta } from "./landing-chrome";
+import { CTA } from "./story";
 import { MechanismChain } from "@/components/patterns/mechanism-chain";
+import { Tooltip } from "@/components/ui/tooltip";
 import { LIVE_SCREEN2_CARDS, PATTERN, WRITE_NATURALLY } from "./story";
 import {
   btnIcon,
@@ -65,17 +67,6 @@ type PrototypeEntry = {
 
 const ENTRIES: PrototypeEntry[] = [
   {
-    id: "untitled",
-    title: "Untitled",
-    preview: "Something I keep meaning to say out loud.",
-    time: "12m",
-    sealed: false,
-    body: [
-      "Something I keep meaning to say out loud.",
-      "Not finished yet — just leaving it here for now.",
-    ],
-  },
-  {
     id: "after-lunch",
     title: "After Lunch",
     preview: "I'll start after lunch.",
@@ -91,7 +82,7 @@ const ENTRIES: PrototypeEntry[] = [
     id: "one-more",
     title: "One More Tutorial",
     preview: "Just one more tutorial.",
-    time: "Yesterday",
+    time: "1d",
     sealed: true,
     sealedLabel: "🪷 Sealed · 11 Mar 2026",
     body: [
@@ -124,35 +115,10 @@ const ENTRIES: PrototypeEntry[] = [
     ],
   },
   {
-    id: "spacing-again",
-    title: "Spacing Again",
-    preview: "I changed the spacing again.",
-    time: "1w",
-    sealed: true,
-    sealedLabel: "🪷 Sealed · 29 Mar 2026",
-    body: [
-      "I changed the spacing again.",
-      "Then the type. Then I looked for another reference.",
-    ],
-  },
-  {
-    id: "almost-started",
-    title: "Almost Started",
-    preview: "Opened the draft. Read it twice.",
-    time: "Mar 18",
-    sealed: true,
-    sealedLabel: "🪷 Sealed · 18 Mar 2026",
-    body: [
-      "Opened the draft again. Read the first paragraph twice.",
-      "Almost done, really. Just need to reorganize so I can find the research.",
-      "Closed the laptop feeling productive. Nothing new on the page.",
-    ],
-  },
-  {
     id: "maybe-tomorrow",
     title: "Maybe Tomorrow",
     preview: "I finally opened my portfolio today.",
-    time: "Mar 29",
+    time: "8d",
     sealed: true,
     sealedLabel: "🪷 Sealed · 29 Mar 2026",
     body: [
@@ -185,7 +151,7 @@ function easeOutCubic(t: number) {
   return 1 - Math.pow(1 - t, 3);
 }
 
-type ViewOverride = "auto" | "journal" | "pattern";
+type ViewOverride = "auto" | "journal" | "pattern" | "write";
 
 export function LivingCanvas() {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -270,6 +236,15 @@ export function LivingCanvas() {
     showCta = 1;
     patternsActive = true;
     showingWrite = false;
+  } else if (viewOverride === "write") {
+    writeOpacity = 1;
+    journalOpacity = 0;
+    chipsOpacity = 0;
+    patternOpacity = 0;
+    patternsActive = false;
+    showingWrite = true;
+    showReflect = 0;
+    showCta = 0;
   }
 
   const frameY = lerp(22, 0, rise);
@@ -288,6 +263,15 @@ export function LivingCanvas() {
       entry.preview.toLowerCase().includes(q)
     );
   });
+
+  const openNewEntry = () => {
+    if (!interactive) return;
+    setWriteSealed(false);
+    setWriteSealedAt(null);
+    setViewOverride("write");
+    overrideAtProgress.current = progress;
+    setSearchOpen(false);
+  };
 
   const openJournal = (entryId: string) => {
     if (!interactive) return;
@@ -321,15 +305,15 @@ export function LivingCanvas() {
         data-hidden={navOpacity < 0.05}
         aria-hidden={navOpacity < 0.05}
       >
-        <Link href="/" className="lp-live__brand logo-font">
+        <Link href="/" className="lp-live__brand">
           <span className="mr-[0.03em]">U</span>NFOLD
         </Link>
         <div className="lp-live__nav-actions">
-          <Link href="/sign-in" className="lp-live__nav-login">
-            login
+          <Link href={CTA.header.secondaryHref} className="lp-live__nav-login">
+            {CTA.header.secondary}
           </Link>
-          <Link href="/dashboard" className="lp-chrome__cta lp-chrome__cta--lg">
-            Get started
+          <Link href={CTA.header.primaryHref} className="lp-chrome__cta lp-chrome__cta--lg">
+            {CTA.header.primary}
           </Link>
         </div>
       </header>
@@ -439,7 +423,7 @@ export function LivingCanvas() {
                           className="lp-live__sidebar-icon-btn"
                           aria-label="New entry"
                           tabIndex={interactive ? 0 : -1}
-                          onClick={() => openJournal("untitled")}
+                          onClick={() => openNewEntry()}
                         >
                           <Plus size={14} strokeWidth={1.75} aria-hidden />
                         </button>
@@ -554,23 +538,25 @@ export function LivingCanvas() {
                     </p>
                   ) : (
                     <div className="lp-live__stamp-btn-wrap">
-                      <button
-                        type="button"
-                        className={`lp-live__stamp-btn group shrink-0 cursor-pointer select-none outline-none ${btnIcon("md", "soft")} ${btnState.default} ${btnState.hover} ${btnState.active}`}
-                        aria-label="Sign this entry"
-                        onClick={() => {
-                          const now = Date.now();
-                          setWriteSealedAt(now);
-                          setWriteSealed(true);
-                        }}
-                      >
-                        <Signature
-                          size={iconPx("md")}
-                          strokeWidth={iconStroke("md")}
-                          aria-hidden
-                          className={iconFixed}
-                        />
-                      </button>
+                      <Tooltip content="Seal entry" bubbleClassName="tooltip-bubble-stamp">
+                        <button
+                          type="button"
+                          className={`lp-live__stamp-btn group shrink-0 cursor-pointer select-none outline-none ${btnIcon("md", "soft")} ${btnState.default} ${btnState.hover} ${btnState.active}`}
+                          aria-label="Seal entry"
+                          onClick={() => {
+                            const now = Date.now();
+                            setWriteSealedAt(now);
+                            setWriteSealed(true);
+                          }}
+                        >
+                          <Signature
+                            size={iconPx("md")}
+                            strokeWidth={iconStroke("md")}
+                            aria-hidden
+                            className={iconFixed}
+                          />
+                        </button>
+                      </Tooltip>
                     </div>
                   )}
                 </section>
@@ -701,7 +687,11 @@ export function LivingCanvas() {
                       className="lp-live__pattern-foot"
                       style={{
                         opacity:
-                          viewOverride === "pattern" ? 1 : showReflect,
+                          viewOverride === "pattern" ||
+                          showReflect > 0.05 ||
+                          showCta > 0.05
+                            ? 1
+                            : 0,
                         transform: `translateY(${
                           viewOverride === "pattern"
                             ? 0
@@ -709,6 +699,15 @@ export function LivingCanvas() {
                         }px)`,
                       }}
                     >
+                      <p
+                        className="lp-live__pattern-question header-lg"
+                        style={{
+                          opacity:
+                            viewOverride === "pattern" ? 1 : showReflect,
+                        }}
+                      >
+                        {PATTERN.closingQuestion}
+                      </p>
                       <div
                         style={{
                           opacity: viewOverride === "pattern" ? 1 : showCta,

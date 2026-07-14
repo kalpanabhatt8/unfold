@@ -249,11 +249,8 @@ export function InfiniteWorkspace() {
 
           <div className="lp-work__end" data-ready={endO > 0.5}>
             <div className="lp-end-cta__row" style={{ pointerEvents: "auto" }}>
-              <Link href="/dashboard" className="lp-chrome__cta lp-chrome__cta--lg">
+              <Link href={CTA.href} className="lp-chrome__cta lp-chrome__cta--lg">
                 {CTA.primary}
-              </Link>
-              <Link href="/sign-in" className="lp-chrome__ghost">
-                {CTA.secondary}
               </Link>
             </div>
           </div>
