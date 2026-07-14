@@ -14,7 +14,7 @@ export type Moment = {
   rotate: number;
 };
 
-export const BRAND = "KEEPS";
+export const BRAND = "UNFOLD";
 
 export const MOMENTS: Moment[] = [
   {

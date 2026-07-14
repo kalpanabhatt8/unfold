@@ -7,6 +7,8 @@
   --lp-rose: var(--discovery-canvas-bg);
   --lp-line: color-mix(in srgb, var(--sidebar-ink-soft) 28%, transparent);
   --lp-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Largest living-canvas frame width — chrome matches this */
+  --lp-canvas-max-w: min(1200px, 95vw);
   color: var(--lp-ink);
   font-family: var(--font-body);
   background: var(--lp-paper);
@@ -21,13 +23,14 @@
 .lp-chrome {
   position: fixed;
   top: 0;
-  left: 0;
-  right: 0;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 40;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1.25rem 1.75rem;
+  width: var(--lp-canvas-max-w);
+  padding: 1.25rem 0;
   pointer-events: none;
 }
 
@@ -257,13 +260,18 @@ html:has(.lp-live)::-webkit-scrollbar-button {
 .lp-live__nav {
   position: fixed;
   top: 0;
-  left: 0;
-  right: 0;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 40;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1.35rem 2.25rem;
+  /* Same visual width as the scaled frame-stack at the current scroll state */
+  width: min(
+    calc(1200px * var(--frame-scale, 0.94)),
+    calc(95vw * var(--frame-scale, 0.94))
+  );
+  padding: 1.35rem 0;
   pointer-events: none;
   background: transparent;
   transition: opacity 200ms ease;
@@ -344,7 +352,7 @@ html:has(.lp-live)::-webkit-scrollbar-button {
 /* White product card — card-sized only */
 .lp-live__frame-stack {
   z-index: 2;
-  width: min(1200px, 95vw);
+  width: var(--lp-canvas-max-w);
   height: min(920px, 86svh);
   overflow: visible;
 }
@@ -1136,8 +1144,18 @@ html:has(.lp-live)::-webkit-scrollbar-button {
 }
 
 @media (max-width: 900px) {
+  .lp-root {
+    --lp-canvas-max-w: min(96vw, 1200px);
+  }
+
+  .lp-live__nav {
+    width: min(
+      calc(1200px * var(--frame-scale, 0.94)),
+      calc(96vw * var(--frame-scale, 0.94))
+    );
+  }
+
   .lp-live__frame-stack {
-    width: min(96vw, 1200px);
     height: min(82svh, 820px);
   }
 
@@ -1168,7 +1186,7 @@ html:has(.lp-live)::-webkit-scrollbar-button {
 
 @media (max-width: 720px) {
   .lp-live__nav {
-    padding: 1rem 1.15rem;
+    padding: 1rem 0;
   }
 
   .lp-live__desktop {

@@ -305,7 +305,16 @@ export function LivingCanvas() {
   };
 
   return (
-    <div className="lp-root lp-live" ref={rootRef}>
+    <div
+      className="lp-root lp-live"
+      ref={rootRef}
+      style={
+        {
+          "--frame-scale": frameScale,
+          "--frame-y": `${frameY}vh`,
+        } as CSSProperties
+      }
+    >
       <header
         className="lp-live__nav"
         style={{ opacity: navOpacity }}
@@ -313,7 +322,7 @@ export function LivingCanvas() {
         aria-hidden={navOpacity < 0.05}
       >
         <Link href="/" className="lp-live__brand logo-font">
-          <span className="mr-[0.03em]">K</span>EEPS
+          <span className="mr-[0.03em]">U</span>NFOLD
         </Link>
         <div className="lp-live__nav-actions">
           <Link href="/sign-in" className="lp-live__nav-login">
