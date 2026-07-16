@@ -158,7 +158,7 @@ export const CTA = {
   href: "/sign-in",
   whisper: "Your writing stays yours.",
   header: {
-    secondary: "Sign in",
+    secondary: "Get started",
     secondaryHref: "/sign-in",
     primary: "Continue as Guest",
     primaryHref: "/dashboard",

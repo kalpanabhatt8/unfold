@@ -118,8 +118,11 @@
   --canvas-bg-gradient: var( --discovery-canvas-bg);
   --canvas-recess: #f2efeb;
   --canvas-brown: #7e675f;
-  /* --canvas-title-ink: #421024; */
   --canvas-title-ink: #421024;
+  --button-primary: #684050;
+  --button-primary-hover: color-mix(in srgb, var(--button-primary) 86%, black);
+  --button-primary-active: color-mix(in srgb, var(--button-primary) 72%, black);
+  --button-primary-foreground: #fff8f2;
   --canvas-ink: var(--text-primary);
   /* --canvas-ink: #585456; */
   --canvas-ink-secondary: #85766b;
@@ -188,6 +191,27 @@
   --popup-bg: var(--surface-2);
   --popup-shadow: var(--shadow);
   --color-focus-ring: var(--gray-900);
+
+  /* ---- Auth / Clerk theming ---------------------------------------------
+     Change these to restyle Sign-in, Sign-up, and Clerk popovers.
+     Wired through ClerkProvider appearance in layout.tsx. */
+  --auth-page-bg: var(--discovery-canvas-bg);
+  --auth-card-bg: #ffffff;
+  --auth-primary: var(--button-primary);
+  --auth-primary-foreground: var(--button-primary-foreground);
+  --auth-foreground: var(--text-primary);
+  --auth-muted-foreground: var(--text-color-secondary);
+  --auth-muted: var(--sidebar-bg);
+  --auth-input-bg: var(--canvas-bg);
+  --auth-neutral: var(--sidebar-ink-soft);
+  --auth-border: var(--sidebar-border);
+  --auth-ring: var(--button-primary);
+  --auth-shadow: color-mix(in srgb, var(--button-primary) 12%, transparent);
+  --auth-modal-backdrop: color-mix(in srgb, var(--sidebar-ink) 28%, transparent);
+  --auth-radius: var(--radius-md);
+  --auth-font: var(--font-body);
+  --auth-font-buttons: var(--font-body);
+  --auth-font-heading: var(--font-heading);
 
   /* Typography — body vs heading */
   --font-body: var(--font-figtree), system-ui, -apple-system, "Segoe UI",
@@ -402,14 +426,6 @@ h6 {
   transform: translateY(0px);
 }
 
-/* Clerk pieces should inherit our font */
-.cl-cardBox,
-.cl-cardBox div,
-.cl-formButtonPrimary,
-.cl-headerTitle {
-  font-family: var(--font-body) !important;
-}
-
 /* Misc: remove novelty cursor */
 button:hover {
   cursor: pointer;
@@ -492,12 +508,117 @@ h6 {
   transform: translateY(0px);
 }
 
-/* Clerk pieces should inherit our font */
-.cl-cardBox,
-.cl-cardBox div,
-.cl-formButtonPrimary,
-.cl-headerTitle {
-  font-family: var(--font-body) !important;
+/* ---- Clerk auth surfaces --------------------------------------------------
+   Page chrome + card/popover. Colors & fonts live in the --auth-* tokens. */
+.clerk-auth-page {
+  display: flex;
+  min-height: 100svh;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  padding: max(1rem, env(safe-area-inset-top)) 1rem
+    max(1rem, env(safe-area-inset-bottom));
+  background:
+    radial-gradient(
+      120% 80% at 50% -10%,
+      color-mix(in srgb, var(--sidebar-tab-track) 55%, transparent),
+      transparent 55%
+    ),
+    var(--auth-page-bg);
+  font-family: var(--auth-font);
+}
+
+.clerk-root-box {
+  width: 100%;
+  max-width: 28rem;
+}
+
+.clerk-card-box {
+  background: var(--auth-muted) !important;
+  border: 1px solid var(--auth-border) !important;
+  border-radius: calc(var(--auth-radius) + 4px) !important;
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--canvas-title-ink) 4%, transparent),
+    0 18px 40px -20px var(--auth-shadow) !important;
+  overflow: hidden;
+  font-family: var(--auth-font) !important;
+}
+
+/* White form panel — square bottom where Continue ends, flush to footer */
+.clerk-card,
+.clerk-main {
+  background: var(--auth-card-bg) !important;
+  border: none !important;
+  border-radius: calc(var(--auth-radius) + 4px)
+    calc(var(--auth-radius) + 4px) 0 0 !important;
+  box-shadow: none !important;
+  font-family: var(--auth-font) !important;
+}
+
+.clerk-footer {
+  background: var(--auth-muted) !important;
+  border-top: 1px solid var(--auth-border) !important;
+}
+
+.clerk-footer-action {
+  background: transparent !important;
+}
+
+.clerk-footer-action-hidden {
+  display: none !important;
+}
+
+/* Hide “Secured by Clerk” + orphaned “Secured by” — keep Sign in/up link */
+.clerk-footer-pages,
+.cl-footerPages,
+.clerk-dev-box,
+.cl-internal-b3fm6y,
+.clerk-card-box a[href*="clerk.com"],
+.clerk-card-box a[href*="clerk.dev"],
+.clerk-card-box a[href*="go.clerk"],
+.clerk-auth-page a[href*="go.clerk"] {
+  display: none !important;
+}
+
+.clerk-header-title {
+  font-family: var(--auth-font-heading) !important;
+  color: var(--auth-primary) !important;
+  letter-spacing: -0.02em;
+}
+
+.clerk-header-subtitle,
+.clerk-footer-link {
+  font-family: var(--auth-font) !important;
+  color: var(--auth-muted-foreground) !important;
+}
+
+.clerk-footer-link:hover {
+  color: var(--auth-primary) !important;
+}
+
+.clerk-btn-primary {
+  background: var(--button-primary) !important;
+  color: var(--button-primary-foreground) !important;
+  font-family: var(--auth-font-buttons) !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: none !important;
+}
+
+.clerk-btn-primary:hover {
+  background: var(--button-primary-hover) !important;
+}
+
+.clerk-btn-primary:active {
+  background: var(--button-primary-active) !important;
+}
+
+.clerk-social-btn,
+.clerk-input {
+  background: var(--auth-input-bg) !important;
+  border-color: var(--auth-border) !important;
+  color: var(--auth-foreground) !important;
+  font-family: var(--auth-font) !important;
+  border-radius: var(--auth-radius) !important;
 }
 
 .button-primary {

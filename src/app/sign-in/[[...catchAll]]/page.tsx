@@ -1,14 +1,10 @@
-import { SignIn } from "@clerk/nextjs";
+import { auth } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
+import { AuthForm } from "@/components/auth/auth-form";
 
-export default function Signin() {
-  return (
-    <div className="flex min-h-svh w-full items-center justify-center px-4 py-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))]">
-      <SignIn
-        routing="path"
-        path="/sign-in"
-        afterSignInUrl="/dashboard"
-        afterSignUpUrl="/dashboard"
-      />
-    </div>
-  );
+export default async function SignInPage() {
+  const { userId } = await auth();
+  if (userId) redirect("/dashboard");
+
+  return <AuthForm />;
 }
