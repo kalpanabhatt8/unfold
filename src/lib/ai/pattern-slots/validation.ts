@@ -1,3 +1,4 @@
+import { hasCitationBrackets } from "@/lib/ai/pattern-slots/citations";
 import {
   SLOT_MAX_LINE_CHARS,
   SLOT_MAX_LINE_WORDS,
@@ -17,6 +18,10 @@ const ADVICE_MARKERS =
 
 const THERAPY_MARKERS =
   /\b(healing|mindfulness|self-care|trauma|wellness|journey|growth mindset)\b/i;
+
+/** Coaching / corrective framing — implies the user should change something. */
+const CORRECTIVE_MARKERS =
+  /\b(stays unexamined|unexamined|before dismissing|notice the shift|leave it unopened|what would it feel like to|what would it look like to|what if you|worst version|once the first doubt)\b/i;
 
 const TEMPLATE_MARKERS =
   /\b(this shows that you|this suggests that you|this means you|in other words)\b/i;
@@ -104,6 +109,8 @@ const paraphrasesQuotes = (text: string, quotes: string[]): boolean => {
 const validateQuestion = (text: string): string | null => {
   if (!text.endsWith("?")) return "not_question";
   if (text.length > SLOT_MAX_QUESTION_CHARS) return "too_long";
+  if (hasCitationBrackets(text)) return "citation_leak";
+  if (CORRECTIVE_MARKERS.test(text)) return "corrective_voice";
   if (ADVICE_MARKERS.test(text) || THERAPY_MARKERS.test(text)) {
     return "advice_voice";
   }
@@ -140,6 +147,9 @@ const validateLine = (
   if (spec.role === "mechanism" && paraphrasesQuotes(text, [...allQuotes, ...spec.precedingQuotes])) {
     return "paraphrase";
   }
+
+  if (hasCitationBrackets(text)) return "citation_leak";
+  if (CORRECTIVE_MARKERS.test(text)) return "corrective_voice";
 
   if (spec.role === "mechanism") {
     if (text.endsWith("?")) return "not_statement";

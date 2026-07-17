@@ -33,6 +33,7 @@ model User {
   patternStates PatternState[]
   passages      PatternPassage[]
   displays      PatternDisplay[]
+  patternVotes  PatternVote[]
   attachments   Attachment[]
 
   @@map("users")
@@ -153,6 +154,20 @@ model PatternDisplay {
 
   @@id([userId, patternName, evidenceKey])
   @@map("pattern_displays")
+}
+
+/// Thumbs feedback on a pattern closing beat — one vote per (user, pattern).
+model PatternVote {
+  userId      String   @map("user_id")
+  patternName String   @map("pattern_name")
+  entryIds    String[] @map("entry_ids")
+  vote        String // "up" | "down"
+  updatedAt   DateTime @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, patternName])
+  @@map("pattern_votes")
 }
 
 /// Image bytes live in object storage keyed by {userId}/{entryId}/{id};

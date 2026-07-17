@@ -1,24 +1,23 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
-import Link from "next/link";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
-import { readAllEntries } from "@/lib/journal-entries";
 import { PATTERN_LABELS } from "@/lib/patterns/vocabulary";
 import { PatternListItem } from "@/components/patterns/pattern-list-item";
 import { usePatternDisplay } from "@/hooks/use-pattern-display";
 import { usePatternsAggregate } from "@/hooks/use-patterns-aggregate";
+import { useViewportLayout } from "@/hooks/use-viewport-layout";
 import "@/lib/patterns/passage-debug";
 
-/** Match the journal writing column — centered, not full-bleed. */
-const PATTERNS_COLUMN_MAX_WIDTH = "min(92vw, 700px)";
+/** Patterns reading column — a bit wider than the journal writing column. */
+const PATTERNS_COLUMN_MAX_WIDTH = "min(92vw, 780px)";
 
 /**
  * Patterns index — choose a pattern to read at your own pace.
  */
 export function PatternsView() {
   const router = useRouter();
+  const viewport = useViewportLayout();
   const aggregate = usePatternsAggregate();
   const patterns = usePatternDisplay(aggregate);
 
@@ -31,32 +30,33 @@ export function PatternsView() {
     }
   }, [aggregate, hasSurfaced, router]);
 
-  const entriesHref = useMemo(() => {
-    const entries = readAllEntries();
-    return entries[0] ? `/dashboard/journal/${entries[0].id}` : "/dashboard";
-  }, []);
-
   if (aggregate === null || !hasSurfaced) {
     return null;
   }
 
+  const enriched = patterns.length > 0 ? patterns : aggregate.surfaced;
+  // Only list patterns whose landing copy is ready — no skeleton tease.
+  const listPatterns = enriched.filter((pattern) => pattern.display !== null);
+
+  if (listPatterns.length === 0) {
+    return null;
+  }
+
   return (
-    <main className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain bg-(--sidebar-bg) py-10 sm:py-12 lg:py-14">
+    <main
+      className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain bg-(--sidebar-bg)"
+      style={{
+        paddingTop: viewport.pagePaddingYPx,
+        paddingBottom: viewport.pagePaddingYPx,
+      }}
+    >
       <div
         className="mx-auto flex w-full flex-col px-4 sm:px-5 lg:px-6"
         style={{ maxWidth: PATTERNS_COLUMN_MAX_WIDTH }}
       >
-        <Link
-          href={entriesHref}
-          className="mb-10 inline-flex items-center gap-1 text-sm text-(--sidebar-ink-soft) transition-colors duration-150 hover:text-(--sidebar-ink) sm:mb-12"
-        >
-          <ChevronLeft size={16} strokeWidth={1.75} aria-hidden />
-          Entries
-        </Link>
-
         <header className="mb-12 sm:mb-14">
           <h1
-            className="header-lg font-medium tracking-tight text-(--sidebar-active-ink) sm:text-2xl"
+            className="header-lg font-medium tracking-tight text-(--sidebar-active-ink)"
             style={{ fontFamily: "var(--font-heading)" }}
           >
             Patterns
@@ -67,7 +67,7 @@ export function PatternsView() {
         </header>
 
         <div className="flex flex-col">
-          {patterns.map((pattern) => (
+          {listPatterns.map((pattern) => (
             <PatternListItem
               key={pattern.name}
               label={PATTERN_LABELS[pattern.name]}

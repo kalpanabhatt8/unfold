@@ -1,3 +1,5 @@
+import { stripCitationBrackets } from "@/lib/ai/pattern-slots/citations";
+
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null;
 
@@ -18,7 +20,8 @@ export function parseSlotResponse(raw: string): ParsedSlotFill[] | null {
     for (const item of parsed) {
       if (!isRecord(item)) continue;
       const index = item.index;
-      const text = typeof item.text === "string" ? item.text.trim() : "";
+      const rawText = typeof item.text === "string" ? item.text.trim() : "";
+      const text = stripCitationBrackets(rawText);
       if (typeof index !== "number" || !text) continue;
       fills.push({ index, text });
     }

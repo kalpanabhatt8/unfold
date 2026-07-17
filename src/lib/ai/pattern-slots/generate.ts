@@ -4,7 +4,11 @@ import {
   SLOT_MODEL,
   SLOT_TEMPERATURE,
 } from "@/lib/ai/pattern-slots/constants";
-import type { SlotGenerationInput } from "@/lib/ai/pattern-slots/input";
+import type {
+  PriorVoiceSlot,
+  SlotGenerationInput,
+  VoiceSlotRequest,
+} from "@/lib/ai/pattern-slots/input";
 import { parseSlotResponse } from "@/lib/ai/pattern-slots/parse";
 import {
   buildSlotPrompt,
@@ -31,12 +35,26 @@ async function attemptSlots(
   input: SlotGenerationInput,
   buildPrompt: () => string,
 ): Promise<{ fills: ParsedSlotFill[]; reason?: string; rejected: SlotRejection[] }> {
+  const roles = input.voiceSlots.map((s) => s.role).join("+");
+  const started = performance.now();
+  if (process.env.PATTERN_SLOTS_TIMING === "1") {
+    console.log(
+      `[pattern-slots] Claude START slots=${roles} indexes=${input.voiceSlots.map((s) => s.index).join(",")}`,
+    );
+  }
+
   const result = await callAnthropicMessages(apiKey, {
     model: SLOT_MODEL,
     prompt: buildPrompt(),
     maxTokens: SLOT_MAX_TOKENS,
     temperature: SLOT_TEMPERATURE,
   });
+
+  if (process.env.PATTERN_SLOTS_TIMING === "1") {
+    console.log(
+      `[pattern-slots] Claude END slots=${roles} ${(performance.now() - started).toFixed(0)}ms ok=${result.ok}`,
+    );
+  }
 
   if (!result.ok) {
     console.error("[pattern-slots] upstream error", result.status, result.error);
@@ -90,16 +108,32 @@ const coversAllSlots = (
   return voiceSlots.every((s) => filled.has(s.index));
 };
 
-const isDiscoveryShape = (shapeId: string): boolean =>
-  shapeId === "discovery";
+const missingSlots = (
+  fills: ParsedSlotFill[],
+  voiceSlots: VoiceSlotRequest[],
+): VoiceSlotRequest[] => {
+  const filled = new Set(fills.map((f) => f.index));
+  return voiceSlots.filter((s) => !filled.has(s.index));
+};
 
+const priorFromFills = (
+  fills: ParsedSlotFill[],
+  voiceSlots: VoiceSlotRequest[],
+): PriorVoiceSlot[] => {
+  const roleByIndex = new Map(voiceSlots.map((s) => [s.index, s.role]));
+  return fills.flatMap((f) => {
+    const role = roleByIndex.get(f.index);
+    if (!role) return [];
+    return [{ index: f.index, role, text: f.text }];
+  });
+};
+
+/** Recognition arcs fill one slot at a time so realization sees connection. */
 const isSequentialShape = (shapeId: string): boolean =>
-  isDiscoveryShape(shapeId) ||
   shapeId === "recognition" ||
   shapeId === "recognition_q" ||
   shapeId === "recognition_deep";
 
-/** Recognition arcs fill one slot at a time so realization sees connection. */
 async function generateRecognitionSlots(
   apiKey: string,
   input: SlotGenerationInput,
@@ -146,9 +180,83 @@ async function generateRecognitionSlots(
 }
 
 /**
+ * Batch path used by discovery (and other non-recognition shapes):
+ * one Claude call for all requested slots, then retry only the slots that
+ * failed validation — keep any that already passed.
+ */
+async function generateBatchedSlots(
+  apiKey: string,
+  input: SlotGenerationInput,
+): Promise<SlotGenerationResult> {
+  const first = await attemptSlots(apiKey, input, () => buildSlotPrompt(input));
+  let fills = first.fills;
+  let rejected = first.rejected;
+
+  if (coversAllSlots(fills, input.voiceSlots)) {
+    return { fills, rejected };
+  }
+
+  const pending = missingSlots(fills, input.voiceSlots);
+  if (pending.length === 0) {
+    return { fills, rejected };
+  }
+
+  const retryReason =
+    first.rejected.find((r) => pending.some((s) => s.index === r.index))
+      ?.reason ??
+    first.reason ??
+    "incomplete";
+
+  const retryInput: SlotGenerationInput = {
+    ...input,
+    voiceSlots: pending,
+    priorVoice: [
+      ...input.priorVoice,
+      ...priorFromFills(fills, input.voiceSlots),
+    ],
+  };
+
+  const second = await attemptSlots(apiKey, retryInput, () =>
+    buildSlotRetryPrompt(retryInput, rejectionMessage(retryReason)),
+  );
+  fills = mergeFills(fills, second.fills);
+  rejected = mergeRejected(rejected, second.rejected);
+
+  if (coversAllSlots(fills, input.voiceSlots)) {
+    return { fills, rejected };
+  }
+
+  const stillPending = missingSlots(fills, input.voiceSlots);
+  if (stillPending.length === 0 || !second.reason) {
+    return { fills, rejected };
+  }
+
+  const thirdInput: SlotGenerationInput = {
+    ...input,
+    voiceSlots: stillPending,
+    priorVoice: [
+      ...input.priorVoice,
+      ...priorFromFills(fills, input.voiceSlots),
+    ],
+  };
+
+  const third = await attemptSlots(apiKey, thirdInput, () =>
+    buildSlotRetryPrompt(
+      thirdInput,
+      `${rejectionMessage(second.reason!)} Return one line per requested slot index only.`,
+    ),
+  );
+
+  return {
+    fills: mergeFills(fills, third.fills),
+    rejected: mergeRejected(rejected, third.rejected),
+  };
+}
+
+/**
  * Generate voice slot text:
- * 1. Prompt → validate (per-slot, drop failures)
- * 2. Retry with rejection reason when incomplete
+ * 1. Discovery / default: one call for all slots; retry only failures
+ * 2. Recognition family: sequential so later slots see earlier voice
  * 3. Return whatever validated (may be partial)
  */
 export async function generateSlotFills(
@@ -159,37 +267,5 @@ export async function generateSlotFills(
     return generateRecognitionSlots(apiKey, input);
   }
 
-  const first = await attemptSlots(apiKey, input, () => buildSlotPrompt(input));
-
-  if (coversAllSlots(first.fills, input.voiceSlots)) {
-    return { fills: first.fills, rejected: first.rejected };
-  }
-
-  const retryReason = first.reason ?? "incomplete";
-  const second = await attemptSlots(apiKey, input, () =>
-    buildSlotRetryPrompt(input, rejectionMessage(retryReason)),
-  );
-
-  const merged = mergeFills(first.fills, second.fills);
-  const rejected = mergeRejected(first.rejected, second.rejected);
-
-  if (coversAllSlots(merged, input.voiceSlots)) {
-    return { fills: merged, rejected };
-  }
-
-  if (!coversAllSlots(merged, input.voiceSlots) && second.reason) {
-    const third = await attemptSlots(apiKey, input, () =>
-      buildSlotRetryPrompt(
-        input,
-        `${rejectionMessage(second.reason!)} Return one line per requested slot index only.`,
-      ),
-    );
-    const final = mergeFills(merged, third.fills);
-    return {
-      fills: final,
-      rejected: mergeRejected(rejected, third.rejected),
-    };
-  }
-
-  return { fills: merged, rejected };
+  return generateBatchedSlots(apiKey, input);
 }

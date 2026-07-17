@@ -3,6 +3,10 @@
  *
  * Board content lives at `keeps-board-{id}`; metadata at `keeps-drafts`.
  * Reads snapshots as raw JSON to avoid pulling in the canvas runtime.
+ *
+ * Creating a draft is sync and cheap; callers should navigate immediately
+ * afterward. Seal/title work for any previous entry runs in the background
+ * via `journal-seal.ts` and must not gate this path.
  */
 
 import {

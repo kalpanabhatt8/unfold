@@ -1,54 +1,56 @@
 "use client";
 
-import { dayPartLabel } from "@/lib/patterns/time-hint";
 import type { QuoteRef } from "@/lib/patterns/evidence-signals";
-
-const formatDay = (ts: number): string => {
-  const date = new Date(ts);
-  const sameYear = date.getFullYear() === new Date().getFullYear();
-  return date.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    ...(sameYear ? {} : { year: "numeric" }),
-  });
-};
+import {
+  formatQuoteMeta,
+  formatTimelineDate,
+} from "@/lib/patterns/quote-meta";
 
 export type JournalSnippetProps = {
   quote: QuoteRef;
-  onOpenEntry: (entryId: string) => void;
-  compact?: boolean;
+  onOpenEntry: (entryId: string, quoteText?: string) => void;
+  /** Single closing quote — roomier than a list row. */
+  featured?: boolean;
 };
 
-/** A single journal excerpt — soft paper chip, not a card. */
+/**
+ * One moment as a split card — faint date left, quote right.
+ * Used for closing quotes; evidence lists use EvidenceSection.
+ */
 export function JournalSnippet({
   quote,
   onOpenEntry,
-  compact = false,
+  featured = false,
 }: JournalSnippetProps) {
-  const dayPart = dayPartLabel(quote.anchorTs);
-
   return (
     <div
       role="link"
       tabIndex={0}
-      onClick={() => onOpenEntry(quote.entryId)}
+      onClick={() => onOpenEntry(quote.entryId, quote.text)}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          onOpenEntry(quote.entryId);
+          onOpenEntry(quote.entryId, quote.text);
         }
       }}
-      className={`journal-snippet ${compact ? "journal-snippet--compact" : ""}`}
+      className={`evidence-card ${featured ? "evidence-card--featured" : "evidence-card--solo"}`}
     >
-      <p className="reflection-body">&ldquo;{quote.text}&rdquo;</p>
-      <p className="journal-snippet__context reflection-meta mt-3 tabular-nums">
-        {formatDay(quote.anchorTs)}
-        {dayPart ? ` · ${dayPart}` : ""}
-        <span className="journal-snippet__entry-title">
-          {" "}
-          · {quote.entryTitle}
-        </span>
-      </p>
+      <aside className="evidence-card__time" aria-hidden>
+        <p className="evidence-card__date">
+          {formatTimelineDate(quote.anchorTs)}
+        </p>
+      </aside>
+
+      <div className="evidence-card__quotes">
+        <div className="evidence-card__quote evidence-card__quote--solo">
+          <p className="evidence-card__meta">{formatQuoteMeta(quote)}</p>
+          <p
+            className={`evidence-card__quote-text${featured ? "" : " evidence-card__quote-text--clamp"}`}
+          >
+            &ldquo;{quote.text}&rdquo;
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

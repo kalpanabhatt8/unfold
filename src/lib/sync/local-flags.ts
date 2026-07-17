@@ -1,6 +1,7 @@
 /**
- * Sync bookkeeping in localStorage — dirty entry ids, delete tombstones, a
- * patterns-dirty flag, the pull cursor, and the one-time import flag.
+ * Sync bookkeeping in localStorage — dirty entry ids, delete tombstones,
+ * a durable deleted-id set (so deletes never resurrect), a patterns-dirty
+ * flag, the pull cursor, and the one-time import flag.
  *
  * Zero imports on purpose: the data stores (journal-entries, pattern stores)
  * call into this module, and the sync engine reads from it — keeping it
@@ -9,6 +10,8 @@
 
 const DIRTY_ENTRIES_KEY = "keeps-sync-dirty-entries";
 const DELETED_ENTRIES_KEY = "keeps-sync-deleted-entries";
+/** Durable set of entry ids the user (or sync) has deleted — never resurrect. */
+const DELETED_IDS_KEY = "keeps-sync-deleted-ids";
 const PATTERNS_DIRTY_KEY = "keeps-sync-patterns-dirty";
 const PULL_CURSOR_KEY = "keeps-sync-cursor";
 const IMPORTED_KEY = "keeps-sync-imported";
@@ -79,12 +82,33 @@ export const restoreDirtyEntries = (ids: string[]) => {
   writeJson(DIRTY_ENTRIES_KEY, [...new Set([...current, ...ids])]);
 };
 
+/** Drop a single id from the dirty queue (e.g. after a local delete). */
+export const clearDirtyEntry = (id: string) => {
+  const ids = readJson<string[]>(DIRTY_ENTRIES_KEY, []);
+  if (!ids.includes(id)) return;
+  writeJson(
+    DIRTY_ENTRIES_KEY,
+    ids.filter((entryId) => entryId !== id),
+  );
+};
+
 // ── Delete tombstones ───────────────────────────────────────────────────────
 
 export type EntryTombstone = { id: string; deletedAt: number };
 
+const rememberDeletedId = (id: string) => {
+  const ids = readJson<string[]>(DELETED_IDS_KEY, []);
+  if (ids.includes(id)) return;
+  writeJson(DELETED_IDS_KEY, [...ids, id]);
+};
+
+/** True if this entry was deleted locally or via a server tombstone apply. */
+export const isEntryDeleted = (id: string): boolean =>
+  readJson<string[]>(DELETED_IDS_KEY, []).includes(id);
+
 export const recordEntryTombstone = (id: string) => {
   if (dirtyTrackingSuppressed) return;
+  rememberDeletedId(id);
   const tombstones = readJson<EntryTombstone[]>(DELETED_ENTRIES_KEY, []);
   if (!tombstones.some((t) => t.id === id)) {
     writeJson(DELETED_ENTRIES_KEY, [
@@ -94,6 +118,18 @@ export const recordEntryTombstone = (id: string) => {
   }
   notifyDirty();
 };
+
+/**
+ * Mark an id as permanently deleted without queuing a push (server already
+ * has the tombstone, or we're applying a remote delete).
+ */
+export const rememberRemoteDelete = (id: string) => {
+  rememberDeletedId(id);
+};
+
+/** True while a local delete is waiting to reach the server. */
+export const hasEntryTombstone = (id: string): boolean =>
+  readJson<EntryTombstone[]>(DELETED_ENTRIES_KEY, []).some((t) => t.id === id);
 
 export const takeEntryTombstones = (): EntryTombstone[] => {
   const tombstones = readJson<EntryTombstone[]>(DELETED_ENTRIES_KEY, []);

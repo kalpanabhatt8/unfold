@@ -3,22 +3,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { QuoteRef } from "@/lib/patterns/evidence-signals";
+import { formatQuoteMeta } from "@/lib/patterns/quote-meta";
 import { logPopoverReady } from "@/lib/patterns/pattern-timing";
-
-const formatDay = (ts: number): string => {
-  const date = new Date(ts);
-  const sameYear = date.getFullYear() === new Date().getFullYear();
-  return date.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    ...(sameYear ? {} : { year: "numeric" }),
-  });
-};
 
 export type MoreMomentsPopoverProps = {
   quotes: QuoteRef[];
   count: number;
-  onOpenEntry: (entryId: string) => void;
+  onOpenEntry: (entryId: string, quoteText?: string) => void;
 };
 
 const HIDE_DELAY_MS = 150;
@@ -104,33 +95,33 @@ export function MoreMomentsPopover({
               onMouseEnter={show}
               onMouseLeave={scheduleHide}
             >
-              <ul className="flex flex-col gap-1 p-2">
-                {quotes.map((quote, i) => (
-                  <li
-                    key={`${quote.entryId}-${i}`}
-                    className="group relative rounded-md transition-colors duration-150 hover:bg-(--sidebar-hover-bg)"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => onOpenEntry(quote.entryId)}
-                      className="w-full rounded-md text-left"
+              <div className="evidence-card evidence-card--peek">
+                <div className="evidence-card__quotes">
+                  {quotes.map((quote, i) => (
+                    <div
+                      key={`${quote.entryId}-${i}`}
+                      role="link"
+                      tabIndex={0}
+                      onClick={() => onOpenEntry(quote.entryId, quote.text)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          onOpenEntry(quote.entryId, quote.text);
+                        }
+                      }}
+                      className="evidence-card__quote"
                     >
-                      <div className="flex flex-col gap-1.5 px-2.75 py-2.5">
-                        <p className="journal-snippet__context reflection-meta tabular-nums text-[0.7rem]!">
-                          {formatDay(quote.anchorTs)}
-                          <span className="journal-snippet__entry-title">
-                            {" "}
-                            · {quote.entryTitle}
-                          </span>
-                        </p>
-                        <p className="reflection-body line-clamp-3 min-w-0 text-[0.9rem]! leading-snug">
-                          &ldquo;{quote.text}&rdquo;
-                        </p>
-                      </div>
-                    </button>
-                  </li>
-                ))}
-              </ul>
+                       <p className="evidence-card__quote-text evidence-card__quote-text--clamp">
+                        &ldquo;{quote.text}&rdquo;
+                      </p>
+                      <p className="evidence-card__meta">
+                        {formatQuoteMeta(quote)}
+                      </p>
+                     
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>,
             document.body,
           )

@@ -57,6 +57,8 @@ const JournalEntryPage = () => {
 
   const [entry, setEntry] = useState<JournalEntry | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
+  // Start null on server + first client render so hydration matches; claim the
+  // stamp in useLayoutEffect (before paint) so CanvasBoard mounts without a flash.
   const [sessionEditedAt, setSessionEditedAt] = useState<number | null>(null);
   const entryRef = useRef<JournalEntry | null>(null);
   const isHydratedRef = useRef(false);
@@ -82,30 +84,43 @@ const JournalEntryPage = () => {
   }, [entryId]);
 
   // Hydrate (or create) this entry's metadata on open.
+  // Existing entries: read-only — avoid rewriting drafts + marking dirty.
   useEffect(() => {
     const existing = readEntryById(entryId);
-    const hydrated = upsertEntry(entryId, {
-      title: existing?.title ?? "",
-    });
+    if (existing) {
+      entryRef.current = existing;
+      setEntry(existing);
+      setIsHydrated(true);
+      // Already-sealed entries were completed in a prior session (the reconciler
+      // covers any missing analysis) — only a fresh seal this session counts.
+      completionFiredRef.current = typeof existing.sealedAt === "number";
+      return;
+    }
+    const hydrated = upsertEntry(entryId, { title: "" });
     entryRef.current = hydrated;
     setEntry(hydrated);
     setIsHydrated(true);
-    // Already-sealed entries were completed in a prior session (the reconciler
-    // covers any missing analysis) — only a fresh seal this session counts.
-    completionFiredRef.current = typeof existing?.sealedAt === "number";
+    completionFiredRef.current = false;
   }, [entryId]);
 
   useEffect(() => {
     isHydratedRef.current = isHydrated;
   }, [isHydrated]);
 
-  // Pick up title/seal edits made elsewhere (e.g. another tab).
+  // Pick up title/seal edits made elsewhere (e.g. another tab), and stop
+  // saving if this entry was deleted while the page was still mounted.
   useEffect(() => {
     if (!isHydrated) return;
 
     const syncFromStorage = () => {
       const stored = readEntryById(entryId);
-      if (!stored) return;
+      if (!stored) {
+        isHydratedRef.current = false;
+        setIsHydrated(false);
+        entryRef.current = null;
+        setEntry(null);
+        return;
+      }
       if (
         stored.title === entryRef.current?.title &&
         stored.sealedAt === entryRef.current?.sealedAt
@@ -123,6 +138,7 @@ const JournalEntryPage = () => {
 
   const handleTitleChange = useCallback(
     (title: string) => {
+      if (!readEntryById(entryId)) return;
       const next = upsertEntry(entryId, { title });
       entryRef.current = next;
       setEntry(next);
@@ -135,6 +151,7 @@ const JournalEntryPage = () => {
   const handleSnapshotChange = useCallback(
     (snapshot: CanvasSnapshot) => {
       if (!isHydratedRef.current) return;
+      if (!readEntryById(entryId)) return;
       const next = upsertEntry(entryId, {
         searchText: flattenSnapshotText(snapshot),
         sealedAt: snapshot.sealedAt ?? null,
@@ -150,6 +167,7 @@ const JournalEntryPage = () => {
   // the entry as "last edited" for the header stamp.
   const handleMilestoneSave = useCallback(
     (snapshot: CanvasSnapshot) => {
+      if (!readEntryById(entryId)) return;
       const next = upsertEntry(entryId, {
         searchText: flattenSnapshotText(snapshot),
         sealedAt: snapshot.sealedAt ?? null,
@@ -190,9 +208,10 @@ const JournalEntryPage = () => {
 
     const tryHighlight = () => {
       if (cancelled) return;
-      if (boardRef.current?.highlightQuote(quote)) return;
+      const result = boardRef.current?.highlightQuote(quote);
+      if (result === "done" || result === "miss") return;
       if (Date.now() - started > 2_500) return;
-      timer = window.setTimeout(tryHighlight, 50);
+      timer = window.setTimeout(tryHighlight, 32);
     };
 
     timer = window.setTimeout(tryHighlight, 0);

@@ -158,28 +158,6 @@ export function Sidebar() {
       ? (user.firstName ?? user.username ?? null)
       : "Anonymous";
 
-  const handleNewEntry = () => {
-    const { id } = resolveNewEntryTarget();
-    router.push(`/dashboard/journal/${id}?new=1`);
-  };
-
-  const handleDeleteEntry = (id: string) => {
-    const wasActive = id === activeEntryId;
-    deleteEntry(id);
-    setEntries((prev) => prev.filter((entry) => entry.id !== id));
-
-    if (!wasActive) return;
-
-    const remaining = readAllEntries();
-    if (remaining.length > 0) {
-      router.replace(`/dashboard/journal/${remaining[0].id}`);
-      return;
-    }
-
-    const { id: newId } = resolveNewEntryTarget();
-    router.replace(`/dashboard/journal/${newId}?new=1`);
-  };
-
   const closeSearch = () => {
     setSearchOpen(false);
     setQuery("");
@@ -214,6 +192,32 @@ export function Sidebar() {
     closeSearch();
   };
 
+  const handleNewEntry = () => {
+    // Seal/title work for the previous entry continues in journal-seal.ts —
+    // do not wait for the stamp animation. Create (or reuse) then navigate
+    // immediately so the route change outranks the sidebar refresh.
+    const { id } = resolveNewEntryTarget();
+    router.push(`/dashboard/journal/${id}?new=1`);
+    closeOverlayNav();
+  };
+
+  const handleDeleteEntry = (id: string) => {
+    const wasActive = id === activeEntryId;
+    deleteEntry(id);
+    setEntries((prev) => prev.filter((entry) => entry.id !== id));
+
+    if (!wasActive) return;
+
+    const remaining = readAllEntries();
+    if (remaining.length > 0) {
+      router.replace(`/dashboard/journal/${remaining[0].id}`);
+      return;
+    }
+
+    const { id: newId } = resolveNewEntryTarget();
+    router.replace(`/dashboard/journal/${newId}?new=1`);
+  };
+
   useEffect(() => {
     const wasPatterns = prevPathnameRef.current?.startsWith("/dashboard/patterns");
     prevPathnameRef.current = pathname;
@@ -228,9 +232,14 @@ export function Sidebar() {
       return;
     }
 
+    // Defer expand so Patterns → Journal doesn't layout-thrash against
+    // CanvasBoard cold-start (quote clicks feel especially slow otherwise).
     if (isEntriesActive && wasPatterns) {
-      setCollapsed(false);
-      persistCollapsed(false);
+      const timer = window.setTimeout(() => {
+        setCollapsed(false);
+        persistCollapsed(false);
+      }, SIDEBAR_ANIMATION_MS);
+      return () => window.clearTimeout(timer);
     }
   }, [pathname, isOverlayNav, isPatternsActive, isEntriesActive]);
 
@@ -287,7 +296,7 @@ export function Sidebar() {
       {hasSurfacedPatterns ? (
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-32 bg-linear-to-b from-transparent via-(--sidebar-bg)/30 to-(--sidebar-bg-lightest)"
+          className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-32 bg-linear-to-b from-transparent via-(--sidebar-bg)/40 to-(--sidebar-bg)"
         />
       ) : null}
 
@@ -394,7 +403,7 @@ export function Sidebar() {
               {entries.length === 0 ? "No entries yet" : "No matches"}
             </p>
           ) : (
-            <ul className="flex flex-col gap-1 px-2 pb-2">
+            <ul className="flex flex-col gap-1 px-2 pb-4">
               {filteredEntries.map((entry) => {
                 const isActive = entry.id === activeEntryId;
                 const isSealed = typeof entry.sealedAt === "number";
@@ -491,10 +500,7 @@ export function Sidebar() {
 
           <div
             aria-hidden
-            className={clsx(
-              "pointer-events-none absolute inset-x-0 bottom-0 h-10 bg-linear-to-b from-transparent to-(--sidebar-bg-lightest)",
-              !hasSurfacedPatterns && "to-(--sidebar-bg)",
-            )}
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-(--sidebar-bg)/85 backdrop-blur-[3px] [mask-image:linear-gradient(to_bottom,transparent,black_55%)] [-webkit-mask-image:linear-gradient(to_bottom,transparent,black_55%)]"
           />
         </div>
       </section>

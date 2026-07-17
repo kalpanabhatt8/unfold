@@ -7,10 +7,9 @@ import {
   useMemo,
   useRef,
   useState,
+  startTransition,
 } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
 import {
   buildArcFromPassage,
   buildOrientingLine,
@@ -30,7 +29,14 @@ import { DiscoveryCanvas } from "@/components/patterns/discovery-canvas";
 import { usePatternDisplay } from "@/hooks/use-pattern-display";
 import { usePatternPassages } from "@/hooks/use-pattern-passages";
 import { usePatternsAggregate } from "@/hooks/use-patterns-aggregate";
+import { useViewportLayout } from "@/hooks/use-viewport-layout";
 import "@/lib/patterns/passage-debug";
+import { stashJournalQuoteFocus } from "@/lib/journal-quote-focus";
+import {
+  getVote,
+  putVote,
+  type PatternVoteValue,
+} from "@/lib/patterns/pattern-vote-store";
 import {
   beginPatternSession,
   logCtaReady,
@@ -44,7 +50,7 @@ export type PatternDetailViewProps = {
 
 function CanvasSkeleton() {
   return (
-    <div className="w-full max-w-[min(92vw,700px)]" aria-hidden>
+    <div className="w-full max-w-[min(92vw,780px)]" aria-hidden>
       <span className="block h-6 w-[55%] animate-pulse rounded bg-(--sidebar-tab-track)" />
       <span className="mt-3 block h-3.5 w-[30%] animate-pulse rounded bg-(--sidebar-hover-bg)" />
       <span className="mt-12 block h-24 w-full animate-pulse rounded bg-(--sidebar-tab-track)" />
@@ -58,11 +64,13 @@ function CanvasSkeleton() {
  */
 export function PatternDetailView({ patternName }: PatternDetailViewProps) {
   const router = useRouter();
+  const viewport = useViewportLayout();
   const aggregate = usePatternsAggregate();
   const displayPatterns = usePatternDisplay(aggregate);
   const patterns = usePatternPassages(aggregate, patternName);
   const [phaseIndex, setPhaseIndex] = useState(0);
   const [readerReady, setReaderReady] = useState(false);
+  const [closingVote, setClosingVote] = useState<PatternVoteValue | null>(null);
   const initializedKeyRef = useRef<string | null>(null);
   const stablePassageRef = useRef<PatternPassage | null>(null);
   const timingStartedRef = useRef(false);
@@ -112,6 +120,7 @@ export function PatternDetailView({ patternName }: PatternDetailViewProps) {
     initializedKeyRef.current = null;
     setReaderReady(false);
     timingStartedRef.current = false;
+    setClosingVote(getVote(patternName)?.vote ?? null);
   }, [patternName]);
 
   useLayoutEffect(() => {
@@ -185,11 +194,35 @@ export function PatternDetailView({ patternName }: PatternDetailViewProps) {
     }
   }, [aggregate, patternName, router]);
 
+  // Warm journal routes for visible quotes so click → entry isn't a cold load.
+  useEffect(() => {
+    if (!arc) return;
+    const entryIds = new Set<string>();
+    for (const q of arc.evidence.visible) entryIds.add(q.entryId);
+    if (arc.reflection.quote) entryIds.add(arc.reflection.quote.entryId);
+    for (const id of entryIds) {
+      router.prefetch(`/dashboard/journal/${id}`);
+    }
+  }, [arc, router]);
+
   const handleOpenEntry = useCallback(
-    (entryId: string) => {
-      router.push(`/dashboard/journal/${entryId}`);
+    (entryId: string, quoteText?: string) => {
+      if (quoteText) stashJournalQuoteFocus(entryId, quoteText);
+      startTransition(() => {
+        router.push(`/dashboard/journal/${entryId}`);
+      });
     },
     [router],
+  );
+
+  const handleClosingVote = useCallback(
+    (vote: PatternVoteValue) => {
+      if (!pattern) return;
+      const entryIds = pattern.evidence.map((e) => e.entryId);
+      putVote(patternName, entryIds, vote);
+      setClosingVote(vote);
+    },
+    [pattern, patternName],
   );
 
   const handleContinue = useCallback(() => {
@@ -207,23 +240,18 @@ export function PatternDetailView({ patternName }: PatternDetailViewProps) {
 
   return (
     <main className="flex min-h-0 flex-1 flex-col overflow-hidden bg-(--discovery-canvas-bg)">
-      <div className="shrink-0 px-[max(1.25rem,env(safe-area-inset-left))] pt-8 sm:px-8 sm:pt-10">
-        <Link
-          href="/dashboard/patterns"
-          aria-label="Back to patterns"
-          className="inline-flex items-center text-(--sidebar-ink-soft) transition-colors duration-150 hover:text-(--sidebar-ink)"
-        >
-          <ChevronLeft size={18} strokeWidth={1.75} aria-hidden />
-        </Link>
-      </div>
-
-      <div className="flex min-h-0 flex-1 flex-col items-center px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-6 sm:px-5 sm:pt-8 lg:px-6 lg:pt-10">
+      <div
+        className="flex min-h-0 flex-1 flex-col items-center px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-5 lg:px-6"
+        style={{ paddingTop: viewport.pagePaddingYPx }}
+      >
         {arc ? (
           <DiscoveryCanvas
             arc={arc}
             phaseIndex={phaseIndex}
             revealKey={cacheKey}
             ctaReady={ctaReady}
+            closingVote={closingVote}
+            onClosingVote={handleClosingVote}
             onContinue={handleContinue}
             onOpenEntry={handleOpenEntry}
           />

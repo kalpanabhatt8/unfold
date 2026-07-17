@@ -40,6 +40,13 @@ export type WireDisplay = {
   createdAt: number;
 };
 
+export type WirePatternVote = {
+  patternName: string;
+  entryIds: string[];
+  vote: "up" | "down";
+  updatedAt: number;
+};
+
 /** GET /api/sync/entries response. */
 export type EntriesPullResponse = {
   entries: WireEntry[];
@@ -60,6 +67,8 @@ export type PatternsSnapshot = {
   states: WirePatternState[];
   passages: WirePassage[];
   displays: WireDisplay[];
+  /** Optional for older clients / servers — treat missing as []. */
+  votes?: WirePatternVote[];
 };
 
 export type ImportPayload = {

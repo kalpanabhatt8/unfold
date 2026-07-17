@@ -4,7 +4,7 @@
  * Extracts pair/echo candidates, builds the evidence fingerprint (regeneration
  * trigger), and selects quotes by inner-experience strength — moments where
  * the user reveals what it felt like from the inside — not keyword confidence.
- * Entry diversity and near-duplicate filtering keep the 5–7 surfaced quotes
+ * Entry diversity and near-duplicate filtering keep the top 6 surfaced quotes
  * distinct and each revealing a different part of the pattern.
  */
 
@@ -19,7 +19,7 @@ import type { PatternEvidenceItem } from "@/lib/patterns/types";
 const DAY_MS = 86_400_000;
 
 /** Max quotes surfaced in a passage — only the strongest moments. */
-export const MAX_PASSAGE_QUOTES = 7;
+export const MAX_PASSAGE_QUOTES = 6;
 
 const ECHO_MIN_TOKEN_LEN = 4;
 const ECHO_MIN_ENTRIES = 2;

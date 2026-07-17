@@ -81,7 +81,20 @@ const pushOne = async (
     return { id: entry.id, accepted: false };
   }
 
-  if (existing && existing.updatedAt.getTime() > entry.updatedAt) {
+  const isTombstone = Boolean(entry.deletedAt);
+
+  // Deletes are permanent: a live push must never clear an existing soft-delete.
+  if (existing?.deletedAt && !isTombstone) {
+    return { id: entry.id, accepted: false, server: toWire(existing) };
+  }
+
+  // Tombstones always win over live content (even if the client clock is behind),
+  // so a delete cannot lose a race to a stale post-delete save.
+  if (
+    !isTombstone &&
+    existing &&
+    existing.updatedAt.getTime() > entry.updatedAt
+  ) {
     return { id: entry.id, accepted: false, server: toWire(existing) };
   }
 

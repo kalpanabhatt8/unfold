@@ -17,30 +17,37 @@ export function PatternsSidebarLink({
   onOpen,
 }: PatternsSidebarLinkProps) {
   return (
-    <Link
-      href="/dashboard/patterns"
-      onClick={onOpen}
-      aria-current={active ? "page" : undefined}
-      aria-label={`Patterns, ${count} reflections`}
+    <div
       className={clsx(
-        "flex shrink-0 items-center gap-2.5 rounded-xl px-3 py-2.5 transition-colors duration-150 bg-(--discovery-canvas-bg) hover:bg-(--sidebar-hover-bg)",
+        "group relative rounded-md transition-colors duration-150",
+        active
+          ? "bg-(--sidebar-active-bg)"
+          : "hover:bg-(--sidebar-hover-bg)",
       )}
     >
-      <Waypoints
-        size={16}
-        strokeWidth={1.85}
-        aria-hidden
-        className={clsx(iconFixed, "shrink-0 text-(--sidebar-ink)")}
-      />
-      <span className="min-w-0 flex-1 text-sm font-medium text-(--sidebar-ink)">
-        Patterns
-      </span>
-      <span
-        className="flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full bg-(--sidebar-hover-bg) px-1.5 text-xs font-medium tabular-nums text-(--sidebar-ink)"
-        aria-hidden
+      <Link
+        href="/dashboard/patterns"
+        onClick={onOpen}
+        aria-current={active ? "page" : undefined}
+        aria-label={`Patterns, ${count} reflections`}
+        className="flex items-center gap-2.5 px-2.75 py-2.5"
       >
-        {count}
-      </span>
-    </Link>
+        <Waypoints
+          size={16}
+          strokeWidth={1.85}
+          aria-hidden
+          className={clsx(iconFixed, "shrink-0 text-sealed")}
+        />
+        <span className="min-w-0 flex-1 text-sm font-medium leading-snug text-sealed">
+          Patterns
+        </span>
+        <span
+          className="flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full bg-(--sidebar-tab-track) px-1.5 text-xs font-medium tabular-nums text-sealed"
+          aria-hidden
+        >
+          {count}
+        </span>
+      </Link>
+    </div>
   );
 }

@@ -10,9 +10,16 @@ import type { PatternName } from "@/lib/patterns/vocabulary";
 import { markPatternsDirty } from "@/lib/sync/local-flags";
 
 export const PATTERN_DISPLAY_STORAGE_KEY = "keeps-pattern-display";
+/** Same-tab signal when landing-page display metadata is written. */
+export const PATTERN_DISPLAY_UPDATED_EVENT = "keeps-pattern-display-updated";
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null;
+
+const notifyDisplayUpdated = () => {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(PATTERN_DISPLAY_UPDATED_EVENT));
+};
 
 const isValidDisplay = (v: unknown): v is PatternDisplay => {
   if (!isRecord(v)) return false;
@@ -95,5 +102,6 @@ export const putCachedDisplay = (
   map[cacheKey(name, evidenceKey)] = record;
   writeAll(map);
   markPatternsDirty();
+  notifyDisplayUpdated();
   return record;
 };

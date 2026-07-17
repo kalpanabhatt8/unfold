@@ -20,6 +20,8 @@ import { materializePassage } from "@/lib/patterns/passage-materialize";
 import { getCachedPassage, putCachedPassage } from "@/lib/patterns/passage-store";
 import {
   buildPassageCacheKey,
+  passageCacheVersionIsCurrent,
+  passageEvidenceKeyFromCacheKey,
   passageNeedsGeneration,
   type PatternPassage,
 } from "@/lib/patterns/passage-types";
@@ -67,6 +69,9 @@ const materializePreservingVoice = (
   const fresh = materializePassage(name, plan, evidenceKey, now);
   const existing = getCachedPassage(name);
   if (!existing) return fresh;
+
+  // Stale voice contract (e.g. corrective framing) must not be copied forward.
+  if (!passageCacheVersionIsCurrent(existing.cacheKey)) return fresh;
 
   const fills = voiceFillsFrom(existing);
   if (fills.length === 0) return fresh;
@@ -129,10 +134,8 @@ const LEGACY_SLOT_LAYOUTS = new Set([
 const slotLayoutOf = (signature: string): string =>
   signature.split("|")[0] ?? "";
 
-const passageEvidenceKey = (cacheKey: string): string =>
-  cacheKey.split("|")[1] ?? "";
-
 const isReusableVoiceArc = (passage: PatternPassage): boolean =>
+  passageCacheVersionIsCurrent(passage.cacheKey) &&
   isVoiceArcShape(passage.shapeId) &&
   !passageNeedsGeneration(passage) &&
   passageStructureValid(passage) &&
@@ -143,8 +146,9 @@ const isContinuableDiscovery = (
   passage: PatternPassage,
   evidenceKey: string,
 ): boolean =>
+  passageCacheVersionIsCurrent(passage.cacheKey) &&
   passage.shapeId === "discovery" &&
-  passageEvidenceKey(passage.cacheKey) === evidenceKey &&
+  passageEvidenceKeyFromCacheKey(passage.cacheKey) === evidenceKey &&
   passageStructureValid(passage) &&
   !passageVoiceEchoes(passage);
 
@@ -265,7 +269,7 @@ export function reconcilePatternPassage(
   if (
     cached !== null &&
     identityUnchanged &&
-    passageEvidenceKey(cached.cacheKey) === advanced.evidenceKey &&
+    passageEvidenceKeyFromCacheKey(cached.cacheKey) === advanced.evidenceKey &&
     isReusableVoiceArc(cached)
   ) {
     return returnCached(cached, false);
@@ -282,7 +286,7 @@ export function reconcilePatternPassage(
 
   const cachedMatchesEvidence =
     cached !== null &&
-    passageEvidenceKey(cached.cacheKey) === advanced.evidenceKey;
+    passageEvidenceKeyFromCacheKey(cached.cacheKey) === advanced.evidenceKey;
 
   // Deterministic upgrade: stale evidence-only → discovery (skip planner lottery).
   if (
@@ -407,6 +411,18 @@ export function reconcilePatternPassage(
     advanced.evidenceKey,
     ctx.now,
   );
+
+  // Never wipe a complete same-evidence voice passage with an empty replan —
+  // that briefly shows "a moment…" on every reopen.
+  if (
+    cached !== null &&
+    identityUnchanged &&
+    isReusableVoiceArc(cached) &&
+    passageEvidenceKeyFromCacheKey(cached.cacheKey) === advanced.evidenceKey &&
+    passageNeedsGeneration(passage)
+  ) {
+    return returnCached(cached, false);
+  }
 
   putCachedPassage(passage);
   if (persist) putState(state);

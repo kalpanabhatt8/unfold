@@ -14,12 +14,13 @@ import {
   phaseAtIndex,
   phaseIndex,
 } from "@/lib/patterns/discovery-arc";
+import { ClosingVote } from "@/components/patterns/closing-vote";
 import { EvidenceSection } from "@/components/patterns/evidence-section";
 import { JournalSnippet } from "@/components/patterns/journal-snippet";
 import { MechanismChain } from "@/components/patterns/mechanism-chain";
+import type { PatternVoteValue } from "@/lib/patterns/pattern-vote-store";
 import {
   logMechanismRendered,
-  logPopoverReady,
   logQuestionRendered,
   logQuotesRendered,
 } from "@/lib/patterns/pattern-timing";
@@ -31,8 +32,11 @@ export type DiscoveryCanvasProps = {
   revealKey?: string;
   /** When false, the CTA waits (voice text still arriving). */
   ctaReady?: boolean;
+  /** Current thumbs vote for this pattern closing, if any. */
+  closingVote?: PatternVoteValue | null;
+  onClosingVote?: (vote: PatternVoteValue) => void;
   onContinue: () => void;
-  onOpenEntry: (entryId: string) => void;
+  onOpenEntry: (entryId: string, quoteText?: string) => void;
 };
 
 /** How long one reveal takes — Continue is locked for this window. */
@@ -108,6 +112,8 @@ export function DiscoveryCanvas({
   phaseIndex: currentIndex,
   revealKey = "",
   ctaReady = true,
+  closingVote = null,
+  onClosingVote,
   onContinue,
   onOpenEntry,
 }: DiscoveryCanvasProps) {
@@ -133,10 +139,7 @@ export function DiscoveryCanvas({
   useEffect(() => {
     if (!evidenceVisible) return;
     logQuotesRendered(arc.evidence.visible.length);
-    if (arc.evidence.overflow.length > 0) {
-      logPopoverReady(arc.evidence.overflow.length);
-    }
-  }, [evidenceVisible, arc.evidence.visible.length, arc.evidence.overflow.length]);
+  }, [evidenceVisible, arc.evidence.visible.length]);
 
   useEffect(() => {
     if (!mechanismVisible || !arc.mechanism?.text.trim()) return;
@@ -188,13 +191,13 @@ export function DiscoveryCanvas({
   }, [currentIndex]);
 
   return (
-    <article className="discovery-canvas flex h-full min-h-0 w-full max-w-[min(92vw,700px)] flex-col">
+    <article className="discovery-canvas flex h-full min-h-0 w-full max-w-[min(92vw,780px)] flex-col">
       <header
         className="discovery-headline shrink-0"
         data-faded={headlineFaded ? "true" : "false"}
       >
         <h1
-          className="text-[1.25rem] font-semibold leading-snug tracking-tight text-(--sidebar-ink) sm:text-[1.375rem]"
+          className="header-lg font-medium tracking-tight text-(--sidebar-ink)"
           style={{ fontFamily: "var(--font-heading)" }}
         >
           {arc.headline.title}
@@ -217,9 +220,7 @@ export function DiscoveryCanvas({
             >
               <EvidenceSection
                 visible={arc.evidence.visible}
-                overflow={arc.evidence.overflow}
                 onOpenEntry={onOpenEntry}
-                label="These moments kept showing up"
               />
             </Layer>
           ) : null}
@@ -251,12 +252,19 @@ export function DiscoveryCanvas({
                 <JournalSnippet
                   quote={arc.reflection.quote}
                   onOpenEntry={onOpenEntry}
+                  featured
                 />
               ) : (
                 <p className="discovery-question discovery-question--final">
                   {arc.reflection.question}
                 </p>
               )}
+              {onClosingVote ? (
+                <ClosingVote
+                  value={closingVote ?? null}
+                  onVote={onClosingVote}
+                />
+              ) : null}
             </Layer>
           ) : null}
 

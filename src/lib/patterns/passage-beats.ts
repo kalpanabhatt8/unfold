@@ -7,13 +7,13 @@ import type { PassageSlot } from "@/lib/patterns/passage-types";
 import type { QuoteRef } from "@/lib/patterns/evidence-signals";
 
 /** Default quotes visible on a moments beat. */
-export const VISIBLE_QUOTE_COUNT = 3;
+export const VISIBLE_QUOTE_COUNT = 6;
 
 /** Opening evidence screen — one strong quote; more moments follow on the next card. */
 export const OPENING_QUOTE_COUNT = 1;
 
 /** A later "more moments" evidence card surfaces several quotes at once. */
-export const MORE_MOMENTS_QUOTE_COUNT = 3;
+export const MORE_MOMENTS_QUOTE_COUNT = 6;
 
 export type ObservationDepth = "connection" | "realization" | "single";
 

@@ -58,15 +58,14 @@ export type PatternListItemProps = {
 
 function PatternRowSkeleton() {
   return (
-    <div className="flex flex-col gap-2" aria-hidden>
-      <span className="h-4 w-[55%] animate-pulse rounded bg-(--sidebar-tab-track)" />
-      <span className="h-3.5 w-full animate-pulse rounded bg-(--sidebar-tab-selected-bg)" />
-      <span className="h-3 w-[35%] animate-pulse rounded bg-(--sidebar-tab-track)" />
+    <div className="pli-skel" aria-hidden>
+      <span className="h-3.5 w-[55%] animate-pulse rounded bg-(--sidebar-tab-track)" />
+      <span className="h-3 w-full animate-pulse rounded bg-(--sidebar-tab-selected-bg)" />
+      <span className="h-2.5 w-[35%] animate-pulse rounded bg-(--sidebar-tab-track)" />
     </div>
   );
 }
 
-/** Thin landing row with comfortable internal rhythm. */
 export function PatternListItem({
   label,
   href,
@@ -83,45 +82,23 @@ export function PatternListItem({
     timeHint,
     `last seen ${formatLastSeen(lastSeenTs(evidence))}`,
   ].filter(Boolean);
+  const heading = title ?? label;
 
   return (
-    <Link
-      href={href}
-      className="group block border-b border-(--sidebar-border) py-6 transition-colors duration-150 last:border-b-0 sm:py-7"
-    >
+    <Link href={href} className="pattern-list-item group">
       {loading ? (
         <PatternRowSkeleton />
       ) : (
-        <div className="flex flex-col gap-2">
-          {title ? (
-            <p
-              className="text-[0.9375rem] font-semibold leading-snug tracking-tight text-(--sidebar-active-ink) sm:text-base"
-            >
-              {title}
-            </p>
-          ) : (
-            <p className="text-[0.9375rem] font-semibold leading-snug text-(--sidebar-ink-soft) sm:text-base">
-              {label}
-            </p>
-          )}
-
+        <div className="pli-inner">
+          <p className="pli-title" style={{ fontFamily: "var(--font-heading)" }}>
+            {heading}
+          </p>
           {quote ? (
-            <p
-              className="line-clamp-2 text-[0.9rem] leading-relaxed text-(--canvas-ink-secondary)!"
-              style={{ fontFamily: "var(--font-lora)" }}
-            >
+            <p className="pli-quote" style={{ fontFamily: "var(--font-lora)" }}>
               &ldquo;{quote}&rdquo;
             </p>
           ) : null}
-
-          <div className="mt-0.5 flex items-baseline justify-between gap-4">
-            <p className="min-w-0 text-[0.6875rem] leading-relaxed tracking-[0.01em] text-(--sidebar-ink-soft)">
-              {metaParts.join("  ·  ")}
-            </p>
-            {/* <span className="shrink-0 text-[0.75rem] text-(--sidebar-icon) transition-colors duration-150 group-hover:text-(--sidebar-ink)">
-              Open →
-            </span> */}
-          </div>
+          <p className="pli-meta">{metaParts.join("  ·  ")}</p>
         </div>
       )}
     </Link>

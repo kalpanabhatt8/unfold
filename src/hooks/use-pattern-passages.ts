@@ -13,7 +13,11 @@ import {
   logVoiceGenerationBatchStart,
 } from "@/lib/patterns/pattern-timing";
 import { reconcileAllPassages } from "@/lib/patterns/passage-orchestrator";
-import { passageNeedsGeneration } from "@/lib/patterns/passage-types";
+import {
+  passageCacheVersionIsCurrent,
+  passageEvidenceKeyFromCacheKey,
+  passageNeedsGeneration,
+} from "@/lib/patterns/passage-types";
 import type { PatternPassage } from "@/lib/patterns/passage-types";
 import type { PatternsAggregate, SurfacedPattern } from "@/lib/patterns/types";
 import type { PatternName } from "@/lib/patterns/vocabulary";
@@ -35,9 +39,6 @@ const mergePassageFromCache = (
     ...p,
     passage: getCachedPassage(p.name),
   }));
-
-const passageEvidencePart = (cacheKey: string): string =>
-  cacheKey.split("|")[1] ?? "";
 
 const EVIDENCE_ONLY_SHAPES = new Set(["bare", "bare_close", "echo", "pair"]);
 
@@ -61,13 +62,28 @@ const preferPassage = (
   if (!current) return next;
 
   const sameEvidence =
-    passageEvidencePart(current.cacheKey) === passageEvidencePart(next.cacheKey);
+    passageEvidenceKeyFromCacheKey(current.cacheKey) ===
+    passageEvidenceKeyFromCacheKey(next.cacheKey);
+
+  const currentVoiceCurrent = passageCacheVersionIsCurrent(current.cacheKey);
+  const nextVoiceCurrent = passageCacheVersionIsCurrent(next.cacheKey);
+
+  // Prefer a current-contract scaffold over stale complete voice (force regen).
+  if (
+    sameEvidence &&
+    !currentVoiceCurrent &&
+    nextVoiceCurrent &&
+    passageNeedsGeneration(next)
+  ) {
+    return next;
+  }
 
   // Never downgrade discovery to evidence-only.
   if (
     sameEvidence &&
     current.shapeId === "discovery" &&
-    EVIDENCE_ONLY_SHAPES.has(next.shapeId)
+    EVIDENCE_ONLY_SHAPES.has(next.shapeId) &&
+    currentVoiceCurrent
   ) {
     return current;
   }
@@ -85,7 +101,8 @@ const preferPassage = (
     !passageNeedsGeneration(current) &&
     passageNeedsGeneration(next) &&
     sameEvidence &&
-    current.shapeId === "discovery"
+    current.shapeId === "discovery" &&
+    currentVoiceCurrent
   ) {
     return current;
   }
@@ -93,7 +110,8 @@ const preferPassage = (
   if (
     !passageNeedsGeneration(current) &&
     passageNeedsGeneration(next) &&
-    sameEvidence
+    sameEvidence &&
+    currentVoiceCurrent
   ) {
     return current;
   }
@@ -103,7 +121,8 @@ const preferPassage = (
     !passageNeedsGeneration(next) &&
     sameEvidence &&
     isVoiceArcShape(current.shapeId) &&
-    !isVoiceArcShape(next.shapeId)
+    !isVoiceArcShape(next.shapeId) &&
+    currentVoiceCurrent
   ) {
     return current;
   }

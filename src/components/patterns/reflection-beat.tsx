@@ -22,25 +22,16 @@ export function ReflectionBeatContent({
       return (
         <EvidenceSection
           visible={beat.visible}
-          overflow={beat.overflow}
           onOpenEntry={onOpenEntry}
         />
       );
 
     case "pair":
       return (
-        <section className="flex flex-col gap-4">
-          <p className="reflection-label">From your journal</p>
-          <div className="flex flex-col gap-3">
-            {beat.quotes.map((quote, i) => (
-              <JournalSnippet
-                key={`${quote.entryId}-${i}`}
-                quote={quote}
-                onOpenEntry={onOpenEntry}
-              />
-            ))}
-          </div>
-        </section>
+        <EvidenceSection
+          visible={beat.quotes}
+          onOpenEntry={onOpenEntry}
+        />
       );
 
     case "observation":
@@ -49,7 +40,11 @@ export function ReflectionBeatContent({
     case "ending":
       if (beat.endingKind === "quote" && beat.quote) {
         return (
-          <JournalSnippet quote={beat.quote} onOpenEntry={onOpenEntry} />
+          <JournalSnippet
+            quote={beat.quote}
+            onOpenEntry={onOpenEntry}
+            featured
+          />
         );
       }
       return (

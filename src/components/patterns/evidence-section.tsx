@@ -1,46 +1,57 @@
 "use client";
 
 import type { QuoteRef } from "@/lib/patterns/evidence-signals";
-import { JournalSnippet } from "@/components/patterns/journal-snippet";
-import { MoreMomentsPopover } from "@/components/patterns/more-moments-popover";
-
-export const EVIDENCE_SECTION_LABEL = "From your journal";
+import {
+  formatQuoteMeta,
+  formatTimelineDate,
+} from "@/lib/patterns/quote-meta";
 
 export type EvidenceSectionProps = {
   visible: QuoteRef[];
-  overflow: QuoteRef[];
+  /** @deprecated Unused — top quotes are shown in full; kept for call-site compat. */
+  overflow?: QuoteRef[];
   onOpenEntry: (entryId: string, quoteText?: string) => void;
-  label?: string;
 };
 
-/** Collected journal excerpts that surfaced this pattern. */
+/** Split card — faint timeline left, journal quotes right. */
 export function EvidenceSection({
   visible,
-  overflow,
   onOpenEntry,
-  label = EVIDENCE_SECTION_LABEL,
 }: EvidenceSectionProps) {
+  if (visible.length === 0) return null;
+
+  const timelineTs = Math.min(...visible.map((q) => q.anchorTs));
+
   return (
-    <section className="flex flex-col gap-4">
-      <p className="reflection-label">{label}</p>
+    <section className="evidence-section">
+      <div className="evidence-card">
+        <aside className="evidence-card__time" aria-hidden>
+          <p className="evidence-card__date">{formatTimelineDate(timelineTs)}</p>
+        </aside>
 
-      <div className="flex flex-col gap-3">
-        {visible.map((quote, i) => (
-          <JournalSnippet
-            key={`${quote.entryId}-${i}`}
-            quote={quote}
-            onOpenEntry={onOpenEntry}
-          />
-        ))}
+        <div className="evidence-card__quotes">
+          {visible.map((quote, i) => (
+            <div
+              key={`${quote.entryId}-${i}`}
+              role="link"
+              tabIndex={0}
+              onClick={() => onOpenEntry(quote.entryId, quote.text)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onOpenEntry(quote.entryId, quote.text);
+                }
+              }}
+              className="evidence-card__quote"
+            >
+              <p className="evidence-card__quote-text">
+                &ldquo;{quote.text}&rdquo;
+              </p>
+              <p className="evidence-card__meta">{formatQuoteMeta(quote)}</p>
+            </div>
+          ))}
+        </div>
       </div>
-
-      {overflow.length > 0 ? (
-        <MoreMomentsPopover
-          quotes={overflow}
-          onOpenEntry={onOpenEntry}
-          count={overflow.length}
-        />
-      ) : null}
     </section>
   );
 }

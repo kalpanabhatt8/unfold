@@ -130,7 +130,9 @@ export const JournalTiptapEditor = forwardRef<
     ],
     content: initialContentRef.current,
     editable: !isLocked,
-    immediatelyRender: false,
+    // Mounted only after CanvasBoard finishes client hydrate, so SSR-safe
+    // `immediatelyRender: false` would just add an extra blank tick.
+    immediatelyRender: true,
     editorProps: {
       attributes: {
         class: "journal-tiptap-editor outline-none",

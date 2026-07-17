@@ -139,7 +139,11 @@ export type PassageGenerationTarget = {
   passage: PatternPassage;
 };
 
-const MAX_GENERATION_ROUNDS = 5;
+/**
+ * HTTP rounds for incomplete voice. Server already retries failed slots
+ * inside one request; stacking many client rounds was the multi-minute path.
+ */
+const MAX_GENERATION_ROUNDS = 2;
 
 /** Generate voice slots — retries when validation leaves slots unfilled. */
 export async function generatePassageSlots(

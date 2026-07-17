@@ -31,7 +31,7 @@ export function ReflectionSheet({
   const showContent = hasBeats && !(beatAwaitingVoice(beat) && loading);
 
   return (
-    <article className="flex min-h-0 w-full max-w-[min(92vw,700px)] flex-1 flex-col">
+    <article className="flex min-h-0 w-full max-w-[min(92vw,780px)] flex-1 flex-col">
       {dateRange ? (
         <p className="reflection-meta shrink-0 tabular-nums tracking-[0.04em]">
           {dateRange}
@@ -42,7 +42,7 @@ export function ReflectionSheet({
         {loading ? (
           <div className="flex flex-col gap-3" aria-hidden>
             <span className="h-4 w-28 animate-pulse rounded bg-(--sidebar-hover-bg)" />
-            <span className="journal-snippet h-20 animate-pulse bg-(--sidebar-tab-track)" />
+            <span className="evidence-quote-list h-16 animate-pulse bg-(--sidebar-tab-track)" />
           </div>
         ) : showContent ? (
           <div key={beatIndex}>
@@ -51,7 +51,7 @@ export function ReflectionSheet({
         ) : hasBeats ? (
           <div className="flex flex-col gap-3" aria-hidden>
             <span className="h-4 w-28 animate-pulse rounded bg-(--sidebar-hover-bg)" />
-            <span className="journal-snippet h-20 animate-pulse bg-(--sidebar-tab-track)" />
+            <span className="evidence-quote-list h-16 animate-pulse bg-(--sidebar-tab-track)" />
           </div>
         ) : (
           <p className="reflection-meta">Nothing here yet.</p>

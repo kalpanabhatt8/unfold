@@ -21,6 +21,7 @@ import type {
   WireDisplay,
   WirePassage,
   WirePatternState,
+  WirePatternVote,
 } from "@/lib/sync/wire-types";
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
@@ -31,11 +32,12 @@ const isRecord = (v: unknown): v is Record<string, unknown> =>
 export const pullPatterns = async (
   userId: string,
 ): Promise<PatternsSnapshot> => {
-  const [analyses, states, passages, displays] = await Promise.all([
+  const [analyses, states, passages, displays, votes] = await Promise.all([
     db.entryAnalysis.findMany({ where: { userId } }),
     db.patternState.findMany({ where: { userId } }),
     db.patternPassage.findMany({ where: { userId } }),
     db.patternDisplay.findMany({ where: { userId } }),
+    db.patternVote.findMany({ where: { userId } }),
   ]);
 
   return {
@@ -62,6 +64,12 @@ export const pullPatterns = async (
       displayTitle: row.displayTitle,
       summary: row.summary,
       createdAt: row.createdAt.getTime(),
+    })),
+    votes: votes.map((row) => ({
+      patternName: row.patternName,
+      entryIds: row.entryIds,
+      vote: row.vote === "down" ? "down" : "up",
+      updatedAt: row.updatedAt.getTime(),
     })),
   };
 };
@@ -203,12 +211,50 @@ export const pushDisplays = async (
   return written;
 };
 
+export const pushVotes = async (
+  userId: string,
+  votes: WirePatternVote[],
+): Promise<number> => {
+  let written = 0;
+  for (const vote of votes) {
+    if (!isRecord(vote) || !isPatternName(vote.patternName)) continue;
+    if (vote.vote !== "up" && vote.vote !== "down") continue;
+    if (typeof vote.updatedAt !== "number" || !Number.isFinite(vote.updatedAt)) {
+      continue;
+    }
+    const entryIds = Array.isArray(vote.entryIds)
+      ? vote.entryIds.filter((id): id is string => typeof id === "string")
+      : [];
+    const data = {
+      entryIds,
+      vote: vote.vote,
+      updatedAt: new Date(vote.updatedAt),
+    };
+    await db.patternVote.upsert({
+      where: {
+        userId_patternName: { userId, patternName: vote.patternName },
+      },
+      create: { userId, patternName: vote.patternName, ...data },
+      update: data,
+    });
+    written += 1;
+  }
+  return written;
+};
+
 export const pushPatterns = async (
   userId: string,
   snapshot: Partial<PatternsSnapshot>,
-): Promise<{ analyses: number; states: number; passages: number; displays: number }> => ({
+): Promise<{
+  analyses: number;
+  states: number;
+  passages: number;
+  displays: number;
+  votes: number;
+}> => ({
   analyses: await pushAnalyses(userId, snapshot.analyses ?? []),
   states: await pushStates(userId, snapshot.states ?? []),
   passages: await pushPassages(userId, snapshot.passages ?? []),
   displays: await pushDisplays(userId, snapshot.displays ?? []),
+  votes: await pushVotes(userId, snapshot.votes ?? []),
 });

@@ -12,7 +12,14 @@
  * snapshot on each keystroke.
  */
 
-import { markEntryDirty, recordEntryTombstone } from "@/lib/sync/local-flags";
+import { startTransition } from "react";
+import {
+  clearDirtyEntry,
+  isEntryDeleted,
+  markEntryDirty,
+  recordEntryTombstone,
+  rememberRemoteDelete,
+} from "@/lib/sync/local-flags";
 
 export const ENTRY_DRAFTS_STORAGE_KEY = "keeps-drafts";
 export const ENTRIES_UPDATED_EVENT = "keeps-recents-updated";
@@ -95,7 +102,11 @@ const writeDraftsRaw = (drafts: Record<string, unknown>) => {
       ENTRY_DRAFTS_STORAGE_KEY,
       JSON.stringify(drafts),
     );
-    window.dispatchEvent(new Event(ENTRIES_UPDATED_EVENT));
+    // Defer sidebar refresh so urgent work (route changes after "+" / seal)
+    // is not blocked behind a recents-list re-render.
+    startTransition(() => {
+      window.dispatchEvent(new Event(ENTRIES_UPDATED_EVENT));
+    });
   } catch (error) {
     console.error("Failed to save journal entries", error);
   }
@@ -126,6 +137,19 @@ export const upsertEntry = (
   updates: Partial<Omit<JournalEntry, "id">>,
 ): JournalEntry => {
   const now = Date.now();
+
+  // A deleted entry must never be recreated by a late canvas save or hydrate.
+  if (isEntryDeleted(id)) {
+    return (
+      readEntryById(id) ?? {
+        id,
+        title: updates.title ?? "",
+        createdAt: updates.createdAt ?? now,
+        updatedAt: updates.updatedAt ?? now,
+      }
+    );
+  }
+
   const drafts = readDraftsRaw();
   const existing = isRecord(drafts[id])
     ? (drafts[id] as EntryRecord)
@@ -140,6 +164,14 @@ export const upsertEntry = (
     updatedAt: updates.updatedAt ?? now,
   };
 
+  // Once sealed, never accidentally clear sealedAt via a stale canvas mirror.
+  if (
+    typeof existing?.sealedAt === "number" &&
+    (updates.sealedAt === null || updates.sealedAt === undefined)
+  ) {
+    next.sealedAt = existing.sealedAt;
+  }
+
   drafts[id] = next;
   writeDraftsRaw(drafts);
   markEntryDirty(id);
@@ -151,6 +183,7 @@ export const deleteEntry = (id: string) => {
   if (!(id in drafts)) return;
   delete drafts[id];
   writeDraftsRaw(drafts);
+  clearDirtyEntry(id);
   recordEntryTombstone(id);
   if (typeof window !== "undefined") {
     try {
@@ -166,6 +199,9 @@ export const deleteEntry = (id: string) => {
  * sync engine so pull-applies don't ping-pong back to the server.
  */
 export const applyRemoteEntry = (entry: JournalEntry) => {
+  // Never resurrect a locally deleted entry from a live server copy.
+  if (isEntryDeleted(entry.id)) return;
+
   const drafts = readDraftsRaw();
   drafts[entry.id] = { ...entry };
   writeDraftsRaw(drafts);
@@ -173,6 +209,7 @@ export const applyRemoteEntry = (entry: JournalEntry) => {
 
 /** Apply a server-side delete locally without recording a new tombstone. */
 export const applyRemoteDelete = (id: string) => {
+  rememberRemoteDelete(id);
   const drafts = readDraftsRaw();
   if (id in drafts) {
     delete drafts[id];

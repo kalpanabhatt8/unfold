@@ -11,7 +11,7 @@ import type { QuoteRef } from "@/lib/patterns/evidence-signals";
 import type { PassageSlot } from "@/lib/patterns/passage-types";
 
 export const DISCOVERY_SHAPE_ID = "discovery";
-export const DISCOVERY_EVIDENCE_VISIBLE = 3;
+export const DISCOVERY_EVIDENCE_VISIBLE = 6;
 
 export type DiscoveryPhase =
   | "headline"

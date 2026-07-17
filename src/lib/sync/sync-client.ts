@@ -2,12 +2,14 @@
  * Client sync engine — localStorage stays the instant write-through cache,
  * the server is authoritative. Last-write-wins at whole-entry granularity
  * (client `updatedAt` clock); the pattern layer syncs as whole snapshots.
+ * Deletes are sticky: tombstones always win over live content.
  *
  * Flow (`fullSync`):
  *   1. one-time import of pre-cloud local data
- *   2. pull entries changed since the last cursor (incl. tombstones) + apply
- *   3. pull the pattern layer + apply
- *   4. push dirty entries and, when flagged, the pattern snapshot
+ *   2. push pending delete tombstones first (so pull cannot resurrect them)
+ *   3. pull entries changed since the last cursor (incl. tombstones) + apply
+ *   4. pull the pattern layer + apply
+ *   5. push dirty live entries and, when flagged, the pattern snapshot
  */
 
 import type { CanvasSnapshot } from "@/components/canvas/canvas-board";
@@ -30,10 +32,16 @@ import {
   listCachedPassages,
   putCachedPassage,
 } from "@/lib/patterns/passage-store";
+import {
+  listVotes,
+  putVoteQuiet,
+} from "@/lib/patterns/pattern-vote-store";
 import { isPatternName } from "@/lib/patterns/vocabulary";
 import {
   clearPatternsDirty,
   getPullCursor,
+  hasEntryTombstone,
+  isEntryDeleted,
   isImported,
   isPatternsDirty,
   markPatternsDirty,
@@ -44,6 +52,7 @@ import {
   takeDirtyEntries,
   takeEntryTombstones,
   withDirtyTrackingSuppressed,
+  type EntryTombstone,
 } from "@/lib/sync/local-flags";
 import type {
   EntriesPullResponse,
@@ -102,6 +111,12 @@ const collectPatternsSnapshot = (): PatternsSnapshot => ({
     summary: display.summary,
     createdAt: display.createdAt,
   })),
+  votes: listVotes().map((v) => ({
+    patternName: v.patternName,
+    entryIds: v.entryIds,
+    vote: v.vote,
+    updatedAt: v.updatedAt,
+  })),
 });
 
 // ── Applying server data locally (dirty tracking suppressed) ────────────────
@@ -111,6 +126,10 @@ const applyServerEntry = (wire: WireEntry) => {
     withDirtyTrackingSuppressed(() => applyRemoteDelete(wire.id));
     return;
   }
+
+  // A pending local delete (or durable deleted id) must not be undone by a
+  // live pull copy.
+  if (isEntryDeleted(wire.id) || hasEntryTombstone(wire.id)) return;
 
   const local = readEntryById(wire.id);
   if (local && local.updatedAt >= wire.updatedAt) return; // local copy wins
@@ -155,6 +174,16 @@ const applyServerPatterns = (snapshot: PatternsSnapshot) => {
         createdAt,
       });
     }
+    for (const vote of snapshot.votes ?? []) {
+      if (!isPatternName(vote.patternName)) continue;
+      if (vote.vote !== "up" && vote.vote !== "down") continue;
+      putVoteQuiet({
+        patternName: vote.patternName,
+        entryIds: Array.isArray(vote.entryIds) ? vote.entryIds : [],
+        vote: vote.vote,
+        updatedAt: vote.updatedAt,
+      });
+    }
   });
 };
 
@@ -178,30 +207,73 @@ const pullAndApplyPatterns = async (): Promise<void> => {
   applyServerPatterns(snapshot);
 };
 
-const pushDirtyEntries = async (): Promise<void> => {
-  const dirtyIds = takeDirtyEntries();
-  const tombstones = takeEntryTombstones();
-  if (dirtyIds.length === 0 && tombstones.length === 0) return;
+const toTombstoneWire = (tombstone: EntryTombstone): WireEntry => ({
+  id: tombstone.id,
+  title: "",
+  createdAt: tombstone.deletedAt,
+  updatedAt: Date.now(),
+  deletedAt: tombstone.deletedAt,
+  searchText: "",
+  contentHash: "",
+  content: null,
+});
 
-  const now = Date.now();
+/** Push local deletes before pull so a live server copy cannot resurrect them. */
+const pushEntryTombstones = async (): Promise<void> => {
+  const tombstones = takeEntryTombstones();
+  if (tombstones.length === 0) return;
+
+  try {
+    const response = await fetch("/api/sync/entries", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        entries: tombstones.map(toTombstoneWire),
+      }),
+    });
+    if (!response.ok) throw new Error(`push failed: ${response.status}`);
+
+    const { results } = (await response.json()) as {
+      results: EntryPushResult[];
+    };
+    const rejected: EntryTombstone[] = [];
+    for (const result of results) {
+      const tombstone = tombstones.find((t) => t.id === result.id);
+      if (!tombstone) continue;
+      if (result.accepted) continue;
+
+      if (result.server?.deletedAt) {
+        // Server already has the delete — apply locally, drop the tombstone.
+        applyServerEntry(result.server);
+        continue;
+      }
+
+      // Keep retrying; never apply a live server copy over a local delete.
+      rejected.push(tombstone);
+    }
+    restoreEntryTombstones(rejected);
+  } catch {
+    restoreEntryTombstones(tombstones);
+  }
+};
+
+const pushDirtyEntries = async (): Promise<void> => {
+  // Always flush deletes first so a dirty live push cannot race them.
+  await pushEntryTombstones();
+
+  const dirtyIds = takeDirtyEntries();
+  if (dirtyIds.length === 0) return;
+
   const entries: WireEntry[] = [];
   for (const id of dirtyIds) {
+    // Deleted ids are owned by the tombstone path — never push live content.
+    if (isEntryDeleted(id) || hasEntryTombstone(id)) continue;
     const entry = readEntryById(id);
     if (entry) entries.push(toWireEntry(entry));
   }
-  for (const tombstone of tombstones) {
-    entries.push({
-      id: tombstone.id,
-      title: "",
-      createdAt: tombstone.deletedAt,
-      updatedAt: now,
-      deletedAt: tombstone.deletedAt,
-      searchText: "",
-      contentHash: "",
-      content: null,
-    });
-  }
   if (entries.length === 0) return;
+
+  const pushedIds = entries.map((entry) => entry.id);
 
   try {
     const response = await fetch("/api/sync/entries", {
@@ -221,8 +293,7 @@ const pushDirtyEntries = async (): Promise<void> => {
     }
   } catch {
     // Offline or server error — restore the queues for the next attempt.
-    restoreDirtyEntries(dirtyIds);
-    restoreEntryTombstones(tombstones);
+    restoreDirtyEntries(pushedIds);
   }
 };
 
@@ -288,6 +359,8 @@ export const fullSync = async (): Promise<void> => {
   syncInFlight = true;
   try {
     await maybeImport();
+    // Push deletes before pull so a live server copy cannot reappear locally.
+    await pushEntryTombstones();
     await pullAndApplyEntries();
     await pullAndApplyPatterns();
     await pushDirtyEntries();

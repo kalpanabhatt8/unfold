@@ -1,6 +1,9 @@
 /**
  * Background seal pipeline — commits seal state immediately and finishes title
  * generation independently of whichever entry is open in the editor.
+ *
+ * Safe to navigate away the moment this returns: persistence + title/analysis
+ * continue without the canvas staying mounted.
  */
 
 import type { CanvasSnapshot } from "@/components/canvas/canvas-board";
@@ -67,9 +70,14 @@ const applySealTitleInBackground = (
 
   const finish = (title: string) => {
     const entry = readEntryById(entryId);
+    if (!entry) {
+      titleJobs.delete(entryId);
+      clearSealTitlePrefetch();
+      return;
+    }
     upsertEntry(entryId, {
       title,
-      updatedAt: entry?.updatedAt,
+      updatedAt: entry.updatedAt,
     });
     titleJobs.delete(entryId);
     clearSealTitlePrefetch();
@@ -106,7 +114,8 @@ export const commitEntrySeal = (
   if (!entryId || typeof window === "undefined") return null;
 
   const existing = readEntryById(entryId);
-  if (typeof existing?.sealedAt === "number") {
+  if (!existing) return null;
+  if (typeof existing.sealedAt === "number") {
     return existing.sealedAt;
   }
 
@@ -120,8 +129,12 @@ export const commitEntrySeal = (
     updatedAt: existing?.updatedAt,
   });
 
-  void notifyEntryCompleted(entryId, "seal");
+  // Title + pattern analysis are intentionally async and unbound from the
+  // open editor — navigating to a new entry mid-stamp must not wait on them.
   applySealTitleInBackground(entryId, sealedSnapshot, existing?.title ?? "");
+  window.setTimeout(() => {
+    void notifyEntryCompleted(entryId, "seal");
+  }, 0);
 
   return now;
 };

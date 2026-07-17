@@ -19,6 +19,7 @@
 
 import React, {
   forwardRef,
+  startTransition,
   useCallback,
   useEffect,
   useImperativeHandle,
@@ -145,12 +146,11 @@ const SAVING_LABEL_DELAY_MS = 800;
 /** Milestone save (persists `lastEditedAt`) fires after this typing pause. */
 const MILESTONE_SAVE_INACTIVITY_MS = 7_000;
 /** Patterns → Journal quote tint: visible hold, then CSS fade, then clear. */
-const QUOTE_HIGHLIGHT_HOLD_MS = 18_500;
-const QUOTE_HIGHLIGHT_FADE_MS = 1_500;
+const QUOTE_HIGHLIGHT_HOLD_MS = 18_000;
+/** Slow ease-out of tint + ink back to sealed. */
+const QUOTE_HIGHLIGHT_FADE_MS = 5_000;
 const QUOTE_HIGHLIGHT_TOTAL_MS =
   QUOTE_HIGHLIGHT_HOLD_MS + QUOTE_HIGHLIGHT_FADE_MS;
-/** Ignore scroll-dismiss while smooth-scrolling the quote into view. */
-const QUOTE_HIGHLIGHT_SCROLL_GUARD_MS = 750;
 
 /** Minimum selected-character count before the text format bar appears. */
 const TEXT_CTX_SELECTION_MIN = 4;
@@ -503,8 +503,11 @@ export type CanvasBoardHandle = {
   /**
    * Highlight a Patterns quote in the writing column, scroll it into view,
    * then fade/clear after a few seconds or on user scroll.
+   * - `pending` — editor/content not ready yet (caller may retry)
+   * - `done` — highlight applied (or attempted and found)
+   * - `miss` — ready but quote not in the doc (stop retrying)
    */
-  highlightQuote: (quote: string) => boolean;
+  highlightQuote: (quote: string) => "pending" | "done" | "miss";
 };
 
 function CanvasBoardInner(
@@ -526,7 +529,6 @@ function CanvasBoardInner(
   );
   const journalBlocksRef = useRef(journalBlocks);
   journalBlocksRef.current = journalBlocks;
-  const [editorContentKey, setEditorContentKey] = useState(0);
   const journalEditorRef = useRef<JournalTiptapEditorHandle>(null);
   const textColumns = useMemo(() => [journalBlocks], [journalBlocks]);
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
@@ -576,12 +578,13 @@ function CanvasBoardInner(
     if (typeof window === "undefined" || hydratedRef.current) return;
     hydratedRef.current = true;
 
+    // Apply snapshot into React state *before* mounting TipTap so the editor
+    // is created once with the real content (no empty→content remount).
     const apply = (snap: CanvasSnapshot) => {
       const cols = adjustColumns(snap.textColumns, 1);
       const blocks = cols[0] ?? createWritingSlots();
       journalBlocksRef.current = blocks;
       setJournalBlocks(blocks);
-      setEditorContentKey((k) => k + 1);
       setImageBlocks(snap.imageBlocks);
       // setSignature(snap.signature ?? "");
       if (snap.sealedAt) setSealedAt(snap.sealedAt);
@@ -660,19 +663,28 @@ function CanvasBoardInner(
 
   // Fast local mirror so a tab close never loses keystrokes. This is *not*
   // the "milestone" save (AI title regen) — that fires from a coarser timer
-  // and the manual button, below.
+  // and the manual button, below. Once sealed, persistence is owned by the
+  // seal pipeline — keep mirroring off so stamp animation doesn't fight
+  // navigation to a new entry.
   useEffect(() => {
+    if (sealedAt !== null) return;
+
     savingLabelTimerRef.current = window.setTimeout(() => {
       setShowSavingLabel(true);
     }, SAVING_LABEL_DELAY_MS);
 
     const timer = window.setTimeout(() => {
-      let snap = buildSnapshot();
-      const meta = readEntryById(entryIdFromBoardStorageKey(storageKey));
-      if (typeof meta?.sealedAt === "number") {
-        snap = { ...snap, sealedAt: meta.sealedAt };
-      }
       try {
+        const meta = readEntryById(entryIdFromBoardStorageKey(storageKey));
+        // Entry was deleted — do not rewrite board storage or resurrect metadata.
+        if (!meta) {
+          clearSavingLabelTimer();
+          return;
+        }
+        let snap = buildSnapshot();
+        if (typeof meta.sealedAt === "number") {
+          snap = { ...snap, sealedAt: meta.sealedAt };
+        }
         window.localStorage.setItem(storageKey, JSON.stringify(snap));
         setLastSavedAt(snap.updatedAt);
         onSnapshotChange?.(snap);
@@ -690,9 +702,11 @@ function CanvasBoardInner(
         savingLabelTimerRef.current = null;
       }
     };
-  }, [buildSnapshot, clearSavingLabelTimer, onSnapshotChange, storageKey]);
+  }, [buildSnapshot, clearSavingLabelTimer, onSnapshotChange, sealedAt, storageKey]);
 
   const triggerMilestoneSave = useCallback(() => {
+    const entryId = entryIdFromBoardStorageKey(storageKey);
+    if (!readEntryById(entryId)) return;
     const snap = buildSnapshot();
     try {
       window.localStorage.setItem(storageKey, JSON.stringify(snap));
@@ -774,7 +788,10 @@ function CanvasBoardInner(
 
     auroraStartedRef.current = true;
     journalEditorRef.current?.lock();
-    setIsSealing(true);
+    // Visual-only — must not outrank navigating to a new entry mid-stamp.
+    startTransition(() => {
+      setIsSealing(true);
+    });
 
     const zone = writingZoneRef.current;
     if (!zone) {
@@ -803,6 +820,8 @@ function CanvasBoardInner(
   }, [finishAuroraAnimation, isSealing]);
 
   const beginSealSideEffects = useCallback(() => {
+    // Persist immediately so "+" / navigation can leave this page while the
+    // stamp animation and AI title finish in the background.
     maybePrefetchSealTitle();
     applySealCommit();
 
@@ -865,11 +884,11 @@ function CanvasBoardInner(
       },
       highlightQuote: (quote) => {
         const editor = journalEditorRef.current;
-        if (!editor || !isContentReady) return false;
+        if (!editor || !isContentReady) return "pending";
 
         clearQuoteHighlightChrome();
         const range = editor.highlightQuote(quote);
-        if (!range) return false;
+        if (!range) return "miss";
 
         const scrollEl = writingScrollRef.current;
         const coords = editor.getRangeCoords(range.from, range.to);
@@ -879,28 +898,23 @@ function CanvasBoardInner(
             coords.top - parentRect.top + scrollEl.scrollTop;
           const desired =
             targetTop - Math.min(scrollEl.clientHeight * 0.28, 140);
-          const ignoreScrollUntil = Date.now() + QUOTE_HIGHLIGHT_SCROLL_GUARD_MS;
           scrollEl.scrollTo({
             top: Math.max(0, desired),
             behavior: "smooth",
           });
 
+          // Dismiss only on intentional user input — not on the smooth
+          // scroll we just started (that was wiping the tint mid-animation).
           const onUserNavigate = () => {
-            clearQuoteHighlightChrome();
-          };
-          const onScroll = () => {
-            if (Date.now() < ignoreScrollUntil) return;
             clearQuoteHighlightChrome();
           };
           scrollEl.addEventListener("wheel", onUserNavigate, { passive: true });
           scrollEl.addEventListener("touchmove", onUserNavigate, {
             passive: true,
           });
-          scrollEl.addEventListener("scroll", onScroll, { passive: true });
           quoteHighlightDismissRef.current = () => {
             scrollEl.removeEventListener("wheel", onUserNavigate);
             scrollEl.removeEventListener("touchmove", onUserNavigate);
-            scrollEl.removeEventListener("scroll", onScroll);
           };
         }
 
@@ -908,7 +922,7 @@ function CanvasBoardInner(
           clearQuoteHighlightChrome();
         }, QUOTE_HIGHLIGHT_TOTAL_MS);
 
-        return true;
+        return "done";
       },
     }),
     [buildSnapshot, clearQuoteHighlightChrome, isContentReady]
@@ -1173,18 +1187,19 @@ function CanvasBoardInner(
               }
             >
               <div className="journal-seal-content flex w-full min-h-0 flex-1 flex-col">
-                <JournalTiptapEditor
-                  key={editorContentKey}
-                  ref={journalEditorRef}
-                  initialBlocks={journalBlocks}
-                  isSealed={sealedAt !== null}
-                  isSealing={isSealing}
-                  onBlocksChange={handleJournalBlocksChange}
-                  onActiveBlockChange={setActiveBlockId}
-                  onSelectionActivity={refreshTextContext}
-                  onFocus={() => setSelectedImageId(null)}
-                  onWritingActivity={handleWritingActivity}
-                />
+                {isContentReady ? (
+                  <JournalTiptapEditor
+                    ref={journalEditorRef}
+                    initialBlocks={journalBlocks}
+                    isSealed={sealedAt !== null}
+                    isSealing={isSealing}
+                    onBlocksChange={handleJournalBlocksChange}
+                    onActiveBlockChange={setActiveBlockId}
+                    onSelectionActivity={refreshTextContext}
+                    onFocus={() => setSelectedImageId(null)}
+                    onWritingActivity={handleWritingActivity}
+                  />
+                ) : null}
 
                 {!sealedAt ? (
                   <div
