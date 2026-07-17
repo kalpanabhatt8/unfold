@@ -17,11 +17,6 @@ import {
 } from "@/lib/patterns/passage-fill";
 import type { ParsedSlotFill } from "@/lib/ai/pattern-slots/parse";
 import { materializePassage } from "@/lib/patterns/passage-materialize";
-import {
-  appendLaterOccurrences,
-  discoveryEntriesIntact,
-  isAdditiveEvidence,
-} from "@/lib/patterns/occurrences";
 import { getCachedPassage, putCachedPassage } from "@/lib/patterns/passage-store";
 import {
   buildPassageCacheKey,
@@ -49,13 +44,7 @@ const voiceFillsFrom = (passage: PatternPassage): ParsedSlotFill[] => {
   const fills: ParsedSlotFill[] = [];
   passage.slots.forEach((slot, index) => {
     if (slot.kind === "line" && slot.text) {
-      fills.push({
-        index,
-        text: slot.text,
-        ...(slot.steps && slot.steps.length > 0
-          ? { steps: slot.steps }
-          : {}),
-      });
+      fills.push({ index, text: slot.text });
     }
     if (
       slot.kind === "close" &&
@@ -80,28 +69,13 @@ const materializePreservingVoice = (
   if (!existing) return fresh;
 
   const fills = voiceFillsFrom(existing);
-  if (fills.length === 0) {
-    return {
-      ...fresh,
-      discoveredAt: existing.discoveredAt ?? fresh.discoveredAt,
-      discoveryEvidenceKey:
-        existing.discoveryEvidenceKey ?? fresh.discoveryEvidenceKey,
-      occurrences: existing.occurrences ?? [],
-    };
-  }
+  if (fills.length === 0) return fresh;
 
   // Re-plans may change cacheKey while slot indices stay aligned — keep voice
   // text instead of wiping it and forcing another multi-second generation pass.
   const applied = applySlotFills(fresh, fills);
   if (passageVoiceEchoes(applied)) return fresh;
-  return {
-    ...applied,
-    discoveredAt: existing.discoveredAt ?? applied.discoveredAt,
-    discoveryEvidenceKey:
-      existing.discoveryEvidenceKey ?? applied.discoveryEvidenceKey,
-    // Fresh discovery plan — don't carry old later-occurrences into a rewrite.
-    occurrences: [],
-  };
+  return applied;
 };
 
 /** Cached passages that no longer match planner policy — force one re-plan. */
@@ -287,48 +261,17 @@ export function reconcilePatternPassage(
     return returnCached(cached, passageNeedsGeneration(cached));
   }
 
-  // New matching moment after discovery: append a top line, keep original reading.
+  // Same evidence: reuse complete voice-arc passage (planner lottery ignored).
   if (
     cached !== null &&
-    advanced.evidenceChanged &&
-    isReusableVoiceArc(cached) &&
-    isAdditiveEvidence(cached, ctx.evidence)
+    identityUnchanged &&
+    passageEvidenceKey(cached.cacheKey) === advanced.evidenceKey &&
+    isReusableVoiceArc(cached)
   ) {
-    const withOccurrence = appendLaterOccurrences(cached, ctx.evidence) ?? cached;
-    putCachedPassage(withOccurrence);
-    if (persist) putState(advanced.state);
-    return {
-      passage: withOccurrence,
-      state: advanced.state,
-      regenerated: false,
-      needsGeneration: false,
-      evidenceChanged: true,
-      lifecycleChanged: advanced.lifecycleChanged,
-    };
+    return returnCached(cached, false);
   }
 
-  // Same live evidence, or discovery still intact after prior occurrence appends:
-  // reuse the frozen reading (planner lottery ignored).
-  if (
-    cached !== null &&
-    isReusableVoiceArc(cached) &&
-    discoveryEntriesIntact(cached, ctx.evidence)
-  ) {
-    const withOccurrence = appendLaterOccurrences(cached, ctx.evidence);
-    const passage = withOccurrence ?? cached;
-    if (withOccurrence) putCachedPassage(passage);
-    if (persist) putState(advanced.state);
-    return {
-      passage,
-      state: advanced.state,
-      regenerated: false,
-      needsGeneration: false,
-      evidenceChanged: advanced.evidenceChanged,
-      lifecycleChanged: advanced.lifecycleChanged,
-    };
-  }
-
-  // Same evidence: keep discovery in progress — never downgrade mid-generation.
+  // Same evidence: keep discovery in progress or complete — never downgrade.
   if (
     cached !== null &&
     identityUnchanged &&

@@ -54,10 +54,8 @@ const phaseLabel = (phase: DiscoveryPhase): string => {
       return "Headline";
     case "evidence":
       return "Quotes";
-    case "recurrence":
-      return "Recurrence";
-    case "closing":
-      return "Closing";
+    case "mechanism":
+      return "Mechanism";
     case "reflection":
       return "Question";
   }

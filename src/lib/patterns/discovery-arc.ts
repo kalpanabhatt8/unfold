@@ -1,21 +1,14 @@
 /**
- * Discovery arc — guided reflection (presentation layer).
+ * Discovery arc — four-beat guided reflection (presentation layer).
  *
- * Headline → Moments → Recurrence? → Closing signal? → Reflection?
+ * Headline → Evidence → Mechanism? → Reflection
  *
- * Closing is exactly one of: silence | drift | phrase | mechanism | none.
- * Reflection only when the plan carried an open question from the user's writing.
+ * The mechanism beat replays the chain of events that leads into the pattern —
+ * never a summary of the entries or a description of behavior.
  */
 
-import { chronologicalQuoteRefs } from "@/lib/ai/pattern-slots/input";
 import type { QuoteRef } from "@/lib/patterns/evidence-signals";
-import { isDistinctiveEchoPhrase } from "@/lib/patterns/evidence-signals";
-import { splitMechanismSteps } from "@/lib/patterns/mechanism-steps";
-import type { PassageSlot, PatternPassage } from "@/lib/patterns/passage-types";
-import {
-  buildRecurrenceCard,
-  type RecurrenceCardData,
-} from "@/lib/patterns/occurrences";
+import type { PassageSlot } from "@/lib/patterns/passage-types";
 
 export const DISCOVERY_SHAPE_ID = "discovery";
 export const DISCOVERY_EVIDENCE_VISIBLE = 3;
@@ -23,30 +16,14 @@ export const DISCOVERY_EVIDENCE_VISIBLE = 3;
 export type DiscoveryPhase =
   | "headline"
   | "evidence"
-  | "recurrence"
-  | "closing"
+  | "mechanism"
   | "reflection";
-
-/** One Loop bridge sentence with the journal quotes that support it. */
-export type MechanismStepPresentation = {
-  text: string;
-  quotes: QuoteRef[];
-};
-
-export type ClosingPresentation =
-  | { kind: "silence"; text: string }
-  | { kind: "drift"; early: QuoteRef; recent: QuoteRef }
-  | { kind: "phrase"; phrase: string }
-  | { kind: "mechanism"; text: string; steps: MechanismStepPresentation[] }
-  | null;
 
 export type DiscoveryArc = {
   phases: DiscoveryPhase[];
   headline: { title: string; orienting: string };
   evidence: { visible: QuoteRef[]; overflow: QuoteRef[] };
-  /** Earlier vs newest match — only from 2nd occurrence onward. */
-  recurrence: RecurrenceCardData | null;
-  closing: ClosingPresentation;
+  mechanism: { text: string } | null;
   reflection: { question: string; quote: QuoteRef | null };
 };
 
@@ -71,131 +48,92 @@ const passageHasVoiceSlots = (slots: PassageSlot[]): boolean =>
       (s.endingKind === "question" || s.endingKind === "line"),
   );
 
-const collectMomentQuotes = (slots: PassageSlot[]): QuoteRef[] => {
+const collectQuotes = (slots: PassageSlot[]): QuoteRef[] => {
   const quotes: QuoteRef[] = [];
   for (const slot of slots) {
     if (slot.kind === "moments") quotes.push(...slot.quotes);
-  }
-  if (quotes.length === 0) {
-    for (const slot of slots) {
-      if (slot.kind === "pair") quotes.push(...slot.quotes);
-      if (slot.kind === "echo") quotes.push(...slot.quotes);
-    }
+    if (slot.kind === "pair") quotes.push(...slot.quotes);
+    if (slot.kind === "echo") quotes.push(...slot.quotes);
   }
   return quotes;
 };
 
 type LineSlot = Extract<PassageSlot, { kind: "line" }>;
 type CloseSlot = Extract<PassageSlot, { kind: "close" }>;
-type PairSlot = Extract<PassageSlot, { kind: "pair" }>;
-type EchoSlot = Extract<PassageSlot, { kind: "echo" }>;
-
-const SILENCE_LINE = /^then,\s+for\s+/i;
-
-/** Resolve 1-based quoteIndexes into QuoteRefs from the chronological pool. */
-export function resolveMechanismSteps(
-  line: LineSlot,
-  quotePool: QuoteRef[],
-): MechanismStepPresentation[] {
-  const text = line.text?.trim() ?? "";
-  const stored = line.steps?.filter((s) => s.text.trim().length > 0) ?? [];
-
-  if (stored.length > 0) {
-    return stored.map((step) => ({
-      text: step.text.trim(),
-      quotes: step.quoteIndexes
-        .map((i) => quotePool[i - 1])
-        .filter((q): q is QuoteRef => Boolean(q)),
-    }));
-  }
-
-  // Legacy fills without steps: show sentences, no per-step evidence.
-  return splitMechanismSteps(text).map((step) => ({
-    text: step,
-    quotes: [],
-  }));
-}
 
 /**
- * Derive the single closing presentation from slots.
- * Discovery layouts place at most one of: silence line, drift pair, phrase echo,
- * mechanism line — after the moments pool.
+ * Structural slot selection — which slots back which beats.
+ *
+ * This depends ONLY on the slot layout the planner cached, never on the
+ * generated text. The beat list must be identical before and after voice
+ * fills arrive, and across regenerations of the same plan — otherwise the
+ * beat count (and the Continue/Done CTA) changes between opens.
  */
-export function selectClosingPresentation(
+/**
+ * Pick the line slot that backs the mechanism beat.
+ *
+ * Legacy plans may still carry a first line that was the old recognition
+ * question — skip it and use the mechanism line that followed.
+ */
+const selectMechanismSlot = (
+  lineSlots: LineSlot[],
+  shapeId?: string,
+): LineSlot | null => {
+  if (lineSlots.length === 0) return null;
+  if (isDiscoveryShape(shapeId) && lineSlots.length >= 2) {
+    return lineSlots[1];
+  }
+  if (!isDiscoveryShape(shapeId) && lineSlots.length >= 2) {
+    return lineSlots[lineSlots.length - 1];
+  }
+  return lineSlots[0];
+};
+
+const selectArcSlots = (
   slots: PassageSlot[],
   shapeId?: string,
-): ClosingPresentation {
-  const momentsIdx = slots.findIndex((s) => s.kind === "moments");
-  const afterMoments =
-    momentsIdx >= 0 ? slots.slice(momentsIdx + 1) : slots.slice();
+): {
+  mechanismSlot: LineSlot | null;
+  closeSlot: CloseSlot | null;
+} => {
+  const lineSlots = slots.filter((s): s is LineSlot => s.kind === "line");
+  const closeSlot =
+    slots.find((s): s is CloseSlot => s.kind === "close") ?? null;
 
-  const driftPair = afterMoments.find((s): s is PairSlot => s.kind === "pair");
-  if (driftPair) {
-    const [a, b] = driftPair.quotes;
-    const [early, recent] =
-      a.anchorTs <= b.anchorTs ? [a, b] : [b, a];
-    return { kind: "drift", early, recent };
-  }
-
-  const phrase = afterMoments.find((s): s is EchoSlot => s.kind === "echo");
-  if (phrase && isDistinctiveEchoPhrase(phrase.phrase)) {
-    return { kind: "phrase", phrase: phrase.phrase };
-  }
-  // Weak single-token echoes (e.g. "kept", "written") are not a closing beat.
-
-  const lineSlots = afterMoments.filter((s): s is LineSlot => s.kind === "line");
-  let mechanismLine: LineSlot | null =
-    lineSlots.length >= 2 && !isDiscoveryShape(shapeId)
-      ? lineSlots[lineSlots.length - 1]
-      : lineSlots[0] ?? null;
-
-  if (isDiscoveryShape(shapeId) && lineSlots.length >= 2) {
-    mechanismLine = lineSlots[1];
-  }
-
-  if (mechanismLine) {
-    const text = mechanismLine.text?.trim() ?? "";
-    if (SILENCE_LINE.test(text)) {
-      return { kind: "silence", text };
-    }
-    const steps = resolveMechanismSteps(
-      mechanismLine,
-      chronologicalQuoteRefs(slots),
-    );
-    return { kind: "mechanism", text, steps };
-  }
-
-  return null;
-}
-
-const selectCloseSlot = (slots: PassageSlot[]): CloseSlot | null =>
-  slots.find((s): s is CloseSlot => s.kind === "close") ?? null;
+  return {
+    mechanismSlot: selectMechanismSlot(lineSlots, shapeId),
+    closeSlot,
+  };
+};
 
 export function buildOrientingLine(momentCount: number): string {
   if (momentCount <= 1) return "A moment from your journal.";
   return "A few moments from this week.";
 }
 
+/**
+ * Build the full guided arc from a voice-capable passage.
+ *
+ * The phase list is STRUCTURAL: a beat exists iff its backing slot exists in
+ * the cached plan. Generated text only fills beats in, it never adds or
+ * removes them — so the beat count is final before the first render and
+ * identical on every open of the same passage.
+ */
 export function buildDiscoveryArc(
   slots: PassageSlot[],
   headlineTitle: string,
   orienting?: string,
   shapeId: string = DISCOVERY_SHAPE_ID,
-  passage?: PatternPassage | null,
 ): DiscoveryArc {
-  const allQuotes = collectMomentQuotes(slots);
+  const allQuotes = collectQuotes(slots);
   const visible = allQuotes.slice(0, DISCOVERY_EVIDENCE_VISIBLE);
   const overflow = allQuotes.slice(DISCOVERY_EVIDENCE_VISIBLE);
 
-  const closing = selectClosingPresentation(slots, shapeId);
-  const closeSlot = selectCloseSlot(slots);
-  const recurrence = passage ? buildRecurrenceCard(passage) : null;
+  const { mechanismSlot, closeSlot } = selectArcSlots(slots, shapeId);
 
-  // Confirmed beat order: Headline → Moments → Recurrence → Loop → reflection
   const phases: DiscoveryPhase[] = ["headline"];
   if (allQuotes.length > 0) phases.push("evidence");
-  if (recurrence) phases.push("recurrence");
-  if (closing) phases.push("closing");
+  if (mechanismSlot) phases.push("mechanism");
   if (closeSlot) phases.push("reflection");
 
   const closeQuote =
@@ -212,8 +150,9 @@ export function buildDiscoveryArc(
       orienting: orienting ?? buildOrientingLine(allQuotes.length),
     },
     evidence: { visible, overflow },
-    recurrence,
-    closing,
+    mechanism: mechanismSlot
+      ? { text: mechanismSlot.text?.trim() ?? "" }
+      : null,
     reflection: { question: closeText, quote: closeQuote },
   };
 }
@@ -223,9 +162,8 @@ export function buildEvidenceArc(
   slots: PassageSlot[],
   headlineTitle: string,
   orienting?: string,
-  _passage?: PatternPassage | null,
 ): DiscoveryArc {
-  const allQuotes = collectMomentQuotes(slots);
+  const allQuotes = collectQuotes(slots);
   const visible = allQuotes.slice(0, DISCOVERY_EVIDENCE_VISIBLE);
   const overflow = allQuotes.slice(DISCOVERY_EVIDENCE_VISIBLE);
 
@@ -236,8 +174,7 @@ export function buildEvidenceArc(
       orienting: orienting ?? buildOrientingLine(allQuotes.length),
     },
     evidence: { visible, overflow },
-    recurrence: null,
-    closing: null,
+    mechanism: null,
     reflection: { question: "", quote: null },
   };
 }
@@ -247,12 +184,11 @@ export function buildArcFromPassage(
   shapeId: string,
   headlineTitle: string,
   orienting?: string,
-  passage?: PatternPassage | null,
 ): DiscoveryArc {
   if (isVoiceArcShape(shapeId) || passageHasVoiceSlots(slots)) {
-    return buildDiscoveryArc(slots, headlineTitle, orienting, shapeId, passage);
+    return buildDiscoveryArc(slots, headlineTitle, orienting, shapeId);
   }
-  return buildEvidenceArc(slots, headlineTitle, orienting, passage);
+  return buildEvidenceArc(slots, headlineTitle, orienting);
 }
 
 // ── Diagnostics ──────────────────────────────────────────────────────────
@@ -264,20 +200,21 @@ export type BeatTrace = {
   text?: string;
 };
 
+/**
+ * Explain, beat-by-beat, why the arc has the phases it does. Pure — safe to
+ * call from debug logging. Shows which beats were dropped and why, so a
+ * collapsed flow (e.g. only headline + evidence) can be traced to its cause.
+ */
 export function explainArc(
   slots: PassageSlot[],
   shapeId: string,
-  passage?: PatternPassage | null,
 ): { trace: BeatTrace[]; route: string } {
   const voiceRoute = isVoiceArcShape(shapeId) || passageHasVoiceSlots(slots);
   const route = voiceRoute
     ? `voice:${shapeId} (beats from slot structure)`
     : `evidence-only:${shapeId} (headline + evidence beats only)`;
 
-  const quotes = collectMomentQuotes(slots);
-  const closing = selectClosingPresentation(slots, shapeId);
-  const closeSlot = selectCloseSlot(slots);
-  const recurrence = passage ? buildRecurrenceCard(passage) : null;
+  const quotes = collectQuotes(slots);
 
   const trace: BeatTrace[] = [];
   trace.push({ beat: "headline", status: "created", reason: "always shown" });
@@ -286,16 +223,9 @@ export function explainArc(
     status: quotes.length > 0 ? "created" : "removed",
     reason: quotes.length > 0 ? `${quotes.length} quote(s)` : "no quotes bound",
   });
-  trace.push({
-    beat: "recurrence",
-    status: recurrence ? "created" : "removed",
-    reason: recurrence
-      ? `${recurrence.gapLabel} (${recurrence.earlier.entryId} → ${recurrence.newer.entryId})`
-      : "no later occurrence yet",
-  });
 
   if (!voiceRoute) {
-    for (const beat of ["closing", "reflection"] as const) {
+    for (const beat of ["mechanism", "reflection"] as const) {
       trace.push({
         beat,
         status: "removed",
@@ -305,24 +235,17 @@ export function explainArc(
     return { trace, route };
   }
 
+  const { mechanismSlot, closeSlot } = selectArcSlots(slots, shapeId);
+
   trace.push({
-    beat: "closing",
-    status: closing ? "created" : "removed",
-    reason: closing
-      ? `${closing.kind}${
-          closing.kind === "mechanism" || closing.kind === "silence"
-            ? closing.text
-              ? ", filled"
-              : ", awaiting voice"
-            : ""
-        }`
-      : "no closing signal in plan",
-    text:
-      closing?.kind === "mechanism" || closing?.kind === "silence"
-        ? closing.text
-        : closing?.kind === "phrase"
-          ? closing.phrase
-          : undefined,
+    beat: "mechanism",
+    status: mechanismSlot ? "created" : "removed",
+    reason: mechanismSlot
+      ? mechanismSlot.text?.trim()
+        ? "line slot, filled"
+        : "line slot, awaiting voice"
+      : "no mechanism line slot in plan",
+    text: mechanismSlot?.text ?? undefined,
   });
 
   trace.push({
@@ -355,10 +278,8 @@ const phaseHasContent = (arc: DiscoveryArc, phase: DiscoveryPhase): boolean => {
       return true;
     case "evidence":
       return arc.evidence.visible.length > 0;
-    case "recurrence":
-      return arc.recurrence !== null;
-    case "closing":
-      return arc.closing !== null;
+    case "mechanism":
+      return arc.mechanism !== null;
     case "reflection":
       return (
         arc.reflection.question.trim().length > 0 ||
@@ -411,13 +332,9 @@ export const discoveryAwaitingVoice = (
   switch (phase) {
     case "headline":
     case "evidence":
-    case "recurrence":
       return false;
-    case "closing":
-      return (
-        arc.closing?.kind === "mechanism" &&
-        (arc.closing.text.trim().length ?? 0) === 0
-      );
+    case "mechanism":
+      return (arc.mechanism?.text.trim().length ?? 0) === 0;
     case "reflection":
       return (
         arc.reflection.quote === null &&
@@ -425,3 +342,4 @@ export const discoveryAwaitingVoice = (
       );
   }
 };
+

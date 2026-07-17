@@ -15,7 +15,7 @@ const SHAPES_REQUIRING_VOICE: Record<
 > = {
   single: { line: true, closeAi: false },
   pair_line: { line: true, closeAi: false },
-  // Discovery voice is variable — validate from slots, not a fixed template.
+  discovery: { line: true, closeAi: true },
   recognition: { line: true, closeAi: true },
   recognition_q: { line: true, closeAi: true },
   recognition_deep: { line: true, closeAi: true },
@@ -101,12 +101,6 @@ export const passageVoiceEchoes = (passage: PatternPassage): boolean => {
 };
 
 export const passageStructureValid = (passage: PatternPassage): boolean => {
-  if (passage.shapeId === "discovery") {
-    // Moments are required; closing form is variable (silence/drift/phrase/
-    // mechanism/none) and may omit AI voice entirely.
-    return passage.slots.some((s) => s.kind === "moments");
-  }
-
   const required = SHAPES_REQUIRING_VOICE[passage.shapeId];
   if (!required) return true;
 
@@ -130,22 +124,14 @@ export const applySlotFills = (
   passage: PatternPassage,
   fills: ParsedSlotFill[],
 ): PatternPassage => {
-  const fillMap = new Map(fills.map((f) => [f.index, f]));
+  const fillMap = new Map(fills.map((f) => [f.index, f.text]));
 
   const slots: PassageSlot[] = [];
 
   passage.slots.forEach((slot, index) => {
     if (slot.kind === "line") {
-      const fill = fillMap.get(index);
-      const text = fill?.text ?? slot.text;
-      const steps =
-        fill?.steps ??
-        (fill === undefined ? slot.steps ?? null : null);
-      slots.push({
-        kind: "line",
-        text: text ?? null,
-        steps: text ? steps ?? null : null,
-      });
+      const text = fillMap.get(index) ?? slot.text;
+      slots.push({ kind: "line", text: text ?? null });
       return;
     }
 
@@ -154,8 +140,7 @@ export const applySlotFills = (
         slots.push(slot);
         return;
       }
-      const fill = fillMap.get(index);
-      const text = fill?.text ?? slot.text;
+      const text = fillMap.get(index) ?? slot.text;
       slots.push({
         kind: "close",
         endingKind: slot.endingKind,

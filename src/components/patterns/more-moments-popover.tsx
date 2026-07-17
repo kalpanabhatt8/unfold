@@ -18,7 +18,7 @@ const formatDay = (ts: number): string => {
 export type MoreMomentsPopoverProps = {
   quotes: QuoteRef[];
   count: number;
-  onOpenEntry: (entryId: string, quoteText?: string) => void;
+  onOpenEntry: (entryId: string) => void;
 };
 
 const HIDE_DELAY_MS = 150;
@@ -112,7 +112,7 @@ export function MoreMomentsPopover({
                   >
                     <button
                       type="button"
-                      onClick={() => onOpenEntry(quote.entryId, quote.text)}
+                      onClick={() => onOpenEntry(quote.entryId)}
                       className="w-full rounded-md text-left"
                     >
                       <div className="flex flex-col gap-1.5 px-2.75 py-2.5">

@@ -1,6 +1,6 @@
 /** Haiku — low temperature for terse, grounded lines. */
 export const SLOT_MODEL = "claude-haiku-4-5-20251001";
-export const SLOT_MAX_TOKENS = 320;
+export const SLOT_MAX_TOKENS = 200;
 export const SLOT_TEMPERATURE = 0.3;
 
 export const SLOT_MAX_QUOTES = 8;

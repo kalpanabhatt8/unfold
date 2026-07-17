@@ -6,6 +6,9 @@ import type { PatternDisplay, PatternEvidenceItem } from "@/lib/patterns/types";
 const anchorTs = (item: PatternEvidenceItem): number =>
   item.sealedAt ?? item.lastEditedAt ?? item.createdAt;
 
+const formatMoments = (count: number): string =>
+  count === 1 ? "1 moment" : `${count} moments`;
+
 const formatLastSeen = (timestamp: number): string => {
   const now = Date.now();
   const dayMs = 86_400_000;
@@ -16,6 +19,7 @@ const formatLastSeen = (timestamp: number): string => {
   const diffDays = Math.round((today - seenDay) / dayMs);
 
   if (diffDays <= 0) return "today";
+  if (diffDays === 1) return "yesterday";
   if (diffDays < 7) return `${diffDays}d ago`;
 
   const date = new Date(timestamp);
@@ -46,7 +50,9 @@ const lastSeenTs = (evidence: PatternEvidenceItem[]): number =>
 export type PatternListItemProps = {
   label: string;
   href: string;
+  entryCount: number;
   evidence: PatternEvidenceItem[];
+  timeHint: string | null;
   display: PatternDisplay | null;
 };
 
@@ -64,13 +70,19 @@ function PatternRowSkeleton() {
 export function PatternListItem({
   label,
   href,
+  entryCount,
   evidence,
+  timeHint,
   display,
 }: PatternListItemProps) {
   const loading = display === null;
   const title = display?.displayTitle ?? null;
   const quote = representativeQuote(evidence);
-  const lastSeen = `last seen ${formatLastSeen(lastSeenTs(evidence))}`;
+  const metaParts = [
+    formatMoments(entryCount),
+    timeHint,
+    `last seen ${formatLastSeen(lastSeenTs(evidence))}`,
+  ].filter(Boolean);
 
   return (
     <Link
@@ -104,8 +116,11 @@ export function PatternListItem({
 
           <div className="mt-0.5 flex items-baseline justify-between gap-4">
             <p className="min-w-0 text-[0.6875rem] leading-relaxed tracking-[0.01em] text-(--sidebar-ink-soft)">
-              {lastSeen}
+              {metaParts.join("  ·  ")}
             </p>
+            {/* <span className="shrink-0 text-[0.75rem] text-(--sidebar-icon) transition-colors duration-150 group-hover:text-(--sidebar-ink)">
+              Open →
+            </span> */}
           </div>
         </div>
       )}

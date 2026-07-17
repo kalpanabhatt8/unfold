@@ -1,88 +1,57 @@
 "use client";
 
-import { JournalSnippet } from "@/components/patterns/journal-snippet";
-import type { MechanismStepPresentation } from "@/lib/patterns/discovery-arc";
+import { Fragment } from "react";
 import { splitMechanismSteps } from "@/lib/patterns/mechanism-steps";
 
-/** Delay between each step in the cascade (ms). */
+/** Delay between each step and arrow in the cascade (ms). */
 const CASCADE_MS = 260;
 
 export type MechanismChainProps = {
   text: string;
-  /** Structured Loop steps with supporting journal quotes (preferred). */
-  steps?: MechanismStepPresentation[];
-  /** Stagger each step when the beat is first revealed. */
+  /** Stagger step → arrow → step when the beat is first revealed. */
   animate?: boolean;
-  onOpenEntry?: (entryId: string, quoteText?: string) => void;
 };
 
 /**
- * Loop as a vertical timeline — each bridge, then the quote(s) that support it.
- *
- *   ● Step 1
- *     "journal quote"
- *   │
- *   ● Step 2
- *     "journal quote"
+ * Mechanism as a vertical chain of events — each sentence is one step,
+ * connected by muted arrows so the user watches the loop unfold.
  */
-export function MechanismChain({
-  text,
-  steps: structuredSteps,
-  animate = false,
-  onOpenEntry,
-}: MechanismChainProps) {
-  const steps: MechanismStepPresentation[] =
-    structuredSteps && structuredSteps.length > 0
-      ? structuredSteps
-      : splitMechanismSteps(text).map((step) => ({
-          text: step,
-          quotes: [],
-        }));
-
+export function MechanismChain({ text, animate = false }: MechanismChainProps) {
+  const steps = splitMechanismSteps(text);
   if (steps.length === 0) return null;
 
   return (
-    <ol
+    <div
       className="discovery-mechanism-chain"
       data-animate={animate ? "true" : "false"}
     >
       {steps.map((step, index) => (
-        <li
-          key={index}
-          className="discovery-mechanism-item"
-          style={
-            animate ? { animationDelay: `${index * CASCADE_MS}ms` } : undefined
-          }
-        >
-          <div className="discovery-mechanism-step-row">
-            <span className="discovery-mechanism-rail" aria-hidden>
-              <span className="discovery-mechanism-dot" />
-            </span>
-            <div className="discovery-mechanism-step-body">
-              <p className="discovery-mechanism-step">{step.text}</p>
-              {step.quotes.length > 0 && onOpenEntry ? (
-                <div className="discovery-mechanism-evidence">
-                  {step.quotes.map((quote, qi) => (
-                    <JournalSnippet
-                      key={`${quote.entryId}-${qi}`}
-                      quote={quote}
-                      onOpenEntry={onOpenEntry}
-                      compact
-                    />
-                  ))}
-                </div>
-              ) : null}
-            </div>
-          </div>
+        <Fragment key={index}>
+          <p
+            className="discovery-mechanism-step"
+            style={
+              animate
+                ? { animationDelay: `${index * 2 * CASCADE_MS}ms` }
+                : undefined
+            }
+          >
+            {step}
+          </p>
           {index < steps.length - 1 ? (
-            <div className="discovery-mechanism-gap" aria-hidden>
-              <span className="discovery-mechanism-rail">
-                <span className="discovery-mechanism-line" />
-              </span>
-            </div>
+            <span
+              className="discovery-mechanism-arrow px-2"
+              aria-hidden
+              style={
+                animate
+                  ? { animationDelay: `${(index * 2 + 1) * CASCADE_MS}ms` }
+                  : undefined
+              }
+            >
+              ↓
+            </span>
           ) : null}
-        </li>
+        </Fragment>
       ))}
-    </ol>
+    </div>
   );
 }
