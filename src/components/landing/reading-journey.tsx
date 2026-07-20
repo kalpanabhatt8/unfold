@@ -116,17 +116,25 @@ export function ReadingJourney() {
           </p>
           <div className="lp-read__pair">
             <div className="lp-snippet lp-snippet--lit" style={{ maxWidth: "100%" }}>
-              <p className="lp-snippet__quote">&ldquo;{m1.quote}&rdquo;</p>
               <p className="lp-snippet__meta">
-                {m1.date} · {m1.dayPart} · {m1.entryTitle}
+                <span className="lp-snippet__label">{m1.entryTitle}</span>
+                <span className="lp-snippet__sep" aria-hidden>
+                  ·
+                </span>
+                <span className="lp-snippet__date">{m1.date}</span>
               </p>
+              <p className="lp-snippet__quote">&ldquo;{m1.quote}&rdquo;</p>
             </div>
             <p className="lp-read__pair-gap">14 days later</p>
             <div className="lp-snippet lp-snippet--lit" style={{ maxWidth: "100%" }}>
-              <p className="lp-snippet__quote">&ldquo;{m3.quote}&rdquo;</p>
               <p className="lp-snippet__meta">
-                {m3.date} · {m3.dayPart} · {m3.entryTitle}
+                <span className="lp-snippet__label">{m3.entryTitle}</span>
+                <span className="lp-snippet__sep" aria-hidden>
+                  ·
+                </span>
+                <span className="lp-snippet__date">{m3.date}</span>
               </p>
+              <p className="lp-snippet__quote">&ldquo;{m3.quote}&rdquo;</p>
             </div>
           </div>
           <svg

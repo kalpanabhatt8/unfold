@@ -30,6 +30,7 @@ import { usePatternDisplay } from "@/hooks/use-pattern-display";
 import { usePatternPassages } from "@/hooks/use-pattern-passages";
 import { usePatternsAggregate } from "@/hooks/use-patterns-aggregate";
 import { useViewportLayout } from "@/hooks/use-viewport-layout";
+import { patternsColumnMaxWidth } from "@/lib/layout";
 import "@/lib/patterns/passage-debug";
 import { stashJournalQuoteFocus } from "@/lib/journal-quote-focus";
 import {
@@ -46,11 +47,15 @@ import {
 
 export type PatternDetailViewProps = {
   patternName: PatternName;
+  /** When true, render as the tab panel content (no page chrome). */
+  embedded?: boolean;
+  /** Hide the in-panel title (unused by the tabbed Patterns view). */
+  compactHeadline?: boolean;
 };
 
 function CanvasSkeleton() {
   return (
-    <div className="w-full max-w-[min(92vw,780px)]" aria-hidden>
+    <div className="w-full" aria-hidden>
       <span className="block h-6 w-[55%] animate-pulse rounded bg-(--sidebar-tab-track)" />
       <span className="mt-3 block h-3.5 w-[30%] animate-pulse rounded bg-(--sidebar-hover-bg)" />
       <span className="mt-12 block h-24 w-full animate-pulse rounded bg-(--sidebar-tab-track)" />
@@ -62,7 +67,11 @@ function CanvasSkeleton() {
 /**
  * Guided discovery — one evolving canvas, behavioral headline first.
  */
-export function PatternDetailView({ patternName }: PatternDetailViewProps) {
+export function PatternDetailView({
+  patternName,
+  embedded = false,
+  compactHeadline = false,
+}: PatternDetailViewProps) {
   const router = useRouter();
   const viewport = useViewportLayout();
   const aggregate = usePatternsAggregate();
@@ -188,11 +197,11 @@ export function PatternDetailView({ patternName }: PatternDetailViewProps) {
   }, [activePassage, patternName, arc]);
 
   useEffect(() => {
-    if (aggregate === null) return;
+    if (aggregate === null || embedded) return;
     if (!aggregate.surfaced.some((p) => p.name === patternName)) {
       router.replace("/dashboard/patterns");
     }
-  }, [aggregate, patternName, router]);
+  }, [aggregate, patternName, router, embedded]);
 
   // Warm journal routes for visible quotes so click → entry isn't a cold load.
   useEffect(() => {
@@ -227,37 +236,53 @@ export function PatternDetailView({ patternName }: PatternDetailViewProps) {
 
   const handleContinue = useCallback(() => {
     if (!arc || !ctaReady) return;
-    if (phaseIndex >= arc.phases.length - 1) {
-      router.push("/dashboard/patterns");
-      return;
-    }
+    if (phaseIndex >= arc.phases.length - 1) return;
     setPhaseIndex((i) => i + 1);
-  }, [arc, ctaReady, phaseIndex, router]);
+  }, [arc, ctaReady, phaseIndex]);
 
   if (aggregate === null || !pattern) {
     return null;
   }
 
+  const canvas = arc ? (
+    <DiscoveryCanvas
+      arc={arc}
+      phaseIndex={phaseIndex}
+      revealKey={cacheKey}
+      ctaReady={ctaReady}
+      compactHeadline={compactHeadline}
+      closingVote={closingVote}
+      onClosingVote={handleClosingVote}
+      onContinue={handleContinue}
+      onOpenEntry={handleOpenEntry}
+    />
+  ) : (
+    <CanvasSkeleton />
+  );
+
+  if (embedded) {
+    return (
+      <div
+        id="pattern-tab-panel"
+        role="tabpanel"
+        aria-labelledby={`pattern-tab-${patternName}`}
+        className="flex w-full flex-col"
+      >
+        {canvas}
+      </div>
+    );
+  }
+
   return (
     <main className="flex min-h-0 flex-1 flex-col overflow-hidden bg-(--discovery-canvas-bg)">
       <div
-        className="flex min-h-0 flex-1 flex-col items-center px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-5 lg:px-6"
-        style={{ paddingTop: viewport.pagePaddingYPx }}
+        className="mx-auto flex min-h-0 w-full min-w-0 flex-1 flex-col items-center px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-5 lg:px-6"
+        style={{
+          paddingTop: viewport.pagePaddingYPx,
+          maxWidth: patternsColumnMaxWidth(viewport.isOverlayNav),
+        }}
       >
-        {arc ? (
-          <DiscoveryCanvas
-            arc={arc}
-            phaseIndex={phaseIndex}
-            revealKey={cacheKey}
-            ctaReady={ctaReady}
-            closingVote={closingVote}
-            onClosingVote={handleClosingVote}
-            onContinue={handleContinue}
-            onOpenEntry={handleOpenEntry}
-          />
-        ) : (
-          <CanvasSkeleton />
-        )}
+        {canvas}
       </div>
     </main>
   );

@@ -1,10 +1,7 @@
 "use client";
 
 import type { QuoteRef } from "@/lib/patterns/evidence-signals";
-import {
-  formatQuoteMeta,
-  formatTimelineDate,
-} from "@/lib/patterns/quote-meta";
+import { formatQuoteDatePill } from "@/lib/patterns/quote-meta";
 
 export type JournalSnippetProps = {
   quote: QuoteRef;
@@ -14,7 +11,7 @@ export type JournalSnippetProps = {
 };
 
 /**
- * One moment as a split card — faint date left, quote right.
+ * One journal moment as a themed card.
  * Used for closing quotes; evidence lists use EvidenceSection.
  */
 export function JournalSnippet({
@@ -22,6 +19,8 @@ export function JournalSnippet({
   onOpenEntry,
   featured = false,
 }: JournalSnippetProps) {
+  const entryLabel = quote.entryTitle.trim() || "journal";
+
   return (
     <div
       role="link"
@@ -35,22 +34,20 @@ export function JournalSnippet({
       }}
       className={`evidence-card ${featured ? "evidence-card--featured" : "evidence-card--solo"}`}
     >
-      <aside className="evidence-card__time" aria-hidden>
-        <p className="evidence-card__date">
-          {formatTimelineDate(quote.anchorTs)}
-        </p>
-      </aside>
-
-      <div className="evidence-card__quotes">
-        <div className="evidence-card__quote evidence-card__quote--solo">
-          <p className="evidence-card__meta">{formatQuoteMeta(quote)}</p>
-          <p
-            className={`evidence-card__quote-text${featured ? "" : " evidence-card__quote-text--clamp"}`}
-          >
-            &ldquo;{quote.text}&rdquo;
-          </p>
-        </div>
-      </div>
+      <p className="evidence-card__top">
+        <span className="evidence-card__label">{entryLabel}</span>
+        <span className="evidence-card__sep" aria-hidden>
+          ·
+        </span>
+        <span className="evidence-card__date">
+          {formatQuoteDatePill(quote.anchorTs)}
+        </span>
+      </p>
+      <p
+        className={`evidence-card__quote-text${featured ? "" : " evidence-card__quote-text--clamp"}`}
+      >
+        &ldquo;{quote.text}&rdquo;
+      </p>
     </div>
   );
 }

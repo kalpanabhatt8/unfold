@@ -1,9 +1,99 @@
 /**
- * Derive a quiet "when" hint from evidence timestamps — only when one part of
- * the day clearly dominates (≥60% of entries in the same bucket).
+ * Quiet timing helpers for patterns — day-part hints and compact timeline labels.
  */
 
 import type { PatternEvidenceItem } from "@/lib/patterns/types";
+
+const MONTHS_SHORT = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+] as const;
+
+const evidenceAnchorTs = (item: PatternEvidenceItem): number =>
+  item.sealedAt ?? item.lastEditedAt ?? item.createdAt;
+
+const startOfLocalDay = (ts: number): number => {
+  const d = new Date(ts);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+};
+
+/**
+ * Compact timeline label for a pattern tab — e.g. "12–14 Jul", "28 Jun–2 Jul",
+ * or "12 Jul" when all evidence falls on one day.
+ */
+export function formatPatternTimeline(
+  evidence: PatternEvidenceItem[],
+): string {
+  if (evidence.length === 0) return "";
+
+  let minTs = Infinity;
+  let maxTs = -Infinity;
+  for (const item of evidence) {
+    const ts = evidenceAnchorTs(item);
+    if (ts < minTs) minTs = ts;
+    if (ts > maxTs) maxTs = ts;
+  }
+
+  const start = new Date(startOfLocalDay(minTs));
+  const end = new Date(startOfLocalDay(maxTs));
+  const sameDay = start.getTime() === end.getTime();
+  const sameMonth =
+    start.getMonth() === end.getMonth() &&
+    start.getFullYear() === end.getFullYear();
+  const sameYear = start.getFullYear() === end.getFullYear();
+  const nowYear = new Date().getFullYear();
+
+  const day = (d: Date) => d.getDate();
+  const mon = (d: Date) => MONTHS_SHORT[d.getMonth()];
+  const yearSuffix = (d: Date) =>
+    d.getFullYear() !== nowYear || !sameYear ? ` ${d.getFullYear()}` : "";
+
+  if (sameDay) {
+    return `${day(start)} ${mon(start)}${yearSuffix(start)}`;
+  }
+
+  if (sameMonth) {
+    return `${day(start)}–${day(end)} ${mon(end)}${yearSuffix(end)}`;
+  }
+
+  if (sameYear) {
+    return `${day(start)} ${mon(start)}–${day(end)} ${mon(end)}${yearSuffix(end)}`;
+  }
+
+  return `${day(start)} ${mon(start)} ${start.getFullYear()}–${day(end)} ${mon(end)} ${end.getFullYear()}`;
+}
+
+/** Earliest evidence day — for sorting chronologically. */
+export function patternTimelineStart(evidence: PatternEvidenceItem[]): number {
+  if (evidence.length === 0) return 0;
+  let minTs = Infinity;
+  for (const item of evidence) {
+    const ts = evidenceAnchorTs(item);
+    if (ts < minTs) minTs = ts;
+  }
+  return startOfLocalDay(minTs);
+}
+
+/** Latest evidence timestamp — most-recent patterns sort first. */
+export function patternTimelineEnd(evidence: PatternEvidenceItem[]): number {
+  if (evidence.length === 0) return 0;
+  let maxTs = -Infinity;
+  for (const item of evidence) {
+    const ts = evidenceAnchorTs(item);
+    if (ts > maxTs) maxTs = ts;
+  }
+  return maxTs;
+}
 
 type DayPart = {
   id: string;

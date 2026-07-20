@@ -31,6 +31,7 @@ import { useMediaQuery } from "@/hooks/use-media-query";
 import { useSurfacedPatterns } from "@/hooks/use-surfaced-patterns";
 import { PatternsSidebarLink } from "@/components/sidebar/patterns-sidebar-link";
 import { OVERLAY_NAV_QUERY } from "@/lib/breakpoints";
+import { OPEN_NAV_EVENT } from "@/lib/layout";
 
 const UNTITLED_ENTRY = "Untitled";
 const SIDEBAR_COLLAPSED_KEY = "keeps-sidebar-collapsed";
@@ -249,8 +250,9 @@ export function Sidebar() {
   };
 
   const desktopSidebarClosed = collapsed || isPatternsActive;
-  const canShowMenuToggle =
-    (isOverlayNav ? collapsed : desktopSidebarClosed) && !isPatternsActive;
+  // Fixed hamburger stays on journal only. Patterns uses an in-flow control
+  // so accordion titles never slide under a floating menu.
+  const canShowMenuToggle = collapsed && !isPatternsActive;
   const [menuToggleVisible, setMenuToggleVisible] = useState(false);
   const prevCanShowMenuToggleRef = useRef<boolean | null>(null);
 
@@ -275,12 +277,26 @@ export function Sidebar() {
     return () => window.clearTimeout(timer);
   }, [canShowMenuToggle]);
 
+  useEffect(() => {
+    const onOpenNav = () => {
+      setCollapsed(false);
+      if (isOverlayNav) return;
+      try {
+        localStorage.setItem(SIDEBAR_COLLAPSED_KEY, "false");
+      } catch {
+        // ignore storage write errors
+      }
+    };
+    window.addEventListener(OPEN_NAV_EVENT, onOpenNav);
+    return () => window.removeEventListener(OPEN_NAV_EVENT, onOpenNav);
+  }, [isOverlayNav]);
+
   const menuToggle = (
     <button
       type="button"
       onClick={expandSidebar}
       aria-label="Open menu"
-      className={`shrink-0 ${btnIconTransparent(SIDEBAR_TOGGLE_SIZE)}`}
+      className={`shrink-0 min-h-(--touch-target-min) min-w-(--touch-target-min) !justify-start ${btnIconTransparent(SIDEBAR_TOGGLE_SIZE)}`}
     >
       <Menu
         size={iconPx(SIDEBAR_TOGGLE_SIZE)}
@@ -311,7 +327,7 @@ export function Sidebar() {
           type="button"
           onClick={toggleCollapsed}
           aria-label="Close menu"
-          className={`shrink-0 ${btnIconTransparent(SIDEBAR_TOGGLE_SIZE)}`}
+          className={`shrink-0 min-h-(--touch-target-min) min-w-(--touch-target-min) ${btnIconTransparent(SIDEBAR_TOGGLE_SIZE)}`}
         >
           <ChevronsLeft
             size={iconPx(SIDEBAR_TOGGLE_SIZE)}
@@ -534,12 +550,17 @@ export function Sidebar() {
   const collapsedMenuToggle = (
     <div
       className={clsx(
-        "fixed left-4 top-[max(1.5rem,env(safe-area-inset-top))] z-20",
+        // Match page `px-4` / `sm:px-5` plus body safe-area so the icon
+        // shares a left edge with Patterns / journal titles.
+        "fixed z-20 left-[calc(env(safe-area-inset-left,0px)+1rem)] sm:left-[calc(env(safe-area-inset-left,0px)+1.25rem)]",
         OVERLAY_OPACITY_TRANSITION,
         menuToggleVisible
           ? "opacity-100"
           : "pointer-events-none opacity-0",
       )}
+      style={{
+        top: "max(1.5rem, env(safe-area-inset-top))",
+      }}
     >
       {menuToggle}
     </div>

@@ -64,6 +64,10 @@ import {
 } from "@/lib/journal-seal";
 import { readEntryById } from "@/lib/journal-entries";
 import { uploadEntryImage } from "@/lib/attachments/client";
+import {
+  CONTENT_COLUMN_MAX_WIDTH,
+  pagePaddingXClass,
+} from "@/lib/layout";
 
 /* -------------------------------------------------------------------------- */
 /*  Types                                                                     */
@@ -128,8 +132,8 @@ export const CANVAS_BACKGROUND = "var(--canvas-bg-gradient)";
 /** Polaroid column — slightly toned up from the page. */
 export const CANVAS_RECESS = "var(--canvas-recess)";
 
-/** Centered writing column width. */
-const WRITING_COLUMN_MAX_WIDTH = "min(92vw, 700px)";
+/** Centered writing column width — shared with Patterns (`layout.ts`). */
+const WRITING_COLUMN_MAX_WIDTH = CONTENT_COLUMN_MAX_WIDTH;
 
 /** Writing typography — Rethink Sans, 16px body size (breathable). */
 const WRITING_FONT_SIZE = "var(--text-md)";
@@ -1162,7 +1166,7 @@ function CanvasBoardInner(
           }}
         >
           <div
-            className="mx-auto flex w-full min-h-0 flex-1 flex-col px-4 sm:px-5 lg:px-6"
+            className={`mx-auto flex w-full min-h-0 min-w-0 flex-1 flex-col ${pagePaddingXClass(viewport.isOverlayNav)}`}
             style={{ maxWidth: WRITING_COLUMN_MAX_WIDTH }}
           >
             <CanvasHeader

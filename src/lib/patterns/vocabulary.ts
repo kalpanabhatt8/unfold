@@ -48,7 +48,7 @@ export const PATTERN_DEFINITIONS: Record<PatternName, string> = {
     "measuring themselves against others' progress, status, or ability.",
   self_doubt: "questioning their own ability, competence, or worth.",
   overthinking:
-    "looping on the same thought or decision without resolution, or replaying the past.",
+    "looping on the same thought or decision without resolution, or replaying the past — only when a more specific pattern (catastrophizing, perfectionism, comparison, fear_of_judgment, avoidance, etc.) does not fit.",
   perfectionism: "holding standards so high that nothing feels good enough.",
   avoidance:
     "putting off, escaping, or distracting from something that matters.",

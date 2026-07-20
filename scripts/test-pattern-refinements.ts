@@ -172,18 +172,67 @@ console.log("corrective framing rejected");
   );
 }
 
+console.log("voice preserve only when evidence matches");
+{
+  const evidenceA =
+    "entry-a:0.8:quote one|entry-b:0.7:quote two";
+  const evidenceB =
+    "entry-c:0.9:quote three|entry-d:0.6:quote four";
+  const keyA = buildPassageCacheKey(
+    evidenceA,
+    "strengthening",
+    "moments,line,close:question|discovery|question",
+  );
+  const keyAReplan = buildPassageCacheKey(
+    evidenceA,
+    "strong",
+    "moments,line,line,close:question|discovery|question",
+  );
+  const keyB = buildPassageCacheKey(
+    evidenceB,
+    "strengthening",
+    "moments,line,close:question|discovery|question",
+  );
+
+  // Same evidence, different lifecycle/signature → preserve voice.
+  assert(
+    "same-evidence re-plan keeps evidence fingerprint",
+    passageEvidenceKeyFromCacheKey(keyA) ===
+      passageEvidenceKeyFromCacheKey(keyAReplan),
+  );
+  assert(
+    "same-evidence re-plan would preserve voice",
+    passageEvidenceKeyFromCacheKey(keyA) === evidenceA,
+  );
+
+  // Different evidence → must NOT preserve voice.
+  assert(
+    "different evidence fingerprints diverge",
+    passageEvidenceKeyFromCacheKey(keyA) !==
+      passageEvidenceKeyFromCacheKey(keyB),
+  );
+  assert(
+    "different evidence would not preserve voice",
+    passageEvidenceKeyFromCacheKey(keyA) !== evidenceB,
+  );
+}
+
 console.log("closing label stays Done");
 {
   const arc = {
     phases: ["headline", "evidence", "mechanism", "reflection"],
   } as DiscoveryArc;
   assert(
-    "final CTA is Done →",
-    discoveryContinueLabel(arc, 3) === "Done →",
+    "final CTA is Done",
+    discoveryContinueLabel(arc, 3) === "Done",
   );
   assert(
-    "mid CTA is Continue →",
-    discoveryContinueLabel(arc, 1) === "Continue →",
+    "leaving quotes for AI uses Show the pattern",
+    discoveryContinueLabel(arc, 1) === "Show the pattern",
+  );
+  assert(
+    "mechanism → reflection stays Continue",
+    discoveryContinueLabel(arc, 2) === "Continue",
   );
 }
 

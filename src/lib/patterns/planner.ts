@@ -375,7 +375,13 @@ const relaxAndPick = (
     return base().filter((s) => s.id === "discovery");
   };
 
+  // Discovery first when eligible. Stage-0 filterCandidates used to win with
+  // bare/echo/pair whenever discovery was rotated out (recentSignatures /
+  // lastEndingKind) — a 2-beat arc that hides Continue at evidence. With
+  // multiple surfaced patterns that lottery fired often, so tabbed Patterns
+  // looked like it had "lost" the CTA.
   const stages: Array<() => ShapeDef[]> = [
+    guidedDiscoveryPool,
     () => filterCandidates(ctx, state, neighbors),
     () => {
       const c = base().filter(
@@ -383,7 +389,6 @@ const relaxAndPick = (
       );
       return c.length > 0 ? c : base();
     },
-    guidedDiscoveryPool,
     () => base(),
     () => [BARE_SHAPE],
   ];

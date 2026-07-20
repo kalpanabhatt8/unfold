@@ -11,9 +11,9 @@ export default function DashboardShellLayout({
   return (
     <DashboardScrollLock>
       <SyncProvider />
-      <div className="flex h-svh min-h-0 w-full overflow-hidden bg-(--app-bg)">
+      <div className="flex h-svh min-h-0 w-full max-w-[100vw] overflow-hidden bg-(--app-bg)">
         <Sidebar />
-        <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           {children}
         </div>
       </div>

@@ -1,4 +1,15 @@
-/** Canonical breakpoints — aligned with Tailwind defaults (sm/md/lg). */
+/**
+ * Canonical breakpoints — aligned with Tailwind defaults (sm/md/lg).
+ * Use these (or Tailwind `sm:` / `md:` / `lg:`) everywhere; avoid one-off px.
+ *
+ * | Token | px   | Role                                      |
+ * |-------|------|-------------------------------------------|
+ * | sm    | 640  | Mobile → tablet                           |
+ * | md    | 768  | Tablet → desktop (sidebar width step)    |
+ * | lg    | 1024 | Desktop; sidebar in-flow (not overlay)    |
+ *
+ * Content column max-width: see `CONTENT_COLUMN_MAX_WIDTH` in `layout.ts`.
+ */
 export const BREAKPOINT_SM = 640;
 export const BREAKPOINT_MD = 768;
 export const BREAKPOINT_LG = 1024;

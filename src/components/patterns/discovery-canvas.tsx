@@ -7,12 +7,12 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
+import { ChevronRight } from "lucide-react";
 import type { DiscoveryArc, DiscoveryPhase } from "@/lib/patterns/discovery-arc";
 import {
   discoveryContinueLabel,
   hasReachedPhase,
   phaseAtIndex,
-  phaseIndex,
 } from "@/lib/patterns/discovery-arc";
 import { ClosingVote } from "@/components/patterns/closing-vote";
 import { EvidenceSection } from "@/components/patterns/evidence-section";
@@ -24,14 +24,21 @@ import {
   logQuestionRendered,
   logQuotesRendered,
 } from "@/lib/patterns/pattern-timing";
+import {
+  iconFixed,
+  iconPx,
+  iconStroke,
+} from "@/components/ui/button-system";
 
 export type DiscoveryCanvasProps = {
   arc: DiscoveryArc;
   phaseIndex: number;
-  /** Resets scroll behavior when the passage changes. */
+  /** Resets when the passage changes (parent may remount on key). */
   revealKey?: string;
   /** When false, the CTA waits (voice text still arriving). */
   ctaReady?: boolean;
+  /** When true, skip the in-panel pattern title. */
+  compactHeadline?: boolean;
   /** Current thumbs vote for this pattern closing, if any. */
   closingVote?: PatternVoteValue | null;
   onClosingVote?: (vote: PatternVoteValue) => void;
@@ -41,13 +48,6 @@ export type DiscoveryCanvasProps = {
 
 /** How long one reveal takes — Continue is locked for this window. */
 const REVEAL_MS = 550;
-
-/**
- * Gap between the pinned heading and the repositioned focus beat. Must be
- * larger than the scroll container's top fade mask (1.5rem = 24px) so the
- * focus beat settles fully below the fade, never dimmed by it.
- */
-const FOCUS_SCROLL_OFFSET_PX = 36;
 
 /**
  * Distance of a layer from the current focus, in revealed beats.
@@ -102,30 +102,25 @@ function Layer({
 }
 
 /**
- * One evolving reflection canvas. The heading stays pinned at the top and
- * the CTA at the bottom; between them a single scrollable stream grows
- * downward. Each Continue deposits the next beat below the previous ones,
- * which recede upward but stay readable.
+ * Guided reflection canvas. Beats reveal one at a time; Continue scrolls
+ * the new beat into view on the page (no nested theater / fake height).
  */
 export function DiscoveryCanvas({
   arc,
   phaseIndex: currentIndex,
   revealKey = "",
   ctaReady = true,
+  compactHeadline = false,
   closingVote = null,
   onClosingVote,
   onContinue,
   onOpenEntry,
 }: DiscoveryCanvasProps) {
   const lockedUntilRef = useRef(0);
-  const scrollRef = useRef<HTMLDivElement | null>(null);
   const focusRef = useRef<HTMLElement | null>(null);
-  const skipScrollRef = useRef(true);
+  /** Only auto-scroll after Continue — never on first paint. */
+  const allowAutoScrollRef = useRef(false);
   const focusPhase = phaseAtIndex(arc, currentIndex);
-
-  const evidenceIdx = phaseIndex(arc, "evidence");
-  const headlineFaded =
-    evidenceIdx >= 0 ? currentIndex >= evidenceIdx : currentIndex > 0;
 
   const evidenceVisible =
     hasReachedPhase(arc, currentIndex, "evidence") &&
@@ -152,64 +147,80 @@ export function DiscoveryCanvas({
   }, [questionVisible]);
 
   const age = (phase: DiscoveryPhase) => layerAge(arc, phase, currentIndex);
+  const isFinalPhase = currentIndex >= arc.phases.length - 1;
+  const showInlineTitle =
+    !compactHeadline && arc.headline.title.trim().length > 0;
 
   const handleContinue = useCallback(() => {
     const now = Date.now();
     if (now < lockedUntilRef.current) return;
+    if (isFinalPhase) return;
     lockedUntilRef.current = now + REVEAL_MS;
+    allowAutoScrollRef.current = true;
     onContinue();
-  }, [onContinue]);
+  }, [isFinalPhase, onContinue]);
 
   useEffect(() => {
-    skipScrollRef.current = true;
-    if (scrollRef.current) scrollRef.current.scrollTop = 0;
+    allowAutoScrollRef.current = false;
   }, [revealKey]);
 
+  // After Continue: park the new beat near the top of the page scroll.
+  // Previous beats stay in the document above — no nested scrollport.
   useEffect(() => {
-    if (skipScrollRef.current) {
-      skipScrollRef.current = false;
-      return;
-    }
+    if (!allowAutoScrollRef.current) return;
 
-    const container = scrollRef.current;
-    const layer = focusRef.current;
-    if (!container || !layer) return;
+    let cancelled = false;
+    let attempts = 0;
+    const reduceMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
 
-    // Let the reveal animation start before repositioning, then place the
-    // new beat directly below the pinned heading.
-    const timer = window.setTimeout(() => {
-      const containerRect = container.getBoundingClientRect();
-      const layerRect = layer.getBoundingClientRect();
-      const targetTop =
-        container.scrollTop +
-        (layerRect.top - containerRect.top) -
-        FOCUS_SCROLL_OFFSET_PX;
-      container.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
-    }, 80);
+    const run = () => {
+      if (cancelled) return;
+      const layer = focusRef.current;
+      if (!layer) {
+        if (attempts < 20) {
+          attempts += 1;
+          window.requestAnimationFrame(run);
+        }
+        return;
+      }
+      layer.scrollIntoView({
+        behavior: reduceMotion ? "auto" : "smooth",
+        block: "start",
+      });
+    };
 
-    return () => window.clearTimeout(timer);
+    let raf2 = 0;
+    const raf1 = window.requestAnimationFrame(() => {
+      raf2 = window.requestAnimationFrame(run);
+    });
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(raf1);
+      window.cancelAnimationFrame(raf2);
+    };
   }, [currentIndex]);
 
   return (
-    <article className="discovery-canvas flex h-full min-h-0 w-full max-w-[min(92vw,780px)] flex-col">
-      <header
-        className="discovery-headline shrink-0"
-        data-faded={headlineFaded ? "true" : "false"}
-      >
-        <h1
-          className="header-lg font-medium tracking-tight text-(--sidebar-ink)"
-          style={{ fontFamily: "var(--font-heading)" }}
-        >
-          {arc.headline.title}
-        </h1>
-        <p className="reflection-meta mt-2">{arc.headline.orienting}</p>
-      </header>
-
-      <div
-        ref={scrollRef}
-        className="discovery-scroll min-h-0 flex-1 overscroll-y-contain"
-      >
+    <article
+      className="discovery-canvas flex w-full flex-col"
+      data-phase={focusPhase}
+      data-settled={isFinalPhase ? "true" : "false"}
+    >
+      <div className="discovery-scroll">
         <div className="discovery-stream">
+          {showInlineTitle ? (
+            <header className="discovery-headline">
+              <h2
+                className="pattern-content-title font-medium tracking-tight text-(--sidebar-ink)"
+                style={{ fontFamily: "var(--font-heading)" }}
+              >
+                {arc.headline.title}
+              </h2>
+            </header>
+          ) : null}
+
           {hasReachedPhase(arc, currentIndex, "evidence") &&
           arc.evidence.visible.length > 0 ? (
             <Layer
@@ -267,22 +278,33 @@ export function DiscoveryCanvas({
               ) : null}
             </Layer>
           ) : null}
-
-          {/* Runway so even a short focus beat can scroll up under the heading. */}
-          <div className="discovery-tail" aria-hidden />
         </div>
       </div>
 
       <footer className="discovery-footer shrink-0">
         <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={handleContinue}
-            disabled={!ctaReady}
-            className="text-[0.8125rem] tracking-[0.01em] text-(--sidebar-ink-soft) transition-colors duration-150 hover:text-(--sidebar-ink) disabled:cursor-default disabled:opacity-40"
-          >
-            {ctaReady ? discoveryContinueLabel(arc, currentIndex) : "a moment…"}
-          </button>
+          {isFinalPhase ? null : (
+            <button
+              type="button"
+              onClick={handleContinue}
+              disabled={!ctaReady}
+              className="inline-flex min-h-(--touch-target-min) items-center gap-0.5 px-1 text-sm tracking-[0.01em] text-(--sidebar-ink-soft) transition-colors duration-150 hover:text-(--sidebar-ink) disabled:cursor-default disabled:opacity-40"
+            >
+              {ctaReady ? (
+                <>
+                  <span>{discoveryContinueLabel(arc, currentIndex)}</span>
+                  <ChevronRight
+                    size={iconPx("xs")}
+                    strokeWidth={iconStroke("xs")}
+                    className={iconFixed}
+                    aria-hidden
+                  />
+                </>
+              ) : (
+                "a moment…"
+              )}
+            </button>
+          )}
         </div>
       </footer>
     </article>

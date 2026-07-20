@@ -59,7 +59,12 @@ const voiceFillsFrom = (passage: PatternPassage): ParsedSlotFill[] => {
   return fills;
 };
 
-/** Re-materialize but keep any voice fills already in cache. */
+/**
+ * Re-materialize but keep voice fills already in cache — only when the
+ * evidence set is unchanged. Same-evidence re-plans (shape/lifecycle tweaks)
+ * may change cacheKey while slot indices stay aligned; carrying voice avoids
+ * another multi-second generation pass. Different evidence must regenerate.
+ */
 const materializePreservingVoice = (
   name: PatternName,
   plan: Parameters<typeof materializePassage>[1],
@@ -73,11 +78,14 @@ const materializePreservingVoice = (
   // Stale voice contract (e.g. corrective framing) must not be copied forward.
   if (!passageCacheVersionIsCurrent(existing.cacheKey)) return fresh;
 
+  // Evidence changed — never leak mechanism/reflection from a prior instance.
+  if (passageEvidenceKeyFromCacheKey(existing.cacheKey) !== evidenceKey) {
+    return fresh;
+  }
+
   const fills = voiceFillsFrom(existing);
   if (fills.length === 0) return fresh;
 
-  // Re-plans may change cacheKey while slot indices stay aligned — keep voice
-  // text instead of wiping it and forcing another multi-second generation pass.
   const applied = applySlotFills(fresh, fills);
   if (passageVoiceEchoes(applied)) return fresh;
   return applied;

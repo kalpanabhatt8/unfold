@@ -123,7 +123,7 @@ export const PATTERN = {
   title: "See Together.",
   // label: "A few thoughts have been returning lately.",
   label: "",
-  evidenceLabel: "These moments kept showing up",
+  evidenceLabel: "From these entries",
   loops: [
     "The moments were always there.",
     "They'd been sitting beside each other all along.",

@@ -377,7 +377,8 @@ export function LivingCanvas() {
             <div className="lp-live__frame">
               <div className="lp-live__desktop" data-interactive={interactive}>
               <aside className="lp-live__sidebar">
-                <div className="lp-live__sidebar-fade" aria-hidden />
+                {/* Soft bottom wash behind Patterns — matches real dashboard sidebar. */}
+                <div className="lp-live__sidebar-wash" aria-hidden />
 
                 <div className="lp-live__sidebar-top">
                   <p className="lp-live__sidebar-owner">{WORKSPACE_LABEL}</p>
@@ -391,100 +392,106 @@ export function LivingCanvas() {
                   </button>
                 </div>
 
-                <div className="lp-live__sidebar-tools">
-                  {searchOpen ? (
-                    <div className="lp-live__search">
-                      <Search size={14} strokeWidth={1.75} aria-hidden />
-                      <input
-                        ref={searchInputRef}
-                        type="text"
-                        value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Escape") {
+                <section className="lp-live__entries" aria-label="Entries">
+                  <div className="lp-live__sidebar-tools">
+                    {searchOpen ? (
+                      <div className="lp-live__search">
+                        <Search size={14} strokeWidth={1.75} aria-hidden />
+                        <input
+                          ref={searchInputRef}
+                          type="text"
+                          value={query}
+                          onChange={(e) => setQuery(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Escape") {
+                              setSearchOpen(false);
+                              setQuery("");
+                            }
+                          }}
+                          placeholder="Search"
+                          aria-label="Search entries"
+                          disabled={!interactive}
+                        />
+                        <button
+                          type="button"
+                          aria-label="Close search"
+                          className="lp-live__sidebar-icon-btn"
+                          onClick={() => {
                             setSearchOpen(false);
                             setQuery("");
-                          }
-                        }}
-                        placeholder="Search"
-                        aria-label="Search entries"
-                        disabled={!interactive}
-                      />
-                      <button
-                        type="button"
-                        aria-label="Close search"
-                        className="lp-live__sidebar-icon-btn"
-                        onClick={() => {
-                          setSearchOpen(false);
-                          setQuery("");
-                        }}
-                      >
-                        <X size={14} strokeWidth={1.9} aria-hidden />
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <span className="lp-live__sidebar-label">
-                        Recent entries
-                      </span>
-                      <div className="lp-live__sidebar-icons">
-                        <button
-                          type="button"
-                          className="lp-live__sidebar-icon-btn"
-                          aria-label="Search entries"
-                          tabIndex={interactive ? 0 : -1}
-                          onClick={() => interactive && setSearchOpen(true)}
+                          }}
                         >
-                          <Search size={14} strokeWidth={1.75} aria-hidden />
-                        </button>
-                        <button
-                          type="button"
-                          className="lp-live__sidebar-icon-btn"
-                          aria-label="New entry"
-                          tabIndex={interactive ? 0 : -1}
-                          onClick={() => openNewEntry()}
-                        >
-                          <Plus size={14} strokeWidth={1.75} aria-hidden />
+                          <X size={14} strokeWidth={1.9} aria-hidden />
                         </button>
                       </div>
-                    </>
-                  )}
-                </div>
-
-                <nav className="lp-live__entry-list" aria-label="Entries">
-                  <ul>
-                    {filteredEntries.map((entry) => {
-                      const isActive =
-                        !showingWrite &&
-                        entry.id === activeEntryId &&
-                        !patternsActive;
-                      return (
-                        <li key={entry.id}>
+                    ) : (
+                      <>
+                        <span className="lp-live__sidebar-label">
+                          Recent entries
+                        </span>
+                        <div className="lp-live__sidebar-icons">
                           <button
                             type="button"
-                            className="lp-live__entry"
-                            data-active={isActive}
-                            data-sealed={entry.sealed}
-                            onClick={() => openJournal(entry.id)}
-                            disabled={!interactive}
+                            className="lp-live__sidebar-icon-btn"
+                            aria-label="Search entries"
+                            tabIndex={interactive ? 0 : -1}
+                            onClick={() => interactive && setSearchOpen(true)}
                           >
-                            <div className="lp-live__entry-text">
-                              <p className="lp-live__entry-title">
-                                {entry.title}
-                              </p>
-                              <p className="lp-live__entry-preview">
-                                {entry.preview}
-                              </p>
-                            </div>
-                            <span className="lp-live__entry-time">
-                              {entry.time}
-                            </span>
+                            <Search size={14} strokeWidth={1.75} aria-hidden />
                           </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </nav>
+                          <button
+                            type="button"
+                            className="lp-live__sidebar-icon-btn"
+                            aria-label="New entry"
+                            tabIndex={interactive ? 0 : -1}
+                            onClick={() => openNewEntry()}
+                          >
+                            <Plus size={14} strokeWidth={1.75} aria-hidden />
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  <div className="lp-live__entry-scroll">
+                    <nav className="lp-live__entry-list" aria-label="Entry list">
+                      <ul>
+                        {filteredEntries.map((entry) => {
+                          const isActive =
+                            !showingWrite &&
+                            entry.id === activeEntryId &&
+                            !patternsActive;
+                          return (
+                            <li key={entry.id}>
+                              <button
+                                type="button"
+                                className="lp-live__entry"
+                                data-active={isActive}
+                                data-sealed={entry.sealed}
+                                onClick={() => openJournal(entry.id)}
+                                disabled={!interactive}
+                              >
+                                <div className="lp-live__entry-text">
+                                  <p className="lp-live__entry-title">
+                                    {entry.title}
+                                  </p>
+                                  <p className="lp-live__entry-preview">
+                                    {entry.preview}
+                                  </p>
+                                </div>
+                                <span className="lp-live__entry-time">
+                                  {entry.time}
+                                </span>
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </nav>
+                    {/* Soft fade — not a hard divider (real sidebar pattern). */}
+                    <div className="lp-live__sidebar-fade" aria-hidden />
+                  </div>
+                </section>
 
                 <button
                   type="button"
@@ -496,7 +503,7 @@ export function LivingCanvas() {
                 >
                   <Waypoints
                     className="lp-live__patterns-icon"
-                    size={14}
+                    size={16}
                     strokeWidth={1.85}
                     aria-hidden
                   />
@@ -657,11 +664,17 @@ export function LivingCanvas() {
                           } as CSSProperties
                         }
                       >
+                        <p className="lp-live__chip-meta">
+                          <span className="lp-live__chip-label">
+                            {card.entryTitle}
+                          </span>
+                          <span className="lp-live__chip-sep" aria-hidden>
+                            ·
+                          </span>
+                          <span className="lp-live__chip-date">{card.date}</span>
+                        </p>
                         <p className="lp-live__chip-quote">
                           &ldquo;{card.quote}&rdquo;
-                        </p>
-                        <p className="lp-live__chip-meta">
-                          {card.date} · {card.entryTitle}
                         </p>
                       </div>
                     );
@@ -692,10 +705,6 @@ export function LivingCanvas() {
                     >
                       <MechanismChain
                         text={PATTERN.loops.join("\n")}
-                        steps={PATTERN.loops.map((text) => ({
-                          text,
-                          quotes: [],
-                        }))}
                         animate={
                           viewOverride === "pattern" || patternIn > 0.35
                         }

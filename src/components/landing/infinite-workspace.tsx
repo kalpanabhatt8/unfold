@@ -231,10 +231,18 @@ export function InfiniteWorkspace() {
                   }
                   data-dim={dim}
                 >
-                  <p>&ldquo;{moment.quote}&rdquo;</p>
-                  <span>
-                    {moment.date} · {moment.entryTitle}
-                  </span>
+                  <p className="lp-work__note-meta">
+                    <span className="lp-work__note-label">
+                      {moment.entryTitle}
+                    </span>
+                    <span className="lp-work__note-sep" aria-hidden>
+                      ·
+                    </span>
+                    <span className="lp-work__note-date">{moment.date}</span>
+                  </p>
+                  <p className="lp-work__note-quote">
+                    &ldquo;{moment.quote}&rdquo;
+                  </p>
                 </div>
               );
             })}

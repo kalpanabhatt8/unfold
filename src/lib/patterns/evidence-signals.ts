@@ -24,6 +24,34 @@ export const MAX_PASSAGE_QUOTES = 6;
 const ECHO_MIN_TOKEN_LEN = 4;
 const ECHO_MIN_ENTRIES = 2;
 
+/**
+ * Common words that recur in journals without being a meaningful artifact.
+ * A closing "phrase" beat must be distinctive — not "kept", "written", etc.
+ */
+const ECHO_STOPWORDS = new Set([
+  "about", "after", "again", "being", "could", "doing", "every", "first",
+  "going", "have", "just", "keep", "kept", "know", "like", "made", "make",
+  "more", "much", "need", "never", "only", "other", "over", "same", "should",
+  "something", "still", "than", "that", "their", "then", "there", "these",
+  "they", "thing", "this", "those", "through", "very", "want", "was", "were",
+  "what", "when", "where", "which", "while", "with", "would", "write",
+  "writing", "written", "your", "really", "actually", "already", "always",
+  "because", "before", "between", "around", "almost", "another", "anything",
+]);
+
+export const isDistinctiveEchoPhrase = (phrase: string): boolean => {
+  const normalized = phrase.trim().toLowerCase();
+  if (!normalized) return false;
+  const parts = normalized.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return parts.some(
+      (p) => p.length >= ECHO_MIN_TOKEN_LEN && !ECHO_STOPWORDS.has(p),
+    );
+  }
+  if (normalized.length < 5) return false;
+  return !ECHO_STOPWORDS.has(normalized);
+};
+
 export type QuoteRef = {
   entryId: string;
   entryTitle: string;

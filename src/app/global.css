@@ -35,8 +35,7 @@
    Light mode only, minimal tokens, minimal component CSS.
 */
 :root {
-  /* App shell — dashboard, shelf, etc. Cover editor uses --cover-editor-bg; canvas uses --canvas-bg. */
-  --app-bg: #FEFCFD;
+  /* Base gray ramp (systematic — keep as-is). Semantic roles follow. */
   --gray-25: #FDFCFC;
   --gray-50: #FBFBFB;
   --gray-75: #F5F5F5;
@@ -111,68 +110,112 @@
   --radius-lg: var(--value-16);
   --radius-pill: 999px;
 
-  /* Color semantics - foundation (text refs → canvas tokens below) */
-  --bg: var(--app-bg);
-  --fg: var(--canvas-ink);
-  --muted: var(--canvas-muted);
-  --muted-2: var(--canvas-ink-secondary);
-  --border: var(--gray-300);
-  --primary: var(--gray-900);
-  --primary-soft: var(--gray-300);
+  /*
+   * Semantic color roles (deliberate set). Base --gray-* ramp stays above.
+   * Prefer these roles; legacy names below are aliases for call-site compat.
+   */
 
-  /* Canvas — source of truth for Keeps warm palette */
-  --canvas-bg: #FEFCFD;
-  /* --canvas-bg-gradient: var( --discovery-canvas-bg); */
-  --canvas-bg-gradient:   #FEFCFD;
+  /* 1. ACCENT — CTAs, brand, title ink (one wine) */
+  --accent: #430f24;
+  --accent-hover: color-mix(in srgb, var(--accent) 86%, black);
+  --accent-active: color-mix(in srgb, var(--accent) 72%, black);
+  --accent-foreground: #fff8f2;
 
-  --canvas-recess: #f2efeb;
-  --canvas-brown: #7e675f;
-  --canvas-title-ink: #421024;
-  --button-primary: #684050;
-  --button-primary-hover: color-mix(in srgb, var(--button-primary) 86%, black);
-  --button-primary-active: color-mix(in srgb, var(--button-primary) 72%, black);
-  --button-primary-foreground: #fff8f2;
-  --canvas-ink: var(--text-primary);
-  /* --canvas-ink: #585456; */
-  --canvas-ink-secondary: #85766b;
-  /* --canvas-title-placeholder: #aba7a8; */
-  --canvas-title-placeholder: #9f9b9c;
-  --canvas-writing-placeholder: #9f9b9c;
-  --canvas-date-time: #6d6d6d;
-  --canvas-muted: #85766b;
+  /* 2. SURFACE-CANVAS — main content / page, fully neutral */
+  --surface-canvas: #fcfcfc;
 
-  /* Sidebar — dusty rose, warm via pink (no beige) */
-  --sidebar-bg: #faf8f9;
-  --sidebar-bg-lightest: #fefcfd;
+  /* 3. SURFACE-CHROME — sidebar (warm pink), 3 steps only */
+  --surface-chrome: #faf8f9;
+  --surface-chrome-hover: #f6f3f5;
+  --surface-chrome-active: #f0eaed;
+
+  /* 4. SURFACE-RAISED — cards, accordion, writing paper */
+  --surface-raised: #ffffff;
+
+  /* 5. TEXT — primary / secondary / muted (+ disabled for UI state) */
+  --text-primary: #141314;
+  --text-secondary: #544e52;
+  --text-muted: #928a90;
+  --text-color-disabled: #c2bbbf;
+
+  /* Chrome accents that are intentionally distinct (not near-white fills) */
   --sidebar-border: #e4d8de;
   --sidebar-tab-track: #ede4e9;
   --sidebar-tab-selected-bg: #e7dde2;
-  --sidebar-hover-bg: #f6f3f5;
-  --sidebar-active-bg: #f0eaed;
-  /* Patterns → Journal quote tint (change here only) */
-  --journal-quote-highlight: #F9E7EB;
-  --sidebar-active-ink: #443c42;
-  --sidebar-ink: #38343a;
-  --sidebar-ink-soft: #928a90;
-  --sidebar-icon: #827a80;
-  --sidebar-width: 88vw;
-  /* Discovery / pattern body — canvas pink family, slightly whiter */
-  --discovery-canvas-bg: color-mix(in srgb, #ffffff 78%, var(--canvas-bg) 22%);
+  --journal-quote-highlight: #f9e7eb;
+  --canvas-recess: #f2efeb;
+  --canvas-brown: #7e675f;
 
-  /* Color semantics - surfaces */
-  --surface-0: var(--app-bg);
+  /* ---- Legacy aliases → roles above (do not invent new hex here) ---- */
+
+  --app-bg: var(--surface-canvas);
+  --bg: var(--surface-canvas);
+  --canvas-bg-gradient: var(--surface-canvas);
+  --surface-0: var(--surface-canvas);
+  --surface-solid: var(--surface-canvas);
+
+  --canvas-bg: var(--surface-raised);
+  --sidebar-bg-lightest: var(--surface-raised);
+  --auth-card-bg: var(--surface-raised);
+  --discovery-canvas-bg: var(--surface-canvas);
+
+  --sidebar-bg: var(--surface-chrome);
+  --sidebar-hover-bg: var(--surface-chrome-hover);
+  --sidebar-active-bg: var(--surface-chrome-active);
+
+  --button-primary: var(--accent);
+  --button-primary-hover: var(--accent-hover);
+  --button-primary-active: var(--accent-active);
+  --button-primary-foreground: var(--accent-foreground);
+  --canvas-title-ink: var(--accent);
+
+  --canvas-ink: var(--text-primary);
+  --fg: var(--text-primary);
+  --sidebar-ink: var(--text-primary);
+  --sidebar-active-ink: var(--text-primary);
+  --text-color-active: var(--text-primary);
+
+  --canvas-ink-secondary: var(--text-secondary);
+  --muted-2: var(--text-secondary);
+  --text-color-secondary: var(--text-secondary);
+  --text-color-sealed: var(--text-secondary);
+  --canvas-date-time: var(--text-secondary);
+
+  --canvas-muted: var(--text-muted);
+  --muted: var(--text-muted);
+  --text-tertiary: var(--text-muted);
+  --text-color-tertiary: var(--text-muted);
+  --sidebar-ink-soft: var(--text-muted);
+  --sidebar-icon: var(--text-muted);
+  --canvas-title-placeholder: var(--text-muted);
+  --canvas-writing-placeholder: var(--text-muted);
+
   --surface: var(--gray-50);
-  --surface-solid: var(--app-bg);
   --polaroid-recess: var(--canvas-recess);
   --surface-1: var(--gray-50);
   --surface-2: var(--gray-100);
   --surface-3: var(--gray-200);
   --shadow: none;
 
-  /* text semantics — canvas reference colors */
-  --text-primary: #141314;
-  --text-secondary: #3f3a3d;
-  --text-tertiary: var(--canvas-writing-placeholder);
+  --border: var(--gray-300);
+  --primary: var(--gray-900);
+  --primary-soft: var(--gray-300);
+
+  --sidebar-width: 88vw;
+
+  /*
+   * Layout containers — use these instead of per-component fixed widths.
+   * Full-bleed on phone (`100%`) so `px-4` aligns with the overlay menu;
+   * px caps apply on laptop+ where `mx-auto` centers the column.
+   */
+  --content-column-max: 840px;
+  --patterns-column-max: 840px;
+  --page-max-width: var(--content-column-max);
+  --page-padding-x: clamp(1rem, 4vw, 1.5rem);
+  --landing-frame-max: min(1200px, 95vw);
+  --touch-target-min: 44px;
+  /* Fixed overlay hamburger clearance (top + button + gap) — used below lg */
+  --overlay-menu-clearance: 5.25rem;
 
   /* Color semantics - borders + controls */
   --color-border-subtle: var(--border);
@@ -192,7 +235,6 @@
   --toolbar-button-border: 1px solid var(--color-border-subtle);
   --toolbar-button-border-selected: 1px solid var(--color-border-emphasis);
 
-  
   /* Color semantics - overlays + focus */
   --popup-border: 1px solid var(--color-border-subtle);
   --popup-bg: var(--surface-2);
@@ -202,19 +244,18 @@
   /* ---- Auth / Clerk theming ---------------------------------------------
      Change these to restyle Sign-in, Sign-up, and Clerk popovers.
      Wired through ClerkProvider appearance in layout.tsx. */
-  --auth-page-bg: var(--discovery-canvas-bg);
-  --auth-card-bg: #ffffff;
-  --auth-primary: var(--button-primary);
-  --auth-primary-foreground: var(--button-primary-foreground);
+  --auth-page-bg: var(--surface-canvas);
+  --auth-primary: var(--accent);
+  --auth-primary-foreground: var(--accent-foreground);
   --auth-foreground: var(--text-primary);
-  --auth-muted-foreground: var(--text-color-secondary);
-  --auth-muted: var(--sidebar-bg);
-  --auth-input-bg: var(--canvas-bg);
-  --auth-neutral: var(--sidebar-ink-soft);
+  --auth-muted-foreground: var(--text-secondary);
+  --auth-muted: var(--surface-chrome);
+  --auth-input-bg: var(--surface-raised);
+  --auth-neutral: var(--text-muted);
   --auth-border: var(--sidebar-border);
-  --auth-ring: var(--button-primary);
-  --auth-shadow: color-mix(in srgb, var(--button-primary) 12%, transparent);
-  --auth-modal-backdrop: color-mix(in srgb, var(--sidebar-ink) 28%, transparent);
+  --auth-ring: var(--accent);
+  --auth-shadow: color-mix(in srgb, var(--accent) 12%, transparent);
+  --auth-modal-backdrop: color-mix(in srgb, var(--text-primary) 28%, transparent);
   --auth-radius: var(--radius-md);
   --auth-font: var(--font-body);
   --auth-font-buttons: var(--font-body);
@@ -228,17 +269,6 @@
   --font-signature: var(--font-covered-by-your-grace), var(--font-caveat), cursive;
   --stamp-signature-tilt: -12deg;
   --stamp-imprint-tilt: -18deg;
-
-  /* ---- Text system — COLOR only -------------------------------------------
-     Semantic states: active / secondary / tertiary / sealed / disabled.
-     Color is fully decoupled from size: pair any color state class
-     (.text-active / .text-secondary / .text-tertiary / .text-sealed / .text-disabled)
-     with any size utility (text-xs / text-sm / text-md / text-lg / text-xl). */
-  --text-color-active: #2c282a;
-  --text-color-secondary: #544e52;
-  --text-color-sealed: #726c70;
-  --text-color-tertiary: #8f888d;
-  --text-color-disabled: #c2bbbf;
 }
 
 /* Sidebar width — scales with viewport; caps on large screens */
@@ -449,6 +479,7 @@ body {
 
 html {
   -webkit-text-size-adjust: 100%;
+  overflow-x: clip;
 }
 
 body {
@@ -460,6 +491,17 @@ body {
   font-family: var(--font-body);
   font-size: var(--text-md);
   line-height: var(--text-md--line-height);
+  overflow-x: clip;
+}
+
+/* Centered reading/writing column — journal + Patterns share this. */
+.page-column {
+  width: 100%;
+  max-width: min(100%, var(--content-column-max));
+  margin-inline: auto;
+  padding-inline: var(--page-padding-x);
+  box-sizing: border-box;
+  min-width: 0;
 }
 
 h1,
@@ -1065,163 +1107,160 @@ input[type='number'] {
   color: color-mix(in srgb, var(--sidebar-ink-soft) 72%, transparent);
 }
 
-/* Evidence — split card: faint timeline left, quotes right */
+/* Evidence — pastel quote cards in a responsive grid.
+   1-col mobile (<640) · 2-col tablet · 3-col desktop — unchanged from prior design. */
 .evidence-section {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  width: 100%;
+  min-width: 0;
+}
+
+@media (min-width: 640px) {
+  .evidence-section {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+  }
+}
+
+@media (min-width: 960px) {
+  .evidence-section {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .evidence-card {
-  display: grid;
-  grid-template-columns: minmax(4.25rem, 22%) minmax(0, 1fr);
-  align-items: stretch;
-  column-gap: 0;
-  padding: 0.85rem 1.1rem;
-  border-radius: 10px;
-  background-color: var(--sidebar-bg);
-}
-
-.evidence-card--solo,
-.evidence-card--featured {
-  cursor: pointer;
-  transition: background-color 150ms ease;
-}
-
-.evidence-card--solo:hover,
-.evidence-card--solo:focus-visible,
-.evidence-card--featured:hover,
-.evidence-card--featured:focus-visible {
-  outline: none;
-  background-color: var(--sidebar-hover-bg);
-}
-
-.evidence-card--solo:active,
-.evidence-card--featured:active {
-  background-color: var(--sidebar-active-bg);
-}
-
-.evidence-card__time {
-  display: flex;
-  align-items: flex-start;
-  justify-content: flex-start;
-  padding: 0.15rem 0.85rem 0.15rem 0.15rem;
-  border-right: 1px solid
-    color-mix(in srgb, var(--sidebar-ink) 6%, transparent);
-}
-
-.evidence-card__date {
-  margin: 0;
-  font-family: var(--font-heading);
-  font-size: clamp(1.05rem, 2.2vw, 1.25rem);
-  font-weight: 600;
-  line-height: 1.05;
-  letter-spacing: -0.02em;
-  text-align: left;
-  text-transform: lowercase;
-  color: color-mix(in srgb, var(--button-primary) 28%, transparent);
-}
-
-.evidence-card__quotes {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  padding-left: 0.4rem;
-}
-
-.evidence-card__quote {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 0.6rem;
+  gap: 0.7rem;
   min-width: 0;
-  padding: 0.8rem 0.35rem 0.8rem 1rem;
-  cursor: pointer;
-  transition: background-color 150ms ease;
-}
-
-.evidence-card__quote + .evidence-card__quote {
-  border-top: 1px solid
-    color-mix(in srgb, var(--sidebar-ink) 6%, transparent);
-}
-
-.evidence-card__quote:hover,
-.evidence-card__quote:focus-visible {
-  outline: none;
-  background-color: var(--sidebar-hover-bg);
-  border-radius: 4px;
-}
-
-.evidence-card__quote:active {
-  background-color: var(--sidebar-active-bg);
-}
-
-.evidence-card__quote--solo {
-  cursor: inherit;
-  flex: 1;
-  padding-top: 0.15rem;
-  padding-bottom: 0.15rem;
-}
-
-.evidence-card__quote--solo:hover,
-.evidence-card__quote--solo:focus-visible {
-  background-color: transparent;
-}
-
-.evidence-card__meta {
+  width: 100%;
+  min-height: 10rem;
   margin: 0;
-  max-width: 100%;
+  padding: 0.95rem 1rem 1.05rem;
+  border: 1px solid color-mix(in srgb, var(--sidebar-border) 15%, transparent);
+  border-radius: 14px;
+  background-color: var(--sidebar-hover-bg);
+  cursor: pointer;
+  transition:
+    transform 150ms ease,
+    background-color 150ms ease,
+    border-color 150ms ease;
+}
+
+.evidence-card:hover,
+.evidence-card:focus-visible {
+  outline: none;
+  background-color: var(--sidebar-active-bg);
+  border-color: color-mix(in srgb, var(--sidebar-border) 80%, transparent);
+  transform: translateY(-1px);
+}
+
+.evidence-card:active {
+  transform: translateY(0);
+  background-color: var(--sidebar-tab-selected-bg);
+}
+
+.evidence-card--featured,
+.evidence-card--solo {
+  min-height: 11rem;
+  max-width: 22rem;
+  padding: 1.05rem 1.1rem 1.15rem;
+}
+
+.evidence-card__top {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: 0.625rem;
+  font-weight: 400;
+  line-height: 1.3;
+  letter-spacing: 0.01em;
+  color: color-mix(in srgb, var(--sidebar-ink-soft) 72%, transparent);
+}
+
+.evidence-card__label {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.75rem;
-  font-weight: 400;
-  line-height: 1.4;
-  letter-spacing: 0.01em;
+}
+
+.evidence-card__sep {
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.evidence-card__date {
+  flex-shrink: 0;
+  white-space: nowrap;
   text-transform: lowercase;
-  color: var(--sidebar-ink-soft);
 }
 
 .evidence-card__quote-text {
   margin: 0;
-  font-family: var(--font-lora);
-  font-size: 1.0625rem;
-  font-style: italic;
-  line-height: 1.5;
-  letter-spacing: -0.01em;
-  color: color-mix(in srgb, var(--sidebar-ink) 88%, transparent);
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+  line-clamp: 5;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  font-family: var(--font-heading);
+  font-size: 0.9375rem;
+  font-style: normal;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -0.015em;
+  color: var(--sidebar-active-ink);
 }
 
 .evidence-card__quote-text--clamp {
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
 }
 
 .evidence-card--featured .evidence-card__quote-text {
-  font-size: 1.1875rem;
-  line-height: 1.55;
-  color: var(--sidebar-ink);
-}
-
-.evidence-card--featured .evidence-card__date {
-  font-size: clamp(1.125rem, 2.4vw, 1.35rem);
+  font-size: 1rem;
+  line-height: 1.45;
+  -webkit-line-clamp: 6;
+  line-clamp: 6;
 }
 
 @media (max-width: 420px) {
   .evidence-card {
-    grid-template-columns: minmax(3.5rem, 24%) minmax(0, 1fr);
-    padding: 0.9rem;
+    min-height: 9.25rem;
+    padding: 0.85rem 0.9rem 0.95rem;
   }
 
-  .evidence-card__date {
-    font-size: 1rem;
+  .evidence-card--featured,
+  .evidence-card--solo {
+    padding: 1rem;
   }
 
-  .evidence-card__quote {
-    padding: 0.65rem 0.2rem 0.65rem 0.75rem;
+  .evidence-card__quote-text {
+    font-size: 0.875rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .evidence-card {
+    transition: none;
+  }
+
+  .evidence-card:hover,
+  .evidence-card:focus-visible,
+  .evidence-card:active {
+    transform: none;
   }
 }
 
@@ -1235,72 +1274,39 @@ input[type='number'] {
 /* Discovery canvas — evolving guided reflection */
 .discovery-canvas {
   position: relative;
+  min-height: 0;
 }
 
-/* Pinned above the scroll container — never part of the scrolling content. */
+/* Title lives in the scroll stream — scrolls away with prior beats. */
 .discovery-headline {
-  padding-top: 0;
+  padding-top: 0.15rem;
   padding-bottom: 1.25rem;
+  flex-shrink: 0;
+  overflow: visible;
 }
 
-/* Fade the words, never the background — it masks passing content. */
-.discovery-headline > * {
-  transition: opacity 550ms ease;
-}
-
-.discovery-headline[data-faded="true"] > * {
-  opacity: 0.55;
-}
-
-/* When evidence arrives, collapse the headline so quotes feel adjacent. */
-.discovery-headline[data-faded="true"] {
-  padding-bottom: 0.75rem;
-}
-
-.discovery-headline[data-faded="true"] .reflection-meta {
-  display: none;
-}
-
-/*
- * The single scrollable reading area. Scrolling works normally but the
- * scrollbar is never shown — the page should read as one quiet surface.
- */
+/* Content hugs height — page scroll only when real content overflows. */
 .discovery-scroll {
-  overflow-y: auto;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-  /* Beats dissolve as they slide up beneath the pinned heading. */
-  mask-image: linear-gradient(to bottom, transparent 0, black 1.5rem);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, black 1.5rem);
-}
-
-.discovery-scroll::-webkit-scrollbar {
-  display: none;
+  overflow: visible;
+  min-height: 0;
 }
 
 .discovery-stream {
   display: flex;
   flex-direction: column;
-  /* Start below the top fade mask so the first line is never dimmed. */
-  padding-top: 2.25rem;
+  position: relative;
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
 }
 
-/* Runway below the last beat so even a short focus beat can settle directly
-   under the heading — keeps the reading position fixed on every Continue. */
-.discovery-tail {
-  height: 55vh;
-  flex-shrink: 0;
-}
-
-/* Pinned below the scroll container — the CTA never scrolls away. */
 .discovery-footer {
   padding-top: 1.25rem;
-  padding-bottom: 2.75rem;
+  padding-bottom: 1.25rem;
 }
 
 /*
  * Typographic hierarchy — the role of each beat, not just its content:
- *   quotes (evidence-card)          = timeline + stacked moments
+ *   quotes (evidence-card)          = vertical reading list
  *   observation                     = realization, between quote and question
  *   recognition + reflection        = contemplation, the visual focus
  */
@@ -1309,6 +1315,7 @@ input[type='number'] {
   --q-size-reading: 1.0625rem;
   --q-size-display: 2.75rem;
   --q-display-boost: calc((1 - var(--q-scale)) * 1.6875rem);
+  --q-vw-boost: 2.5vw;
 
   font-family: var(--font-lora);
   font-weight: 400;
@@ -1317,12 +1324,21 @@ input[type='number'] {
   /* Short lines stay large; long passages scale down smoothly via --q-scale. */
   font-size: clamp(
     var(--q-size-reading),
-    calc(var(--q-size-reading) + var(--q-display-boost) + (1 - var(--q-scale)) * 2.5vw),
+    calc(var(--q-size-reading) + var(--q-display-boost) + (1 - var(--q-scale)) * var(--q-vw-boost)),
     calc(var(--q-size-reading) + var(--q-display-boost))
   );
   line-height: calc(1.72 + (1 - var(--q-scale)) * -0.3);
   max-width: calc(21ch + var(--q-scale) * 15ch);
   text-wrap: balance;
+}
+
+/* Phone: keep the question emphatic without dominating the accordion card */
+@media (max-width: 640px) {
+  .discovery-question {
+    --q-display-boost: calc((1 - var(--q-scale)) * 0.5625rem); /* ~1.625rem max */
+    --q-vw-boost: 1vw;
+    max-width: 100%;
+  }
 }
 
 .discovery-question[data-reading="true"] {
@@ -1436,15 +1452,17 @@ input[type='number'] {
 .discovery-mechanism-evidence {
   display: flex;
   flex-direction: column;
-  gap: 0.625rem;
+  gap: 0.55rem;
 }
 
 .discovery-mechanism-evidence .evidence-card {
-  background-color: #fbfafb;
+  min-height: 0;
 }
 
 .discovery-mechanism-evidence .evidence-card__quote-text {
-  font-size: 0.975rem;
+  font-size: 0.875rem;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
 }
 
 .discovery-recurrence {
@@ -1456,165 +1474,267 @@ input[type='number'] {
  * newer beats arrive. One animation on entry, one eased transition after.
  */
 .discovery-layer {
-  transition:
-    opacity 550ms ease,
-    transform 550ms ease,
-    margin 550ms ease;
+  transition: opacity 550ms ease;
+  /* Room under page chrome when Continue parks a beat via scrollIntoView. */
+  scroll-margin-top: 1.25rem;
 }
 
-/* Entry animation only while focused — its fill would otherwise pin opacity. */
+/* Entry animation — opacity only. Transforms break scroll positioning and
+   clip the first line of a newly focused beat. */
 .discovery-layer[data-state="focus"] {
   animation: discovery-reveal 550ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .discovery-layer + .discovery-layer {
-  margin-top: 3rem;
+  margin-top: 5rem;
 }
 
-.discovery-layer[data-state="past"] {
-  opacity: 0.55;
-  transform: translateY(-6px);
+.discovery-layer[data-state="past"],
+.discovery-layer[data-state="distant"],
+.discovery-layer[data-age="3"],
+.discovery-layer[data-age="4"],
+.discovery-layer[data-age="5"] {
+  opacity: 1;
+  transform: none;
 }
 
 .discovery-layer[data-state="past"] + .discovery-layer[data-state="past"],
 .discovery-layer[data-state="past"] + .discovery-layer[data-state="distant"],
 .discovery-layer[data-state="distant"] + .discovery-layer[data-state="distant"] {
-  margin-top: 2rem;
-}
-
-.discovery-layer[data-state="distant"] {
-  opacity: 0.3;
-  transform: translateY(-8px);
-}
-
-.discovery-layer[data-age="3"],
-.discovery-layer[data-age="4"],
-.discovery-layer[data-age="5"] {
-  opacity: 0.25;
+  margin-top: 5rem;
 }
 
 @keyframes discovery-reveal {
   from {
     opacity: 0;
-    transform: translateY(14px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .discovery-headline > * {
-    transition: opacity 150ms ease;
-  }
-
   .discovery-layer,
   .discovery-layer[data-state="focus"] {
     animation: none;
-    transition: opacity 150ms ease;
+    transition: none;
     transform: none !important;
   }
 }
 
-.more-moments-peek {
-  border-radius: 8px;
+
+/* ── Pattern accordion — card rows (8px) / expanded card (12px) ── */
+
+.pattern-accordion {
+  --pattern-card-radius-collapsed: 14px;
+  --pattern-card-radius-expanded: 18px;
+  --pattern-card-border: color-mix(
+    in srgb,
+    var(--sidebar-border) 78%,
+    transparent
+  );
+  list-style: none;
+  margin: 0;
+  padding: 0 0 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+/* Accordion rows — default clearance; no floating menu on Patterns */
+.pattern-accordion__item {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--pattern-card-border);
+  border-radius: var(--pattern-card-radius-collapsed);
+  background: var(--surface-raised);
   overflow: hidden;
-  box-shadow:
-    0 2px 8px color-mix(in srgb, var(--sidebar-ink) 4%, transparent),
-    0 12px 32px color-mix(in srgb, var(--sidebar-ink) 7%, transparent);
-  max-height: min(24rem, 50vh);
-  overflow-y: auto;
+  scroll-margin-top: 1.25rem;
+  transition: border-radius 160ms ease;
 }
 
-.evidence-card--peek {
-  grid-template-columns: 1fr;
+.pattern-accordion__item[data-expanded="true"] {
+  border-radius: var(--pattern-card-radius-expanded);
 }
 
-.evidence-card--peek .evidence-card__time {
-  display: none;
-}
-
-
-/* ── Pattern list — text + line ── */
-
-.pattern-list-item {
-  display: block;
-  text-decoration: none;
-  color: inherit;
-  outline: none;
+.pattern-accordion__row {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.65rem;
+  width: 100%;
+  min-height: var(--touch-target-min);
+  margin: 0;
+  padding: 0.85rem 0.85rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  border-bottom: 1px solid
-    color-mix(in srgb, var(--sidebar-border) 70%, transparent);
-  border-radius: 0px;
-  margin-inline: -0.5rem;
   transition: background-color 140ms ease;
+  scroll-margin-top: 1.25rem;
 }
 
-.pattern-list-item:focus-visible {
+@media (min-width: 640px) {
+  .pattern-accordion__row {
+    padding: 0.95rem 1rem;
+  }
+}
+
+.pattern-accordion__item[data-expanded="true"] .pattern-accordion__row {
+  border-bottom: 1px solid
+    color-mix(in srgb, var(--sidebar-border) 65%, transparent);
+}
+
+.pattern-accordion__row:hover {
+  background-color: color-mix(
+    in srgb,
+    var(--sidebar-hover-bg) 45%,
+    transparent
+  );
+}
+
+.pattern-accordion__row:focus-visible {
   outline: 2px solid color-mix(in srgb, var(--button-primary) 40%, transparent);
-  outline-offset: 2px;
+  outline-offset: -2px;
 }
 
-.pattern-list-item .pli-inner {
+.pattern-accordion__row-main {
   display: flex;
+  flex: 1;
+  min-width: 0;
   flex-direction: column;
-  gap: 0.4rem;
-  padding: 1.15rem 0.6rem 1.15rem 1.1rem;
+  align-items: flex-start;
+  gap: 0.25rem;
 }
 
-.pattern-list-item .pli-title {
-  margin: 0;
+.pattern-accordion__row-title {
+  font-family: var(--font-body);
   font-size: 0.9375rem;
-  font-weight: 600;
-  line-height: 1.4;
+  font-weight: 500;
+  line-height: 1.35;
   letter-spacing: -0.01em;
-  color: var(--sidebar-active-ink);
+  color: var(--sidebar-ink);
 }
 
-.pattern-list-item .pli-quote {
-  margin: 0;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
-  font-size: 0.8125rem;
-  line-height: 1.5;
-  color: var(--canvas-ink-secondary);
-}
-
-.pattern-list-item .pli-meta {
-  margin: 0.2rem 0 0;
-  font-size: 0.625rem;
+.pattern-accordion__row-fact {
+  font-size: 0.75rem;
+  font-weight: 400;
   line-height: 1.4;
-  color: var(--sidebar-ink-soft);
+  letter-spacing: 0.005em;
+  color: color-mix(in srgb, var(--sidebar-ink-soft) 92%, transparent);
 }
 
-.pattern-list-item:hover {
-  background-color: color-mix(
-    in srgb,
-    var(--sidebar-hover-bg) 55%,
-    transparent
-  );
+.pattern-accordion__row-chevron {
+  pointer-events: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--touch-target-min);
+  min-height: var(--touch-target-min);
+  margin: -0.35rem -0.35rem -0.35rem 0;
+  color: color-mix(in srgb, var(--sidebar-ink-soft) 85%, transparent);
 }
 
-.pattern-list-item:active {
-  background-color: color-mix(
-    in srgb,
-    var(--sidebar-active-bg) 70%,
-    transparent
-  );
-}
-
-.pli-skel {
+/*
+ * Expanded body — lives inside the same card shell.
+ * Flex column: quotes scroll in the middle; CTA stays pinned below
+ * (not sticky-over-content — that covered quote text on phone).
+ */
+.pattern-accordion__panel {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  padding: 1.15rem 0.6rem 1.15rem 1.1rem;
+  height: auto;
+  max-height: min(70dvh, calc(100dvh - 12rem));
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  overflow: hidden;
+}
+
+.pattern-accordion__panel-scroll {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: 0;
+  overflow: hidden;
+  /* Phone: tight gutters so quote cards can breathe; sm+ opens up. */
+  padding: 12px 12px 14px;
+  box-sizing: border-box;
+}
+
+@media (min-width: 640px) {
+  .pattern-accordion__panel-scroll {
+    padding: 16px 24px 18px 24px;
+  }
+}
+
+.pattern-accordion__panel #pattern-tab-panel,
+.pattern-accordion__panel .discovery-canvas {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  height: auto;
+  max-height: 100%;
+  overflow: hidden;
+  gap: 0.75rem;
+}
+
+.pattern-accordion__panel .discovery-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.pattern-accordion__panel .discovery-stream {
+  padding-bottom: 0.25rem;
+}
+
+.pattern-accordion__panel .discovery-footer {
+  position: static;
+  z-index: auto;
+  flex-shrink: 0;
+  margin-top: 0;
+  padding: 0.15rem 0 0;
+  background: transparent;
+}
+
+.pattern-accordion__panel .discovery-footer button {
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--line-height);
+}
+
+.pattern-accordion__panel .evidence-card {
+  border-radius: 12px;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .pattern-list-item {
+  .pattern-accordion__item,
+  .pattern-accordion__row {
     transition: none;
+  }
+}
+
+.pattern-content-title {
+  margin: 0;
+  padding-top: 0.1em;
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--line-height);
+  letter-spacing: -0.01em;
+}
+
+@media (min-width: 640px) {
+  .pattern-content-title {
+    font-size: var(--text-md);
+    line-height: var(--text-md--line-height);
   }
 }
