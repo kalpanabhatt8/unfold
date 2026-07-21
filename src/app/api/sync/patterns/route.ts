@@ -5,11 +5,15 @@ import type { PatternsSnapshot } from "@/lib/sync/wire-types";
 
 export const runtime = "nodejs";
 
-/** Pull the full pattern layer (small: analyses + ≤10 states/passages/displays). */
-export async function GET() {
+/**
+ * Pull the pattern layer. Analyses are cursor-paged (`?cursor=<entryId>`);
+ * states/passages/displays/votes are included on the first page only.
+ */
+export async function GET(request: Request) {
   try {
     const userId = await requireUser();
-    return NextResponse.json(await pullPatterns(userId));
+    const cursor = new URL(request.url).searchParams.get("cursor");
+    return NextResponse.json(await pullPatterns(userId, cursor));
   } catch (error) {
     if (error instanceof Response) return error;
     console.error("[sync/patterns] pull failed", error);

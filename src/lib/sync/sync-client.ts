@@ -57,6 +57,7 @@ import {
 import type {
   EntriesPullResponse,
   EntryPushResult,
+  PatternsPullResponse,
   PatternsSnapshot,
   WireEntry,
 } from "@/lib/sync/wire-types";
@@ -219,10 +220,20 @@ const pullAndApplyEntries = async (): Promise<void> => {
 };
 
 const pullAndApplyPatterns = async (): Promise<void> => {
-  const response = await fetch("/api/sync/patterns");
-  if (!response.ok) return;
-  const snapshot = (await response.json()) as PatternsSnapshot;
-  applyServerPatterns(snapshot);
+  let cursor: string | null = null;
+  // Page analyses until caught up — meta tables arrive on page 1 only.
+  for (let page = 0; page < 50; page++) {
+    const url = cursor
+      ? `/api/sync/patterns?cursor=${encodeURIComponent(cursor)}`
+      : "/api/sync/patterns";
+    const response = await fetch(url);
+    if (!response.ok) return;
+    const payload = (await response.json()) as PatternsPullResponse;
+    applyServerPatterns(payload);
+    if (!payload.hasMore) return;
+    cursor = payload.cursor ?? null;
+    if (!cursor) return;
+  }
 };
 
 const toTombstoneWire = (tombstone: EntryTombstone): WireEntry => ({

@@ -77,6 +77,17 @@ export type PatternsSnapshot = {
   votes?: WirePatternVote[];
 };
 
+/** GET /api/sync/patterns response — analyses are paged; meta tables on page 1. */
+export type PatternsPullResponse = PatternsSnapshot & {
+  /** Last analysis entryId on this page — pass as `cursor` on the next pull. */
+  cursor?: string | null;
+  /**
+   * When true, more analyses exist after `cursor`. Older clients that ignore
+   * this still apply the first page (states/passages/displays/votes included).
+   */
+  hasMore?: boolean;
+};
+
 export type ImportPayload = {
   entries?: WireEntry[];
   patterns?: Partial<PatternsSnapshot>;
