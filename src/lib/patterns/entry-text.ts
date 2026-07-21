@@ -36,12 +36,6 @@ function flattenRawSnapshot(raw: unknown): string | null {
     }
   }
 
-  if (Array.isArray(raw.imageBlocks)) {
-    for (const image of raw.imageBlocks) {
-      if (isRecord(image)) pushText(lines, image.caption);
-    }
-  }
-
   return lines.length > 0 ? lines.join("\n") : null;
 }
 

@@ -6,8 +6,8 @@
  *  ┌─────────────────────────────────────────────────────────────┐
  *  │  title (left)                last edited · saving? (right)    │
  *  │  ─────────────────────────────────────────────────────────── │
- *  │  centered writing column (Rethink Sans)                      │
- *  │  🪷 seal stamp (fixed corner)                                │
+ *  │  centered writing column                                     │
+ *  │  seal stamp (fixed corner)                                   │
  *  └─────────────────────────────────────────────────────────────┘
  *
  * Save model:
@@ -61,7 +61,6 @@ import {
   entryIdFromBoardStorageKey,
 } from "@/lib/journal-seal";
 import { readEntryById } from "@/lib/journal-entries";
-import { uploadEntryImage } from "@/lib/attachments/client";
 import {
   CONTENT_COLUMN_MAX_WIDTH,
   PAGE_PADDING_X_CLASS,
@@ -74,7 +73,6 @@ import {
 export const CANVAS_SNAPSHOT_VERSION = 4 as const;
 
 export type TextBlockKind = "paragraph" | "bullet" | "checklist";
-export type ColumnLayout = 1 | 2 | 3;
 
 export type JournalTextBlock = {
   id: string;
@@ -84,36 +82,11 @@ export type JournalTextBlock = {
   checked?: boolean;
 };
 
-/**
- * Image data. The legacy free-positioning fields (`x`, `y`, `rotate`, `figure`)
- * are preserved for backward-compatible snapshots but ignored by the new
- * left-column stack renderer.
- */
-export type JournalImage = {
-  id: string;
-  src: string;
-  /** Original aspect ratio (height / width). Used to render at correct shape. */
-  ratio: number;
-  caption?: string;
-  /** Order index in the polaroid stack (lower = higher on the page). */
-  order?: number;
-
-  // —— Legacy free-positioning fields (kept for compat, ignored by render) ——
-  x?: number;
-  y?: number;
-  w?: number;
-  rotate?: number;
-  polaroid?: boolean;
-  figure?: boolean;
-};
-
 export type CanvasSnapshot = {
   version: typeof CANVAS_SNAPSHOT_VERSION;
-  /** 2D — outer index is the column track, inner index is the block order. */
+  /** Single writing column (outer array kept for legacy snapshot shape). */
   textColumns: JournalTextBlock[][];
-  imageBlocks: JournalImage[];
   background: string;
-  columns: ColumnLayout;
   /** Unix ms when the entry was sealed (irreversible). Absent = draft. */
   sealedAt?: number;
   updatedAt: number;
@@ -125,8 +98,6 @@ export type CanvasSnapshot = {
 
 /** Page + canvas — tokens in `global.css`. */
 export const CANVAS_BACKGROUND = "var(--canvas-bg-gradient)";
-/** Polaroid column — slightly toned up from the page. */
-export const CANVAS_RECESS = "var(--canvas-recess)";
 
 /** Centered writing column width — shared with Patterns (`layout.ts`). */
 const WRITING_COLUMN_MAX_WIDTH = CONTENT_COLUMN_MAX_WIDTH;
@@ -161,48 +132,12 @@ const isRecord = (v: unknown): v is Record<string, unknown> =>
 const arrayOrEmpty = <T,>(v: unknown): T[] =>
   Array.isArray(v) ? (v as T[]) : [];
 
-const clamp = (v: number, min: number, max: number) =>
-  Math.min(max, Math.max(min, v));
-
-/**
- * Adjust the column tracks to a new column count without redistributing
- * existing content.
- *
- *   - Going up (e.g. 2 → 3): keep the existing tracks, append empty columns.
- *   - Going down to 1: stack everything vertically into a single column.
- *   - Going down from 3 → 2: keep tracks 1, append track 3 onto track 2 so
- *     no content is lost.
- */
-const adjustColumns = (
+/** Collapse legacy multi-column snapshots into one writing track. */
+const flattenToSingleColumn = (
   cols: JournalTextBlock[][],
-  target: ColumnLayout
 ): JournalTextBlock[][] => {
-  const current = cols.length;
-  if (current === target) {
-    return cols.map((c) =>
-      c.length > 0 ? c : target === 1 ? createWritingSlots() : [emptyParagraph()]
-    );
-  }
-
-  if (target > current) {
-    const next = cols.map((c) =>
-      c.length > 0 ? c : target === 1 ? createWritingSlots() : [emptyParagraph()]
-    );
-    while (next.length < target) next.push([emptyParagraph()]);
-    return next;
-  }
-
-  // target < current
-  const kept = cols.slice(0, target - 1).map((c) => c.slice());
-  const tailMerged = cols.slice(target - 1).flat();
-  kept.push(
-    tailMerged.length > 0
-      ? tailMerged
-      : target === 1
-        ? createWritingSlots()
-        : [emptyParagraph()]
-  );
-  return kept;
+  const merged = cols.flat();
+  return [merged.length > 0 ? merged : createWritingSlots()];
 };
 
 /* -------------------------------------------------------------------------- */
@@ -212,15 +147,12 @@ const adjustColumns = (
 export const emptySnapshot = (): CanvasSnapshot => ({
   version: CANVAS_SNAPSHOT_VERSION,
   textColumns: [createWritingSlots()],
-  imageBlocks: [],
   background: CANVAS_BACKGROUND,
-  columns: 1,
   updatedAt: Date.now(),
 });
 
 const snapshotHasBodyText = (snap: CanvasSnapshot): boolean =>
-  snap.textColumns.some((col) => col.some((b) => b.text.trim().length > 0)) ||
-  snap.imageBlocks.length > 0;
+  snap.textColumns.some((col) => col.some((b) => b.text.trim().length > 0));
 
 /** Rebuild minimal paragraph blocks when a sealed board was lost but searchText remains. */
 const blocksFromSearchText = (searchText: string): JournalTextBlock[] => {
@@ -256,63 +188,18 @@ const sanitizeTextBlock = (raw: unknown): JournalTextBlock | null => {
   };
 };
 
-const sanitizeImage = (raw: unknown): JournalImage | null => {
-  if (!isRecord(raw)) return null;
-  const src = typeof raw.src === "string" ? raw.src : "";
-  if (!src) return null;
-  const id = typeof raw.id === "string" ? raw.id : newId();
-  const ratio =
-    typeof raw.ratio === "number" && Number.isFinite(raw.ratio)
-      ? clamp(raw.ratio, 0.1, 4)
-      : 0.66;
-  const caption =
-    typeof raw.caption === "string" && raw.caption.length > 0
-      ? raw.caption
-      : undefined;
-  const order =
-    typeof raw.order === "number" && Number.isFinite(raw.order)
-      ? raw.order
-      : undefined;
-  return {
-    id,
-    src,
-    ratio,
-    caption,
-    order,
-    // Pass through legacy fields so re-saving doesn't lose data.
-    x: typeof raw.x === "number" ? raw.x : undefined,
-    y: typeof raw.y === "number" ? raw.y : undefined,
-    w: typeof raw.w === "number" ? raw.w : undefined,
-    rotate: typeof raw.rotate === "number" ? raw.rotate : undefined,
-    polaroid: typeof raw.polaroid === "boolean" ? raw.polaroid : undefined,
-    figure: typeof raw.figure === "boolean" ? raw.figure : undefined,
-  };
-};
-
 /**
  * Best-effort migration from any prior snapshot version (v1 positional,
  * v2 positional + multi-line lists, v3 sequential mixed blocks) into v4.
+ * Image / multi-column data is dropped — journal is text-only.
  */
 function migrateLegacy(raw: Record<string, unknown>): CanvasSnapshot {
   const flatText: JournalTextBlock[] = [];
-  const images: JournalImage[] = [];
 
   const v3Blocks = arrayOrEmpty<Record<string, unknown>>(raw.blocks);
   if (v3Blocks.length > 0) {
     for (const b of v3Blocks) {
-      if (b.kind === "image" && typeof b.src === "string") {
-        const ratio =
-          typeof b.ratio === "number" && Number.isFinite(b.ratio)
-            ? b.ratio
-            : 0.66;
-        images.push({
-          id: typeof b.id === "string" ? b.id : newId(),
-          src: b.src,
-          ratio,
-          caption: typeof b.caption === "string" ? b.caption : undefined,
-        });
-        continue;
-      }
+      if (b.kind === "image") continue;
       const text = sanitizeTextBlock(b);
       if (text) flatText.push(text);
     }
@@ -357,34 +244,12 @@ function migrateLegacy(raw: Record<string, unknown>): CanvasSnapshot {
         }
       }
     }
-
-    for (const im of arrayOrEmpty<Record<string, unknown>>(raw.imageElements)) {
-      const src = typeof im.src === "string" ? im.src : "";
-      if (!src) continue;
-      const w =
-        typeof im.w === "number" && Number.isFinite(im.w)
-          ? (im.w as number)
-          : 360;
-      const h =
-        typeof im.h === "number" && Number.isFinite(im.h)
-          ? (im.h as number)
-          : Math.round(w * 0.66);
-      const ratio = w > 0 ? h / w : 0.66;
-      images.push({
-        id: typeof im.id === "string" ? im.id : newId(),
-        src,
-        ratio,
-        caption: typeof im.caption === "string" ? im.caption : undefined,
-      });
-    }
   }
 
   return {
     version: CANVAS_SNAPSHOT_VERSION,
     textColumns: [flatText.length > 0 ? flatText : [emptyParagraph()]],
-    imageBlocks: images,
     background: CANVAS_BACKGROUND,
-    columns: 1,
     updatedAt: Date.now(),
   };
 }
@@ -405,26 +270,15 @@ export function normalizeSnapshot(value: unknown): CanvasSnapshot | null {
     }
   }
 
-  const columnsRaw = value.columns;
-  const columns: ColumnLayout =
-    columnsRaw === 1 || columnsRaw === 2 || columnsRaw === 3
-      ? (columnsRaw as ColumnLayout)
-      : 1;
-
   let textColumns = arrayOrEmpty<unknown>(value.textColumns).map((col) =>
     arrayOrEmpty<unknown>(col)
       .map(sanitizeTextBlock)
-      .filter((b): b is JournalTextBlock => Boolean(b))
+      .filter((b): b is JournalTextBlock => Boolean(b)),
   );
 
-  textColumns = adjustColumns(
+  textColumns = flattenToSingleColumn(
     textColumns.length === 0 ? [createWritingSlots()] : textColumns,
-    columns
   );
-
-  const imageBlocks = arrayOrEmpty<unknown>(value.imageBlocks)
-    .map(sanitizeImage)
-    .filter((b): b is JournalImage => Boolean(b));
 
   const updatedAt =
     typeof value.updatedAt === "number" && Number.isFinite(value.updatedAt)
@@ -439,37 +293,11 @@ export function normalizeSnapshot(value: unknown): CanvasSnapshot | null {
   return {
     version: CANVAS_SNAPSHOT_VERSION,
     textColumns,
-    imageBlocks,
     background: CANVAS_BACKGROUND,
-    columns,
     sealedAt,
     updatedAt,
   };
 }
-
-/* -------------------------------------------------------------------------- */
-/*  Image helpers                                                              */
-/* -------------------------------------------------------------------------- */
-
-type ImageDims = { width: number; height: number };
-
-const loadImageDims = (src: string): Promise<ImageDims> =>
-  new Promise((resolve) => {
-    const img = new window.Image();
-    img.onload = () =>
-      resolve({ width: img.naturalWidth, height: img.naturalHeight });
-    img.onerror = () => resolve({ width: 1200, height: 800 });
-    img.src = src;
-  });
-
-/** Convert a File to a persistent base64 data-URL so it survives reloads. */
-const fileToDataUrl = (file: File): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
 
 /* -------------------------------------------------------------------------- */
 /*  Top-level component                                                       */
@@ -548,7 +376,6 @@ function CanvasBoardInner(
   const journalEditorRef = useRef<JournalTiptapEditorHandle>(null);
   const textColumns = useMemo(() => [journalBlocks], [journalBlocks]);
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
-  const [imageBlocks, setImageBlocks] = useState<JournalImage[]>([]);
   const [sealedAt, setSealedAt] = useState<number | null>(null);
   const [isSealing, setIsSealing] = useState(false);
   const stampRef = useRef<JournalStampHandle>(null);
@@ -556,10 +383,6 @@ function CanvasBoardInner(
   const sealAnimTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sealAuroraStartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const writingZoneRef = useRef<HTMLDivElement | null>(null);
-  // Column layout has been retired from the UI; we keep the snapshot field
-  // for backward-compat (legacy notebooks still deserialize) but always
-  // render as a single column going forward.
-  const [columns] = useState<ColumnLayout>(1);
   const [lastSavedAt, setLastSavedAt] = useState<number>(() => sessionEditedAt);
   const [showSavingLabel, setShowSavingLabel] = useState(false);
   const savingLabelTimerRef = useRef<number | null>(null);
@@ -575,12 +398,9 @@ function CanvasBoardInner(
   const pagePaddingY = viewport.pagePaddingYPx;
   const scrollComfortBottom = viewport.scrollComfortBottomPx;
 
-  const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
-
   const outerRef = useRef<HTMLDivElement | null>(null);
   /** Scrollport for the writing column only — page / left rail stay fixed. */
   const writingScrollRef = useRef<HTMLDivElement | null>(null);
-  const imageFileInputRef = useRef<HTMLInputElement | null>(null);
   const hydratedRef = useRef(false);
   const [isContentReady, setIsContentReady] = useState(false);
 
@@ -593,11 +413,10 @@ function CanvasBoardInner(
     // Apply snapshot into React state *before* mounting TipTap so the editor
     // is created once with the real content (no empty→content remount).
     const apply = (snap: CanvasSnapshot) => {
-      const cols = adjustColumns(snap.textColumns, 1);
+      const cols = flattenToSingleColumn(snap.textColumns);
       const blocks = cols[0] ?? createWritingSlots();
       journalBlocksRef.current = blocks;
       setJournalBlocks(blocks);
-      setImageBlocks(snap.imageBlocks);
       if (snap.sealedAt) setSealedAt(snap.sealedAt);
       snapshotEditedAtRef.current = sessionEditedAt;
       setLastSavedAt(sessionEditedAt);
@@ -693,13 +512,11 @@ function CanvasBoardInner(
     return {
       version: CANVAS_SNAPSHOT_VERSION,
       textColumns: [liveBlocks],
-      imageBlocks,
       background: CANVAS_BACKGROUND,
-      columns,
       sealedAt: sealedAt ?? undefined,
       updatedAt: snapshotEditedAtRef.current,
     };
-  }, [columns, imageBlocks, sealedAt]);
+  }, [sealedAt]);
 
   const clearSavingLabelTimer = useCallback(() => {
     if (savingLabelTimerRef.current !== null) {
@@ -755,7 +572,6 @@ function CanvasBoardInner(
   }, [
     buildLiveSnapshot,
     clearSavingLabelTimer,
-    imageBlocks,
     journalBlocks,
     onSnapshotChange,
     sealedAt,
@@ -1010,71 +826,7 @@ function CanvasBoardInner(
     []
   );
 
-  /* ------------------------------ Images --------------------------------- */
-
-  const insertImageFile = useCallback(
-    async (file: File) => {
-      if (!file.type.startsWith("image/")) return;
-      const src = await fileToDataUrl(file);
-      const dims = await loadImageDims(src);
-      const ratio = dims.width > 0 ? dims.height / dims.width : 0.66;
-      const id = newId();
-      setImageBlocks((bs) => [
-        ...bs,
-        {
-          id,
-          src,
-          ratio,
-          order: bs.length,
-        },
-      ]);
-      setSelectedImageId(id);
-
-      // Persist bytes to object storage in the background and swap the
-      // data URL for the attachment URL, so snapshots never carry base64
-      // long-term. On failure (offline etc.) the data URL simply stays.
-      const entryId = storageKey.replace(/^keeps-board-/, "");
-      void uploadEntryImage(entryId, file, ratio).then((uploaded) => {
-        if (!uploaded) return;
-        setImageBlocks((bs) =>
-          bs.map((b) => (b.id === id ? { ...b, src: uploaded.url } : b)),
-        );
-      });
-    },
-    [storageKey],
-  );
-
-  const updateImage = useCallback(
-    (id: string, patch: Partial<JournalImage>) => {
-      setImageBlocks((bs) =>
-        bs.map((b) => (b.id === id ? { ...b, ...patch } : b))
-      );
-    },
-    []
-  );
-
-  const removeImage = useCallback((id: string) => {
-    setImageBlocks((bs) => bs.filter((b) => b.id !== id));
-    setSelectedImageId((s) => (s === id ? null : s));
-  }, []);
-
   /* ----------------------------- Global events ---------------------------- */
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "copy";
-  }, []);
-
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      const files = Array.from(e.dataTransfer.files);
-      for (const f of files) {
-        if (f.type.startsWith("image/")) void insertImageFile(f);
-      }
-    },
-    [insertImageFile]
-  );
 
   /* ------------------------------ Computed UI ----------------------------- */
 
@@ -1099,7 +851,6 @@ function CanvasBoardInner(
   useEffect(() => {
     if (!isSealing) return;
     setShowTextCtx(false);
-    setSelectedImageId(null);
   }, [isSealing]);
 
   const refreshTextContext = useCallback(() => {
@@ -1166,7 +917,6 @@ function CanvasBoardInner(
       const t = e.target as HTMLElement;
       if (!t.closest("[data-ctx]") && !t.closest("[data-toolbar]")) {
         setShowTextCtx(false);
-        setSelectedImageId(null);
       }
     };
     window.addEventListener("pointerdown", hide);
@@ -1186,7 +936,6 @@ function CanvasBoardInner(
 
       e.preventDefault();
       journalEditorRef.current?.focus("start");
-      setSelectedImageId(null);
     },
     [isSealing, sealedAt]
   );
@@ -1202,8 +951,6 @@ function CanvasBoardInner(
         color: WRITING_INK,
         caretColor: WRITING_INK,
       }}
-      onDragOver={handleDragOver}
-      onDrop={handleDrop}
     >
       {/* Stamp — physical rubber-stamp interaction; manages its own visibility */}
       <JournalStamp
@@ -1263,7 +1010,6 @@ function CanvasBoardInner(
                     onBlocksChange={handleJournalBlocksChange}
                     onActiveBlockChange={setActiveBlockId}
                     onSelectionActivity={refreshTextContext}
-                    onFocus={() => setSelectedImageId(null)}
                     onWritingActivity={handleWritingActivity}
                   />
                 ) : null}
@@ -1275,7 +1021,6 @@ function CanvasBoardInner(
                     onPointerDown={(e) => {
                       e.preventDefault();
                       journalEditorRef.current?.focus("end");
-                      setSelectedImageId(null);
                     }}
                   />
                 ) : null}
@@ -1284,20 +1029,6 @@ function CanvasBoardInner(
           </div>
         </div>
       </div>
-
-      {/* —————————— Hidden file input — driven by polaroid placeholder clicks —————————— */}
-      <input
-        ref={imageFileInputRef}
-        type="file"
-        accept="image/*"
-        multiple
-        className="hidden"
-        onChange={(ev) => {
-          const files = Array.from(ev.target.files ?? []);
-          for (const f of files) void insertImageFile(f);
-          ev.target.value = "";
-        }}
-      />
 
       {/* —————————— Text contextual format bar —————————— */}
       {showTextCtx && textCtxPos && activeBlockId && (

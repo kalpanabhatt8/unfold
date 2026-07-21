@@ -27,41 +27,23 @@ import {
 } from "@/lib/journal-entries";
 import { notifyEntryCompleted } from "@/lib/patterns/entry-completion";
 
-const flattenSnapshotText = (snapshot: CanvasSnapshot): string => {
-  const blockText = snapshot.textColumns
+const flattenSnapshotText = (snapshot: CanvasSnapshot): string =>
+  snapshot.textColumns
     .flat()
     .map((block) => block.text)
     .filter(Boolean)
-    .join(" ");
-  const captions = snapshot.imageBlocks
-    .map((image) => image.caption)
-    .filter((caption): caption is string => Boolean(caption))
-    .join(" ");
-  return [blockText, captions].filter(Boolean).join(" ").trim();
-};
+    .join(" ")
+    .trim();
 
 export const entryIdFromBoardStorageKey = (storageKey: string): string =>
   storageKey.startsWith(ENTRY_BOARD_STORAGE_PREFIX)
     ? storageKey.slice(ENTRY_BOARD_STORAGE_PREFIX.length)
     : storageKey.replace(/^keeps-board-/, "");
 
-const boardStorageKey = (entryId: string) =>
+const boardStorageKey = (entryId: string): string =>
   `${ENTRY_BOARD_STORAGE_PREFIX}${entryId}`;
 
-const isDataUrlImage = (src: string) => src.startsWith("data:");
-
-/** Drop inlined base64 images (common localStorage quota killer); keep remote URLs. */
-const stripHeavyImages = (snapshot: CanvasSnapshot): CanvasSnapshot => ({
-  ...snapshot,
-  imageBlocks: snapshot.imageBlocks
-    .filter((image) => !isDataUrlImage(image.src))
-    .map((image, order) => ({ ...image, order })),
-});
-
-/**
- * Persist board snapshot. Returns false when the write did not stick
- * (quota / private mode). Retries once without heavy data-URL images.
- */
+/** Persist board snapshot. Returns false when the write did not stick. */
 const persistBoardSnapshot = (
   entryId: string,
   snapshot: CanvasSnapshot,
@@ -69,27 +51,13 @@ const persistBoardSnapshot = (
   if (typeof window === "undefined") return false;
 
   const key = boardStorageKey(entryId);
-  const tryWrite = (snap: CanvasSnapshot): boolean => {
-    try {
-      const payload = JSON.stringify(snap);
-      window.localStorage.setItem(key, payload);
-      return window.localStorage.getItem(key) === payload;
-    } catch {
-      return false;
-    }
-  };
-
-  if (tryWrite(snapshot)) return true;
-
-  const stripped = stripHeavyImages(snapshot);
-  if (
-    stripped.imageBlocks.length !== snapshot.imageBlocks.length &&
-    tryWrite(stripped)
-  ) {
-    return true;
+  try {
+    const payload = JSON.stringify(snapshot);
+    window.localStorage.setItem(key, payload);
+    return window.localStorage.getItem(key) === payload;
+  } catch {
+    return false;
   }
-
-  return false;
 };
 
 /** In-flight guard — one active title job per entry. */
@@ -161,15 +129,7 @@ export const commitEntrySeal = (
   const sealedSnapshot: CanvasSnapshot = { ...snapshot, sealedAt: now };
   const searchText = flattenSnapshotText(sealedSnapshot);
 
-  const boardOk = persistBoardSnapshot(entryId, sealedSnapshot);
-  if (!boardOk && searchText.length > 0) {
-    // Last resort: text-only board so reopen is not blank under a generated title.
-    const textOnly: CanvasSnapshot = {
-      ...sealedSnapshot,
-      imageBlocks: [],
-    };
-    persistBoardSnapshot(entryId, textOnly);
-  }
+  persistBoardSnapshot(entryId, sealedSnapshot);
 
   upsertEntry(entryId, {
     searchText,

@@ -26,19 +26,14 @@ import {
 import { notifyEntryCompleted } from "@/lib/patterns/entry-completion";
 import { takeJournalQuoteFocus } from "@/lib/journal-quote-focus";
 
-/** Flatten a snapshot's written blocks + captions into one lowercase-searchable string. */
-const flattenSnapshotText = (snapshot: CanvasSnapshot): string => {
-  const blockText = snapshot.textColumns
+/** Flatten a snapshot's written blocks into one lowercase-searchable string. */
+const flattenSnapshotText = (snapshot: CanvasSnapshot): string =>
+  snapshot.textColumns
     .flat()
     .map((block) => block.text)
     .filter(Boolean)
-    .join(" ");
-  const captions = snapshot.imageBlocks
-    .map((image) => image.caption)
-    .filter((caption): caption is string => Boolean(caption))
-    .join(" ");
-  return [blockText, captions].filter(Boolean).join(" ").trim();
-};
+    .join(" ")
+    .trim();
 
 const JournalEntryPage = () => {
   const params = useParams<{ id: string }>();

@@ -45,20 +45,13 @@ const boardHasText = (raw: unknown): boolean => {
   return false;
 };
 
-const boardHasAttachments = (raw: unknown): boolean => {
-  if (!isRecord(raw) || !Array.isArray(raw.imageBlocks)) return false;
-  return raw.imageBlocks.some(
-    (image) => isRecord(image) && typeof image.src === "string" && image.src.length > 0,
-  );
-};
-
-/** Unsealed entry with no written text and no image attachments. */
+/** Unsealed entry with no written text. */
 export const isEmptyDraftEntry = (entry: JournalEntry): boolean => {
   if (typeof entry.sealedAt === "number") return false;
 
   const board = readBoardRaw(entry.id);
   if (board) {
-    return !boardHasText(board) && !boardHasAttachments(board);
+    return !boardHasText(board);
   }
 
   return (entry.searchText ?? "").trim().length === 0;

@@ -1,5 +1,5 @@
 {
-  "name": "keeps",
+  "name": "unfold",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -31,13 +31,11 @@
     "@vercel/blob": "^2.6.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "html2canvas": "^1.4.1",
     "lucide-react": "^0.544.0",
     "next": "15.5.3",
     "pg": "^8.22.0",
     "react": "^19.1.4",
     "react-dom": "^19.1.4",
-    "react-rnd": "^10.5.2",
     "reactjs-popup": "^2.0.6",
     "tailwind-merge": "^3.3.1"
   },
