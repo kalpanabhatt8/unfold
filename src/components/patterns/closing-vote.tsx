@@ -236,7 +236,7 @@ export function ClosingVote({ patternName, value, onVote }: ClosingVoteProps) {
           ref={formRef}
           role="dialog"
           aria-labelledby={titleId}
-          className="w-full max-w-sm rounded-xl border border-(--popover-border) bg-(--surface-raised) px-3.5 py-3 shadow-[0_0.75rem_1.75rem_-1rem_rgba(15,15,15,0.22)]"
+          className="w-full max-w-sm rounded-xl border border-(--popover-border) bg-(--surface-raised) px-3.5 py-3 shadow-[0_0.05rem_0.2rem_rgba(15,15,15,0.1)]"
           style={{ fontFamily: "var(--font-body)" }}
         >
           <div className="flex items-start justify-between gap-3">
@@ -244,7 +244,7 @@ export function ClosingVote({ patternName, value, onVote }: ClosingVoteProps) {
               <h3
                 id={titleId}
                 className="text-sm font-semibold tracking-tight text-primary"
-                style={{ fontFamily: "var(--font-heading)" }}
+                style={{ fontFamily: "var(--font-body)" }}
               >
                 What went wrong?
               </h3>
@@ -252,7 +252,7 @@ export function ClosingVote({ patternName, value, onVote }: ClosingVoteProps) {
                 className="mt-0.5 text-(--sidebar-ink-soft)"
                 style={copyStyle}
               >
-                Your feedback helps make Unfold better.
+              Help us shape how Unfold listens.
               </p>
             </div>
             <button

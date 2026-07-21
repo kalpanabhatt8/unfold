@@ -497,6 +497,32 @@ body {
   overflow-x: clip;
 }
 
+/* Thin scrollbars by default — Firefox + WebKit/Chromium.
+   Without ::-webkit-scrollbar width, Chromium can fall back to a thick classic bar. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--sidebar-icon) 45%, transparent)
+    transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 0.375rem;
+  height: 0.375rem;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--sidebar-icon) 38%, transparent);
+  border-radius: 999rem;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--sidebar-icon) 55%, transparent);
+}
+
 h1,
 h2,
 h3,
@@ -1650,7 +1676,7 @@ input[type='number'] {
 
 @media (min-width: 40rem) {
   .pattern-accordion__panel-scroll {
-    padding: 1.25rem 1.5rem 1.125rem 1.5rem;
+    padding: 1.25rem 0rem 1.125rem 1.5rem;
   }
 }
 
@@ -1675,10 +1701,19 @@ input[type='number'] {
   overscroll-behavior-y: contain;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: thin;
+  /* Keep the thumb at the far right; don’t paint over quote cards. */
+  scrollbar-gutter: stable;
 }
 
 .pattern-accordion__panel .discovery-stream {
   padding-bottom: 0.25rem;
+  padding-right: 0.75rem;
+}
+
+@media (min-width: 40rem) {
+  .pattern-accordion__panel .discovery-stream {
+    padding-right: 1.5rem;
+  }
 }
 
 .pattern-accordion__panel .discovery-footer {
