@@ -1,27 +1,24 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { useSession, useUser } from "@clerk/nextjs";
 import type { SessionWithActivitiesResource } from "@clerk/types";
+import { Laptop, Smartphone, X } from "lucide-react";
 import {
-  Download,
-  ExternalLink,
-  FileText,
-  Laptop,
-  Scale,
-  Smartphone,
-  UserRound,
-  X,
-} from "lucide-react";
-import clsx from "clsx";
-import { btnDestructive, btnDestructiveSoft } from "@/components/ui/button-system";
+  btnDestructive,
+  btnDestructiveSolid,
+  btnSecondary,
+} from "@/components/ui/button-system";
+import {
+  preferredNameMetadata,
+  resolvePreferredName,
+} from "@/lib/user-display";
+import { cacheStampDisplayName } from "@/lib/stamp-display-name";
 
 const EXPORT_MAILTO =
   "mailto:hello@unfold.app?subject=Export%20my%20Unfold%20data&body=Please%20send%20a%20copy%20of%20my%20Unfold%20data.";
-
-type AccountPanel = "account" | "export";
 
 const copyStyle = {
   fontSize: "var(--text-sm)",
@@ -33,7 +30,7 @@ const pageTitleStyle = {
   fontFamily: "var(--font-heading)",
 } as const;
 
-const PANEL_HEIGHT = "min(36rem, calc(100svh - 2rem))";
+const PANEL_HEIGHT = "min(44rem, calc(100svh - 2rem))";
 
 function clearLocalUnfoldData() {
   if (typeof window === "undefined") return;
@@ -65,26 +62,40 @@ function PreferredNameField({
   const [draft, setDraft] = useState(value);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const savingRef = useRef(false);
 
   useEffect(() => {
-    setDraft(value);
+    if (!savingRef.current) setDraft(value);
   }, [value]);
 
   const save = async () => {
     const next = draft.trim();
-    if (busy) return;
+    if (savingRef.current) return;
     if (next === value.trim()) {
       setError(null);
       return;
     }
+
+    savingRef.current = true;
     setBusy(true);
     setError(null);
     try {
       await onSave(next);
-    } catch {
+    } catch (err) {
       setDraft(value);
-      setError("Couldn’t save. Try again.");
+      const clerkMessage =
+        err &&
+        typeof err === "object" &&
+        "errors" in err &&
+        Array.isArray((err as { errors: Array<{ longMessage?: string; message?: string }> }).errors)
+          ? (err as { errors: Array<{ longMessage?: string; message?: string }> }).errors[0]
+              ?.longMessage ||
+            (err as { errors: Array<{ longMessage?: string; message?: string }> }).errors[0]
+              ?.message
+          : null;
+      setError(clerkMessage || "Couldn’t save. Try again.");
     } finally {
+      savingRef.current = false;
       setBusy(false);
     }
   };
@@ -100,7 +111,7 @@ function PreferredNameField({
       <input
         type="text"
         value={draft}
-        disabled={busy}
+        readOnly={busy}
         spellCheck={false}
         onChange={(event) => setDraft(event.target.value)}
         onBlur={() => void save()}
@@ -116,24 +127,21 @@ function PreferredNameField({
             event.currentTarget.blur();
           }
         }}
-        className="w-full rounded-sm border border-(--sidebar-border) bg-(--surface-raised) px-2.5 py-0.75 text-primary outline-none transition-colors focus:border-(--canvas-title-ink) focus-visible:ring-2 focus-visible:ring-black/10 disabled:opacity-60"
+        className="w-full rounded-sm border border-(--sidebar-border) bg-(--surface-raised) px-2.5 py-0.75 text-primary outline-none transition-colors focus:border-(--canvas-title-ink) focus-visible:ring-2 focus-visible:ring-black/10 read-only:opacity-60"
         style={copyStyle}
         aria-invalid={error ? true : undefined}
-        title={error ?? undefined}
+        aria-busy={busy || undefined}
       />
+      {error ? (
+        <p
+          className="text-(--button-destructive-soft-foreground)"
+          style={{ fontSize: "var(--text-2xs)", fontFamily: "var(--font-body)" }}
+        >
+          {error}
+        </p>
+      ) : null}
     </label>
   );
-}
-
-function splitDisplayName(name: string): { firstName: string; lastName: string } {
-  const trimmed = name.trim();
-  if (!trimmed) return { firstName: "", lastName: "" };
-  const space = trimmed.indexOf(" ");
-  if (space === -1) return { firstName: trimmed, lastName: "" };
-  return {
-    firstName: trimmed.slice(0, space),
-    lastName: trimmed.slice(space + 1).trim(),
-  };
 }
 
 function formatSessionWhen(date: Date) {
@@ -256,15 +264,15 @@ function LastLoginsSection({
 
   return (
     <section className="flex flex-col gap-4 pt-2">
-      <div className="border-b border-(--sidebar-border) pb-3">
-        <h2 className="font-semibold text-primary" style={copyStyle}>
+      <div className="border-b border-(--popover-border) pb-3">
+        <h2 className="font-medium text-primary" style={copyStyle}>
           Devices
         </h2>
       </div>
 
-      <div className="flex items-start justify-between gap-3 border-b border-(--sidebar-border) pb-4">
+      <div className="flex items-start justify-between gap-3 border-b border-(--popover-border) pb-4">
         <div className="min-w-0 flex-1">
-          <p className="font-medium text-primary" style={copyStyle}>
+          <p className="font-medium text-secondary text-sm">
             Log out of all devices
           </p>
           <p
@@ -278,7 +286,7 @@ function LastLoginsSection({
           type="button"
           disabled={revokingAll || otherSessions.length === 0}
           onClick={() => void revokeAllOthers()}
-          className={`shrink-0 ${btnDestructiveSoft("sm")}`}
+          className={`shrink-0 ${btnDestructive("xs")} text-tertiary!`}
         >
           {revokingAll ? "Logging out…" : "Log out of all devices"}
         </button>
@@ -311,7 +319,7 @@ function LastLoginsSection({
               return (
                 <li
                   key={session.id}
-                  className="grid grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)_minmax(0,1.2fr)_auto] items-center gap-2 border-t border-(--sidebar-border) py-2.5"
+                  className="grid grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)_minmax(0,1.2fr)_auto] items-center gap-2 border-t border-(--popover-border) py-2.5"
                 >
                   <div className="flex min-w-0 items-start gap-2">
                     <DeviceIcon
@@ -322,7 +330,7 @@ function LastLoginsSection({
                     />
                     <div className="min-w-0">
                       <p
-                        className="truncate font-medium text-primary"
+                        className="truncate text-secondary"
                         style={{ fontSize: "var(--text-xs)", lineHeight: "1.4" }}
                       >
                         {sessionDeviceName(session)}
@@ -360,8 +368,7 @@ function LastLoginsSection({
                         type="button"
                         disabled={revokingId === session.id || revokingAll}
                         onClick={() => void revoke(session)}
-                        className="rounded-sm border border-(--sidebar-border) bg-white px-2 py-1 text-primary transition-colors hover:bg-(--sidebar-hover-bg) disabled:opacity-50"
-                        style={{ fontSize: "var(--text-xs)" }}
+                        className={btnSecondary("xs")}
                       >
                         {revokingId === session.id ? "…" : "Log out"}
                       </button>
@@ -413,17 +420,14 @@ function AccountPanelView() {
     user.primaryEmailAddress?.emailAddress ??
     user.emailAddresses?.[0]?.emailAddress ??
     "";
-  const name =
-    [user.firstName, user.lastName].filter(Boolean).join(" ") ||
-    user.fullName ||
-    "";
+  const name = resolvePreferredName(user);
   const showPhoto = Boolean(user.hasImage && user.imageUrl);
-  const letter = avatarLetter(user.firstName ?? user.username);
+  const letter = avatarLetter(name || user.username);
 
   return (
     <div className="flex flex-col gap-10">
       <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1.5 md:pt-4">
           <h1
             className="text-lg font-semibold tracking-tight text-primary"
             style={pageTitleStyle}
@@ -437,7 +441,7 @@ function AccountPanelView() {
 
         <div className="flex flex-col gap-4">
           <div className="border-b border-(--sidebar-border) pb-3">
-            <h2 className="font-semibold text-primary" style={copyStyle}>
+            <h2 className="font-medium text-primary" style={copyStyle}>
               Profile
             </h2>
           </div>
@@ -464,8 +468,15 @@ function AccountPanelView() {
               <PreferredNameField
                 value={name}
                 onSave={async (next) => {
-                  const { firstName, lastName } = splitDisplayName(next);
-                  await user.update({ firstName, lastName });
+                  // Name attrs aren't enabled on this Clerk instance for client
+                  // updates — store preferred name in writable unsafeMetadata.
+                  await user.update({
+                    unsafeMetadata: preferredNameMetadata(
+                      user.unsafeMetadata,
+                      next,
+                    ),
+                  });
+                  cacheStampDisplayName(next);
                 }}
               />
               <p className="mt-1.5 truncate text-xs text-(--sidebar-ink-soft)">
@@ -477,12 +488,42 @@ function AccountPanelView() {
       </div>
 
       <LastLoginsSection user={user} />
-      <DeleteAccountSection />
+      <SupportSection />
+      <LegalFooter />
     </div>
   );
 }
 
-function DeleteAccountSection() {
+function LegalFooter() {
+  return (
+    <p
+      className="text-(--sidebar-ink-soft)"
+      style={{ fontSize: "var(--text-xs)" }}
+    >
+      Read our{" "}
+      <a
+        href="/privacy"
+        target="_blank"
+        rel="noreferrer"
+        className="text-(--canvas-title-ink) underline-offset-2 hover:underline"
+      >
+        Privacy policy
+      </a>{" "}
+      and{" "}
+      <a
+        href="/terms"
+        target="_blank"
+        rel="noreferrer"
+        className="text-(--canvas-title-ink) underline-offset-2 hover:underline"
+      >
+        Terms of use
+      </a>
+      .
+    </p>
+  );
+}
+
+function SupportSection() {
   const { user } = useUser();
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
@@ -506,13 +547,34 @@ function DeleteAccountSection() {
   };
 
   return (
-    <section className="flex flex-col gap-3 border-t border-(--sidebar-border) pt-8">
+    <section className="flex flex-col gap-5">
+      <div className="border-b border-(--popover-border) pb-3">
+        <h2 className="font-medium text-primary" style={copyStyle}>
+          Support
+        </h2>
+      </div>
+
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <h2 className="font-semibold text-primary" style={copyStyle}>
+          <h3 className="font-medium text-secondary text-xs" style={copyStyle}>
+            Request data export
+          </h3>
+          <p className="mt-1 text-(--sidebar-ink-soft) text-xs">
+            Automated export isn’t in the product yet. Email us and we’ll send a
+            copy of the personal data we control.
+          </p>
+        </div>
+        <a href={EXPORT_MAILTO} className={`shrink-0 ${btnSecondary("xs")}`}>
+          Request data
+        </a>
+      </div>
+
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0 flex-1">
+          <h3 className="font-medium text-secondary text-xs" style={copyStyle}>
             Delete my account
-          </h2>
-          <p className="mt-1 text-(--sidebar-ink-soft)" style={copyStyle}>
+          </h3>
+          <p className="mt-1 text-(--sidebar-ink-soft) text-xs">
             Permanently delete your account. You’ll no longer be able to access
             your journal or synced data.
           </p>
@@ -529,7 +591,10 @@ function DeleteAccountSection() {
             </p>
           ) : null}
           {error ? (
-            <p className="mt-2 text-(--button-destructive-soft-foreground)" style={copyStyle}>
+            <p
+              className="mt-2 text-(--button-destructive-soft-foreground)"
+              style={copyStyle}
+            >
               {error}
             </p>
           ) : null}
@@ -539,7 +604,7 @@ function DeleteAccountSection() {
           <button
             type="button"
             onClick={() => setConfirming(true)}
-            className={`shrink-0 ${btnDestructiveSoft("sm")}`}
+            className={`shrink-0 ${btnDestructive("xs")}`}
           >
             Delete my account
           </button>
@@ -559,7 +624,7 @@ function DeleteAccountSection() {
               type="button"
               disabled={busy}
               onClick={() => void deleteAccount()}
-              className={btnDestructive("sm")}
+              className={btnDestructiveSolid("sm")}
             >
               {busy ? "Deleting…" : "Yes, delete forever"}
             </button>
@@ -582,119 +647,14 @@ function DeleteAccountSection() {
   );
 }
 
-function ExportPanelView() {
-  return (
-    <div className="flex flex-col gap-5">
-      <div className="flex flex-col gap-1.5">
-        <h1
-          className="text-lg font-semibold tracking-tight text-primary"
-          style={pageTitleStyle}
-        >
-          Export your data
-        </h1>
-        <p className="text-(--sidebar-ink-soft)" style={copyStyle}>
-          Automated export isn’t in the product yet. Email us and we’ll send a
-          copy of the personal data we control.
-        </p>
-      </div>
-      <a
-        href={EXPORT_MAILTO}
-        className="inline-flex w-fit items-center rounded-md border border-(--sidebar-border) bg-white px-3 py-2 font-medium text-primary transition-colors hover:bg-(--sidebar-hover-bg)"
-        style={copyStyle}
-      >
-        Request data export
-      </a>
-      <p
-        className="text-(--sidebar-ink-soft)"
-        style={{ fontSize: "var(--text-xs)" }}
-      >
-        Or write{" "}
-        <a
-          href="mailto:hello@unfold.app"
-          className="text-(--canvas-title-ink) underline-offset-2 hover:underline"
-        >
-          hello@unfold.app
-        </a>
-        .
-      </p>
-    </div>
-  );
-}
-
-function NavButton({
-  active,
-  icon,
-  label,
-  onClick,
-}: {
-  active?: boolean;
-  icon: ReactNode;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-current={active ? "page" : undefined}
-      className={clsx(
-        "flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left transition-colors duration-150",
-        active
-          ? "bg-(--sidebar-active-bg) text-(--sidebar-ink)"
-          : "text-(--sidebar-ink) hover:bg-(--sidebar-hover-bg)",
-      )}
-      style={copyStyle}
-    >
-      <span className="flex h-4 w-4 shrink-0 items-center justify-center text-(--sidebar-icon)">
-        {icon}
-      </span>
-      <span className="min-w-0 flex-1 truncate font-medium">{label}</span>
-    </button>
-  );
-}
-
-function ExternalNavLink({
-  href,
-  icon,
-  label,
-}: {
-  href: string;
-  icon: ReactNode;
-  label: string;
-}) {
-  return (
-    <a
-      href={href}
-      target="_blank"
-      rel="noreferrer"
-      className="flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-(--sidebar-ink) transition-colors duration-150 hover:bg-(--sidebar-hover-bg)"
-      style={copyStyle}
-    >
-      <span className="flex h-4 w-4 shrink-0 items-center justify-center text-(--sidebar-icon)">
-        {icon}
-      </span>
-      <span className="min-w-0 flex-1 truncate font-medium">{label}</span>
-      <ExternalLink
-        size={12}
-        strokeWidth={1.85}
-        aria-hidden
-        className="shrink-0 text-(--sidebar-ink-soft)"
-      />
-    </a>
-  );
-}
-
 type AccountProfileModalProps = {
   open: boolean;
   onClose: () => void;
 };
 
 export function AccountProfileModal({ open, onClose }: AccountProfileModalProps) {
-  const [panel, setPanel] = useState<AccountPanel>("account");
-
   useEffect(() => {
     if (!open) return;
-    setPanel("account");
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
@@ -723,45 +683,10 @@ export function AccountProfileModal({ open, onClose }: AccountProfileModalProps)
         role="dialog"
         aria-modal="true"
         aria-label="Account"
-        className="relative z-10 flex w-full max-w-208 overflow-hidden rounded-xl border border-(--sidebar-border) shadow-[0_1.25rem_3rem_-1rem_rgba(15,15,15,0.28)]"
+        className="relative z-10 flex w-full max-w-2xl overflow-hidden rounded-xl border border-(--sidebar-border) bg-(--surface-canvas) shadow-[0_1.25rem_3rem_-1rem_rgba(15,15,15,0.28)]"
         style={{ height: PANEL_HEIGHT, fontFamily: "var(--font-body)" }}
       >
-        <aside className="flex w-54 shrink-0 flex-col gap-1 border-r border-(--sidebar-border) bg-(--sidebar-bg) p-3">
-          <p
-            className="px-2.5 pb-2 pt-1 font-semibold text-(--canvas-title-ink)"
-            style={{
-              fontFamily: "var(--font-body)",
-              fontSize: "var(--text-sm)",
-            }}
-          >
-            Account
-          </p>
-          <NavButton
-            active={panel === "account"}
-            label="Profile"
-            icon={<UserRound size={16} strokeWidth={1.85} aria-hidden />}
-            onClick={() => setPanel("account")}
-          />
-          <NavButton
-            active={panel === "export"}
-            label="Export your data"
-            icon={<Download size={16} strokeWidth={1.85} aria-hidden />}
-            onClick={() => setPanel("export")}
-          />
-          <div className="my-2 border-t border-(--sidebar-border)" />
-          <ExternalNavLink
-            href="/privacy"
-            label="Privacy policy"
-            icon={<FileText size={16} strokeWidth={1.85} aria-hidden />}
-          />
-          <ExternalNavLink
-            href="/terms"
-            label="Terms of use"
-            icon={<Scale size={16} strokeWidth={1.85} aria-hidden />}
-          />
-        </aside>
-
-        <div className="relative flex min-w-0 flex-1 flex-col bg-(--surface-canvas)">
+        <div className="relative flex min-w-0 flex-1 flex-col">
           <button
             type="button"
             aria-label="Close"
@@ -771,8 +696,7 @@ export function AccountProfileModal({ open, onClose }: AccountProfileModalProps)
             <X size={16} strokeWidth={1.85} aria-hidden />
           </button>
           <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5 pr-12">
-            {panel === "account" ? <AccountPanelView /> : null}
-            {panel === "export" ? <ExportPanelView /> : null}
+            <AccountPanelView />
           </div>
         </div>
       </div>

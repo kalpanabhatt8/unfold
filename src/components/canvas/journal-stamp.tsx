@@ -22,6 +22,11 @@ import {
 } from "@/components/ui/button-system";
 import { Tooltip } from "@/components/ui/tooltip";
 import { useViewportLayout } from "@/hooks/use-viewport-layout";
+import {
+  cacheStampDisplayName,
+  readStampDisplayNameCache,
+  resolveStampNameFromUser,
+} from "@/lib/stamp-display-name";
 
 /** Text-only imprint box — width fits long names; height fits two lines at 2× font. */
 const STAMP_WIDTH = 180;
@@ -62,25 +67,6 @@ function stampAlignedCornerInsets(
 
 const STAMP_IMAGE = "/Images/stamp.svg";
 const STAMP_INK = "158, 118, 90"; // #9E765A — matches stamp.svg border
-const STAMP_NAME_CACHE_KEY = "keeps-stamp-display-name-v2";
-
-function readCachedStampName(): string {
-  if (typeof window === "undefined") return "";
-  try {
-    return window.localStorage.getItem(STAMP_NAME_CACHE_KEY)?.trim() ?? "";
-  } catch {
-    return "";
-  }
-}
-
-function cacheStampName(name: string) {
-  if (typeof window === "undefined" || !name.trim()) return;
-  try {
-    window.localStorage.setItem(STAMP_NAME_CACHE_KEY, name.trim());
-  } catch {
-    /* noop */
-  }
-}
 
 /* ─── Resolve display name from Clerk / Google OAuth ─────────────────────── */
 
@@ -407,7 +393,7 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
   const stampButtonSize = viewport.stampButtonSizePx >= 36 ? "md" : "sm";
 
   const userName = useMemo(() => {
-    const cached = readCachedStampName();
+    const cached = readStampDisplayNameCache();
 
     if (!clerk.loaded) return cached;
 
@@ -420,11 +406,13 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
         : undefined,
     );
 
-    const resolved =
-      fromClaims || resolveStampUserName(user, session?.publicUserData);
+    const resolved = resolveStampNameFromUser(
+      user,
+      fromClaims || resolveStampUserName(user, session?.publicUserData),
+    );
 
     if (resolved) {
-      cacheStampName(resolved);
+      cacheStampDisplayName(resolved);
       return resolved;
     }
 

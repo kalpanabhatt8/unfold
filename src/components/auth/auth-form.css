@@ -267,29 +267,8 @@
 }
 
 .auth-google {
-  display: inline-flex;
   width: 100%;
-  align-items: center;
-  justify-content: center;
   gap: 0.55rem;
-  padding: 0.45rem 1rem;
-  border: 0.0625rem solid var(--auth-line);
-  border-radius: var(--radius-md);
-  background: var(--auth-fill);
-  color: var(--sidebar-ink);
-  font-family: var(--font-body);
-  font-size: 0.875rem;
-  font-weight: 500;
-  line-height: 1.2;
-  cursor: pointer;
-  transition:
-    background-color 160ms ease,
-    border-color 160ms ease;
-}
-
-.auth-google:hover:not(:disabled) {
-  background: var(--auth-fill-hover);
-  border-color: color-mix(in srgb, var(--sidebar-border) 80%, var(--auth-ink));
 }
 
 .auth-google:disabled,

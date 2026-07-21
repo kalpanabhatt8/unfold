@@ -66,36 +66,65 @@ export const iconStrokePx = (px: number) => {
   return 1.9;
 };
 
+/** Semantic button types: primary · secondary · destructive · invisible */
+export const btnType = {
+  primary:
+    "bg-(--button-primary) text-(--button-primary-foreground) " +
+    "hover:bg-(--button-primary-hover) active:bg-(--button-primary-active) " +
+    "disabled:opacity-45 disabled:pointer-events-none",
+  secondary:
+    "bg-(--surface-raised) text-secondary border border-(--popover-border) " +
+    "hover:bg-(--surface-chrome-hover) " +
+    "disabled:opacity-50 disabled:pointer-events-none",
+  destructive:
+    "bg-(--button-destructive-soft) text-(--button-destructive-soft-foreground) " +
+    "hover:bg-(--button-destructive-soft-hover) active:bg-(--button-destructive-soft-active) " +
+    "disabled:opacity-40 disabled:pointer-events-none",
+  invisible:
+    "bg-transparent text-(--color-icon) border border-transparent " +
+    "hover:bg-(--color-iconbutton-hover) hover:text-(--color-icon) " +
+    "active:bg-(--color-iconbutton-active) active:text-(--color-icon)",
+} as const;
+
+export type BtnType = keyof typeof btnType;
+
+/** Solid fill for irreversible confirms (pairs with destructive type). */
+export const btnTypeDestructiveSolid =
+  "bg-(--button-destructive) text-(--button-destructive-foreground) " +
+  "hover:bg-(--button-destructive-hover) active:bg-(--button-destructive-active) " +
+  "disabled:opacity-45 disabled:pointer-events-none";
+
+/** Low-level chrome for icon buttons that compose their own look. */
 export const btnState = {
   default: "bg-white text-(--color-icon) border border-black/[0.08]",
   neutral: "bg-white text-(--color-icon)",
-  transparent:
-    "bg-transparent text-(--color-icon) border border-transparent",
   hover: "hover:bg-(--color-iconbutton-hover) hover:text-(--color-icon)",
   active:
     "active:bg-(--color-iconbutton-active) active:text-(--color-icon)",
   selected: "bg-black/[0.08] text-(--color-icon) border-black/[0.16]",
   disabled:
     "disabled:bg-black/[0.03] disabled:text-black/35 disabled:border-black/[0.06] disabled:opacity-45 disabled:pointer-events-none",
-  destructive:
-    "bg-(--button-destructive) text-(--button-destructive-foreground) " +
-    "hover:bg-(--button-destructive-hover) active:bg-(--button-destructive-active) " +
-    "disabled:opacity-45 disabled:pointer-events-none",
-  destructiveSoft:
-    "bg-(--button-destructive-soft) text-(--button-destructive-soft-foreground) " +
-    "hover:bg-(--button-destructive-soft-hover) active:bg-(--button-destructive-soft-active) " +
-    "disabled:opacity-40 disabled:pointer-events-none",
 } as const;
 
-export const btnIconTransparent = (size: ButtonSize = "md", radius?: BtnRadius) =>
-  `${btnIcon(size, radius)} ${btnState.transparent} ${btnState.hover} ${btnState.active}`;
+export const btnPrimary = (size: ButtonSize = "sm", radius?: BtnRadius) =>
+  `${btnText(size, radius)} ${btnType.primary}`;
 
-/** Filled destructive text button (confirm delete, etc.). */
+export const btnSecondary = (size: ButtonSize = "xs", radius?: BtnRadius) =>
+  `${btnText(size, radius)} ${btnType.secondary}`;
+
 export const btnDestructive = (size: ButtonSize = "sm", radius?: BtnRadius) =>
-  `${btnText(size, radius)} ${btnState.destructive}`;
+  `${btnText(size, radius)} ${btnType.destructive}`;
 
-/** Soft destructive text button (delete account, log out of all devices). */
-export const btnDestructiveSoft = (size: ButtonSize = "sm", radius?: BtnRadius) =>
-  `${btnText(size, radius)} ${btnState.destructiveSoft}`;
+export const btnDestructiveSolid = (size: ButtonSize = "sm", radius?: BtnRadius) =>
+  `${btnText(size, radius)} ${btnTypeDestructiveSolid}`;
+
+export const btnInvisible = (size: ButtonSize = "md", radius?: BtnRadius) =>
+  `${btnText(size, radius)} ${btnType.invisible}`;
+
+export const btnIconInvisible = (size: ButtonSize = "md", radius?: BtnRadius) =>
+  `${btnIcon(size, radius)} ${btnType.invisible}`;
+
+/** @deprecated Prefer `btnIconInvisible`. */
+export const btnIconTransparent = btnIconInvisible;
 
 export const iconFixed = "shrink-0";

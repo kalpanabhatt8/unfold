@@ -3,9 +3,9 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { useClerk, useUser } from "@clerk/nextjs";
 import { AccountProfileModal } from "@/components/sidebar/account-profile-modal";
+import { SendFeedbackModal } from "@/components/sidebar/send-feedback-modal";
+import { resolvePreferredName } from "@/lib/user-display";
 
-const FEEDBACK_MAILTO =
-  "mailto:hello@unfold.app?subject=Unfold%20feedback";
 const SUPPORT_MAILTO =
   "mailto:hello@unfold.app?subject=Supporting%20Unfold";
 
@@ -30,10 +30,11 @@ export function SidebarAccountMenu() {
   const rootRef = useRef<HTMLDivElement>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   const showPhoto = Boolean(isLoaded && user?.hasImage && user.imageUrl);
   const letter = isLoaded
-    ? avatarLetter(user?.firstName ?? user?.username)
+    ? avatarLetter(resolvePreferredName(user) || user?.username)
     : "";
 
   useEffect(() => {
@@ -62,6 +63,11 @@ export function SidebarAccountMenu() {
   const openAccount = () => {
     closeMenu();
     setProfileOpen(true);
+  };
+
+  const openFeedback = () => {
+    closeMenu();
+    setFeedbackOpen(true);
   };
 
   const signOut = () => {
@@ -112,15 +118,15 @@ export function SidebarAccountMenu() {
             >
               My Account
             </button>
-            <a
+            <button
+              type="button"
               role="menuitem"
-              href={FEEDBACK_MAILTO}
-              onClick={closeMenu}
+              onClick={openFeedback}
               className={menuItemClassName}
               style={menuItemStyle}
             >
               Send feedback
-            </a>
+            </button>
             <a
               role="menuitem"
               href={SUPPORT_MAILTO}
@@ -146,6 +152,10 @@ export function SidebarAccountMenu() {
       <AccountProfileModal
         open={profileOpen}
         onClose={() => setProfileOpen(false)}
+      />
+      <SendFeedbackModal
+        open={feedbackOpen}
+        onClose={() => setFeedbackOpen(false)}
       />
     </>
   );

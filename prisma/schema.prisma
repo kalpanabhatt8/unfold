@@ -35,6 +35,7 @@ model User {
   displays      PatternDisplay[]
   patternVotes  PatternVote[]
   attachments   Attachment[]
+  feedback      Feedback[]
 
   @@map("users")
 }
@@ -194,4 +195,17 @@ model Attachment {
   @@index([userId, entryId])
   @@index([entryId, sortOrder])
   @@map("attachments")
+}
+
+/// Freeform product feedback from the account menu — capture only, no triage UI.
+model Feedback {
+  id        String   @id @default(cuid()) @map("feedback_id")
+  userId    String   @map("user_id")
+  text      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("feedback")
 }

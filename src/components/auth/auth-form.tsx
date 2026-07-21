@@ -11,6 +11,7 @@ import {
   authAbsoluteUrl,
 } from "@/lib/auth-routes";
 import { resetAuthAttempts } from "@/lib/auth-finalize";
+import { btnSecondary } from "@/components/ui/button-system";
 import "./auth-form.css";
 
 type Step = "credentials" | "verify";
@@ -805,7 +806,7 @@ export function AuthForm() {
 
             <button
               type="button"
-              className="auth-google"
+              className={`auth-google ${btnSecondary("md")}`}
               disabled={busy}
               onClick={() => signInWithOAuth("oauth_google")}
             >
@@ -1009,7 +1010,7 @@ export function AuthForm() {
 
             <button
               type="button"
-              className="auth-google"
+              className={`auth-google ${btnSecondary("md")}`}
               disabled={busy}
               onClick={() => {
                 setError(null);

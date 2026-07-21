@@ -16,7 +16,17 @@ export function LandingChrome({
   return (
     <header className={`lp-chrome lp-chrome--${variant}`} data-lp-chrome>
       <Link href="/" className="lp-chrome__brand logo-font" aria-label="Unfold home">
-        <span className="mr-[0.03em]">U</span>NFOLD
+        <img
+          src="/unfoldlogo.svg"
+          alt=""
+          width={20}
+          height={19}
+          className="lp-chrome__brand-mark"
+          draggable={false}
+        />
+        <span>
+          <span className="mr-[0.03em]">U</span>NFOLD
+        </span>
       </Link>
       {showCta ? (
         <div className="lp-chrome__actions">

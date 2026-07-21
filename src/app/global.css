@@ -142,6 +142,7 @@
 
   /* Chrome accents that are intentionally distinct (not near-white fills) */
   --sidebar-border: #e4d8de;
+  --popover-border: #ede4e9;
   --sidebar-tab-track: #ede4e9;
   --sidebar-tab-selected-bg: #e7dde2;
   --journal-quote-highlight: #f9e7eb;
@@ -174,7 +175,7 @@
   --button-destructive-hover: #912018;
   --button-destructive-active: #7a271a;
   --button-destructive-foreground: #fffaf9;
-  --button-destructive-soft: #fef3f2;
+  --button-destructive-soft: #fee8e6;
   --button-destructive-soft-hover: #fee4e2;
   --button-destructive-soft-active: #fecdca;
   --button-destructive-soft-foreground: #b42318;

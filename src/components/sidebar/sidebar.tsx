@@ -33,6 +33,7 @@ import { PatternsSidebarLink } from "@/components/sidebar/patterns-sidebar-link"
 import { SidebarAccountMenu } from "@/components/sidebar/sidebar-account-menu";
 import { OVERLAY_NAV_QUERY } from "@/lib/breakpoints";
 import { OPEN_NAV_EVENT } from "@/lib/layout";
+import { resolvePreferredName } from "@/lib/user-display";
 
 const UNTITLED_ENTRY = "Untitled";
 const SIDEBAR_COLLAPSED_KEY = "keeps-sidebar-collapsed";
@@ -157,7 +158,7 @@ export function Sidebar() {
   const displayName = !isLoaded
     ? null
     : user
-      ? (user.firstName ?? user.username ?? null)
+      ? (resolvePreferredName(user) || user.username || null)
       : "Anonymous";
 
   const closeSearch = () => {

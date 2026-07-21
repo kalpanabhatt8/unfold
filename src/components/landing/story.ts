@@ -17,7 +17,7 @@ export type Moment = {
 export const BRAND = "UNFOLD";
 
 /** Hero line above the living canvas — fades as the frame rises. */
-export const TAGLINE = "Find patterns in your writing.";
+export const TAGLINE = "Discover patterns in your thoughts.";
 
 export const MOMENTS: Moment[] = [
   {
@@ -113,8 +113,9 @@ export const WRITE_NATURALLY = {
   sealedTitle: "How it works?",
   paragraphs: [
     "You already know how you feel.",
-    "What's harder to see\nis how certain thoughts keep finding their way back —\nquietly, in your own words, across different days.",
-    "Unfold doesn't read your moods.\nIt notices the shape they leave behind.",
+    "What's harder to notice\nis how your thoughts repeat over time.",
+    "Unfold doesn't just tag your emotions.\nIt helps you notice the patterns behind it.",
+    "Built for people who overthink.\nUnderstand your patterns, not just your thoughts.",
   ],
 };
 
