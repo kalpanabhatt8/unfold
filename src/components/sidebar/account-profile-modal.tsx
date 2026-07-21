@@ -686,7 +686,7 @@ export function AccountProfileModal({ open, onClose }: AccountProfileModalProps)
         className="relative z-10 flex w-full max-w-2xl overflow-hidden rounded-xl border border-(--sidebar-border) bg-(--surface-canvas) shadow-[0_1.25rem_3rem_-1rem_rgba(15,15,15,0.28)]"
         style={{ height: PANEL_HEIGHT, fontFamily: "var(--font-body)" }}
       >
-        <div className="relative flex min-w-0 flex-1 flex-col">
+        <div className="relative flex min-w-0 flex-1 flex-col pt-5 pb-5">
           <button
             type="button"
             aria-label="Close"
@@ -695,7 +695,7 @@ export function AccountProfileModal({ open, onClose }: AccountProfileModalProps)
           >
             <X size={16} strokeWidth={1.85} aria-hidden />
           </button>
-          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5 pr-12">
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 pr-12">
             <AccountPanelView />
           </div>
         </div>

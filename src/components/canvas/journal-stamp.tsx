@@ -65,8 +65,7 @@ function stampAlignedCornerInsets(
   };
 }
 
-const STAMP_IMAGE = "/Images/stamp.svg";
-const STAMP_INK = "158, 118, 90"; // #9E765A — matches stamp.svg border
+const STAMP_INK = "158, 118, 90"; // #9E765A
 
 /* ─── Resolve display name from Clerk / Google OAuth ─────────────────────── */
 
@@ -291,14 +290,6 @@ export function StampFace({
       }}
       aria-hidden
     >
-      {/* <img
-        src={STAMP_IMAGE}
-        alt=""
-        width={width}
-        height={height}
-        draggable={false}
-        style={{ display: "block" }}
-      /> */}
       <span
         ref={textRef}
         style={{
@@ -561,7 +552,7 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
                 size={iconPx(stampButtonSize)}
                 strokeWidth={iconStroke(stampButtonSize)}
                 aria-hidden
-                className={`${iconFixed} origin-center transition-transform duration-200 ease-out group-hover:rotate-0`}
+                className={`${iconFixed} origin-center rounded-[12px]! transition-transform duration-200 ease-out group-hover:rotate-0`}
               />
             </button>
           </Tooltip>

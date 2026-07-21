@@ -7,7 +7,7 @@
 import type { UserResource } from "@clerk/types";
 import { resolvePreferredName } from "@/lib/user-display";
 
-export const STAMP_NAME_CACHE_KEY = "keeps-stamp-display-name-v2";
+const STAMP_NAME_CACHE_KEY = "keeps-stamp-display-name-v2";
 
 export function readStampDisplayNameCache(): string {
   if (typeof window === "undefined") return "";

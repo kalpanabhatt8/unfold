@@ -298,7 +298,7 @@ export function Sidebar() {
       type="button"
       onClick={expandSidebar}
       aria-label="Open menu"
-      className={`shrink-0 min-h-(--touch-target-min) min-w-(--touch-target-min) ${btnIconTransparent(SIDEBAR_TOGGLE_SIZE)}`}
+      className={`shrink-0 ${btnIconTransparent(SIDEBAR_TOGGLE_SIZE)}`}
     >
       <Menu
         size={iconPx(SIDEBAR_TOGGLE_SIZE)}
@@ -332,7 +332,7 @@ export function Sidebar() {
           type="button"
           onClick={toggleCollapsed}
           aria-label="Close menu"
-          className={`shrink-0 min-h-(--touch-target-min) min-w-(--touch-target-min) ${btnIconTransparent(SIDEBAR_TOGGLE_SIZE)}`}
+          className={`shrink-0 ${btnIconTransparent(SIDEBAR_TOGGLE_SIZE)}`}
         >
           <ChevronsLeft
             size={iconPx(SIDEBAR_TOGGLE_SIZE)}
