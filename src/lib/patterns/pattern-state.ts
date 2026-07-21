@@ -24,7 +24,7 @@ import { markPatternsDirty } from "@/lib/sync/local-flags";
 export const PATTERN_STATE_STORAGE_KEY = "keeps-pattern-state";
 
 /** How many recent composition signatures we remember per pattern. */
-export const SIGNATURE_MEMORY = 3;
+const SIGNATURE_MEMORY = 3;
 
 /**
  * A pattern's stage of life. `resting` means "no new evidence to judge by" —

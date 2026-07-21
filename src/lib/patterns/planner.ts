@@ -224,13 +224,11 @@ const hasRecognitionDepth = (signals: EvidenceSignals): boolean =>
 
 // ── Selection helpers ──────────────────────────────────────────────────────
 
-export const signatureForShape = (shape: {
+const signatureFor = (shape: {
   slotKinds: string[];
   depthTier: DepthTier;
   endingKind: EndingKind;
 }): string => `${shape.slotKinds.join(",")}|${shape.depthTier}|${shape.endingKind}`;
-
-const signatureFor = signatureForShape;
 
 const rankCandidate = (shape: ShapeDef, ctx: PlannerContext): number => {
   if (ctx.lifecycle === "returning" && shape.id.startsWith("pair")) return 0;

@@ -8,6 +8,7 @@
 
 import type { ParsedSlotFill } from "@/lib/ai/pattern-slots/parse";
 import type { PassageSlot, PatternPassage } from "@/lib/patterns/passage-types";
+import { stripTypographicDashes } from "@/lib/patterns/voice-prose";
 
 const SHAPES_REQUIRING_VOICE: Record<
   string,
@@ -130,7 +131,9 @@ export const applySlotFills = (
 
   passage.slots.forEach((slot, index) => {
     if (slot.kind === "line") {
-      const text = fillMap.get(index) ?? slot.text;
+      const raw = fillMap.get(index) ?? slot.text;
+      const text =
+        typeof raw === "string" ? stripTypographicDashes(raw) : raw;
       slots.push({ kind: "line", text: text ?? null });
       return;
     }
@@ -140,7 +143,9 @@ export const applySlotFills = (
         slots.push(slot);
         return;
       }
-      const text = fillMap.get(index) ?? slot.text;
+      const raw = fillMap.get(index) ?? slot.text;
+      const text =
+        typeof raw === "string" ? stripTypographicDashes(raw) : raw;
       slots.push({
         kind: "close",
         endingKind: slot.endingKind,

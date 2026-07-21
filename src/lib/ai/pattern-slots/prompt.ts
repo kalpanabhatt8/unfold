@@ -108,6 +108,7 @@ Rules:
 - Reflection slots MUST end with "?"
 - Mechanism slots must NOT end with "?" and must NOT start with "You"
 - Mechanism slots must replay cause → effect; stop before conclusions or judgments
+- Never use em dashes (—) or en dashes (–) in mechanism or question text; use a comma or period instead
 
 Return ONLY valid JSON:
 [{"index":<slot index>,"text":"<your line>"}]`;

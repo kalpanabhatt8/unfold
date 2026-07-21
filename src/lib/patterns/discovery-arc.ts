@@ -9,6 +9,7 @@
 
 import type { QuoteRef } from "@/lib/patterns/evidence-signals";
 import type { PassageSlot } from "@/lib/patterns/passage-types";
+import { stripTypographicDashes } from "@/lib/patterns/voice-prose";
 
 export const DISCOVERY_SHAPE_ID = "discovery";
 export const DISCOVERY_EVIDENCE_VISIBLE = 6;
@@ -140,7 +141,7 @@ export function buildDiscoveryArc(
     closeSlot?.endingKind === "quote" ? closeSlot.quote ?? null : null;
   const closeText =
     closeSlot && closeSlot.endingKind !== "quote"
-      ? closeSlot.text?.trim() ?? ""
+      ? stripTypographicDashes(closeSlot.text?.trim() ?? "")
       : "";
 
   return {
@@ -151,7 +152,7 @@ export function buildDiscoveryArc(
     },
     evidence: { visible, overflow },
     mechanism: mechanismSlot
-      ? { text: mechanismSlot.text?.trim() ?? "" }
+      ? { text: stripTypographicDashes(mechanismSlot.text?.trim() ?? "") }
       : null,
     reflection: { question: closeText, quote: closeQuote },
   };
