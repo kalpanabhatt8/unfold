@@ -122,11 +122,11 @@ export const WRITE_NATURALLY = {
 export const PATTERN = {
   title: "See Together.",
   label: "",
-  evidenceLabel: "From these entries",
+  evidenceLabel: "Connecting the moments",
   loops: [
     "The moments were already there.",
-    "Sitting beside each other, unremarked.",
-    "Until they weren't.",
+    "Scattered quietly across your days.",
+    "Until they started to tell a story.",
   ],
   reflection: "What would it mean to leave it as it is?",
   closingQuestion: "Ready to see yours?",
