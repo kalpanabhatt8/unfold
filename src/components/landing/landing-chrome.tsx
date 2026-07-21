@@ -1,33 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BRAND, CTA } from "./story";
-
-type LandingChromeProps = {
-  variant?: "light" | "rose" | "cream";
-  /** Show CTA in the corner (default true). */
-  showCta?: boolean;
-};
-
-export function LandingChrome({
-  variant = "cream",
-  showCta = true,
-}: LandingChromeProps) {
-  return (
-    <header className={`lp-chrome lp-chrome--${variant}`} data-lp-chrome>
-      <Link href="/" className="lp-chrome__brand logo-font" aria-label="Unfold home">
-        <span className="mr-[0.03em]">U</span>NFOLD
-      </Link>
-      {showCta ? (
-        <div className="lp-chrome__actions">
-          <Link href={CTA.header.primaryHref} className="lp-chrome__cta">
-            {CTA.header.primary}
-          </Link>
-        </div>
-      ) : null}
-    </header>
-  );
-}
+import { CTA } from "./story";
 
 export function LandingEndCta({ className = "" }: { className?: string }) {
   return (
@@ -41,5 +15,3 @@ export function LandingEndCta({ className = "" }: { className?: string }) {
     </div>
   );
 }
-
-export { BRAND };

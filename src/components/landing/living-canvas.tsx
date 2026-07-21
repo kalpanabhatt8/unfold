@@ -252,7 +252,7 @@ export function LivingCanvas() {
     showCta = 0;
   }
 
-  const frameY = lerp(40, 0, rise);
+  const frameY = lerp(28, 0, rise);
   const frameScale = lerp(0.94, 1, rise);
   const frameRadius = lerp(20, 16, rise);
   const navOpacity = lerp(1, 0, stage(rise, 0.55, 1));
@@ -564,7 +564,7 @@ export function LivingCanvas() {
                       <Tooltip content="Seal entry" bubbleClassName="tooltip-bubble-stamp">
                         <button
                           type="button"
-                          className={`lp-live__stamp-btn group shrink-0 cursor-pointer select-none outline-none ${btnIcon("md", "soft")} ${btnState.default} ${btnState.hover} ${btnState.active}`}
+                          className={`lp-live__stamp-btn group shrink-0 cursor-pointer select-none outline-none ${btnIcon("md", "xl")} ${btnState.default} ${btnState.hover} ${btnState.active}`}
                           aria-label="Seal entry"
                           onClick={() => {
                             const now = Date.now();
@@ -687,7 +687,6 @@ export function LivingCanvas() {
                   aria-hidden={patternOpacity < 0.05}
                 >
                   <div className="lp-live__column lp-live__pattern-inner">
-                    <p className="lp-pattern-card__label">{PATTERN.label}</p>
                     <h2 className="lp-live__pattern-title header-lg">
                       {PATTERN.title}
                     </h2>
