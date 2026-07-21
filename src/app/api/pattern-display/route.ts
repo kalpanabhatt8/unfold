@@ -6,12 +6,27 @@ import {
   PATTERN_DEFINITIONS,
   PATTERN_LABELS,
 } from "@/lib/patterns/vocabulary";
+import { requireUser } from "@/lib/server/auth";
+import { requireAiUser } from "@/lib/server/ai-auth";
 
 export async function GET() {
-  return NextResponse.json({ ok: true });
+  try {
+    await requireUser();
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    if (error instanceof Response) return error;
+    throw error;
+  }
 }
 
 export async function POST(request: Request) {
+  try {
+    await requireAiUser();
+  } catch (error) {
+    if (error instanceof Response) return error;
+    throw error;
+  }
+
   let patternName = "";
   let quotes: string[] = [];
   let evidenceKey = "";

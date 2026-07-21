@@ -45,16 +45,51 @@ export const entryIdFromBoardStorageKey = (storageKey: string): string =>
     ? storageKey.slice(ENTRY_BOARD_STORAGE_PREFIX.length)
     : storageKey.replace(/^keeps-board-/, "");
 
-const persistBoardSnapshot = (entryId: string, snapshot: CanvasSnapshot) => {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(
-      `${ENTRY_BOARD_STORAGE_PREFIX}${entryId}`,
-      JSON.stringify(snapshot),
-    );
-  } catch {
-    /* noop */
+const boardStorageKey = (entryId: string) =>
+  `${ENTRY_BOARD_STORAGE_PREFIX}${entryId}`;
+
+const isDataUrlImage = (src: string) => src.startsWith("data:");
+
+/** Drop inlined base64 images (common localStorage quota killer); keep remote URLs. */
+const stripHeavyImages = (snapshot: CanvasSnapshot): CanvasSnapshot => ({
+  ...snapshot,
+  imageBlocks: snapshot.imageBlocks
+    .filter((image) => !isDataUrlImage(image.src))
+    .map((image, order) => ({ ...image, order })),
+});
+
+/**
+ * Persist board snapshot. Returns false when the write did not stick
+ * (quota / private mode). Retries once without heavy data-URL images.
+ */
+const persistBoardSnapshot = (
+  entryId: string,
+  snapshot: CanvasSnapshot,
+): boolean => {
+  if (typeof window === "undefined") return false;
+
+  const key = boardStorageKey(entryId);
+  const tryWrite = (snap: CanvasSnapshot): boolean => {
+    try {
+      const payload = JSON.stringify(snap);
+      window.localStorage.setItem(key, payload);
+      return window.localStorage.getItem(key) === payload;
+    } catch {
+      return false;
+    }
+  };
+
+  if (tryWrite(snapshot)) return true;
+
+  const stripped = stripHeavyImages(snapshot);
+  if (
+    stripped.imageBlocks.length !== snapshot.imageBlocks.length &&
+    tryWrite(stripped)
+  ) {
+    return true;
   }
+
+  return false;
 };
 
 /** In-flight guard — one active title job per entry. */
@@ -96,6 +131,9 @@ const applySealTitleInBackground = (
   }
 
   const text = extractJournalPlainText(snapshot);
+  // Prefer a fresh fetch keyed to *this* seal snapshot. Prefetch is only reused
+  // when its signature still matches — otherwise a hover-prefetch from earlier
+  // text could title an empty/wrong board.
   const promise = prefetchSealTitle(text) ?? fetchJournalTitle(text);
 
   void promise
@@ -121,12 +159,23 @@ export const commitEntrySeal = (
 
   const now = Date.now();
   const sealedSnapshot: CanvasSnapshot = { ...snapshot, sealedAt: now };
+  const searchText = flattenSnapshotText(sealedSnapshot);
 
-  persistBoardSnapshot(entryId, sealedSnapshot);
+  const boardOk = persistBoardSnapshot(entryId, sealedSnapshot);
+  if (!boardOk && searchText.length > 0) {
+    // Last resort: text-only board so reopen is not blank under a generated title.
+    const textOnly: CanvasSnapshot = {
+      ...sealedSnapshot,
+      imageBlocks: [],
+    };
+    persistBoardSnapshot(entryId, textOnly);
+  }
+
   upsertEntry(entryId, {
-    searchText: flattenSnapshotText(sealedSnapshot),
+    searchText,
     sealedAt: now,
-    updatedAt: existing?.updatedAt,
+    // Bump so sync LWW prefers this sealed copy over an older empty draft.
+    updatedAt: now,
   });
 
   // Title + pattern analysis are intentionally async and unbound from the

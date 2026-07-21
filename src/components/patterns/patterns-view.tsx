@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/button-system";
 import {
   openAppNav,
-  pagePaddingXClass,
+  PAGE_PADDING_X_CLASS,
   patternsColumnMaxWidth,
 } from "@/lib/layout";
 import "@/lib/patterns/passage-debug";
@@ -127,14 +127,14 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
       style={{
         paddingTop:
           viewport.isOverlayNav
-            ? `max(${viewport.patternsPagePaddingYPx}px, env(safe-area-inset-top))`
-            : viewport.patternsPagePaddingYPx,
+            ? `max(${viewport.patternsPagePaddingYPx / 16}rem, env(safe-area-inset-top))`
+            : `${viewport.patternsPagePaddingYPx / 16}rem`,
         paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))",
-        scrollPaddingTop: viewport.patternsPagePaddingYPx,
+        scrollPaddingTop: `${viewport.patternsPagePaddingYPx / 16}rem`,
       }}
     >
       <div
-        className={`mx-auto flex w-full min-w-0 flex-col ${pagePaddingXClass(viewport.isOverlayNav)}`}
+        className={`mx-auto flex w-full min-w-0 flex-col ${PAGE_PADDING_X_CLASS}`}
         style={{ maxWidth: patternsColumnMaxWidth(viewport.isOverlayNav) }}
       >
         <header className="mb-5 flex shrink-0 flex-col items-stretch sm:mb-6">
@@ -143,7 +143,7 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
               type="button"
               onClick={openAppNav}
               aria-label="Open menu"
-              className="mb-1.5 flex h-11 w-11 shrink-0 items-center justify-start text-(--sidebar-ink) transition-colors duration-150 hover:text-(--sidebar-active-ink) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20"
+              className="mb-1.5 flex h-11 w-11 shrink-0 items-center justify-center text-(--sidebar-ink) transition-colors duration-150 hover:text-(--sidebar-active-ink) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20"
             >
               <Menu
                 size={18}

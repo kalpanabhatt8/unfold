@@ -1,12 +1,10 @@
-import { AuthenticateWithRedirectCallback } from "@clerk/nextjs";
+import { SSOCallbackHandler } from "@/components/auth/sso-callback-handler";
 import "@/components/auth/auth-form.css";
 
 export default function SSOCallbackPage() {
   return (
     <div className="auth-shell auth-shell--top">
-      <AuthenticateWithRedirectCallback continueSignUpUrl="/sign-in/continue" />
-      <p className="auth-redirecting">Opening Unfold…</p>
-      <div id="clerk-captcha" />
+      <SSOCallbackHandler />
     </div>
   );
 }

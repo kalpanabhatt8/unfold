@@ -52,6 +52,12 @@ export type EntriesPullResponse = {
   entries: WireEntry[];
   /** Server clock cursor to pass as `since` on the next pull. */
   cursor: number;
+  /**
+   * When true, more rows exist after `cursor` — call again with since=cursor.
+   * Older clients that ignore this still advance the cursor and catch up on
+   * the next fullSync interval.
+   */
+  hasMore?: boolean;
 };
 
 /** POST /api/sync/entries — per-entry LWW result. */

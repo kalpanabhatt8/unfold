@@ -7,8 +7,7 @@
  *  │  title (left)                last edited · saving? (right)    │
  *  │  ─────────────────────────────────────────────────────────── │
  *  │  centered writing column (Rethink Sans)                      │
- *  │  signature (end)                                             │
- *  │  🪷 fixed bottom-left                                        │
+ *  │  🪷 seal stamp (fixed corner)                                │
  *  └─────────────────────────────────────────────────────────────┘
  *
  * Save model:
@@ -19,7 +18,6 @@
 
 import React, {
   forwardRef,
-  startTransition,
   useCallback,
   useEffect,
   useImperativeHandle,
@@ -66,7 +64,7 @@ import { readEntryById } from "@/lib/journal-entries";
 import { uploadEntryImage } from "@/lib/attachments/client";
 import {
   CONTENT_COLUMN_MAX_WIDTH,
-  pagePaddingXClass,
+  PAGE_PADDING_X_CLASS,
 } from "@/lib/layout";
 
 /* -------------------------------------------------------------------------- */
@@ -116,8 +114,6 @@ export type CanvasSnapshot = {
   imageBlocks: JournalImage[];
   background: string;
   columns: ColumnLayout;
-  /** Author name / signature shown at the end of the page. */
-  signature?: string;
   /** Unix ms when the entry was sealed (irreversible). Absent = draft. */
   sealedAt?: number;
   updatedAt: number;
@@ -135,11 +131,7 @@ export const CANVAS_RECESS = "var(--canvas-recess)";
 /** Centered writing column width — shared with Patterns (`layout.ts`). */
 const WRITING_COLUMN_MAX_WIDTH = CONTENT_COLUMN_MAX_WIDTH;
 
-/** Writing typography — Rethink Sans, 16px body size (breathable). */
-const WRITING_FONT_SIZE = "var(--text-md)";
-const WRITING_LINE_HEIGHT = 1.75;
-const WRITING_LETTER_SPACING = "0.005em";
-const WRITING_WORD_SPACING = "0.005em";
+/** Writing ink — shared by the editor surface. */
 const WRITING_INK = "var(--canvas-ink)";
 
 /** Save behaviour. Local mirror is fast (no data loss); milestone save fires
@@ -223,9 +215,30 @@ export const emptySnapshot = (): CanvasSnapshot => ({
   imageBlocks: [],
   background: CANVAS_BACKGROUND,
   columns: 1,
-  signature: "",
   updatedAt: Date.now(),
 });
+
+const snapshotHasBodyText = (snap: CanvasSnapshot): boolean =>
+  snap.textColumns.some((col) => col.some((b) => b.text.trim().length > 0)) ||
+  snap.imageBlocks.length > 0;
+
+/** Rebuild minimal paragraph blocks when a sealed board was lost but searchText remains. */
+const blocksFromSearchText = (searchText: string): JournalTextBlock[] => {
+  const paragraphs = searchText
+    .split(/\n+/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  if (paragraphs.length === 0) {
+    const trimmed = searchText.trim();
+    if (!trimmed) return createWritingSlots();
+    return [{ id: newId(), blockKind: "paragraph", text: trimmed }];
+  }
+  return paragraphs.map((text) => ({
+    id: newId(),
+    blockKind: "paragraph" as const,
+    text,
+  }));
+};
 
 const sanitizeTextBlock = (raw: unknown): JournalTextBlock | null => {
   if (!isRecord(raw)) return null;
@@ -418,9 +431,6 @@ export function normalizeSnapshot(value: unknown): CanvasSnapshot | null {
       ? value.updatedAt
       : Date.now();
 
-  const signature =
-    typeof value.signature === "string" ? value.signature : undefined;
-
   const sealedAt =
     typeof value.sealedAt === "number" && Number.isFinite(value.sealedAt)
       ? value.sealedAt
@@ -432,7 +442,6 @@ export function normalizeSnapshot(value: unknown): CanvasSnapshot | null {
     imageBlocks,
     background: CANVAS_BACKGROUND,
     columns,
-    signature,
     sealedAt,
     updatedAt,
   };
@@ -531,15 +540,15 @@ function CanvasBoardInner(
   const [journalBlocks, setJournalBlocks] = useState<JournalTextBlock[]>(() =>
     createWritingSlots()
   );
+  // Live writing buffer — updated only by TipTap onUpdate / hydrate.
+  // Do NOT sync from React state on every render: a re-render with stale
+  // journalBlocks (e.g. saving label) would wipe fresher TipTap edits and
+  // seal / mirror an empty board while the editor still shows text.
   const journalBlocksRef = useRef(journalBlocks);
-  journalBlocksRef.current = journalBlocks;
   const journalEditorRef = useRef<JournalTiptapEditorHandle>(null);
   const textColumns = useMemo(() => [journalBlocks], [journalBlocks]);
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
   const [imageBlocks, setImageBlocks] = useState<JournalImage[]>([]);
-  // Signature — disabled for now
-  // const [signature, setSignature] = useState("");
-  // const [signatureFieldOpen, setSignatureFieldOpen] = useState(false);
   const [sealedAt, setSealedAt] = useState<number | null>(null);
   const [isSealing, setIsSealing] = useState(false);
   const stampRef = useRef<JournalStampHandle>(null);
@@ -572,7 +581,6 @@ function CanvasBoardInner(
   /** Scrollport for the writing column only — page / left rail stay fixed. */
   const writingScrollRef = useRef<HTMLDivElement | null>(null);
   const imageFileInputRef = useRef<HTMLInputElement | null>(null);
-  // const signatureRef = useRef<HTMLTextAreaElement | null>(null);
   const hydratedRef = useRef(false);
   const [isContentReady, setIsContentReady] = useState(false);
 
@@ -590,7 +598,6 @@ function CanvasBoardInner(
       journalBlocksRef.current = blocks;
       setJournalBlocks(blocks);
       setImageBlocks(snap.imageBlocks);
-      // setSignature(snap.signature ?? "");
       if (snap.sealedAt) setSealedAt(snap.sealedAt);
       snapshotEditedAtRef.current = sessionEditedAt;
       setLastSavedAt(sessionEditedAt);
@@ -602,7 +609,55 @@ function CanvasBoardInner(
         const parsed = JSON.parse(raw) as unknown;
         const norm = normalizeSnapshot(parsed);
         if (norm) {
+          // Sealed board missing body but metadata still has searchText — recover.
+          if (!snapshotHasBodyText(norm)) {
+            const entryId = entryIdFromBoardStorageKey(storageKey);
+            const meta = readEntryById(entryId);
+            const searchText = meta?.searchText?.trim() ?? "";
+            if (
+              typeof meta?.sealedAt === "number" &&
+              searchText.length > 0
+            ) {
+              const recovered: CanvasSnapshot = {
+                ...norm,
+                textColumns: [blocksFromSearchText(searchText)],
+                sealedAt: meta.sealedAt,
+              };
+              apply(recovered);
+              try {
+                window.localStorage.setItem(
+                  storageKey,
+                  JSON.stringify(recovered),
+                );
+              } catch {
+                /* noop */
+              }
+              return;
+            }
+          }
           apply(norm);
+          return;
+        }
+      }
+
+      // Board key missing entirely — try recovering a sealed entry from searchText.
+      {
+        const entryId = entryIdFromBoardStorageKey(storageKey);
+        const meta = readEntryById(entryId);
+        const searchText = meta?.searchText?.trim() ?? "";
+        if (typeof meta?.sealedAt === "number" && searchText.length > 0) {
+          const recovered: CanvasSnapshot = {
+            ...emptySnapshot(),
+            textColumns: [blocksFromSearchText(searchText)],
+            sealedAt: meta.sealedAt,
+            updatedAt: meta.updatedAt,
+          };
+          apply(recovered);
+          try {
+            window.localStorage.setItem(storageKey, JSON.stringify(recovered));
+          } catch {
+            /* noop */
+          }
           return;
         }
       }
@@ -630,28 +685,17 @@ function CanvasBoardInner(
 
   /* ----------------------- Snapshot mirroring + save ---------------------- */
 
-  const buildSnapshot = useCallback((): CanvasSnapshot => {
-    return {
-      version: CANVAS_SNAPSHOT_VERSION,
-      textColumns: [journalBlocks],
-      imageBlocks,
-      background: CANVAS_BACKGROUND,
-      columns,
-      signature: "",
-      sealedAt: sealedAt ?? undefined,
-      updatedAt: snapshotEditedAtRef.current,
-    };
-  }, [columns, imageBlocks, journalBlocks, sealedAt]);
-
-  /** Live journal text from the editor ref — not React state (onUpdate fires before re-render). */
+  /** Live journal text from TipTap (preferred) or the writing ref — not React state. */
   const buildLiveSnapshot = useCallback((): CanvasSnapshot => {
+    const editor = journalEditorRef.current;
+    const liveBlocks = editor ? editor.getBlocks() : journalBlocksRef.current;
+    journalBlocksRef.current = liveBlocks;
     return {
       version: CANVAS_SNAPSHOT_VERSION,
-      textColumns: [journalBlocksRef.current],
+      textColumns: [liveBlocks],
       imageBlocks,
       background: CANVAS_BACKGROUND,
       columns,
-      signature: "",
       sealedAt: sealedAt ?? undefined,
       updatedAt: snapshotEditedAtRef.current,
     };
@@ -685,10 +729,12 @@ function CanvasBoardInner(
           clearSavingLabelTimer();
           return;
         }
-        let snap = buildSnapshot();
+        // Seal may have committed before this debounce fires / React re-renders.
         if (typeof meta.sealedAt === "number") {
-          snap = { ...snap, sealedAt: meta.sealedAt };
+          clearSavingLabelTimer();
+          return;
         }
+        const snap = buildLiveSnapshot();
         window.localStorage.setItem(storageKey, JSON.stringify(snap));
         setLastSavedAt(snap.updatedAt);
         onSnapshotChange?.(snap);
@@ -706,12 +752,23 @@ function CanvasBoardInner(
         savingLabelTimerRef.current = null;
       }
     };
-  }, [buildSnapshot, clearSavingLabelTimer, onSnapshotChange, sealedAt, storageKey]);
+  }, [
+    buildLiveSnapshot,
+    clearSavingLabelTimer,
+    imageBlocks,
+    journalBlocks,
+    onSnapshotChange,
+    sealedAt,
+    storageKey,
+  ]);
 
   const triggerMilestoneSave = useCallback(() => {
     const entryId = entryIdFromBoardStorageKey(storageKey);
-    if (!readEntryById(entryId)) return;
-    const snap = buildSnapshot();
+    const meta = readEntryById(entryId);
+    if (!meta) return;
+    // Seal owns persistence once committed — never overwrite a sealed board.
+    if (typeof meta.sealedAt === "number") return;
+    const snap = buildLiveSnapshot();
     try {
       window.localStorage.setItem(storageKey, JSON.stringify(snap));
     } catch {
@@ -719,7 +776,7 @@ function CanvasBoardInner(
     }
     setLastSavedAt(snap.updatedAt);
     onSave?.(snap);
-  }, [buildSnapshot, onSave, storageKey]);
+  }, [buildLiveSnapshot, onSave, storageKey]);
 
   const isDirtyRef = useRef(false);
   const milestoneTimerRef = useRef<number | null>(null);
@@ -767,6 +824,13 @@ function CanvasBoardInner(
   }, [buildLiveSnapshot, sealedAt, title]);
 
   const applySealCommit = useCallback(() => {
+    // Cancel pending draft saves so they cannot overwrite the sealed board.
+    if (milestoneTimerRef.current !== null) {
+      window.clearTimeout(milestoneTimerRef.current);
+      milestoneTimerRef.current = null;
+    }
+    isDirtyRef.current = false;
+
     const entryId = entryIdFromBoardStorageKey(storageKey);
     const committed = commitEntrySeal(entryId, buildLiveSnapshot());
     if (committed !== null) {
@@ -792,10 +856,9 @@ function CanvasBoardInner(
 
     auroraStartedRef.current = true;
     journalEditorRef.current?.lock();
-    // Visual-only — must not outrank navigating to a new entry mid-stamp.
-    startTransition(() => {
-      setIsSealing(true);
-    });
+    // Must be synchronous: startTransition can flush setIsSealing(true) *after*
+    // finishAuroraAnimation's setIsSealing(false), leaving ink stuck transparent.
+    setIsSealing(true);
 
     const zone = writingZoneRef.current;
     if (!zone) {
@@ -881,7 +944,7 @@ function CanvasBoardInner(
     () => ({
       captureForClose: () => {
         snapshotEditedAtRef.current = Date.now();
-        return buildSnapshot();
+        return buildLiveSnapshot();
       },
       focus: (position) => {
         journalEditorRef.current?.focus(position);
@@ -929,7 +992,7 @@ function CanvasBoardInner(
         return "done";
       },
     }),
-    [buildSnapshot, clearQuoteHighlightChrome, isContentReady]
+    [buildLiveSnapshot, clearQuoteHighlightChrome, isContentReady]
   );
 
   /* --------------------------- Focus / selection --------------------------- */
@@ -1159,14 +1222,14 @@ function CanvasBoardInner(
           ref={writingScrollRef}
           className="relative flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain"
           style={{
-            paddingTop: pagePaddingY,
-            paddingBottom: pagePaddingY,
-            scrollPaddingTop: pagePaddingY,
-            scrollPaddingBottom: pagePaddingY + scrollComfortBottom,
+            paddingTop: `${pagePaddingY / 16}rem`,
+            paddingBottom: `${pagePaddingY / 16}rem`,
+            scrollPaddingTop: `${pagePaddingY / 16}rem`,
+            scrollPaddingBottom: `${(pagePaddingY + scrollComfortBottom) / 16}rem`,
           }}
         >
           <div
-            className={`mx-auto flex w-full min-h-0 min-w-0 flex-1 flex-col ${pagePaddingXClass(viewport.isOverlayNav)}`}
+            className={`mx-auto flex w-full min-h-0 min-w-0 flex-1 flex-col ${PAGE_PADDING_X_CLASS}`}
             style={{ maxWidth: WRITING_COLUMN_MAX_WIDTH }}
           >
             <CanvasHeader
@@ -1216,69 +1279,6 @@ function CanvasBoardInner(
                     }}
                   />
                 ) : null}
-
-                {/* Signature — disabled for now
-                {!sealedAt && !signatureFieldOpen ? (
-                  <div
-                    className="min-h-[min(40vh,18rem)] flex-1 cursor-text sm:min-h-[min(50vh,24rem)]"
-                    aria-hidden
-                    onPointerDown={(e) => {
-                      e.preventDefault();
-                      journalEditorRef.current?.focus("end");
-                      setSelectedImageId(null);
-                    }}
-                  />
-                ) : null}
-
-                {sealedAt !== null ? (
-                  signature.trim() ? (
-                    <CanvasSignature
-                      ref={signatureRef}
-                      value={signature}
-                      isSealed
-                      onChange={setSignature}
-                    />
-                  ) : null
-                ) : signatureFieldOpen ? (
-                  <CanvasSignature
-                    ref={signatureRef}
-                    value={signature}
-                    isSealed={false}
-                    onChange={(next) => {
-                      setSignature(next);
-                      notifyCompanionWriting();
-                    }}
-                    onBlur={() => {
-                      if (!signatureRef.current?.value.trim()) {
-                        setSignatureFieldOpen(false);
-                      }
-                    }}
-                    onDismiss={() => {
-                      setSignatureFieldOpen(false);
-                      journalEditorRef.current?.focus("start");
-                    }}
-                    onSelectAllJournal={() =>
-                      journalEditorRef.current?.selectAll()
-                    }
-                  />
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSignatureFieldOpen(true);
-                      requestAnimationFrame(() => signatureRef.current?.focus());
-                    }}
-                    className="mt-16 w-fit border-0 bg-transparent p-0 text-left text-(--canvas-ink-secondary) outline-none transition-colors hover:text-(--canvas-ink)"
-                    style={{
-                      fontFamily: "var(--font-body), system-ui, sans-serif",
-                      fontSize: WRITING_FONT_SIZE,
-                      lineHeight: WRITING_LINE_HEIGHT,
-                    }}
-                  >
-                    Add signature
-                  </button>
-                )}
-                */}
               </div>
             </div>
           </div>
@@ -1310,7 +1310,7 @@ function CanvasBoardInner(
             style={{ left: textCtxPos.x, top: textCtxPos.y }}
           >
             <div
-              className="flex items-center gap-0.5 rounded-lg border border-black/[0.06] bg-white/95 px-1 py-0.5 shadow-[0_4px_20px_rgba(15,15,15,0.10)] backdrop-blur-md sm:rounded-xl sm:px-1.5 sm:py-1"
+              className="flex items-center gap-0.5 rounded-lg border border-black/[0.06] bg-white/95 px-1 py-0.5 shadow-[0_0.25rem_1.25rem_rgba(15,15,15,0.10)] backdrop-blur-md sm:rounded-xl sm:px-1.5 sm:py-1"
               style={{
                 fontFamily:
                   "var(--font-body)",
@@ -1393,7 +1393,7 @@ function formatSignedStamp(ts: number): string {
   const day = d.getDate();
   const month = d.toLocaleDateString(undefined, { month: "short" });
   const year = d.getFullYear();
-  return `🪷 Sealed · ${day} ${month} ${year}`;
+  return ` Sealed · ${day} ${month} ${year}`;
 }
 
 type CanvasHeaderProps = {
@@ -1506,7 +1506,7 @@ function CanvasHeader({
           <span className="text-(--canvas-date-time)">{signedStamp}</span>
         ) : (
           <>
-            <span className="text-(--canvas-date-time) mb-[-1px]">
+            <span className="text-(--canvas-date-time) mb-[-0.0625rem]">
               {editedStamp.date},{" "}
             </span>
             <span className="text-(--canvas-date-time)">
@@ -1527,67 +1527,3 @@ function CanvasHeader({
     </header>
   );
 }
-
-/* Signature — disabled for now
-type CanvasSignatureProps = {
-  value: string;
-  isSealed?: boolean;
-  onChange: (value: string) => void;
-  onBlur?: () => void;
-  onDismiss?: () => void;
-  onSelectAllJournal?: () => void;
-};
-
-const CanvasSignature = forwardRef<HTMLTextAreaElement, CanvasSignatureProps>(
-  function CanvasSignature(
-    { value, isSealed = false, onChange, onBlur, onDismiss, onSelectAllJournal },
-    ref
-  ) {
-  return (
-    <textarea
-      ref={ref}
-      data-signature
-      rows={1}
-      spellCheck={false}
-      readOnly={isSealed}
-      tabIndex={isSealed ? -1 : undefined}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      onBlur={onBlur}
-      onKeyDown={(e) => {
-        if (e.key === "Escape" && !isSealed) {
-          e.preventDefault();
-          onDismiss?.();
-          return;
-        }
-        if (
-          e.key.toLowerCase() === "a" &&
-          (e.metaKey || e.ctrlKey) &&
-          !e.altKey
-        ) {
-          e.preventDefault();
-          onSelectAllJournal?.();
-          const ta = e.currentTarget;
-          ta.setSelectionRange(0, ta.value.length);
-        }
-      }}
-      aria-label="Signature"
-      placeholder="Your signature…"
-      className="mt-16 block w-full resize-none overflow-hidden border-0 bg-transparent p-0 text-left outline-none focus:outline-none"
-      style={{
-        fontFamily: "var(--font-signature), cursive",
-        fontSize: WRITING_FONT_SIZE,
-        lineHeight: WRITING_LINE_HEIGHT,
-        letterSpacing: WRITING_LETTER_SPACING,
-        wordSpacing: WRITING_WORD_SPACING,
-        color: WRITING_INK,
-      }}
-      onInput={(e) => {
-        const ta = e.currentTarget;
-        ta.style.height = "auto";
-        ta.style.height = `${ta.scrollHeight}px`;
-      }}
-    />
-  );
-});
-*/

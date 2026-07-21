@@ -95,12 +95,12 @@ export const LIVE_SCREEN2_CARDS = [
     entryTitle: "Kept It Light",
   },
   {
-    quote: "Individually, they're easy to miss.",
+    quote: "Individually, they're easy to overlook.",
     date: "Mar 29",
     entryTitle: "Left Unsaid",
   },
   {
-    quote: "Together, they become impossible to ignore.",
+    quote: "Together, they start to say something.",
     date: "Apr 2",
     entryTitle: "What's Easy to Miss",
   },
@@ -113,24 +113,22 @@ export const WRITE_NATURALLY = {
   sealedTitle: "How it works?",
   paragraphs: [
     "You already know how you feel.",
-    "What's easy to miss\nis the way certain thoughts quietly find their way back.",
-    "Unfold helps you notice how you keep getting there.",
-    "Not by reading your moods,\nbut by noticing the shape they leave behind.",
+    "What's harder to see\nis how certain thoughts keep finding their way back —\nquietly, in your own words, across different days.",
+    "Unfold doesn't read your moods.\nIt notices the shape they leave behind.",
   ],
 };
 
 export const PATTERN = {
   title: "See Together.",
-  // label: "A few thoughts have been returning lately.",
   label: "",
   evidenceLabel: "From these entries",
   loops: [
-    "The moments were always there.",
-    "They'd been sitting beside each other all along.",
-    "You just hadn't seen them that way yet.",
+    "The moments were already there.",
+    "Sitting beside each other, unremarked.",
+    "Until they weren't.",
   ],
   reflection: "What would it mean to leave it as it is?",
-  closingQuestion: "Ready to reflect?",
+  closingQuestion: "Ready to see yours?",
 };
 
 export const JOURNAL_ENTRY_A = {
@@ -158,9 +156,7 @@ export const CTA = {
   href: "/sign-in",
   whisper: "Your writing stays yours.",
   header: {
-    secondary: "Get started",
-    secondaryHref: "/sign-in",
-    primary: "Continue as Guest",
-    primaryHref: "/dashboard",
+    primary: "Get started",
+    primaryHref: "/sign-in",
   },
 };

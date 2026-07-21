@@ -3,23 +3,24 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useSignUp } from "@clerk/nextjs";
+import { AUTH_SIGN_IN_PATH } from "@/lib/auth-routes";
+import { completeOAuthSignUp } from "@/lib/auth-finalize";
 import "@/components/auth/auth-form.css";
 
 /**
- * Silent finish for OAuth when Clerk still needs legalAccepted.
- * No username / setup form — users should only see credentials + OTP.
+ * Silent finish for OAuth when Clerk still needs legalAccepted / username.
+ * Any other state (cancel, stale email OTP, etc.) returns to /sign-in quietly.
  */
 export default function ContinueSignUpPage() {
   const router = useRouter();
   const { isLoaded, signUp, setActive } = useSignUp();
-  const [error, setError] = React.useState<string | null>(null);
   const finishing = React.useRef(false);
 
   React.useEffect(() => {
     if (!isLoaded || finishing.current) return;
 
     if (!signUp?.id) {
-      router.replace("/sign-in");
+      router.replace(AUTH_SIGN_IN_PATH);
       return;
     }
 
@@ -31,42 +32,19 @@ export default function ContinueSignUpPage() {
       return;
     }
 
-    finishing.current = true;
-    void (async () => {
-      try {
-        const res = await signUp.update({ legalAccepted: true });
-        if (res.status === "complete" && res.createdSessionId) {
-          await setActive({ session: res.createdSessionId });
-          window.location.assign("/dashboard");
-          return;
-        }
-        setError("Couldn’t finish signing in. Please try again.");
-        finishing.current = false;
-      } catch {
-        setError("Couldn’t finish signing in. Please try again.");
-        finishing.current = false;
-      }
-    })();
-  }, [isLoaded, signUp, setActive, router]);
+    if (signUp.status !== "missing_requirements") {
+      router.replace(AUTH_SIGN_IN_PATH);
+      return;
+    }
 
-  if (error) {
-    return (
-      <div className="auth-shell">
-        <div className="auth-card">
-          <p className="auth-error" role="alert">
-            {error}
-          </p>
-          <button
-            type="button"
-            className="auth-submit"
-            onClick={() => router.replace("/sign-in")}
-          >
-            Back to sign in
-          </button>
-        </div>
-      </div>
-    );
-  }
+    finishing.current = true;
+    void completeOAuthSignUp(signUp, setActive).then((result) => {
+      if (result === "sign-in") {
+        finishing.current = false;
+        router.replace(AUTH_SIGN_IN_PATH);
+      }
+    });
+  }, [isLoaded, signUp, setActive, router]);
 
   return (
     <div className="auth-shell auth-shell--top">

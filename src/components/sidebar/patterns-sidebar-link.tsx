@@ -19,7 +19,7 @@ export function PatternsSidebarLink({
   return (
     <div
       className={clsx(
-        "group relative rounded-[14px] transition-colors duration-150",
+        "group relative rounded-[0.875rem] transition-colors duration-150",
         active
           ? "bg-(--sidebar-active-bg)"
           : "hover:bg-(--sidebar-hover-bg)",
@@ -30,7 +30,7 @@ export function PatternsSidebarLink({
         onClick={onOpen}
         aria-current={active ? "page" : undefined}
         aria-label={`Patterns, ${count} reflections`}
-        className="flex items-center gap-2.5 rounded-[14px] px-2.75 py-2.5"
+        className="flex items-center gap-2.5 rounded-[0.875rem] px-2.75 py-2.5"
       >
         <Waypoints
           size={16}

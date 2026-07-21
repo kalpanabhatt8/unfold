@@ -1,26 +1,28 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/* Typography scale — xs/sm/md = body text, lg/xl = headers */
+/* Typography scale — 2xs/xs/sm/md = body text, lg/xl = headers */
 @theme inline {
   --font-sans: var(--font-dm-sans), system-ui, sans-serif;
 
-  /* Sizes are rem (scale with the root font) but floored at 10px via max()
-     so text never renders below 10px. Color is applied separately through the
+  /* Sizes scale with the root font (rem). Color is applied separately through the
      text-system state classes (.text-active / .text-secondary / …). */
-     --text-xs: max(10px, 0.75rem);   /* 12px */
+     --text-2xs: 0.625rem; /* 10/16 */
+     --text-2xs--line-height: 1.4;
+
+     --text-xs: 0.75rem;   /* 12/16 */
      --text-xs--line-height: 1.5;
      
-     --text-sm: max(10px, 0.875rem);  /* 14px */
+     --text-sm: 0.875rem;  /* 14/16 */
      --text-sm--line-height: 1.5;
      
-     --text-md: max(10px, 1rem);      /* 16px */
+     --text-md: 1rem;      /* 16/16 */
      --text-md--line-height: 1.6;
      
-     --text-lg: max(10px, 1.25rem);   /* 20px */
+     --text-lg: 1.25rem;   /* 20/16 */
      --text-lg--line-height: 1.3;
      
-     --text-xl: max(10px, 1.75rem);   /* 28px */
+     --text-xl: 1.75rem;   /* 28/16 */
      --text-xl--line-height: 1.2;
 }
 
@@ -51,64 +53,64 @@
   --gray-800: #323232;
   --gray-900: #121212;
 
-  /* Value scale (px) */
-  --value-0: 0px;
-  --value-2: 2px;
-  --value-4: 4px;
-  --value-6: 6px;
-  --value-8: 8px;
-  --value-10: 10px;
-  --value-12: 12px;
-  --value-14: 14px;
-  --value-16: 16px;
-  --value-18: 18px;
-  --value-20: 20px;
-  --value-22: 22px;
-  --value-24: 24px;
-  --value-26: 26px;
-  --value-28: 28px;
-  --value-30: 30px;
-  --value-32: 32px;
-  --value-34: 34px;
-  --value-36: 36px;
-  --value-38: 38px;
-  --value-40: 40px;
-  --value-42: 42px;
-  --value-44: 44px;
-  --value-46: 46px;
-  --value-48: 48px;
-  --value-50: 50px;
-  --value-52: 52px;
-  --value-54: 54px;
-  --value-56: 56px;
-  --value-58: 58px;
-  --value-60: 60px;
-  --value-62: 62px;
-  --value-64: 64px;
-  --value-66: 66px;
-  --value-68: 68px;
-  --value-70: 70px;
-  --value-72: 72px;
-  --value-74: 74px;
-  --value-76: 76px;
-  --value-78: 78px;
-  --value-80: 80px;
-  --value-82: 82px;
-  --value-84: 84px;
-  --value-86: 86px;
-  --value-88: 88px;
-  --value-90: 90px;
-  --value-92: 92px;
-  --value-94: 94px;
-  --value-96: 96px;
-  --value-98: 98px;
-  --value-100: 100px;
+  /* Value scale (rem) */
+  --value-0: 0;
+  --value-2: 0.125rem;
+  --value-4: 0.25rem;
+  --value-6: 0.375rem;
+  --value-8: 0.5rem;
+  --value-10: 0.625rem;
+  --value-12: 0.75rem;
+  --value-14: 0.875rem;
+  --value-16: 1rem;
+  --value-18: 1.125rem;
+  --value-20: 1.25rem;
+  --value-22: 1.375rem;
+  --value-24: 1.5rem;
+  --value-26: 1.625rem;
+  --value-28: 1.75rem;
+  --value-30: 1.875rem;
+  --value-32: 2rem;
+  --value-34: 2.125rem;
+  --value-36: 2.25rem;
+  --value-38: 2.375rem;
+  --value-40: 2.5rem;
+  --value-42: 2.625rem;
+  --value-44: 2.75rem;
+  --value-46: 2.875rem;
+  --value-48: 3rem;
+  --value-50: 3.125rem;
+  --value-52: 3.25rem;
+  --value-54: 3.375rem;
+  --value-56: 3.5rem;
+  --value-58: 3.625rem;
+  --value-60: 3.75rem;
+  --value-62: 3.875rem;
+  --value-64: 4rem;
+  --value-66: 4.125rem;
+  --value-68: 4.25rem;
+  --value-70: 4.375rem;
+  --value-72: 4.5rem;
+  --value-74: 4.625rem;
+  --value-76: 4.75rem;
+  --value-78: 4.875rem;
+  --value-80: 5rem;
+  --value-82: 5.125rem;
+  --value-84: 5.25rem;
+  --value-86: 5.375rem;
+  --value-88: 5.5rem;
+  --value-90: 5.625rem;
+  --value-92: 5.75rem;
+  --value-94: 5.875rem;
+  --value-96: 6rem;
+  --value-98: 6.125rem;
+  --value-100: 6.25rem;
 
   /* Radii */
   --radius-sm: var(--value-8);
   --radius-md: var(--value-12);
   --radius-lg: var(--value-16);
-  --radius-pill: 999px;
+  --radius-pill: 999rem;
 
   /*
    * Semantic color roles (deliberate set). Base --gray-* ramp stays above.
@@ -167,6 +169,17 @@
   --button-primary-hover: var(--accent-hover);
   --button-primary-active: var(--accent-active);
   --button-primary-foreground: var(--accent-foreground);
+
+  --button-destructive: #b42318;
+  --button-destructive-hover: #912018;
+  --button-destructive-active: #7a271a;
+  --button-destructive-foreground: #fffaf9;
+  --button-destructive-soft: #fef3f2;
+  --button-destructive-soft-hover: #fee4e2;
+  --button-destructive-soft-active: #fecdca;
+  --button-destructive-soft-foreground: #b42318;
+  --button-destructive-border: #fecdca;
+
   --canvas-title-ink: var(--accent);
 
   --canvas-ink: var(--text-primary);
@@ -208,14 +221,10 @@
    * Full-bleed on phone (`100%`) so `px-4` aligns with the overlay menu;
    * px caps apply on laptop+ where `mx-auto` centers the column.
    */
-  --content-column-max: 840px;
-  --patterns-column-max: 840px;
-  --page-max-width: var(--content-column-max);
+  --content-column-max: 52.5rem;
   --page-padding-x: clamp(1rem, 4vw, 1.5rem);
-  --landing-frame-max: min(1200px, 95vw);
-  --touch-target-min: 44px;
-  /* Fixed overlay hamburger clearance (top + button + gap) — used below lg */
-  --overlay-menu-clearance: 5.25rem;
+  --landing-frame-max: min(75rem, 95vw);
+  --touch-target-min: 2.75rem;
 
   /* Color semantics - borders + controls */
   --color-border-subtle: var(--border);
@@ -232,11 +241,11 @@
   --color-canvas-toolbar-icon: var(--canvas-brown);
   /** Segmented control track (column layout, view mode, etc.) */
   --color-segment-control-surface: var(--gray-300);
-  --toolbar-button-border: 1px solid var(--color-border-subtle);
-  --toolbar-button-border-selected: 1px solid var(--color-border-emphasis);
+  --toolbar-button-border: 0.0625rem solid var(--color-border-subtle);
+  --toolbar-button-border-selected: 0.0625rem solid var(--color-border-emphasis);
 
   /* Color semantics - overlays + focus */
-  --popup-border: 1px solid var(--color-border-subtle);
+  --popup-border: 0.0625rem solid var(--color-border-subtle);
   --popup-bg: var(--surface-2);
   --popup-shadow: var(--shadow);
   --color-focus-ring: var(--gray-900);
@@ -266,19 +275,17 @@
     Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
   --font-heading: var(--font-bricolage), system-ui, sans-serif;
   --font-accent: var(--font-body);
-  --font-signature: var(--font-covered-by-your-grace), var(--font-caveat), cursive;
-  --stamp-signature-tilt: -12deg;
   --stamp-imprint-tilt: -18deg;
 }
 
 /* Sidebar width — scales with viewport; caps on large screens */
-@media (min-width: 768px) {
+@media (min-width: 48rem) {
   :root {
     --sidebar-width: 40vw;
   }
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 64rem) {
   :root {
     --sidebar-width: min(20vw, 20rem);
   }
@@ -289,16 +296,16 @@
   background: color-mix(in srgb, var(--gray-900) 92%, #3d2a1f);
   color: #fff8f2;
   font-family: var(--font-accent);
-  font-size: max(13px, 0.9rem);
+  font-size: 0.9rem;
   font-weight: 400;
   letter-spacing: 0.01em;
   line-height: 1;
   white-space: nowrap;
   padding: 0.38rem 0.72rem 0.42rem;
-  border-radius: 999px;
+  border-radius: 999rem;
   box-shadow:
-    0 6px 18px rgba(25, 14, 5, 0.28),
-    0 0 0 1px rgba(255, 248, 242, 0.08) inset;
+    0 0.375rem 1.125rem rgba(25, 14, 5, 0.28),
+    0 0 0 0.0625rem rgba(255, 248, 242, 0.08) inset;
   transform: rotate(-2deg);
   transform-origin: center bottom;
   transition:
@@ -345,7 +352,7 @@ h6 {
   letter-spacing: -0.01em;
 }
 
-@media (min-width: 640px) {
+@media (min-width: 40rem) {
   .header-lg {
     font-size: var(--text-lg);
     line-height: var(--text-lg--line-height);
@@ -359,7 +366,7 @@ h6 {
   letter-spacing: -0.01em;
 }
 
-@media (min-width: 640px) {
+@media (min-width: 40rem) {
   .header-xl {
     font-size: var(--text-xl);
     line-height: var(--text-xl--line-height);
@@ -411,7 +418,7 @@ h6 {
   }
 
   .sidebar-entries-scroll::-webkit-scrollbar {
-    width: 6px;
+    width: 0.375rem;
   }
 
   .sidebar-entries-scroll::-webkit-scrollbar-track {
@@ -420,7 +427,7 @@ h6 {
 
   .sidebar-entries-scroll::-webkit-scrollbar-thumb {
     background: color-mix(in srgb, var(--sidebar-icon) 38%, transparent);
-    border-radius: 999px;
+    border-radius: 999rem;
   }
 
   .sidebar-entries-scroll::-webkit-scrollbar-thumb:hover {
@@ -439,7 +446,7 @@ h6 {
   gap: var(--value-6);
   padding: var(--value-10) var(--value-18);
   border-radius: var(--radius-pill);
-  border: 1px solid var(--border);
+  border: 0.0625rem solid var(--border);
   background: var(--surface-solid);
   color: var(--fg);
   box-shadow: none;
@@ -454,13 +461,13 @@ h6 {
 
 .button-primary:hover,
 .button-secondary:hover {
-  transform: translateY(-1px);
+  transform: translateY(-0.0625rem);
   box-shadow: none;
 }
 
 .button-primary:active,
 .button-secondary:active {
-  transform: translateY(0px);
+  transform: translateY(0);
 }
 
 /* Misc: remove novelty cursor */
@@ -484,24 +491,14 @@ html {
 
 body {
   background: var(--app-bg);
-  padding-left: env(safe-area-inset-left, 0px);
-  padding-right: env(safe-area-inset-right, 0px);
+  padding-left: env(safe-area-inset-left, 0);
+  padding-right: env(safe-area-inset-right, 0);
   background-attachment: fixed;
   color: var(--fg);
   font-family: var(--font-body);
   font-size: var(--text-md);
   line-height: var(--text-md--line-height);
   overflow-x: clip;
-}
-
-/* Centered reading/writing column — journal + Patterns share this. */
-.page-column {
-  width: 100%;
-  max-width: min(100%, var(--content-column-max));
-  margin-inline: auto;
-  padding-inline: var(--page-padding-x);
-  box-sizing: border-box;
-  min-width: 0;
 }
 
 h1,
@@ -533,7 +530,7 @@ h6 {
   gap: var(--value-6);
   padding: var(--value-10) var(--value-18);
   border-radius: var(--radius-pill);
-  border: 1px solid var(--border);
+  border: 0.0625rem solid var(--border);
   background: var(--surface-solid);
   color: var(--fg);
   box-shadow: none;
@@ -548,13 +545,13 @@ h6 {
 
 .button-primary:hover,
 .button-secondary:hover {
-  transform: translateY(-1px);
+  transform: translateY(-0.0625rem);
   box-shadow: none;
 }
 
 .button-primary:active,
 .button-secondary:active {
-  transform: translateY(0px);
+  transform: translateY(0);
 }
 
 /* ---- Clerk auth surfaces --------------------------------------------------
@@ -584,11 +581,11 @@ h6 {
 
 .clerk-card-box {
   background: var(--auth-muted) !important;
-  border: 1px solid var(--auth-border) !important;
-  border-radius: calc(var(--auth-radius) + 4px) !important;
+  border: 0.0625rem solid var(--auth-border) !important;
+  border-radius: calc(var(--auth-radius) + 0.25rem) !important;
   box-shadow:
-    0 1px 0 color-mix(in srgb, var(--canvas-title-ink) 4%, transparent),
-    0 18px 40px -20px var(--auth-shadow) !important;
+    0 0.0625rem 0 color-mix(in srgb, var(--canvas-title-ink) 4%, transparent),
+    0 1.125rem 2.5rem -1.25rem var(--auth-shadow) !important;
   overflow: hidden;
   font-family: var(--auth-font) !important;
 }
@@ -598,15 +595,15 @@ h6 {
 .clerk-main {
   background: var(--auth-card-bg) !important;
   border: none !important;
-  border-radius: calc(var(--auth-radius) + 4px)
-    calc(var(--auth-radius) + 4px) 0 0 !important;
+  border-radius: calc(var(--auth-radius) + 0.25rem)
+    calc(var(--auth-radius) + 0.25rem) 0 0 !important;
   box-shadow: none !important;
   font-family: var(--auth-font) !important;
 }
 
 .clerk-footer {
   background: var(--auth-muted) !important;
-  border-top: 1px solid var(--auth-border) !important;
+  border-top: 0.0625rem solid var(--auth-border) !important;
 }
 
 .clerk-footer-action {
@@ -691,16 +688,16 @@ h6 {
 .button-primary::after {
   content: "";
   position: absolute;
-  inset: -3.5px;
+  inset: -0.21875rem;
   border-radius: var(--radius-18);
-  border: 1.5px solid var(--border);
+  border: 0.09375rem solid var(--border);
   pointer-events: none;
   opacity: 0.85;
   transition: opacity 200ms ease;
 }
 
 .button-primary:hover {
-  transform: translateY(-4px) rotate(-2deg);
+  transform: translateY(-0.25rem) rotate(-2deg);
   box-shadow: none;
 }
 
@@ -709,7 +706,7 @@ h6 {
 }
 
 .button-primary:active {
-  transform: translateY(-1px) rotate(-1deg);
+  transform: translateY(-0.0625rem) rotate(-1deg);
   box-shadow: none;
 }
 
@@ -734,16 +731,16 @@ h6 {
 .button-secondary::after {
   content: "";
   position: absolute;
-  inset: -3.5px;
+  inset: -0.21875rem;
   border-radius: var(--radius-18);
-  border: 1.5px solid var(--border);
+  border: 0.09375rem solid var(--border);
   pointer-events: none;
   opacity: 0.9;
   transition: opacity 200ms ease;
 }
 
 .button-secondary:hover {
-  transform: translateY(-4px) rotate(1.5deg);
+  transform: translateY(-0.25rem) rotate(1.5deg);
   box-shadow: none;
 }
 
@@ -752,7 +749,7 @@ h6 {
 }
 
 .button-secondary:active {
-  transform: translateY(-1px) rotate(0.75deg);
+  transform: translateY(-0.0625rem) rotate(0.75deg);
   box-shadow: none;
 }
 
@@ -797,18 +794,6 @@ input[type='number'] {
   -moz-appearance: textfield;
 }
 
-/* —— Canvas writing surface — signature textarea only ——————————————— */
-[data-writing-zone] [data-signature] {
-  font-family: var(--font-signature), cursive;
-  transform: none;
-}
-
-/* Tilt only when sealed — rotating the live textarea tilts the caret. */
-[data-writing-zone][data-sealed] [data-signature] {
-  transform: rotate(var(--stamp-signature-tilt));
-  transform-origin: left center;
-}
-
 .journal-seal-content {
   transform: none;
 }
@@ -843,7 +828,7 @@ input[type='number'] {
   margin-bottom: 0;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 47.9375rem) {
   .journal-tiptap p.journal-block {
     margin-bottom: 1.35em;
   }
@@ -881,10 +866,10 @@ input[type='number'] {
   position: absolute;
   left: 0;
   top: 0.2em;
-  width: 18px;
-  height: 18px;
-  border-radius: 5px;
-  border: 1.5px solid rgb(0 0 0 / 25%);
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 0.3125rem;
+  border: 0.09375rem solid rgb(0 0 0 / 25%);
   box-sizing: border-box;
   pointer-events: none;
 }
@@ -895,14 +880,14 @@ input[type='number'] {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.5 7l3 3 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: center;
-  background-size: 12px 12px;
+  background-size: 0.75rem 0.75rem;
 }
 
 .journal-tiptap p.journal-block.is-checklist.is-checked {
   color: var(--canvas-muted);
   text-decoration: line-through;
   text-decoration-color: color-mix(in srgb, var(--canvas-ink) 30%, transparent);
-  text-decoration-thickness: 1.5px;
+  text-decoration-thickness: 0.09375rem;
 }
 
 .journal-tiptap p.journal-block.is-empty:not(.is-bullet)::before {
@@ -1068,7 +1053,7 @@ input[type='number'] {
   pointer-events: none;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 47.9375rem) {
   [data-writing-zone][data-sealing] .journal-tiptap p.journal-block {
     background-attachment: scroll;
   }
@@ -1117,14 +1102,14 @@ input[type='number'] {
   min-width: 0;
 }
 
-@media (min-width: 640px) {
+@media (min-width: 40rem) {
   .evidence-section {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 1rem;
   }
 }
 
-@media (min-width: 960px) {
+@media (min-width: 60rem) {
   .evidence-section {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -1140,8 +1125,8 @@ input[type='number'] {
   min-height: 10rem;
   margin: 0;
   padding: 0.95rem 1rem 1.05rem;
-  border: 1px solid color-mix(in srgb, var(--sidebar-border) 15%, transparent);
-  border-radius: 14px;
+  border: 0.0625rem solid color-mix(in srgb, var(--sidebar-border) 15%, transparent);
+  border-radius: 0.875rem;
   background-color: var(--sidebar-hover-bg);
   cursor: pointer;
   transition:
@@ -1155,7 +1140,7 @@ input[type='number'] {
   outline: none;
   background-color: var(--sidebar-active-bg);
   border-color: color-mix(in srgb, var(--sidebar-border) 80%, transparent);
-  transform: translateY(-1px);
+  transform: translateY(-0.0625rem);
 }
 
 .evidence-card:active {
@@ -1236,7 +1221,7 @@ input[type='number'] {
   line-clamp: 6;
 }
 
-@media (max-width: 420px) {
+@media (max-width: 26.25rem) {
   .evidence-card {
     min-height: 9.25rem;
     padding: 0.85rem 0.9rem 0.95rem;
@@ -1333,7 +1318,7 @@ input[type='number'] {
 }
 
 /* Phone: keep the question emphatic without dominating the accordion card */
-@media (max-width: 640px) {
+@media (max-width: 40rem) {
   .discovery-question {
     --q-display-boost: calc((1 - var(--q-scale)) * 0.5625rem); /* ~1.625rem max */
     --q-vw-boost: 1vw;
@@ -1359,8 +1344,8 @@ input[type='number'] {
 }
 
 .discovery-mechanism-chain {
-  --mechanism-rail-width: 10px;
-  --mechanism-dot-size: 5px;
+  --mechanism-rail-width: 0.625rem;
+  --mechanism-dot-size: 0.3125rem;
   --mechanism-step-gap: 0.875rem;
   --mechanism-line-height: 1.25rem;
   --mechanism-line-color: color-mix(
@@ -1427,7 +1412,7 @@ input[type='number'] {
 
 .discovery-mechanism-line {
   flex-shrink: 0;
-  width: 1px;
+  width: 0.0625rem;
   height: var(--mechanism-line-height);
   background: var(--mechanism-line-color);
 }
@@ -1523,11 +1508,11 @@ input[type='number'] {
 }
 
 
-/* ── Pattern accordion — card rows (8px) / expanded card (12px) ── */
+/* ── Pattern accordion — card rows (0.5rem) / expanded card (0.75rem) ── */
 
 .pattern-accordion {
-  --pattern-card-radius-collapsed: 14px;
-  --pattern-card-radius-expanded: 18px;
+  --pattern-card-radius-collapsed: 0.875rem;
+  --pattern-card-radius-expanded: 1.125rem;
   --pattern-card-border: color-mix(
     in srgb,
     var(--sidebar-border) 78%,
@@ -1545,7 +1530,7 @@ input[type='number'] {
 .pattern-accordion__item {
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--pattern-card-border);
+  border: 0.0625rem solid var(--pattern-card-border);
   border-radius: var(--pattern-card-radius-collapsed);
   background: var(--surface-raised);
   overflow: hidden;
@@ -1576,14 +1561,14 @@ input[type='number'] {
   scroll-margin-top: 1.25rem;
 }
 
-@media (min-width: 640px) {
+@media (min-width: 40rem) {
   .pattern-accordion__row {
     padding: 0.95rem 1rem;
   }
 }
 
 .pattern-accordion__item[data-expanded="true"] .pattern-accordion__row {
-  border-bottom: 1px solid
+  border-bottom: 0.0625rem solid
     color-mix(in srgb, var(--sidebar-border) 65%, transparent);
 }
 
@@ -1596,8 +1581,8 @@ input[type='number'] {
 }
 
 .pattern-accordion__row:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--button-primary) 40%, transparent);
-  outline-offset: -2px;
+  outline: 0.125rem solid color-mix(in srgb, var(--button-primary) 40%, transparent);
+  outline-offset: -0.125rem;
 }
 
 .pattern-accordion__row-main {
@@ -1662,13 +1647,13 @@ input[type='number'] {
   gap: 0;
   overflow: hidden;
   /* Phone: tight gutters so quote cards can breathe; sm+ opens up. */
-  padding: 12px 12px 14px;
+  padding: 0.75rem 0.75rem 0.875rem;
   box-sizing: border-box;
 }
 
-@media (min-width: 640px) {
+@media (min-width: 40rem) {
   .pattern-accordion__panel-scroll {
-    padding: 16px 24px 18px 24px;
+    padding: 1.25rem 1.5rem 1.125rem 1.5rem;
   }
 }
 
@@ -1714,7 +1699,7 @@ input[type='number'] {
 }
 
 .pattern-accordion__panel .evidence-card {
-  border-radius: 12px;
+  border-radius: 0.75rem;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1732,7 +1717,7 @@ input[type='number'] {
   letter-spacing: -0.01em;
 }
 
-@media (min-width: 640px) {
+@media (min-width: 40rem) {
   .pattern-content-title {
     font-size: var(--text-md);
     line-height: var(--text-md--line-height);

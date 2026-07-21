@@ -5,13 +5,28 @@ import {
   hasMeaningfulContentForTitle,
 } from "@/lib/ai/title/fallback";
 import { UNTITLED_ENTRY } from "@/lib/ai/title/constants";
+import { requireUser } from "@/lib/server/auth";
+import { requireAiUser } from "@/lib/server/ai-auth";
 
 /** Dev warm-up — compiles the route without calling Claude. */
 export async function GET() {
-  return NextResponse.json({ ok: true });
+  try {
+    await requireUser();
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    if (error instanceof Response) return error;
+    throw error;
+  }
 }
 
 export async function POST(request: Request) {
+  try {
+    await requireAiUser();
+  } catch (error) {
+    if (error instanceof Response) return error;
+    throw error;
+  }
+
   let text = "";
   try {
     const body = (await request.json()) as { text?: unknown };

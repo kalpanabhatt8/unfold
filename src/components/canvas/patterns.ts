@@ -150,14 +150,14 @@ export function getUniversalPatterns(theme: Theme): Pattern[] {
       style: (t: Theme, bg?: string) => generateLineGridTexture(t, 30, 1, undefined, bg),
       color: "transparent",
       blend: "multiply",
-      size: "30px 30px",
+      size: "1.875rem 1.875rem",
     },
     {
       name: "Dot Grid",
       style: (t: Theme, bg?: string) => generateDotGridTexture(t, 30, 2, undefined, bg),
       color: "transparent",
       blend: "overlay",
-      size: "30px 30px",
+      size: "1.875rem 1.875rem",
     },
     {
       name: "Paper",
@@ -171,7 +171,7 @@ export function getUniversalPatterns(theme: Theme): Pattern[] {
       style: () =>
         "url('https://www.transparenttextures.com/patterns/grid.png')",
       color: "transparent",
-      size: "40px",
+      size: "2.5rem",
       blend: "soft-light",
     },
     {

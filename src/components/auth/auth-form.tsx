@@ -5,6 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth, useSignIn, useSignUp } from "@clerk/nextjs";
 import type { EmailCodeFactor, OAuthStrategy } from "@clerk/types";
+import {
+  AUTH_AFTER_SIGN_IN_PATH,
+  AUTH_SSO_CALLBACK_PATH,
+  authAbsoluteUrl,
+} from "@/lib/auth-routes";
+import { resetAuthAttempts } from "@/lib/auth-finalize";
 import "./auth-form.css";
 
 type Step = "credentials" | "verify";
@@ -460,10 +466,15 @@ export function AuthForm() {
     setError(null);
     setPending(true);
     try {
+      clearVerifyFlow();
+      resetOtp();
+      await resetAuthAttempts(signIn, signUp);
+
+      const origin = window.location.origin;
       await signIn.authenticateWithRedirect({
         strategy,
-        redirectUrl: "/sign-in/sso-callback",
-        redirectUrlComplete: "/dashboard",
+        redirectUrl: authAbsoluteUrl(AUTH_SSO_CALLBACK_PATH, origin),
+        redirectUrlComplete: authAbsoluteUrl(AUTH_AFTER_SIGN_IN_PATH, origin),
       });
     } catch (err) {
       if (isAlreadySignedInError(err)) {
@@ -614,7 +625,7 @@ export function AuthForm() {
             setError(
               missing.length > 0
                 ? `Email verified — still need: ${missing.join(", ")}. In Clerk, turn off extra required fields like username.`
-                : "Email is verified, but we couldn’t open your account. Use Continue with password, then try again.",
+                : "Email is verified, but we couldn’t open your account. Use Continue with Google, then try again.",
             );
             return;
           }
@@ -643,7 +654,7 @@ export function AuthForm() {
         setError(
           missing.length > 0
             ? `Email verified — still need: ${missing.join(", ")}. In Clerk, turn off extra required fields like username.`
-            : "Email is verified, but we couldn’t open your account. Use Continue with password, then try again.",
+            : "Email is verified, but we couldn’t open your account. Use Continue with Google, then try again.",
         );
         return;
       }
@@ -679,7 +690,7 @@ export function AuthForm() {
           setError(
             missing.length > 0
               ? `Email verified — still need: ${missing.join(", ")}. In Clerk, turn off extra required fields like username.`
-              : "Email is verified, but we couldn’t open your account. Use Continue with password, then try again.",
+              : "Email is verified, but we couldn’t open your account. Use Continue with Google, then try again.",
           );
           return;
         }
@@ -706,7 +717,7 @@ export function AuthForm() {
         const finished = await finalizeSignUp(signUp);
         if (finished.ok) return;
         setError(
-          "Email is verified, but we couldn’t open your account. Use Continue with password, then try again.",
+          "Email is verified, but we couldn’t open your account. Use Continue with Google, then try again.",
         );
         return;
       }
@@ -1004,11 +1015,11 @@ export function AuthForm() {
                 setError(null);
                 resetOtp();
                 clearVerifyFlow();
-                setFlow("sign-in");
-                setStep("credentials");
+                void signInWithOAuth("oauth_google");
               }}
             >
-              Continue with password
+              <GoogleMark />
+              Continue with Google
             </button>
           </>
         ) : null}

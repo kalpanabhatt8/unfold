@@ -20,9 +20,6 @@ export function LandingChrome({
       </Link>
       {showCta ? (
         <div className="lp-chrome__actions">
-          <Link href={CTA.header.secondaryHref} className="lp-chrome__ghost">
-            {CTA.header.secondary}
-          </Link>
           <Link href={CTA.header.primaryHref} className="lp-chrome__cta">
             {CTA.header.primary}
           </Link>

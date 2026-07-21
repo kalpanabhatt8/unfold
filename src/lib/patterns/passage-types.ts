@@ -7,7 +7,6 @@
  */
 
 import type { QuoteRef } from "@/lib/patterns/evidence-signals";
-import type { PatternOccurrence } from "@/lib/patterns/occurrences";
 import type { EndingKind, Lifecycle } from "@/lib/patterns/pattern-state";
 import type { DepthTier } from "@/lib/patterns/planner";
 import type { PatternName } from "@/lib/patterns/vocabulary";
@@ -35,18 +34,6 @@ export type PatternPassage = {
   slots: PassageSlot[];
   cacheKey: string;
   createdAt: number;
-  /**
-   * When this reading was first composed. Later matching moments append to
-   * `occurrences` instead of rewriting slots.
-   */
-  discoveredAt?: number;
-  /** Evidence fingerprint the original slots were built from. */
-  discoveryEvidenceKey?: string;
-  /**
-   * Matching moments that arrived after discovery. Original slots stay frozen;
-   * the newest of these surfaces as a single top line.
-   */
-  occurrences?: PatternOccurrence[];
 };
 
 /**

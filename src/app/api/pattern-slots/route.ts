@@ -10,12 +10,27 @@ import {
   SLOT_MAX_QUOTE_CHARS,
   SLOT_MAX_QUOTES,
 } from "@/lib/ai/pattern-slots/constants";
+import { requireUser } from "@/lib/server/auth";
+import { requireAiUser } from "@/lib/server/ai-auth";
 
 export async function GET() {
-  return NextResponse.json({ ok: true });
+  try {
+    await requireUser();
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    if (error instanceof Response) return error;
+    throw error;
+  }
 }
 
 export async function POST(request: Request) {
+  try {
+    await requireAiUser();
+  } catch (error) {
+    if (error instanceof Response) return error;
+    throw error;
+  }
+
   let patternName = "";
   let quotes: string[] = [];
   let voiceSlots: VoiceSlotRequest[] = [];

@@ -69,7 +69,6 @@ export function aggregateAnalyses(): PatternsAggregate {
       evidence,
       timeHint: deriveTimeHint(evidence),
       coPatterns: deriveCoPatterns(name, entryIds),
-      insight: null,
       display: null,
     });
   }

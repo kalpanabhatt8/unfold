@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/server/auth";
 import { createAttachment } from "@/lib/server/attachments";
+import { assertEntryOwnedBy } from "@/lib/server/entries";
 
 export const runtime = "nodejs";
 
@@ -28,6 +29,9 @@ export async function POST(request: Request) {
     if (file.size > MAX_ATTACHMENT_BYTES) {
       return NextResponse.json({ error: "Image too large" }, { status: 413 });
     }
+
+    // Ownership gate before any blob upload or attachment row write.
+    await assertEntryOwnedBy(userId, entryId);
 
     const ratioRaw = form.get("ratio");
     const ratio =

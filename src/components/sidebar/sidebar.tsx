@@ -30,6 +30,7 @@ import { resolveNewEntryTarget } from "@/lib/entry-draft";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useSurfacedPatterns } from "@/hooks/use-surfaced-patterns";
 import { PatternsSidebarLink } from "@/components/sidebar/patterns-sidebar-link";
+import { SidebarAccountMenu } from "@/components/sidebar/sidebar-account-menu";
 import { OVERLAY_NAV_QUERY } from "@/lib/breakpoints";
 import { OPEN_NAV_EVENT } from "@/lib/layout";
 
@@ -296,7 +297,7 @@ export function Sidebar() {
       type="button"
       onClick={expandSidebar}
       aria-label="Open menu"
-      className={`shrink-0 min-h-(--touch-target-min) min-w-(--touch-target-min) !justify-start ${btnIconTransparent(SIDEBAR_TOGGLE_SIZE)}`}
+      className={`shrink-0 min-h-(--touch-target-min) min-w-(--touch-target-min) ${btnIconTransparent(SIDEBAR_TOGGLE_SIZE)}`}
     >
       <Menu
         size={iconPx(SIDEBAR_TOGGLE_SIZE)}
@@ -316,13 +317,16 @@ export function Sidebar() {
         />
       ) : null}
 
-      <div className="relative z-10 flex shrink-0 items-center justify-between gap-3 pb-3 pt-5 pl-2">
-        <p
-          className="min-w-0 flex-1 truncate text-[1rem] font-bold leading-tight tracking-tight text-(--canvas-title-ink)"
-          style={{ fontFamily: "var(--font-heading)" }}
-        >
-          {displayName ? `${displayName}\u2019s ` : ""}Unfold
-        </p>
+      <div className="relative z-20 flex shrink-0 items-center justify-between gap-2 pb-3 pt-5 pl-2">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
+          <SidebarAccountMenu />
+          <p
+            className="min-w-0 flex-1 truncate text-[1rem] font-bold leading-tight tracking-tight text-(--canvas-title-ink)"
+            style={{ fontFamily: "var(--font-heading)" }}
+          >
+            {displayName ? `${displayName}\u2019s ` : ""}Unfold
+          </p>
+        </div>
         <button
           type="button"
           onClick={toggleCollapsed}
@@ -516,7 +520,7 @@ export function Sidebar() {
 
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-(--sidebar-bg)/85 backdrop-blur-[3px] [mask-image:linear-gradient(to_bottom,transparent,black_55%)] [-webkit-mask-image:linear-gradient(to_bottom,transparent,black_55%)]"
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-(--sidebar-bg)/85 backdrop-blur-[0.1875rem] [mask-image:linear-gradient(to_bottom,transparent,black_55%)] [-webkit-mask-image:linear-gradient(to_bottom,transparent,black_55%)]"
           />
         </div>
       </section>
@@ -538,7 +542,7 @@ export function Sidebar() {
       className={clsx(
         "flex h-full min-h-0 flex-col overflow-hidden border-r border-(--sidebar-border) bg-(--sidebar-bg)",
         SIDEBAR_WIDTH_CLASS,
-        isOverlayNav && "shadow-[4px_0_24px_rgba(0,0,0,0.08)]",
+        isOverlayNav && "shadow-[0.25rem_0_1.5rem_rgba(0,0,0,0.08)]",
       )}
       aria-hidden={isOverlayNav && collapsed ? true : undefined}
       inert={isOverlayNav && collapsed ? true : undefined}
@@ -552,7 +556,7 @@ export function Sidebar() {
       className={clsx(
         // Match page `px-4` / `sm:px-5` plus body safe-area so the icon
         // shares a left edge with Patterns / journal titles.
-        "fixed z-20 left-[calc(env(safe-area-inset-left,0px)+1rem)] sm:left-[calc(env(safe-area-inset-left,0px)+1.25rem)]",
+        "fixed z-20 left-[calc(env(safe-area-inset-left,0)+1rem)] sm:left-[calc(env(safe-area-inset-left,0)+1.25rem)]",
         OVERLAY_OPACITY_TRANSITION,
         menuToggleVisible
           ? "opacity-100"

@@ -45,7 +45,7 @@ function stampAlignedCornerInsets(
   height: number,
   insetPx: number,
   tiltDeg: number,
-): Pick<React.CSSProperties, "bottom" | "right"> {
+): { bottom: number; right: number } {
   const rad = (Math.abs(tiltDeg) * Math.PI) / 180;
   const cos = Math.cos(rad);
   const sin = Math.sin(rad);
@@ -379,8 +379,8 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
   const stampCornerAnchor = useMemo(
     (): React.CSSProperties => ({
       position: "fixed",
-      bottom: `calc(${viewport.stampCornerInsetPx}px + env(safe-area-inset-bottom, 0px))`,
-      right: `calc(${viewport.stampCornerInsetPx}px + env(safe-area-inset-right, 0px))`,
+      bottom: `calc(${viewport.stampCornerInsetPx / 16}rem + env(safe-area-inset-bottom, 0))`,
+      right: `calc(${viewport.stampCornerInsetPx / 16}rem + env(safe-area-inset-right, 0))`,
       zIndex: 20,
     }),
     [viewport.stampCornerInsetPx],
@@ -395,8 +395,8 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
     );
     return {
       position: "fixed",
-      bottom: `calc(${imprintInsets.bottom}px + env(safe-area-inset-bottom, 0px))`,
-      right: `calc(${imprintInsets.right}px + env(safe-area-inset-right, 0px))`,
+      bottom: `calc(${imprintInsets.bottom / 16}rem + env(safe-area-inset-bottom, 0))`,
+      right: `calc(${imprintInsets.right / 16}rem + env(safe-area-inset-right, 0))`,
       zIndex: 20,
       width: STAMP_WIDTH,
       height: STAMP_HEIGHT,

@@ -145,7 +145,19 @@ const applyServerEntry = (wire: WireEntry) => {
       searchText: wire.searchText,
     });
     if (wire.content) {
-      writeBoardSnapshot(wire.id, wire.content);
+      const localBoard = readBoardSnapshot(wire.id);
+      const incomingHasText = wire.content.textColumns?.some((col) =>
+        col.some((b) => typeof b.text === "string" && b.text.trim().length > 0),
+      );
+      const localHasText = localBoard?.textColumns.some((col) =>
+        col.some((b) => b.text.trim().length > 0),
+      );
+      // Never clobber a local sealed body with an empty remote snapshot.
+      if (!incomingHasText && localHasText && wire.sealedAt) {
+        /* keep local board */
+      } else {
+        writeBoardSnapshot(wire.id, wire.content);
+      }
     }
   });
 };
@@ -190,14 +202,20 @@ const applyServerPatterns = (snapshot: PatternsSnapshot) => {
 // ── Network steps ───────────────────────────────────────────────────────────
 
 const pullAndApplyEntries = async (): Promise<void> => {
-  const since = getPullCursor();
-  const response = await fetch(`/api/sync/entries?since=${since}`);
-  if (!response.ok) return;
-  const payload = (await response.json()) as EntriesPullResponse;
-  for (const entry of payload.entries) {
-    applyServerEntry(entry);
+  let since = getPullCursor();
+  // Page until the server says we're caught up — keeps each response small
+  // when the account has many large board snapshots.
+  for (let page = 0; page < 50; page++) {
+    const response = await fetch(`/api/sync/entries?since=${since}`);
+    if (!response.ok) return;
+    const payload = (await response.json()) as EntriesPullResponse;
+    for (const entry of payload.entries) {
+      applyServerEntry(entry);
+    }
+    setPullCursor(payload.cursor);
+    if (!payload.hasMore) return;
+    since = payload.cursor;
   }
-  setPullCursor(payload.cursor);
 };
 
 const pullAndApplyPatterns = async (): Promise<void> => {

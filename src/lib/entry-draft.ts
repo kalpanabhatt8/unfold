@@ -42,8 +42,7 @@ const boardHasText = (raw: unknown): boolean => {
       }
     }
   }
-  const signature = raw.signature;
-  return typeof signature === "string" && signature.trim().length > 0;
+  return false;
 };
 
 const boardHasAttachments = (raw: unknown): boolean => {

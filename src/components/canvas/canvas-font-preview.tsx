@@ -162,7 +162,7 @@ export default function CanvasFontPreview() {
       style={{ background: "rgba(255, 254, 252, 0.97)" }}
       aria-label="Font preview (temporary)"
     >
-      <div className="mx-auto flex w-full max-w-[min(92vw,720px)] flex-col gap-16 px-6 py-20">
+      <div className="mx-auto flex w-full max-w-[min(92vw,45rem)] flex-col gap-16 px-6 py-20">
         {PREVIEW_FONTS.map(({ label, family, fontWeight }) => (
           <FontPreviewSection
             key={label}

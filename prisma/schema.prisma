@@ -191,6 +191,7 @@ model Attachment {
   entry JournalEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
   user  User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, entryId])
   @@index([entryId, sortOrder])
   @@map("attachments")
 }

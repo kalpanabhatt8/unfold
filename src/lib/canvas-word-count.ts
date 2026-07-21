@@ -7,7 +7,7 @@ const stripBlockPrefix = (text: string, blockKind: string): string => {
   return text;
 };
 
-/** Count whitespace-separated words across all writing blocks + signature. */
+/** Count whitespace-separated words across all writing blocks. */
 export const countWordsFromSnapshot = (snapshot: CanvasSnapshot): number => {
   const parts: string[] = [];
 
@@ -18,16 +18,13 @@ export const countWordsFromSnapshot = (snapshot: CanvasSnapshot): number => {
     }
   }
 
-  const sig = snapshot.signature?.trim();
-  if (sig) parts.push(sig);
-
   const joined = parts.join(" ").trim();
   if (!joined) return 0;
 
   return joined.split(/\s+/).filter(Boolean).length;
 };
 
-/** Ordered word tokens from all writing blocks + signature (same basis as {@link countWordsFromSnapshot}). */
+/** Ordered word tokens from all writing blocks (same basis as {@link countWordsFromSnapshot}). */
 export const collectJournalWordTokens = (
   snapshot: CanvasSnapshot
 ): string[] => {
@@ -40,22 +37,11 @@ export const collectJournalWordTokens = (
     }
   }
 
-  const sig = snapshot.signature?.trim();
-  if (sig) parts.push(sig);
-
   const joined = parts.join(" ").trim();
   if (!joined) return [];
 
   return joined.split(/\s+/).filter(Boolean);
 };
-
-/** Merge live signature value into a snapshot. */
-export function mergeSignatureOverride(
-  snapshot: CanvasSnapshot,
-  signature: string
-): CanvasSnapshot {
-  return { ...snapshot, signature };
-}
 
 export const extractJournalPlainText = (snapshot: CanvasSnapshot): string => {
   const lines: string[] = [];
@@ -66,9 +52,6 @@ export const extractJournalPlainText = (snapshot: CanvasSnapshot): string => {
       if (stripped) lines.push(stripped);
     }
   }
-
-  const sig = snapshot.signature?.trim();
-  if (sig) lines.push(sig);
 
   return lines.join("\n");
 };

@@ -25,8 +25,8 @@ export default function StampDevPage() {
       className="min-h-[100svh] w-full"
       style={{
         background:
-          "linear-gradient(#e8e8e8 1px, transparent 1px), linear-gradient(90deg, #e8e8e8 1px, transparent 1px)",
-        backgroundSize: "24px 24px",
+          "linear-gradient(#e8e8e8 0.0625rem, transparent 0.0625rem), linear-gradient(90deg, #e8e8e8 0.0625rem, transparent 0.0625rem)",
+        backgroundSize: "1.5rem 1.5rem",
         backgroundColor: "#faf8f5",
       }}
     >

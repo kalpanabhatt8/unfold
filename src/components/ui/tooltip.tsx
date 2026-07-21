@@ -33,7 +33,7 @@ function isPositionedClass(className?: string) {
 function measureBubble(bubble: HTMLElement): DOMRect {
   const prev = bubble.style.cssText;
   bubble.style.cssText =
-    "position:fixed;top:-9999px;left:0;visibility:hidden;opacity:1;pointer-events:none;";
+    "position:fixed;top:-999rem;left:0;visibility:hidden;opacity:1;pointer-events:none;";
   const rect = bubble.getBoundingClientRect();
   bubble.style.cssText = prev;
   return rect;

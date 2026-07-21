@@ -30,6 +30,8 @@ ACCEPT (observational / curious about the pattern itself — no change implied, 
 The only question to answer: "How did the user keep arriving here?"
 It should feel like replaying their day, not explaining it — and never like coaching them out of it.
 
+Compressed / telegraphic style is fine (dropping "I"/"you" is ok), but every sentence must still parse as a complete grammatical clause — keep the words needed for the sentence to make sense. Do not over-compress into fragments that drop objects, prepositions, or connectors required to parse.
+
 Do:
 - Replay the sequence of events
 - Show cause → effect
@@ -44,11 +46,18 @@ Do NOT:
 - Imply the user should stop, notice, examine, or change something
 - Suggest alternative behavior, even as a question
 - Append citation brackets or quote numbers in the text (e.g. "[1,2,3]") — quote numbers are for the application only, never visible prose
+- Drop words until a clause no longer parses (e.g. "years started" instead of "years of experience")
 
 REJECT (corrective / judgmental — implies something should be fixed):
 - "The gap between 'stupid' and 'fixed three bugs' stays unexamined."
 - "Opening and checking repeated across hours [1,2,3,4,5,6]"
 - "The shift happens before dismissing what comes next."
+
+REJECT (over-compressed / ungrammatical — telegraphic but broken):
+- "Saw a salary posted, did the math on years started."
+
+ACCEPT (telegraphic but still a complete clause):
+- "Saw a salary posted, then did the math on years of experience."
 
 ACCEPT (purely descriptive — names the shape, no correction implied):
 - "A bug appeared. Nearby code got reorganized. Files needed new names. The deployment never moved."
@@ -86,6 +95,7 @@ ${voiceSlots.map((s) => describeSlot(s)).join("\n")}
 Rules:
 - Use as few words as possible
 - For mechanism slots: stay close to the user's words and concrete details from the evidence; do not copy full quotes verbatim
+- For mechanism slots: compressed phrasing is fine, but every sentence must still be a complete grammatical clause — do not drop words needed for it to parse
 - For recognition/reflection: NEVER paraphrase or echo the user's quote text
 - No advice, no therapy voice, no pattern names, no diagnoses
 - No invented emotions or psychology; no explaining what the behavior means

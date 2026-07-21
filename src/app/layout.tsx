@@ -7,8 +7,6 @@ import {
   Balsamiq_Sans,
   Bonheur_Royale,
   Bricolage_Grotesque,
-  Caveat,
-  Covered_By_Your_Grace,
   DM_Sans,
   Figtree,
   Lora,
@@ -33,20 +31,6 @@ const figtree = Figtree({
   weight: ["300", "400", "500", "600"],
   display: "swap",
   variable: "--font-figtree",
-});
-
-const caveat = Caveat({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  display: "swap",
-  variable: "--font-caveat",
-});
-
-const coveredByYourGrace = Covered_By_Your_Grace({
-  subsets: ["latin"],
-  weight: "400",
-  display: "swap",
-  variable: "--font-covered-by-your-grace",
 });
 
 const lora = Lora({
@@ -83,12 +67,13 @@ export default function RootLayout({
   return (
     <ClerkProvider
       signInUrl="/sign-in"
+      signUpUrl="/sign-in"
       afterSignInUrl="/dashboard"
       afterSignUpUrl="/dashboard"
     >
       <html
         lang="en"
-        className={`${bricolageGrotesque.variable} ${dmSans.variable} ${figtree.variable} ${caveat.variable} ${coveredByYourGrace.variable} ${lora.variable} ${balsamiqSans.variable} ${bonheurRoyale.variable}`}
+        className={`${bricolageGrotesque.variable} ${dmSans.variable} ${figtree.variable} ${lora.variable} ${balsamiqSans.variable} ${bonheurRoyale.variable}`}
         suppressHydrationWarning
       >
         <body

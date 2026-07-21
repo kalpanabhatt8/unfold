@@ -26,12 +26,7 @@ export type EntryAnalysis = {
 } & AnalysisPayload;
 
 /** What fired the completion trigger. Wiring-only; not persisted. */
-export type CompletionSource =
-  | "seal"
-  | "inactivity"
-  | "leave"
-  | "open_other"
-  | "manual";
+export type CompletionSource = "seal" | "inactivity";
 
 /** Analysis route response — success carries a payload, failure carries a reason. */
 export type EntryAnalysisFailureReason =
@@ -57,14 +52,6 @@ export type PatternEvidenceItem = {
   confidence: number;
 };
 
-/** LLM-generated cross-entry insight for a surfaced pattern. */
-export type PatternInsight = {
-  /** Specific second-person observation for the card headline. */
-  observation: string;
-  /** One sentence explaining what the evidence entries share. */
-  commonThread: string;
-};
-
 /** Landing-page identity for a surfaced pattern — independent of guided passage. */
 export type PatternDisplay = {
   displayTitle: string;
@@ -83,8 +70,6 @@ export type SurfacedPattern = {
   timeHint: string | null;
   /** Human labels for patterns that often appear in the same entries. */
   coPatterns: string[];
-  /** Populated async after aggregation; null while loading or unavailable. */
-  insight: PatternInsight | null;
   /** Landing card copy — populated async; independent of PatternPassage. */
   display: PatternDisplay | null;
 };

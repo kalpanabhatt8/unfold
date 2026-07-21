@@ -222,7 +222,7 @@ export function LivingCanvas() {
   let patternOpacity = story >= 0.56 ? patternIn : 0;
   let showReflect = reflectIn;
   let showCta = ctaIn;
-  let patternsActive = patternIn > 0.2;
+  let patternsActive = patternOpacity > 0.12;
   let showingWrite = writeOpacity > 0.05;
 
   if (viewOverride === "journal") {
@@ -315,9 +315,6 @@ export function LivingCanvas() {
           <span className="mr-[0.03em]">U</span>NFOLD
         </Link>
         <div className="lp-live__nav-actions">
-          <Link href={CTA.header.secondaryHref} className="lp-live__nav-login">
-            {CTA.header.secondary}
-          </Link>
           <Link href={CTA.header.primaryHref} className="lp-chrome__cta lp-chrome__cta--lg">
             {CTA.header.primary}
           </Link>
@@ -357,7 +354,7 @@ export function LivingCanvas() {
               {
                 "--frame-y": `${frameY}vh`,
                 "--frame-scale": frameScale,
-                "--frame-radius": `${frameRadius}px`,
+                "--frame-radius": `${frameRadius / 16}rem`,
               } as CSSProperties
             }
           >
@@ -659,7 +656,7 @@ export function LivingCanvas() {
                             left: `${x}%`,
                             top: `${y}%`,
                             opacity: chipOpacity,
-                            transform: `translate(-50%, -50%) rotate(${rot}deg) scale(${scale}) translateY(${lerp(18, 0, enter)}px)`,
+                            transform: `translate(-50%, -50%) rotate(${rot}deg) scale(${scale}) translateY(${lerp(18, 0, enter) / 16}rem)`,
                             zIndex: 2 + i,
                           } as CSSProperties
                         }
@@ -685,7 +682,7 @@ export function LivingCanvas() {
                   className="lp-live__layer lp-live__layer--pattern"
                   style={{
                     opacity: patternOpacity,
-                    transform: `translateY(${lerp(18, 0, patternOpacity)}px)`,
+                    transform: `translateY(${lerp(18, 0, patternOpacity) / 16}rem)`,
                   }}
                   aria-hidden={patternOpacity < 0.05}
                 >
@@ -723,8 +720,8 @@ export function LivingCanvas() {
                         transform: `translateY(${
                           viewOverride === "pattern"
                             ? 0
-                            : lerp(12, 0, showReflect)
-                        }px)`,
+                            : lerp(12, 0, showReflect) / 16
+                        }rem)`,
                       }}
                     >
                       <p

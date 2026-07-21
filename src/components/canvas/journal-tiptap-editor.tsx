@@ -37,6 +37,8 @@ export type JournalTiptapEditorHandle = {
     kind: TextBlockKind,
     blockIds?: string[]
   ) => void;
+  /** Live blocks from the TipTap doc — source of truth while editing. */
+  getBlocks: () => JournalTextBlock[];
   getActiveBlockId: () => string | null;
   getSelectionRect: () => DOMRect | null;
   getSelectedTextLength: () => number;
@@ -184,6 +186,10 @@ export const JournalTiptapEditor = forwardRef<
       selectAll() {
         if (!editor) return;
         editor.commands.selectAll();
+      },
+      getBlocks() {
+        if (!editor) return [];
+        return docToBlocks(editor.getJSON());
       },
       setBlockKind(kind: TextBlockKind, blockIds?: string[]) {
         if (!editor) return;
