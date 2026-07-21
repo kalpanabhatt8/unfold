@@ -1724,14 +1724,14 @@ input[type='number'] {
 /* ── App toast — reuse anywhere; tweak tokens below ── */
 
 .app-toast {
-  --toast-radius: 0.5rem; /* rounded-lg */
+  --toast-radius: 0.75rem; /* rounded-lg */
   --toast-pad-x: 0.875rem;
   --toast-pad-y: 0.625rem;
   --toast-max-width: min(20rem, calc(100vw - 2.5rem));
   --toast-bg: var(--surface-canvas);
   --toast-fg: var(--text-primary);
   --toast-border: var(--popover-border);
-  --toast-shadow: 0 0.75rem 1.75rem -1rem rgba(15, 15, 15, 0.28);
+  --toast-shadow: 0 0.0625rem 0.25rem rgba(15, 15, 15, 0.1);
   --toast-inset: 1.25rem; /* bottom + left */
 
   pointer-events: none;
