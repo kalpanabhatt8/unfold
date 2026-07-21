@@ -4,7 +4,7 @@ This document describes **what exists in the product today** and **how the logic
 
 **Unfold** is a private journaling product: you write freely, seal entries, and the app helps you notice recurring *mental patterns* in how you think. It does not diagnose, coach, or give therapy-style advice. Observational voice only.
 
-Repo package name is still `keeps`; the product brand is **Unfold**.
+Repo package name and product brand are **Unfold**.
 
 ---
 

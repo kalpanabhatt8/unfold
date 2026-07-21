@@ -1,7 +1,7 @@
 /**
  * Unfold — read a completed entry's plain text for analysis.
  *
- * Prefers the canvas board snapshot (`keeps-board-{id}`, read as inert JSON so
+ * Prefers the canvas board snapshot (`unfold-board-{id}`, read as inert JSON so
  * we never touch the canvas runtime), falling back to the entry's cached
  * `searchText`. Decoupled from the caller so both the completion trigger and
  * the backfill reconciler can work from an entryId alone.

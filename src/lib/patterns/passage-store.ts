@@ -9,7 +9,7 @@ import type { PatternPassage } from "@/lib/patterns/passage-types";
 import { isPatternName, type PatternName } from "@/lib/patterns/vocabulary";
 import { markPatternsDirty } from "@/lib/sync/local-flags";
 
-export const PATTERN_PASSAGES_STORAGE_KEY = "keeps-pattern-passages";
+export const PATTERN_PASSAGES_STORAGE_KEY = "unfold-pattern-passages";
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null;

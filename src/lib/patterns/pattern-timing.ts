@@ -2,7 +2,7 @@
  * Dev timing logs for the pattern discovery flow.
  *
  * Enabled in development, or in any build when:
- *   window.__KEEPS_PATTERN_TIMING__ = true
+ *   window.__UNFOLD_PATTERN_TIMING__ = true
  */
 
 import type { DiscoveryPhase } from "@/lib/patterns/discovery-arc";
@@ -23,8 +23,14 @@ export const isPatternTimingEnabled = (): boolean => {
   if (typeof window === "undefined") return false;
   if (process.env.NODE_ENV === "development") return true;
   return Boolean(
-    (window as Window & { __KEEPS_PATTERN_TIMING__?: boolean })
-      .__KEEPS_PATTERN_TIMING__,
+    (
+      window as Window & {
+        __UNFOLD_PATTERN_TIMING__?: boolean;
+        __KEEPS_PATTERN_TIMING__?: boolean;
+      }
+    ).__UNFOLD_PATTERN_TIMING__ ||
+      (window as Window & { __KEEPS_PATTERN_TIMING__?: boolean })
+        .__KEEPS_PATTERN_TIMING__,
   );
 };
 

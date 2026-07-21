@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import "./global.css";
 
+import { StorageNamespaceMigration } from "@/components/storage-namespace-migration";
 import { Bonheur_Royale, Bricolage_Grotesque, Figtree, Lora } from "next/font/google";
 
 const bricolageGrotesque = Bricolage_Grotesque({
@@ -58,6 +59,7 @@ export default function RootLayout({
           suppressHydrationWarning
           className={`${figtree.className} font-sans`}
         >
+          <StorageNamespaceMigration />
           {children}
         </body>
       </html>

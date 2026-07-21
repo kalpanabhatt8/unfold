@@ -8,16 +8,18 @@
  * dependency-free avoids cycles.
  */
 
-const DIRTY_ENTRIES_KEY = "keeps-sync-dirty-entries";
-const DELETED_ENTRIES_KEY = "keeps-sync-deleted-entries";
+import "@/lib/storage-namespace";
+
+const DIRTY_ENTRIES_KEY = "unfold-sync-dirty-entries";
+const DELETED_ENTRIES_KEY = "unfold-sync-deleted-entries";
 /** Durable set of entry ids the user (or sync) has deleted — never resurrect. */
-const DELETED_IDS_KEY = "keeps-sync-deleted-ids";
-const PATTERNS_DIRTY_KEY = "keeps-sync-patterns-dirty";
-const PULL_CURSOR_KEY = "keeps-sync-cursor";
-const IMPORTED_KEY = "keeps-sync-imported";
+const DELETED_IDS_KEY = "unfold-sync-deleted-ids";
+const PATTERNS_DIRTY_KEY = "unfold-sync-patterns-dirty";
+const PULL_CURSOR_KEY = "unfold-sync-cursor";
+const IMPORTED_KEY = "unfold-sync-imported";
 
 /** Fired whenever something becomes dirty — the sync provider debounces on it. */
-export const SYNC_DIRTY_EVENT = "keeps-sync-dirty";
+export const SYNC_DIRTY_EVENT = "unfold-sync-dirty";
 
 const hasWindow = () => typeof window !== "undefined";
 

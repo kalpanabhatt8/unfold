@@ -38,7 +38,7 @@ const flattenSnapshotText = (snapshot: CanvasSnapshot): string =>
 export const entryIdFromBoardStorageKey = (storageKey: string): string =>
   storageKey.startsWith(ENTRY_BOARD_STORAGE_PREFIX)
     ? storageKey.slice(ENTRY_BOARD_STORAGE_PREFIX.length)
-    : storageKey.replace(/^keeps-board-/, "");
+    : storageKey.replace(/^(?:unfold|keeps)-board-/, "");
 
 const boardStorageKey = (entryId: string): string =>
   `${ENTRY_BOARD_STORAGE_PREFIX}${entryId}`;

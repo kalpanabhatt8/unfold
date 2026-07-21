@@ -24,6 +24,7 @@ import {
 } from "@/lib/crisis-dismiss";
 import {
   ENTRIES_UPDATED_EVENT,
+  ENTRY_BOARD_STORAGE_PREFIX,
   readEntryById,
   upsertEntry,
   type JournalEntry,
@@ -192,7 +193,7 @@ const JournalEntryPage = () => {
   }, [entryId]);
 
   const boardStorageKey = useMemo(
-    () => `keeps-board-${entryId}`,
+    () => `${ENTRY_BOARD_STORAGE_PREFIX}${entryId}`,
     [entryId],
   );
 

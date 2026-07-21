@@ -7,12 +7,13 @@
  * }
  *
  * `content` itself is NOT stored here — the canvas owns it entirely at
- * `keeps-board-{id}` (a `CanvasSnapshot`, untouched by this file). We only
+ * `unfold-board-{id}` (a `CanvasSnapshot`, untouched by this file). We only
  * cache a flattened plain-text copy (`searchText`) alongside the metadata so
  * the sidebar can search titles + content without re-reading every board
  * snapshot on each keystroke.
  */
 
+import "@/lib/storage-namespace";
 import { startTransition } from "react";
 import {
   clearDirtyEntry,
@@ -22,9 +23,9 @@ import {
   rememberRemoteDelete,
 } from "@/lib/sync/local-flags";
 
-export const ENTRY_DRAFTS_STORAGE_KEY = "keeps-drafts";
-export const ENTRIES_UPDATED_EVENT = "keeps-recents-updated";
-export const ENTRY_BOARD_STORAGE_PREFIX = "keeps-board-";
+export const ENTRY_DRAFTS_STORAGE_KEY = "unfold-drafts";
+export const ENTRIES_UPDATED_EVENT = "unfold-recents-updated";
+export const ENTRY_BOARD_STORAGE_PREFIX = "unfold-board-";
 
 export type JournalEntry = {
   id: string;

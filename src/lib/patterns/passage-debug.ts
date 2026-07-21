@@ -1,8 +1,8 @@
 /**
  * Dev helpers — inspect the pattern passage pipeline in the browser console.
  *
- *   __keepsPatternDebug()          — full dump: state, cache, beats, API probe
- *   __keepsPatternDebug("avoidance") — single pattern
+ *   __unfoldPatternDebug()          — full dump: state, cache, beats, API probe
+ *   __unfoldPatternDebug("avoidance") — single pattern
  */
 
 import { buildSlotGenerationInput } from "@/lib/ai/pattern-slots/input";
@@ -115,7 +115,7 @@ export async function debugPatternPipeline(
 ): Promise<void> {
   if (typeof window === "undefined") return;
 
-  console.group("keeps pattern pipeline");
+  console.group("unfold pattern pipeline");
 
   const aggregate = aggregateAnalyses();
   console.log("aggregate.surfaced", aggregate.surfaced.map((p) => p.name));
@@ -151,7 +151,10 @@ export async function debugPatternPipeline(
 
 if (typeof window !== "undefined") {
   const w = window as Window & {
+    __unfoldPatternDebug?: typeof debugPatternPipeline;
     __keepsPatternDebug?: typeof debugPatternPipeline;
   };
+  w.__unfoldPatternDebug = debugPatternPipeline;
+  // Legacy alias during rebrand.
   w.__keepsPatternDebug = debugPatternPipeline;
 }

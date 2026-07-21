@@ -1,4 +1,4 @@
-# Keeps — color tokens
+# Unfold — color tokens
 
 Source of truth: `src/app/global.css` (`:root`).
 

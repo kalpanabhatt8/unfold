@@ -1,8 +1,8 @@
 /**
  * Unfold — persistence for per-entry analyses.
  *
- * Kept in its own localStorage namespace (`keeps-entry-analyses`), separate
- * from `keeps-drafts` (the sidebar's hot path). One map keyed by entryId so the
+ * Kept in its own localStorage namespace (`unfold-entry-analyses`), separate
+ * from `unfold-drafts` (the sidebar's hot path). One map keyed by entryId so the
  * Patterns page can load everything in a single read. This module is the only
  * place that touches the store — swap it for a server-backed repository later
  * without changing callers.
@@ -11,8 +11,8 @@
 import type { EntryAnalysis } from "@/lib/patterns/types";
 import { markPatternsDirty } from "@/lib/sync/local-flags";
 
-export const ENTRY_ANALYSES_STORAGE_KEY = "keeps-entry-analyses";
-export const ANALYSES_UPDATED_EVENT = "keeps-analyses-updated";
+export const ENTRY_ANALYSES_STORAGE_KEY = "unfold-entry-analyses";
+export const ANALYSES_UPDATED_EVENT = "unfold-analyses-updated";
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null;

@@ -2,7 +2,7 @@
  * Unfold — longitudinal state for living patterns.
  *
  * One record per pattern name, in its own localStorage namespace
- * (`keeps-pattern-state`). This is the planner's *memory*: the lifecycle stage
+ * (`unfold-pattern-state`). This is the planner's *memory*: the lifecycle stage
  * (with dwell time for hysteresis), the recently used composition signatures
  * (repetition guard), the last ending kind, and an evidence fingerprint +
  * epoch that only advances when the evidence genuinely changes.
@@ -21,7 +21,7 @@
 import { isPatternName, type PatternName } from "@/lib/patterns/vocabulary";
 import { markPatternsDirty } from "@/lib/sync/local-flags";
 
-export const PATTERN_STATE_STORAGE_KEY = "keeps-pattern-state";
+export const PATTERN_STATE_STORAGE_KEY = "unfold-pattern-state";
 
 /** How many recent composition signatures we remember per pattern. */
 const SIGNATURE_MEMORY = 3;

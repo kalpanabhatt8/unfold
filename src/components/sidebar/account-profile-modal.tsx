@@ -38,7 +38,7 @@ function clearLocalUnfoldData() {
     const keys: string[] = [];
     for (let i = 0; i < window.localStorage.length; i += 1) {
       const key = window.localStorage.key(i);
-      if (key?.startsWith("keeps-")) keys.push(key);
+      if (key?.startsWith("unfold-") || key?.startsWith("keeps-")) keys.push(key);
     }
     for (const key of keys) window.localStorage.removeItem(key);
   } catch {

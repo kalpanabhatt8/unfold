@@ -1,6 +1,7 @@
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
+import "@/lib/storage-namespace";
 
-const STORAGE_PREFIX = "keeps-journal-quote:";
+const STORAGE_PREFIX = "unfold-journal-quote:";
 
 /** Stash a quote so the journal page can highlight it after navigation. */
 export const stashJournalQuoteFocus = (

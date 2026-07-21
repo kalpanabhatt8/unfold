@@ -9,9 +9,9 @@ import type { PatternDisplay } from "@/lib/patterns/types";
 import type { PatternName } from "@/lib/patterns/vocabulary";
 import { markPatternsDirty } from "@/lib/sync/local-flags";
 
-export const PATTERN_DISPLAY_STORAGE_KEY = "keeps-pattern-display";
+export const PATTERN_DISPLAY_STORAGE_KEY = "unfold-pattern-display";
 /** Same-tab signal when landing-page display metadata is written. */
-export const PATTERN_DISPLAY_UPDATED_EVENT = "keeps-pattern-display-updated";
+export const PATTERN_DISPLAY_UPDATED_EVENT = "unfold-pattern-display-updated";
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null;

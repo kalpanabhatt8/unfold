@@ -1,7 +1,7 @@
 /**
  * Draft lifecycle helpers — keep at most one empty unsealed entry.
  *
- * Board content lives at `keeps-board-{id}`; metadata at `keeps-drafts`.
+ * Board content lives at `unfold-board-{id}`; metadata at `unfold-drafts`.
  * Reads snapshots as raw JSON to avoid pulling in the canvas runtime.
  *
  * Creating a draft is sync and cheap; callers should navigate immediately

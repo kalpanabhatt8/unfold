@@ -36,7 +36,7 @@ import { OPEN_NAV_EVENT } from "@/lib/layout";
 import { resolvePreferredName } from "@/lib/user-display";
 
 const UNTITLED_ENTRY = "Untitled";
-const SIDEBAR_COLLAPSED_KEY = "keeps-sidebar-collapsed";
+const SIDEBAR_COLLAPSED_KEY = "unfold-sidebar-collapsed";
 const SIDEBAR_WIDTH_CLASS = "w-(--sidebar-width)";
 const SIDEBAR_TOGGLE_SIZE = "xs" as const;
 const SIDEBAR_ACTION_SIZE = "xs" as const;

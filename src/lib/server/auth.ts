@@ -18,14 +18,14 @@ export const currentUserId = async (): Promise<string | null> => {
  * in this server isolate (fullSync hits import → entries → patterns).
  */
 const globalForAuth = globalThis as unknown as {
-  keepsEnsuredUserIds?: Set<string>;
+  unfoldEnsuredUserIds?: Set<string>;
 };
 
 const ensuredUserIds = (): Set<string> => {
-  if (!globalForAuth.keepsEnsuredUserIds) {
-    globalForAuth.keepsEnsuredUserIds = new Set();
+  if (!globalForAuth.unfoldEnsuredUserIds) {
+    globalForAuth.unfoldEnsuredUserIds = new Set();
   }
-  return globalForAuth.keepsEnsuredUserIds;
+  return globalForAuth.unfoldEnsuredUserIds;
 };
 
 /** Insert the users row if missing; no-op when it already exists. */

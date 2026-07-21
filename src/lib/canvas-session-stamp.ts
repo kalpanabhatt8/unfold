@@ -4,7 +4,9 @@
  * - sessionStorage: survives page refresh in the same tab.
  */
 
-const SESSION_HEADER_PREFIX = "keeps-canvas-header-";
+import "@/lib/storage-namespace";
+
+const SESSION_HEADER_PREFIX = "unfold-canvas-header-";
 
 const calendarDayKey = (ts: number) => {
   const d = new Date(ts);

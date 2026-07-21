@@ -32,7 +32,7 @@ export const PAGE_PADDING_X_CLASS = "px-4 sm:px-5 lg:px-6";
 export const OVERLAY_MENU_CLEARANCE_PX = 84;
 
 /** Open the overlay / collapsed sidebar from in-page controls (e.g. Patterns). */
-export const OPEN_NAV_EVENT = "keeps-open-nav";
+export const OPEN_NAV_EVENT = "unfold-open-nav";
 
 export const openAppNav = (): void => {
   if (typeof window === "undefined") return;

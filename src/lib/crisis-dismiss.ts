@@ -4,7 +4,9 @@
  * Does not clear crisisFlagged on the entry itself.
  */
 
-const DISMISS_PREFIX = "keeps-crisis-dismissed:";
+import "@/lib/storage-namespace";
+
+const DISMISS_PREFIX = "unfold-crisis-dismissed:";
 
 export function isCrisisDismissed(entryId: string): boolean {
   if (typeof window === "undefined" || !entryId) return false;

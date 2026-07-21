@@ -25,7 +25,12 @@ export function usePatternsAggregate(): PatternsAggregate | null {
     void reconcileAnalyses();
 
     const onStorage = (event: StorageEvent) => {
-      if (event.key === null || event.key.startsWith("keeps-")) refresh();
+      if (
+        event.key === null ||
+        event.key.startsWith("unfold-") ||
+        event.key.startsWith("keeps-")
+      )
+        refresh();
     };
     window.addEventListener("storage", onStorage);
     window.addEventListener(ANALYSES_UPDATED_EVENT, refresh);
