@@ -3,7 +3,7 @@
 
 /* Typography scale — 2xs/xs/sm/md = body text, lg/xl = headers */
 @theme inline {
-  --font-sans: var(--font-dm-sans), system-ui, sans-serif;
+  --font-sans: var(--font-figtree), system-ui, sans-serif;
 
   /* Sizes scale with the root font (rem). Color is applied separately through the
      text-system state classes (.text-active / .text-secondary / …). */
@@ -205,7 +205,6 @@
   --canvas-writing-placeholder: var(--text-muted);
 
   --surface: var(--gray-50);
-  --polaroid-recess: var(--canvas-recess);
   --surface-1: var(--gray-50);
   --surface-2: var(--gray-100);
   --surface-3: var(--gray-200);
@@ -232,12 +231,8 @@
   --color-border-emphasis: var(--gray-400);
   --color-icon: var(--fg);
   --color-iconbutton: var(--gray-200);
-  --color-iconbutton-hover: var(--gray-75);
-  --color-iconbutton-active: color-mix(
-    in srgb,
-    var(--color-iconbutton-hover) 90%,
-    black 10%
-  );
+  --color-iconbutton-hover: var(--surface-chrome-active);
+  --color-iconbutton-active: var(--sidebar-tab-selected-bg);
   --color-iconborder-border: var(--gray-300);
   --color-canvas-toolbar-icon: var(--canvas-brown);
   /** Segmented control track (column layout, view mode, etc.) */
@@ -1427,8 +1422,9 @@ input[type='number'] {
 
 .discovery-mechanism-step {
   margin: 0;
-  font-family: var(--font-lora);
-  font-size: clamp(1.05rem, 2.2vw, 1.2rem);
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: clamp(0.9375rem, 1.6vw, 1.0625rem);
   line-height: 1.55;
   letter-spacing: -0.01em;
   color: var(--sidebar-ink);
@@ -1723,4 +1719,34 @@ input[type='number'] {
     font-size: var(--text-md);
     line-height: var(--text-md--line-height);
   }
+}
+
+/* ── App toast — reuse anywhere; tweak tokens below ── */
+
+.app-toast {
+  --toast-radius: 0.5rem; /* rounded-lg */
+  --toast-pad-x: 0.875rem;
+  --toast-pad-y: 0.625rem;
+  --toast-max-width: min(20rem, calc(100vw - 2.5rem));
+  --toast-bg: var(--surface-canvas);
+  --toast-fg: var(--text-primary);
+  --toast-border: var(--popover-border);
+  --toast-shadow: 0 0.75rem 1.75rem -1rem rgba(15, 15, 15, 0.28);
+  --toast-inset: 1.25rem; /* bottom + left */
+
+  pointer-events: none;
+  position: fixed;
+  bottom: var(--toast-inset);
+  left: var(--toast-inset);
+  z-index: 10000;
+  max-width: var(--toast-max-width);
+  padding: var(--toast-pad-y) var(--toast-pad-x);
+  border-radius: var(--toast-radius);
+  border: 0.0625rem solid var(--toast-border);
+  background: var(--toast-bg);
+  color: var(--toast-fg);
+  box-shadow: var(--toast-shadow);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  line-height: var(--text-sm--line-height);
 }

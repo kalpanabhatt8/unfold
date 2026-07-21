@@ -2,28 +2,13 @@ import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import "./global.css";
 
-// Google Fonts
-import {
-  Balsamiq_Sans,
-  Bonheur_Royale,
-  Bricolage_Grotesque,
-  DM_Sans,
-  Figtree,
-  Lora,
-} from "next/font/google";
+import { Bonheur_Royale, Bricolage_Grotesque, Figtree, Lora } from "next/font/google";
 
 const bricolageGrotesque = Bricolage_Grotesque({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
   display: "swap",
   variable: "--font-bricolage",
-});
-
-const dmSans = DM_Sans({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  display: "swap",
-  variable: "--font-dm-sans",
 });
 
 const figtree = Figtree({
@@ -41,13 +26,6 @@ const lora = Lora({
   variable: "--font-lora",
 });
 
-const balsamiqSans = Balsamiq_Sans({
-  subsets: ["latin"],
-  weight: ["400", "700"],
-  display: "swap",
-  variable: "--font-balsamiq-sans",
-});
-
 const bonheurRoyale = Bonheur_Royale({
   subsets: ["latin"],
   weight: "400",
@@ -58,7 +36,7 @@ const bonheurRoyale = Bonheur_Royale({
 export const metadata: Metadata = {
   title: "Unfold",
   description:
-    "A private, playful scrapbook to plan, rant, dream, and collect pretty things.",
+    "A private journal that helps you notice patterns in your thoughts.",
 };
 
 export default function RootLayout({
@@ -73,7 +51,7 @@ export default function RootLayout({
     >
       <html
         lang="en"
-        className={`${bricolageGrotesque.variable} ${dmSans.variable} ${figtree.variable} ${lora.variable} ${balsamiqSans.variable} ${bonheurRoyale.variable}`}
+        className={`${bricolageGrotesque.variable} ${figtree.variable} ${lora.variable} ${bonheurRoyale.variable}`}
         suppressHydrationWarning
       >
         <body
