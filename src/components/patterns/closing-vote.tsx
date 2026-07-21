@@ -21,12 +21,48 @@ const DOWN_REASONS = [
 ] as const;
 
 const TOAST_MS = 2_600;
+/** Extra space below the form so the drop shadow isn’t clipped by the scrollport. */
+const FORM_SCROLL_PAD_PX = 28;
 
 const copyStyle = {
   fontSize: "var(--text-sm)",
   lineHeight: "var(--text-sm--line-height)",
   fontFamily: "var(--font-body)",
 } as const;
+
+function findScrollParent(el: HTMLElement): HTMLElement {
+  let node: HTMLElement | null = el.parentElement;
+  while (node && node !== document.body) {
+    const { overflowY } = getComputedStyle(node);
+    if (
+      (overflowY === "auto" ||
+        overflowY === "scroll" ||
+        overflowY === "overlay") &&
+      node.scrollHeight > node.clientHeight + 1
+    ) {
+      return node;
+    }
+    node = node.parentElement;
+  }
+  return (document.scrollingElement as HTMLElement) ?? document.documentElement;
+}
+
+/** Scroll just enough that the form’s bottom (plus shadow pad) clears the viewport. */
+function scrollFormAboveFold(el: HTMLElement, smooth: boolean) {
+  const scroller = findScrollParent(el);
+  const elRect = el.getBoundingClientRect();
+  const portBottom =
+    scroller === document.scrollingElement ||
+    scroller === document.documentElement
+      ? window.innerHeight
+      : scroller.getBoundingClientRect().bottom;
+  const overflow = elRect.bottom + FORM_SCROLL_PAD_PX - portBottom;
+  if (overflow <= 0) return;
+  scroller.scrollBy({
+    top: overflow,
+    behavior: smooth ? "smooth" : "auto",
+  });
+}
 
 const voteBtnClass =
   "inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full " +
@@ -114,7 +150,20 @@ export function ClosingVote({ patternName, value, onVote }: ClosingVoteProps) {
 
   useEffect(() => {
     if (!formOpen || !formRef.current) return;
-    formRef.current.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    const el = formRef.current;
+    const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)")
+      .matches;
+    // Wait for the form to paint, then lift it above the panel’s bottom edge.
+    let raf2 = 0;
+    const raf1 = window.requestAnimationFrame(() => {
+      raf2 = window.requestAnimationFrame(() => {
+        scrollFormAboveFold(el, smooth);
+      });
+    });
+    return () => {
+      window.cancelAnimationFrame(raf1);
+      window.cancelAnimationFrame(raf2);
+    };
   }, [formOpen]);
 
   useEffect(() => {

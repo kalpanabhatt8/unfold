@@ -9,3 +9,7 @@ dist/
 /src/generated/
 # clerk configuration (can include secrets)
 /.clerk/
+.vercel
+.env
+.env.local
+.env.*.local
