@@ -38,6 +38,18 @@ const createClient = () => {
   });
 };
 
-export const db = globalForPrisma.prisma ?? createClient();
+/**
+ * Recreate the singleton when a long-lived Next process still holds a client
+ * generated before a new model (e.g. Feedback) existed — otherwise
+ * `db.feedback` stays undefined across HMR.
+ */
+const getClient = (): PrismaClient => {
+  const cached = globalForPrisma.prisma;
+  if (cached && typeof (cached as { feedback?: unknown }).feedback === "undefined") {
+    void cached.$disconnect().catch(() => {});
+    globalForPrisma.prisma = undefined;
+  }
+  return (globalForPrisma.prisma ??= createClient());
+};
 
-globalForPrisma.prisma = db;
+export const db = getClient();

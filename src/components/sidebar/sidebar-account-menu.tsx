@@ -6,8 +6,8 @@ import { AccountProfileModal } from "@/components/sidebar/account-profile-modal"
 import { SendFeedbackModal } from "@/components/sidebar/send-feedback-modal";
 import { resolvePreferredName } from "@/lib/user-display";
 
-const SUPPORT_MAILTO =
-  "mailto:hello@unfold.app?subject=Supporting%20Unfold";
+// const SUPPORT_MAILTO =
+//   "mailto:hello@unfold.app?subject=Supporting%20Unfold";
 
 const menuItemClassName =
   "flex w-full items-center px-3 py-2 text-left text-sm font-medium leading-snug text-primary opacity-80 transition-colors duration-150 hover:bg-(--sidebar-hover-bg) focus-visible:bg-(--sidebar-hover-bg) focus-visible:outline-none";
@@ -127,6 +127,7 @@ export function SidebarAccountMenu() {
             >
               Send feedback
             </button>
+            {/* Buy me a coffee / Support us — re-enable later
             <a
               role="menuitem"
               href={SUPPORT_MAILTO}
@@ -136,6 +137,7 @@ export function SidebarAccountMenu() {
             >
               Support us
             </a>
+            */}
             <button
               type="button"
               role="menuitem"

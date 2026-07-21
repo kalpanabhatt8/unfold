@@ -86,10 +86,10 @@ export function SendFeedbackModal({ open, onClose }: SendFeedbackModalProps) {
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="relative z-10 w-full max-w-md overflow-hidden rounded-xl border border-(--sidebar-border) bg-(--surface-canvas) shadow-[0_1.25rem_3rem_-1rem_rgba(15,15,15,0.28)]"
+        className="relative z-10 w-full max-w-md overflow-hidden rounded-xl border border-(--popover-border) bg-(--surface-canvas) shadow-[0_1.25rem_3rem_-1rem_rgba(15,15,15,0.28)]"
         style={{ fontFamily: "var(--font-body)" }}
       >
-        <div className="flex items-start justify-between gap-3 border-b border-(--sidebar-border) px-4 py-3">
+        <div className="flex items-start justify-between gap-3 border-b border-(--popover-border) px-4 py-3">
           <h2
             id={titleId}
             className="text-base font-semibold tracking-tight text-primary"
@@ -107,54 +107,66 @@ export function SendFeedbackModal({ open, onClose }: SendFeedbackModalProps) {
           </button>
         </div>
 
-        <div className="flex flex-col gap-3 p-4">
+        <div className="relative flex flex-col gap-3 p-4">
+          {/* Keep form in layout when sent so the dialog height doesn’t jump. */}
+          <div
+            className={
+              sent
+                ? "invisible pointer-events-none flex flex-col gap-3"
+                : "flex flex-col gap-3"
+            }
+            aria-hidden={sent}
+          >
+            <label className="flex flex-col gap-1.5">
+              <span className="sr-only">Your feedback</span>
+              <textarea
+                value={text}
+                onChange={(event) => setText(event.target.value)}
+                maxLength={MAX_FEEDBACK_CHARS}
+                rows={6}
+                placeholder="What’s on your mind?"
+                disabled={busy || sent}
+                tabIndex={sent ? -1 : undefined}
+                className="w-full resize-y rounded-md border border-(--popover-border) bg-(--surface-raised) px-3 py-2.5 text-primary outline-none transition-colors placeholder:text-(--sidebar-ink-soft)/70 focus:border-[color-mix(in_srgb,var(--canvas-title-ink)_28%,var(--popover-border))] focus-visible:ring-2 focus-visible:ring-black/10 disabled:opacity-60"
+                style={copyStyle}
+              />
+            </label>
+            {error ? (
+              <p
+                className="text-(--button-destructive-soft-foreground)"
+                style={copyStyle}
+              >
+                {error}
+              </p>
+            ) : null}
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <button
+                type="button"
+                disabled={busy || sent}
+                tabIndex={sent ? -1 : undefined}
+                onClick={onClose}
+                className={btnSecondary("sm")}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={busy || sent || !text.trim()}
+                tabIndex={sent ? -1 : undefined}
+                onClick={() => void submit()}
+                className={btnPrimary("sm")}
+              >
+                {busy ? "Sending…" : "Send"}
+              </button>
+            </div>
+          </div>
           {sent ? (
-            <p className="py-6 text-center text-(--sidebar-ink-soft)" style={copyStyle}>
-              Thanks — got it.
-            </p>
-          ) : (
-            <>
-              <label className="flex flex-col gap-1.5">
-                <span className="sr-only">Your feedback</span>
-                <textarea
-                  value={text}
-                  onChange={(event) => setText(event.target.value)}
-                  maxLength={MAX_FEEDBACK_CHARS}
-                  rows={6}
-                  placeholder="What’s on your mind?"
-                  disabled={busy}
-                  className="w-full resize-y rounded-md border border-(--sidebar-border) bg-(--surface-raised) px-3 py-2.5 text-primary outline-none transition-colors placeholder:text-(--sidebar-ink-soft)/70 focus:border-(--canvas-title-ink) focus-visible:ring-2 focus-visible:ring-black/10 disabled:opacity-60"
-                  style={copyStyle}
-                />
-              </label>
-              {error ? (
-                <p
-                  className="text-(--button-destructive-soft-foreground)"
-                  style={copyStyle}
-                >
-                  {error}
-                </p>
-              ) : null}
-              <div className="flex items-center justify-end gap-2 pt-1">
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={onClose}
-                  className={btnSecondary("sm")}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  disabled={busy || !text.trim()}
-                  onClick={() => void submit()}
-                  className={btnPrimary("sm")}
-                >
-                  {busy ? "Sending…" : "Send"}
-                </button>
-              </div>
-            </>
-          )}
+            <div className="absolute inset-0 flex items-center justify-center p-4">
+              <p className="text-center text-(--sidebar-ink-soft)" style={copyStyle}>
+                Thanks for your feedback 💖
+              </p>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>,
