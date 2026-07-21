@@ -13,10 +13,15 @@ import CanvasBoard, {
   type CanvasBoardHandle,
   type CanvasSnapshot,
 } from "@/components/canvas/canvas-board";
+import { CrisisResponse } from "@/components/journal/crisis-response";
 import {
   claimCanvasSessionStamp,
   endCanvasSession,
 } from "@/lib/canvas-session-stamp";
+import {
+  dismissCrisisView,
+  isCrisisDismissed,
+} from "@/lib/crisis-dismiss";
 import {
   ENTRIES_UPDATED_EVENT,
   readEntryById,
@@ -55,6 +60,7 @@ const JournalEntryPage = () => {
   // Start null on server + first client render so hydration matches; claim the
   // stamp in useLayoutEffect (before paint) so CanvasBoard mounts without a flash.
   const [sessionEditedAt, setSessionEditedAt] = useState<number | null>(null);
+  const [crisisDismissed, setCrisisDismissed] = useState(false);
   const entryRef = useRef<JournalEntry | null>(null);
   const isHydratedRef = useRef(false);
   const completionFiredRef = useRef(false);
@@ -76,6 +82,7 @@ const JournalEntryPage = () => {
     setSessionEditedAt(
       claimCanvasSessionStamp(entryId, existing?.lastEditedAt),
     );
+    setCrisisDismissed(isCrisisDismissed(entryId));
   }, [entryId]);
 
   // Hydrate (or create) this entry's metadata on open.
@@ -102,8 +109,8 @@ const JournalEntryPage = () => {
     isHydratedRef.current = isHydrated;
   }, [isHydrated]);
 
-  // Pick up title/seal edits made elsewhere (e.g. another tab), and stop
-  // saving if this entry was deleted while the page was still mounted.
+  // Pick up title/seal/crisis edits made elsewhere (e.g. classify after seal),
+  // and stop saving if this entry was deleted while the page was still mounted.
   useEffect(() => {
     if (!isHydrated) return;
 
@@ -118,7 +125,11 @@ const JournalEntryPage = () => {
       }
       if (
         stored.title === entryRef.current?.title &&
-        stored.sealedAt === entryRef.current?.sealedAt
+        stored.sealedAt === entryRef.current?.sealedAt &&
+        stored.crisisFlagged === entryRef.current?.crisisFlagged &&
+        stored.crisisFlaggedAt === entryRef.current?.crisisFlaggedAt &&
+        stored.qualityFlagged === entryRef.current?.qualityFlagged &&
+        stored.qualityFlaggedAt === entryRef.current?.qualityFlaggedAt
       ) {
         return;
       }
@@ -175,25 +186,35 @@ const JournalEntryPage = () => {
     [entryId, maybeNotifyCompletion],
   );
 
+  const handleBackToEntry = useCallback(() => {
+    dismissCrisisView(entryId);
+    setCrisisDismissed(true);
+  }, [entryId]);
+
   const boardStorageKey = useMemo(
     () => `keeps-board-${entryId}`,
     [entryId],
   );
 
+  const showCrisisResponse =
+    entry?.crisisFlagged === true && !crisisDismissed;
+
   // "+" in the sidebar opens a brand-new entry with `?new=1` — focus the
   // editor once the canvas has actually mounted, then drop the query flag.
   useEffect(() => {
-    if (!shouldAutoFocus || sessionEditedAt === null) return;
+    if (!shouldAutoFocus || sessionEditedAt === null || showCrisisResponse) {
+      return;
+    }
     const frame = requestAnimationFrame(() => {
       boardRef.current?.focus("end");
     });
     router.replace(`/dashboard/journal/${entryId}`);
     return () => cancelAnimationFrame(frame);
-  }, [shouldAutoFocus, sessionEditedAt, entryId, router]);
+  }, [shouldAutoFocus, sessionEditedAt, entryId, router, showCrisisResponse]);
 
   // Patterns → Journal: highlight the quoted passage after the board mounts.
   useEffect(() => {
-    if (sessionEditedAt === null) return;
+    if (sessionEditedAt === null || showCrisisResponse) return;
     const quote = takeJournalQuoteFocus(entryId);
     if (!quote) return;
 
@@ -214,22 +235,26 @@ const JournalEntryPage = () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [entryId, sessionEditedAt]);
+  }, [entryId, sessionEditedAt, showCrisisResponse]);
 
   return (
     <main className="relative h-full min-h-0 w-full overflow-hidden">
-      {sessionEditedAt !== null && (
-        <CanvasBoard
-          key={entryId}
-          ref={boardRef}
-          storageKey={boardStorageKey}
-          onSnapshotChange={handleSnapshotChange}
-          onSave={handleMilestoneSave}
-          title={entry?.title ?? ""}
-          onTitleChange={handleTitleChange}
-          sessionEditedAt={sessionEditedAt}
-          lastEditedAt={entry?.lastEditedAt}
-        />
+      {showCrisisResponse ? (
+        <CrisisResponse onBackToEntry={handleBackToEntry} />
+      ) : (
+        sessionEditedAt !== null && (
+          <CanvasBoard
+            key={entryId}
+            ref={boardRef}
+            storageKey={boardStorageKey}
+            onSnapshotChange={handleSnapshotChange}
+            onSave={handleMilestoneSave}
+            title={entry?.title ?? ""}
+            onTitleChange={handleTitleChange}
+            sessionEditedAt={sessionEditedAt}
+            lastEditedAt={entry?.lastEditedAt}
+          />
+        )
       )}
     </main>
   );

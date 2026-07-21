@@ -24,6 +24,8 @@ type EntryRow = {
   deletedAt: Date | null;
   crisisFlagged: boolean;
   crisisFlaggedAt: Date | null;
+  qualityFlagged: boolean;
+  qualityFlaggedAt: Date | null;
   searchText: string;
   contentHash: string;
   content: Prisma.JsonValue;
@@ -42,6 +44,8 @@ const toWire = (row: EntryRow): WireEntry => ({
   deletedAt: ms(row.deletedAt),
   crisisFlagged: row.crisisFlagged === true,
   crisisFlaggedAt: ms(row.crisisFlaggedAt),
+  qualityFlagged: row.qualityFlagged === true,
+  qualityFlaggedAt: ms(row.qualityFlaggedAt),
   searchText: row.deletedAt ? "" : row.searchText,
   contentHash: row.contentHash,
   // Tombstones never carry board JSON — keep the wire payload small.
@@ -126,6 +130,14 @@ const pushOne = async (
       new Date())
     : null;
 
+  const qualityFlagged =
+    existing?.qualityFlagged === true || entry.qualityFlagged === true;
+  const qualityFlaggedAt = qualityFlagged
+    ? (date(entry.qualityFlaggedAt) ??
+      existing?.qualityFlaggedAt ??
+      new Date())
+    : null;
+
   const data = {
     title: entry.title,
     createdAt: new Date(entry.createdAt),
@@ -135,6 +147,8 @@ const pushOne = async (
     deletedAt: date(entry.deletedAt),
     crisisFlagged,
     crisisFlaggedAt,
+    qualityFlagged,
+    qualityFlaggedAt,
     searchText: entry.deletedAt ? "" : entry.searchText,
     contentHash: entry.contentHash,
     content: entry.deletedAt

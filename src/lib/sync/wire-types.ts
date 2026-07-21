@@ -21,6 +21,9 @@ export type WireEntry = {
   /** Crisis-risk gate — boolean + timestamp only. */
   crisisFlagged?: boolean;
   crisisFlaggedAt?: number | null;
+  /** Content-quality gate — boolean + timestamp only. */
+  qualityFlagged?: boolean;
+  qualityFlaggedAt?: number | null;
   searchText: string;
   contentHash: string;
   /** Full CanvasSnapshot; null for tombstones. */

@@ -55,6 +55,11 @@ model JournalEntry {
   crisisFlagged   Boolean   @default(false) @map("crisis_flagged")
   crisisFlaggedAt DateTime? @map("crisis_flagged_at") @db.Timestamptz(3)
 
+  /// Content-quality gate — skip pattern extraction when entry lacks
+  /// self-referential reflective substance. Boolean + timestamp only.
+  qualityFlagged   Boolean   @default(false) @map("quality_flagged")
+  qualityFlaggedAt DateTime? @map("quality_flagged_at") @db.Timestamptz(3)
+
   /// Flattened plain text for sidebar search (derivable, stored for cheap list search).
   searchText  String @default("") @map("search_text")
   /// Hash of the flattened content — re-analysis trigger when it drifts from

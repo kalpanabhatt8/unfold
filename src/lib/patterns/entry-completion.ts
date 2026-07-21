@@ -5,17 +5,28 @@
  * entry. V1 wires `"seal"` (explicit) and `"inactivity"` (implicit: 24h idle
  * + 50+ words — analysis-only, entry stays unsealed in the UI).
  *
+ * Ordering: crisis check → content-quality check → pattern extraction.
+ * Either gate skip extraction entirely when flagged.
+ *
  * V1 idempotency = existence: one analysis per entryId, ever. (When a
  * pre-final trigger is introduced later, add a content hash here so edited
  * drafts re-analyze.)
  */
 
-import { readAllEntries, type JournalEntry } from "@/lib/journal-entries";
-import type { CompletionSource } from "@/lib/patterns/types";
-import { hasAnalysis, putAnalysis } from "@/lib/patterns/analysis-store";
-import { countWords, readEntryText } from "@/lib/patterns/entry-text";
+import { fetchCrisisRisk } from "@/lib/ai/crisis-risk/client";
+import { fetchContentQuality } from "@/lib/ai/content-quality/client";
+import { shouldSkipPatternExtractionForQuality } from "@/lib/ai/content-quality/constants";
 import { fetchEntryAnalysis } from "@/lib/ai/pattern-extraction/client";
 import { contentHash } from "@/lib/content-hash";
+import {
+  readEntryById,
+  readAllEntries,
+  upsertEntry,
+  type JournalEntry,
+} from "@/lib/journal-entries";
+import { hasAnalysis, putAnalysis } from "@/lib/patterns/analysis-store";
+import { countWords, readEntryText } from "@/lib/patterns/entry-text";
+import type { CompletionSource } from "@/lib/patterns/types";
 
 /** Idle time before an unsealed draft counts as complete for patterns only. */
 export const IMPLICIT_SEAL_INACTIVITY_MS = 24 * 60 * 60 * 1000;
@@ -57,14 +68,87 @@ const RECONCILE_BATCH_LIMIT = 5;
 /** Analyze one completed entry (once). Silent on skip/failure. */
 export async function notifyEntryCompleted(
   entryId: string,
-  _source: CompletionSource,
+  source: CompletionSource,
 ): Promise<void> {
   if (!entryId || hasAnalysis(entryId) || inflight.has(entryId)) return;
 
   inflight.add(entryId);
   try {
+    const entry = readEntryById(entryId);
+    if (entry?.crisisFlagged === true) return;
+    if (entry?.qualityFlagged === true) return;
+
     const text = readEntryText(entryId);
     if (!text.trim()) return;
+
+    // Crisis gate — separate classification step before any pattern extraction.
+    // Fail open: API failure/timeout → treat as unflagged, log for monitoring.
+    const crisis = await fetchCrisisRisk(text);
+    if (crisis === null) {
+      console.error("[crisis-risk] classify_failed", {
+        entryId,
+        at: Date.now(),
+        path: source,
+        reason: "client_null",
+      });
+    } else if (crisis.flagged === true) {
+      const at = Date.now();
+      upsertEntry(entryId, {
+        crisisFlagged: true,
+        crisisFlaggedAt: at,
+        updatedAt: at,
+      });
+      console.info("[crisis-risk]", {
+        flagged: true,
+        entryId,
+        at,
+        path: source,
+      });
+      return; // do not call fetchEntryAnalysis / putAnalysis
+    } else {
+      console.info("[crisis-risk]", {
+        flagged: false,
+        entryId,
+        at: Date.now(),
+        path: source,
+      });
+    }
+
+    // Content-quality gate — after crisis, before pattern extraction.
+    // Fail open: API failure/timeout → treat as unflagged, log for monitoring.
+    // Under-flag: only skip when flagged AND confidence ≥ floor.
+    const quality = await fetchContentQuality(text);
+    if (quality === null) {
+      console.error("[content-quality] classify_failed", {
+        entryId,
+        at: Date.now(),
+        path: source,
+        reason: "client_null",
+      });
+    } else if (shouldSkipPatternExtractionForQuality(quality)) {
+      const at = Date.now();
+      upsertEntry(entryId, {
+        qualityFlagged: true,
+        qualityFlaggedAt: at,
+        updatedAt: at,
+      });
+      console.info("[content-quality]", {
+        flagged: true,
+        confidence: quality.confidence,
+        entryId,
+        at,
+        path: source,
+      });
+      return; // do not call fetchEntryAnalysis / putAnalysis
+    } else {
+      console.info("[content-quality]", {
+        flagged: false,
+        confidence: quality.confidence,
+        entryId,
+        at: Date.now(),
+        path: source,
+      });
+    }
 
     const payload = await fetchEntryAnalysis(text);
     if (!payload) return; // failure → not stored → retried by reconciler later
@@ -81,9 +165,13 @@ export async function notifyEntryCompleted(
  * Self-healing backfill: analyze completed entries missing analysis — explicitly
  * sealed, or implicitly sealed (24h idle + 50+ words). Rate-limited and
  * sequential to keep token cost predictable.
+ *
+ * Skips crisis- and quality-flagged entries so they never enter pattern extraction.
  */
 export async function reconcileAnalyses(): Promise<void> {
   const pending = readAllEntries()
+    .filter((entry) => entry.crisisFlagged !== true)
+    .filter((entry) => entry.qualityFlagged !== true)
     .filter((entry) => isAnalysisEligible(entry))
     .filter((entry) => !hasAnalysis(entry.id))
     .sort((a, b) => {

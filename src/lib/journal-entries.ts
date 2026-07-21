@@ -3,7 +3,7 @@
  *
  * Entry {
  *   id, title, createdAt, updatedAt, sealedAt, crisisFlagged,
- *   crisisFlaggedAt, searchText
+ *   crisisFlaggedAt, qualityFlagged, qualityFlaggedAt, searchText
  * }
  *
  * `content` itself is NOT stored here — the canvas owns it entirely at
@@ -39,6 +39,10 @@ export type JournalEntry = {
   crisisFlagged?: boolean;
   /** Unix ms when crisis was flagged; absent/null when not flagged. */
   crisisFlaggedAt?: number | null;
+  /** Content-quality gate — boolean only; never store reasoning or snippets. */
+  qualityFlagged?: boolean;
+  /** Unix ms when quality was flagged; absent/null when not flagged. */
+  qualityFlaggedAt?: number | null;
   /** Flattened plain text of the entry's blocks, used for content search. */
   searchText?: string;
 };
@@ -93,6 +97,21 @@ const normalizeEntry = (value: unknown): JournalEntry | null => {
     normalized.crisisFlaggedAt = value.crisisFlaggedAt;
   } else if (value.crisisFlaggedAt === null) {
     normalized.crisisFlaggedAt = null;
+  }
+
+  if (value.qualityFlagged === true) {
+    normalized.qualityFlagged = true;
+  } else if (value.qualityFlagged === false) {
+    normalized.qualityFlagged = false;
+  }
+
+  if (
+    typeof value.qualityFlaggedAt === "number" &&
+    Number.isFinite(value.qualityFlaggedAt)
+  ) {
+    normalized.qualityFlaggedAt = value.qualityFlaggedAt;
+  } else if (value.qualityFlaggedAt === null) {
+    normalized.qualityFlaggedAt = null;
   }
 
   if (typeof value.searchText === "string") {
@@ -203,6 +222,20 @@ export const upsertEntry = (
         typeof existing.crisisFlaggedAt === "number"
           ? existing.crisisFlaggedAt
           : next.crisisFlaggedAt;
+    }
+  }
+
+  // Once quality-flagged, never clear via a stale merge that omits the fields.
+  if (existing?.qualityFlagged === true) {
+    next.qualityFlagged = true;
+    if (
+      updates.qualityFlaggedAt === null ||
+      updates.qualityFlaggedAt === undefined
+    ) {
+      next.qualityFlaggedAt =
+        typeof existing.qualityFlaggedAt === "number"
+          ? existing.qualityFlaggedAt
+          : next.qualityFlaggedAt;
     }
   }
 
