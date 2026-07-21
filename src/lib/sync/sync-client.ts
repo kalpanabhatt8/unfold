@@ -96,6 +96,8 @@ const toWireEntry = (entry: JournalEntry): WireEntry => ({
   lastEditedAt: entry.lastEditedAt ?? null,
   sealedAt: entry.sealedAt ?? null,
   deletedAt: null,
+  crisisFlagged: entry.crisisFlagged === true,
+  crisisFlaggedAt: entry.crisisFlaggedAt ?? null,
   searchText: entry.searchText ?? "",
   contentHash: contentHash(entry.searchText ?? ""),
   content: readBoardSnapshot(entry.id),
@@ -143,6 +145,8 @@ const applyServerEntry = (wire: WireEntry) => {
       updatedAt: wire.updatedAt,
       lastEditedAt: wire.lastEditedAt ?? undefined,
       sealedAt: wire.sealedAt ?? null,
+      crisisFlagged: wire.crisisFlagged === true,
+      crisisFlaggedAt: wire.crisisFlaggedAt ?? null,
       searchText: wire.searchText,
     });
     if (wire.content) {

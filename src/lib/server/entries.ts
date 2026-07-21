@@ -22,6 +22,8 @@ type EntryRow = {
   lastEditedAt: Date | null;
   sealedAt: Date | null;
   deletedAt: Date | null;
+  crisisFlagged: boolean;
+  crisisFlaggedAt: Date | null;
   searchText: string;
   contentHash: string;
   content: Prisma.JsonValue;
@@ -38,6 +40,8 @@ const toWire = (row: EntryRow): WireEntry => ({
   lastEditedAt: ms(row.lastEditedAt),
   sealedAt: ms(row.sealedAt),
   deletedAt: ms(row.deletedAt),
+  crisisFlagged: row.crisisFlagged === true,
+  crisisFlaggedAt: ms(row.crisisFlaggedAt),
   searchText: row.deletedAt ? "" : row.searchText,
   contentHash: row.contentHash,
   // Tombstones never carry board JSON — keep the wire payload small.
@@ -113,6 +117,15 @@ const pushOne = async (
     return { id: entry.id, accepted: false, server: toWire(existing) };
   }
 
+  // Once flagged on the server, never clear via a push that omits/false the flag.
+  const crisisFlagged =
+    existing?.crisisFlagged === true || entry.crisisFlagged === true;
+  const crisisFlaggedAt = crisisFlagged
+    ? (date(entry.crisisFlaggedAt) ??
+      existing?.crisisFlaggedAt ??
+      new Date())
+    : null;
+
   const data = {
     title: entry.title,
     createdAt: new Date(entry.createdAt),
@@ -120,6 +133,8 @@ const pushOne = async (
     lastEditedAt: date(entry.lastEditedAt),
     sealedAt: date(entry.sealedAt),
     deletedAt: date(entry.deletedAt),
+    crisisFlagged,
+    crisisFlaggedAt,
     searchText: entry.deletedAt ? "" : entry.searchText,
     contentHash: entry.contentHash,
     content: entry.deletedAt

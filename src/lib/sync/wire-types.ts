@@ -18,6 +18,9 @@ export type WireEntry = {
   lastEditedAt?: number | null;
   sealedAt?: number | null;
   deletedAt?: number | null;
+  /** Crisis-risk gate — boolean + timestamp only. */
+  crisisFlagged?: boolean;
+  crisisFlaggedAt?: number | null;
   searchText: string;
   contentHash: string;
   /** Full CanvasSnapshot; null for tombstones. */

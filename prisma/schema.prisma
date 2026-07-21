@@ -51,6 +51,10 @@ model JournalEntry {
   sealedAt     DateTime? @map("sealed_at") @db.Timestamptz(3) // null = draft
   deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(3) // soft-delete tombstone
 
+  /// Crisis-risk gate — boolean + timestamp only (no reasoning, snippets, or confidence).
+  crisisFlagged   Boolean   @default(false) @map("crisis_flagged")
+  crisisFlaggedAt DateTime? @map("crisis_flagged_at") @db.Timestamptz(3)
+
   /// Flattened plain text for sidebar search (derivable, stored for cheap list search).
   searchText  String @default("") @map("search_text")
   /// Hash of the flattened content — re-analysis trigger when it drifts from

@@ -2,7 +2,8 @@
  * Journal entry metadata — the sidebar's single source of truth.
  *
  * Entry {
- *   id, title, createdAt, updatedAt, sealedAt, searchText
+ *   id, title, createdAt, updatedAt, sealedAt, crisisFlagged,
+ *   crisisFlaggedAt, searchText
  * }
  *
  * `content` itself is NOT stored here — the canvas owns it entirely at
@@ -34,6 +35,10 @@ export type JournalEntry = {
   lastEditedAt?: number;
   /** Unix ms when sealed; `null`/absent = still a draft. */
   sealedAt?: number | null;
+  /** Crisis-risk gate — boolean only; never store reasoning or snippets. */
+  crisisFlagged?: boolean;
+  /** Unix ms when crisis was flagged; absent/null when not flagged. */
+  crisisFlaggedAt?: number | null;
   /** Flattened plain text of the entry's blocks, used for content search. */
   searchText?: string;
 };
@@ -73,6 +78,21 @@ const normalizeEntry = (value: unknown): JournalEntry | null => {
     normalized.sealedAt = value.sealedAt;
   } else if (value.sealedAt === null) {
     normalized.sealedAt = null;
+  }
+
+  if (value.crisisFlagged === true) {
+    normalized.crisisFlagged = true;
+  } else if (value.crisisFlagged === false) {
+    normalized.crisisFlagged = false;
+  }
+
+  if (
+    typeof value.crisisFlaggedAt === "number" &&
+    Number.isFinite(value.crisisFlaggedAt)
+  ) {
+    normalized.crisisFlaggedAt = value.crisisFlaggedAt;
+  } else if (value.crisisFlaggedAt === null) {
+    normalized.crisisFlaggedAt = null;
   }
 
   if (typeof value.searchText === "string") {
@@ -170,6 +190,20 @@ export const upsertEntry = (
     (updates.sealedAt === null || updates.sealedAt === undefined)
   ) {
     next.sealedAt = existing.sealedAt;
+  }
+
+  // Once crisis-flagged, never clear via a stale merge that omits the fields.
+  if (existing?.crisisFlagged === true) {
+    next.crisisFlagged = true;
+    if (
+      updates.crisisFlaggedAt === null ||
+      updates.crisisFlaggedAt === undefined
+    ) {
+      next.crisisFlaggedAt =
+        typeof existing.crisisFlaggedAt === "number"
+          ? existing.crisisFlaggedAt
+          : next.crisisFlaggedAt;
+    }
   }
 
   drafts[id] = next;
