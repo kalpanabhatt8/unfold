@@ -6,6 +6,8 @@ import { X } from "lucide-react";
 import type { PatternVoteValue } from "@/lib/patterns/pattern-vote-store";
 
 export type ClosingVoteProps = {
+  /** Pattern id — stored with downvote reasons so review scripts can group them. */
+  patternName?: string;
   value: PatternVoteValue | null;
   onVote: (vote: PatternVoteValue) => void;
 };
@@ -97,7 +99,7 @@ function ThumbsDownIcon({ solid }: { solid: boolean }) {
  * Up → thanks toast. Down → short reason form, then thanks.
  * Both controls stay visible; only the selected one fills + soft circle.
  */
-export function ClosingVote({ value, onVote }: ClosingVoteProps) {
+export function ClosingVote({ patternName, value, onVote }: ClosingVoteProps) {
   const titleId = useId();
   const formRef = useRef<HTMLDivElement | null>(null);
   /** After submit/close, keep downvote selected but hide the form until they tap down again. */
@@ -139,10 +141,13 @@ export function ClosingVote({ value, onVote }: ClosingVoteProps) {
   const submitReason = (reason: string) => {
     setFormDismissed(true);
     showThanks();
+    const text = patternName
+      ? `[pattern closing] ${patternName} | ${reason}`
+      : `[pattern closing] ${reason}`;
     void fetch("/api/feedback", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: `[pattern closing] ${reason}` }),
+      body: JSON.stringify({ text }),
     }).catch(() => {
       /* vote already saved; reason is best-effort */
     });

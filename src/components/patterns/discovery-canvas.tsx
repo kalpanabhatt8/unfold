@@ -39,6 +39,8 @@ export type DiscoveryCanvasProps = {
   ctaReady?: boolean;
   /** When true, skip the in-panel pattern title. */
   compactHeadline?: boolean;
+  /** Pattern id for downvote reason attribution. */
+  patternName?: string;
   /** Current thumbs vote for this pattern closing, if any. */
   closingVote?: PatternVoteValue | null;
   onClosingVote?: (vote: PatternVoteValue) => void;
@@ -111,6 +113,7 @@ export function DiscoveryCanvas({
   revealKey = "",
   ctaReady = true,
   compactHeadline = false,
+  patternName,
   closingVote = null,
   onClosingVote,
   onContinue,
@@ -272,6 +275,7 @@ export function DiscoveryCanvas({
               )}
               {onClosingVote ? (
                 <ClosingVote
+                  patternName={patternName}
                   value={closingVote ?? null}
                   onVote={onClosingVote}
                 />

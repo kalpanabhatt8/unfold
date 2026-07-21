@@ -251,6 +251,7 @@ export function PatternDetailView({
       revealKey={cacheKey}
       ctaReady={ctaReady}
       compactHeadline={compactHeadline}
+      patternName={patternName}
       closingVote={closingVote}
       onClosingVote={handleClosingVote}
       onContinue={handleContinue}
