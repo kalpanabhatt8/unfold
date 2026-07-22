@@ -85,8 +85,8 @@ export function SidebarAccountMenu() {
           aria-expanded={menuOpen}
           aria-controls={menuOpen ? menuId : undefined}
           onClick={() => setMenuOpen((prev) => !prev)}
-          className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-(--canvas-title-ink) text-[0.8125rem] font-semibold leading-none text-white transition-opacity duration-150 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20 active:opacity-80"
-          style={{ fontFamily: "var(--font-heading)", fontSize: "0.8125rem" }}
+          className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-sm bg-(--canvas-title-ink) text-[0.8125rem] font-semibold leading-none text-white transition-opacity duration-150 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20 active:opacity-80"
+          style={{ fontFamily: "var(--font-body)", fontSize: "0.8125rem" }}
         >
           {showPhoto && user ? (
             <img
