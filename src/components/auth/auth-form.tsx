@@ -1135,25 +1135,6 @@ export function AuthForm() {
                 )}
               </p>
             </form>
-
-            <div className="auth-divider" role="separator">
-              <span>or</span>
-            </div>
-
-            <button
-              type="button"
-              className={`auth-google ${btnSecondary("md")}`}
-              disabled={busy}
-              onClick={() => {
-                setError(null);
-                resetOtp();
-                clearVerifySession();
-                void signInWithOAuth("oauth_google");
-              }}
-            >
-              <GoogleMark />
-              Continue with Google
-            </button>
           </>
         ) : null}
       </div>
