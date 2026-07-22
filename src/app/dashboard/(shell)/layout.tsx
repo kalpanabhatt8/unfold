@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { Sidebar } from "@/components/sidebar/sidebar";
-import { SyncProvider } from "@/components/sync/sync-provider";
 import { DashboardScrollLock } from "./dashboard-scroll-lock";
 
 export default function DashboardShellLayout({
@@ -10,7 +9,6 @@ export default function DashboardShellLayout({
 }) {
   return (
     <DashboardScrollLock>
-      <SyncProvider />
       <div className="flex h-svh min-h-0 w-full max-w-[100vw] overflow-hidden bg-(--app-bg)">
         <Sidebar />
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">

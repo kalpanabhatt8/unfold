@@ -15,6 +15,7 @@ import {
   preferredNameMetadata,
   resolvePreferredName,
 } from "@/lib/user-display";
+import { clearLocalUnfoldData } from "@/lib/clear-local-data";
 import { cacheStampDisplayName } from "@/lib/stamp-display-name";
 
 const EXPORT_MAILTO =
@@ -31,20 +32,6 @@ const pageTitleStyle = {
 } as const;
 
 const PANEL_HEIGHT = "min(44rem, calc(100svh - 2rem))";
-
-function clearLocalUnfoldData() {
-  if (typeof window === "undefined") return;
-  try {
-    const keys: string[] = [];
-    for (let i = 0; i < window.localStorage.length; i += 1) {
-      const key = window.localStorage.key(i);
-      if (key?.startsWith("unfold-") || key?.startsWith("keeps-")) keys.push(key);
-    }
-    for (const key of keys) window.localStorage.removeItem(key);
-  } catch {
-    // ignore storage errors during wipe
-  }
-}
 
 function avatarLetter(source: string | null | undefined): string {
   const word = source?.trim().split(/\s+/)[0];

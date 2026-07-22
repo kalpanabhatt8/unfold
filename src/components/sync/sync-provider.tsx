@@ -1,14 +1,14 @@
 "use client";
 
 /**
- * Mounts the sync engine for the dashboard. Full sync on load (and when the
- * tab regains focus after a while); debounced push whenever local stores
- * flag dirty data. Signed-out sessions stay purely local — unchanged from
- * the pre-cloud behavior.
+ * Mounts the sync engine for the dashboard. Clears local caches when the
+ * signed-in user changes, then full sync on load (and when the tab regains
+ * focus after a while); debounced push whenever local stores flag dirty data.
  */
 
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
 import { useUser } from "@clerk/nextjs";
+import { ensureAuthUserScope } from "@/lib/clear-local-data";
 import { SYNC_DIRTY_EVENT } from "@/lib/sync/local-flags";
 import { fullSync, pushSync } from "@/lib/sync/sync-client";
 
@@ -16,10 +16,15 @@ const PUSH_DEBOUNCE_MS = 4_000;
 const FULL_SYNC_INTERVAL_MS = 5 * 60_000;
 
 export function SyncProvider() {
-  const { isSignedIn } = useUser();
+  const { isSignedIn, user } = useUser();
+
+  useLayoutEffect(() => {
+    if (!isSignedIn || !user?.id) return;
+    ensureAuthUserScope(user.id);
+  }, [isSignedIn, user?.id]);
 
   useEffect(() => {
-    if (!isSignedIn) return;
+    if (!isSignedIn || !user?.id) return;
 
     void fullSync();
 
@@ -54,7 +59,7 @@ export function SyncProvider() {
       window.removeEventListener(SYNC_DIRTY_EVENT, schedulePush);
       document.removeEventListener("visibilitychange", handleVisible);
     };
-  }, [isSignedIn]);
+  }, [isSignedIn, user?.id]);
 
   return null;
 }

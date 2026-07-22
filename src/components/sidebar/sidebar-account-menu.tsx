@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { useClerk, useUser } from "@clerk/nextjs";
 import { AccountProfileModal } from "@/components/sidebar/account-profile-modal";
 import { SendFeedbackModal } from "@/components/sidebar/send-feedback-modal";
+import { clearLocalUnfoldData } from "@/lib/clear-local-data";
 import { resolvePreferredName } from "@/lib/user-display";
 
 // const SUPPORT_MAILTO =
@@ -72,6 +73,7 @@ export function SidebarAccountMenu() {
 
   const signOut = () => {
     closeMenu();
+    clearLocalUnfoldData();
     void clerk.signOut({ redirectUrl: "/" });
   };
 
