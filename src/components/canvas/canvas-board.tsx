@@ -1356,34 +1356,28 @@ function CanvasHeader({
         )}
         style={{ fontFamily: "var(--font-heading)" }}
       />
-      <div>
-        <time
-          dateTime={isoDateTime}
-          className="col-start-1 row-start-2 block text-left font-light text-xs tracking-[0.04em] sm:col-start-2 sm:row-start-1 sm:text-right sm:text-xs"
-          style={{ lineHeight: 1.45 }}
-        >
+      <div
+        className="col-start-1 row-start-2 block text-left font-light text-xs tracking-[0.04em] sm:col-start-2 sm:row-start-1 sm:text-right sm:text-xs"
+        style={{ lineHeight: 1.45 }}
+      >
+        {saveStatus ? (
+          <>
+            <span aria-live="polite" className="text-tertiary">
+              {saveStatus === "saving" ? "Saving..." : "Saved"}
+            </span>
+            <span className="text-(--canvas-date-time)"> · </span>
+          </>
+        ) : null}
+        <time dateTime={isoDateTime} className="inline text-(--canvas-date-time)">
           {isSealed && signedStamp ? (
-            <span className="text-(--canvas-date-time)">{signedStamp}</span>
+            signedStamp
           ) : (
             <>
-              <span className="text-(--canvas-date-time) mb-[-0.0625rem]">
-                {editedStamp.date},{" "}
-              </span>
-              <span className="text-(--canvas-date-time)">
-                {editedStamp.time}
-              </span>
+              <span className="mb-[-0.0625rem]">{editedStamp.date}, </span>
+              <span>{editedStamp.time}</span>
             </>
           )}
         </time>
-        {saveStatus ? (
-          <p
-            aria-live="polite"
-            className="text-tertiary col-start-1 row-start-3 block text-left text-xs tracking-[0.01em] sm:col-start-2 sm:row-start-2 sm:text-right sm:text-sm"
-            style={{ lineHeight: 1.45 }}
-          >
-            {saveStatus === "saving" ? "Saving..." : "Saved"}
-          </p>
-        ) : null}
       </div>
     </header>
   );
