@@ -6,9 +6,6 @@
   --auth-cta: color-mix(in srgb, var(--canvas-title-ink) 62%, #c48496);
   --auth-cta-hover: color-mix(in srgb, var(--canvas-title-ink) 72%, #b87085);
   --auth-soft: var(--sidebar-ink-soft);
-  /* Cards use app white — not canvas cream (#fffcf7) */
-  --auth-paper: var(--app-bg);
-  --auth-wash: var(--discovery-canvas-bg);
   --auth-line: color-mix(in srgb, var(--sidebar-ink-soft) 28%, transparent);
   --auth-fill: color-mix(in srgb, var(--sidebar-tab-track) 55%, white);
   --auth-fill-hover: var(--sidebar-tab-selected-bg);
@@ -18,9 +15,9 @@
   width: 100%;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: 1.75rem;
-  padding: max(1.5rem, env(safe-area-inset-top)) 1.25rem
+  padding: max(18vh, calc(env(safe-area-inset-top) + 1.25rem)) 20px
     max(1.5rem, env(safe-area-inset-bottom));
   background:
     radial-gradient(
@@ -28,14 +25,9 @@
       color-mix(in srgb, var(--sidebar-tab-track) 55%, transparent),
       transparent 55%
     ),
-    var(--auth-wash);
+    var(--discovery-canvas-bg);
   color: var(--sidebar-ink);
   font-family: var(--font-body);
-}
-
-.auth-shell--top {
-  justify-content: flex-start;
-  padding-top: max(18vh, calc(env(safe-area-inset-top) + 2rem));
 }
 
 .auth-redirecting {
@@ -61,20 +53,19 @@
 
 .auth-card {
   width: 100%;
-  max-width: 24rem;
-  padding: 1.75rem 1.5rem 1.5rem;
-  background: var(--auth-paper);
-  border: 0.0625rem solid var(--auth-line);
-  border-radius: calc(var(--radius-md) + 0.25rem);
-  box-shadow:
-    0 0.0625rem 0 color-mix(in srgb, var(--auth-ink) 4%, transparent),
-    0 1.125rem 2.5rem -1.375rem color-mix(in srgb, var(--auth-ink) 14%, transparent);
+  max-width: 22rem;
+  margin-inline: auto;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 
 .auth-verify {
   width: 100%;
   max-width: 24rem;
-  padding: 0.5rem 0.25rem 1rem;
+  margin-inline: auto;
+  padding: 0;
   background: transparent;
   border: none;
   box-shadow: none;
@@ -83,7 +74,7 @@
 .auth-verify .auth-subtitle,
 .auth-verify .auth-resend-line,
 .auth-verify .auth-resend-wait {
-  color: var(--sidebar-ink);
+  color: var(--text-tertiary);
 }
 
 .auth-verify .auth-email {
@@ -113,10 +104,13 @@
 }
 
 .auth-subtitle {
-  margin: 0.45rem 0 0;
-  font-size: 0.9rem;
-  line-height: 1.45;
-  color: var(--auth-soft);
+  margin: 0.5rem 0 0;
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: -0.01em;
+  color: var(--text-tertiary);
 }
 
 .auth-subtitle--inline {
@@ -125,7 +119,10 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-family: var(--font-body);
   font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--text-tertiary);
 }
 
 .auth-email {
@@ -176,8 +173,9 @@
   gap: 0.85rem;
   margin: 1.25rem 0;
   color: var(--auth-soft);
-  font-size: 0.75rem;
-  letter-spacing: 0.04em;
+  font-size: 0.785rem;
+  /* letter-spacing: 0.04em; */
+  font-weight: lighter;
   text-transform: lowercase;
 }
 
@@ -356,6 +354,42 @@
   font-weight: 500;
 }
 
+.auth-forgot-line {
+  margin: -0.15rem 0 0;
+  text-align: right;
+}
+
+.auth-switch-line {
+  margin: 1.25rem 0 0;
+  text-align: center;
+  color: var(--auth-soft);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+.auth-inline-link {
+  color: var(--auth-ink);
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 0.12em;
+}
+
+.auth-inline-link:hover {
+  opacity: 0.82;
+}
+
+.auth-success {
+  margin: 0;
+  padding: 0.65rem 0.75rem;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--auth-ink) 6%, white);
+  color: var(--sidebar-ink);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.4;
+  text-align: left;
+}
+
 .auth-legal {
   margin: 0.1rem 0 0.15rem;
 }
@@ -391,20 +425,26 @@
   opacity: 0.85;
 }
 
+.auth-otp-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  width: 100%;
+}
+
 .auth-otp {
   display: flex;
   width: fit-content;
   justify-content: center;
   gap: 0.75rem;
-  width: 100%;
+  margin-inline: auto;
 }
 
 .auth-otp-box {
   width: 2.85rem;
   height: 3rem;
-  flex: 1 1 0;
-  min-width: 0;
-  max-width: 2.85rem;
+  flex: 0 0 2.85rem;
   padding: 0;
   border: 0.0625rem solid var(--auth-line);
   border-radius: var(--radius-md);

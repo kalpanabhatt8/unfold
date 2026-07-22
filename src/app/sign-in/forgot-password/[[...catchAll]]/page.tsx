@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation";
 import { AUTH_SIGN_IN_PATH } from "@/lib/auth-routes";
 
-/** Legacy /get-started links redirect to sign-in. */
-export default function LegacyGetStartedRedirect() {
+export default function LegacyForgotPasswordRedirect() {
   redirect(AUTH_SIGN_IN_PATH);
 }

@@ -1,8 +1,10 @@
+import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
+import { AuthForm } from "@/components/auth/auth-form";
 
-import { AUTH_SIGN_IN_PATH } from "@/lib/auth-routes";
+export default async function SignUpPage() {
+  const { userId } = await auth();
+  if (userId) redirect("/dashboard");
 
-/** Old /sign-up links land on the combined get-started screen. */
-export default function Signup() {
-  redirect(AUTH_SIGN_IN_PATH);
+  return <AuthForm />;
 }

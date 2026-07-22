@@ -8,189 +8,69 @@ import type { EmailCodeFactor, OAuthStrategy } from "@clerk/types";
 import {
   AUTH_AFTER_SIGN_IN_PATH,
   AUTH_SIGN_IN_PATH,
+  AUTH_SIGN_IN_VERIFY_PATH,
+  AUTH_SIGN_UP_PATH,
+  AUTH_SIGN_UP_VERIFY_PATH,
   AUTH_SSO_CALLBACK_PATH,
-  AUTH_VERIFY_PATH,
   authAbsoluteUrl,
 } from "@/lib/auth-routes";
-import { resetAuthAttempts } from "@/lib/auth-finalize";
+import {
+  type AuthFlow,
+  clearVerifyInterrupted,
+  clearVerifySession,
+  clerkErrorCode,
+  clerkErrorMessage,
+  consumeVerifyInterrupted,
+  EMAIL_INVALID_MESSAGE,
+  friendlyAuthError,
+  isAlreadySignedInError,
+  isAlreadyVerifiedError,
+  isFieldError,
+  isValidEmail,
+  LEGAL_REQUIRED_MESSAGE,
+  markVerifyInterrupted,
+  OTP_LENGTH,
+  persistVerifySession,
+  readVerifyEmail,
+  readVerifyFlow,
+  VERIFY_INTERRUPTED_MESSAGE,
+  formatMissingSignUpFields,
+} from "@/lib/auth-utils";
+import {
+  buildSignUpCompletionPayload,
+  resetAuthAttempts,
+} from "@/lib/auth-finalize";
 import { btnSecondary } from "@/components/ui/button-system";
 import "@/components/auth/auth-form.css";
 
-type Step = "credentials" | "verify";
-type AuthFlow = "sign-in" | "sign-up";
-
-const OTP_LENGTH = 6;
-const VERIFY_FLOW_KEY = "unfold-auth-verify-flow";
-const VERIFY_EMAIL_KEY = "unfold-auth-verify-email";
-const VERIFY_INTERRUPTED_KEY = "unfold-auth-verify-interrupted";
-
-const PASSWORD_RULES_MESSAGE =
-  "Must be at least 8 characters long and include an uppercase letter, lowercase letter, number, and special character";
-
-const EMAIL_INVALID_MESSAGE = "Please enter a valid email address.";
-
-const LEGAL_REQUIRED_MESSAGE =
-  "Please agree to the Terms and Conditions and Privacy Policy to continue.";
-
-const VERIFY_INTERRUPTED_MESSAGE =
-  "Verification was interrupted. Please sign in or start again.";
+type AuthMode = "sign-in" | "sign-up" | "sign-in-verify" | "sign-up-verify";
 
 /** Cancels a pending "left verify" mark (React Strict Mode remount). */
 let verifyMountId = 0;
 
-function persistVerifySession(flow: AuthFlow, emailAddress: string) {
-  try {
-    sessionStorage.setItem(VERIFY_FLOW_KEY, flow);
-    sessionStorage.setItem(VERIFY_EMAIL_KEY, emailAddress);
-  } catch {
-    // ignore
-  }
+function getAuthMode(pathname: string): AuthMode {
+  if (pathname === AUTH_SIGN_UP_VERIFY_PATH) return "sign-up-verify";
+  if (pathname === AUTH_SIGN_IN_VERIFY_PATH) return "sign-in-verify";
+  if (pathname === AUTH_SIGN_UP_PATH) return "sign-up";
+  return "sign-in";
 }
 
-function readVerifyFlow(): AuthFlow | null {
-  try {
-    const value = sessionStorage.getItem(VERIFY_FLOW_KEY);
-    return value === "sign-up" || value === "sign-in" ? value : null;
-  } catch {
-    return null;
-  }
+function verifyPathForFlow(flow: AuthFlow): string {
+  return flow === "sign-up"
+    ? AUTH_SIGN_UP_VERIFY_PATH
+    : AUTH_SIGN_IN_VERIFY_PATH;
 }
 
-function readVerifyEmail(): string {
-  try {
-    return sessionStorage.getItem(VERIFY_EMAIL_KEY) ?? "";
-  } catch {
-    return "";
-  }
+function credentialsPathForFlow(flow: AuthFlow): string {
+  return flow === "sign-up" ? AUTH_SIGN_UP_PATH : AUTH_SIGN_IN_PATH;
 }
 
-function clearVerifySession() {
-  try {
-    sessionStorage.removeItem(VERIFY_FLOW_KEY);
-    sessionStorage.removeItem(VERIFY_EMAIL_KEY);
-  } catch {
-    // ignore
-  }
+function flowFromMode(mode: AuthMode): AuthFlow {
+  return mode === "sign-up" || mode === "sign-up-verify" ? "sign-up" : "sign-in";
 }
 
-function markVerifyInterrupted() {
-  try {
-    sessionStorage.setItem(VERIFY_INTERRUPTED_KEY, "1");
-  } catch {
-    // ignore
-  }
-  clearVerifySession();
-}
-
-function consumeVerifyInterrupted(): boolean {
-  try {
-    const value = sessionStorage.getItem(VERIFY_INTERRUPTED_KEY);
-    if (!value) return false;
-    sessionStorage.removeItem(VERIFY_INTERRUPTED_KEY);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function clearVerifyInterrupted() {
-  try {
-    sessionStorage.removeItem(VERIFY_INTERRUPTED_KEY);
-  } catch {
-    // ignore
-  }
-}
-
-function isStrongPassword(value: string): boolean {
-  return (
-    value.length >= 8 &&
-    /[A-Z]/.test(value) &&
-    /[a-z]/.test(value) &&
-    /\d/.test(value) &&
-    /[^A-Za-z0-9]/.test(value)
-  );
-}
-
-function isValidEmail(value: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
-}
-
-function isFieldError(message: string | null): boolean {
-  return (
-    message === PASSWORD_RULES_MESSAGE || message === EMAIL_INVALID_MESSAGE
-  );
-}
-
-function isAlreadySignedInError(err: unknown): boolean {
-  const code = clerkErrorCode(err);
-  if (code === "session_exists" || code === "identifier_already_signed_in") {
-    return true;
-  }
-  const message = clerkErrorMessage(err);
-  return /already signed in/i.test(message);
-}
-
-function isAlreadyVerifiedError(err: unknown): boolean {
-  const code = clerkErrorCode(err);
-  if (code === "verification_already_verified") return true;
-  return /already (been )?verified/i.test(clerkErrorMessage(err));
-}
-
-/** Never show Clerk's raw "already verified" string in the UI. */
-function friendlyAuthError(err: unknown): string {
-  if (isAlreadyVerifiedError(err)) {
-    return "Your email is verified — finishing your account…";
-  }
-  return clerkErrorMessage(err);
-}
-
-function clerkErrorMessage(err: unknown): string {
-  const code = clerkErrorCode(err);
-  if (
-    code === "form_password_pwned" ||
-    code === "form_password_pwned__sign_in" ||
-    code === "form_password_compromised__sign_in" ||
-    code === "form_password_untrusted__sign_in" ||
-    code === "form_password_not_strong_enough" ||
-    code === "form_password_length_too_short" ||
-    code === "form_password_validation_failed"
-  ) {
-    return PASSWORD_RULES_MESSAGE;
-  }
-
-  if (
-    err &&
-    typeof err === "object" &&
-    "errors" in err &&
-    Array.isArray((err as { errors: unknown }).errors)
-  ) {
-    const first = (
-      err as { errors: Array<{ longMessage?: string; message?: string }> }
-    ).errors[0];
-    const raw = first?.longMessage || first?.message || "";
-    if (
-      /data breach|online data breach|pwned|not strong|too short|uppercase|special character/i.test(
-        raw,
-      )
-    ) {
-      return PASSWORD_RULES_MESSAGE;
-    }
-    return raw || "Something went wrong. Try again.";
-  }
-  if (err instanceof Error) return err.message;
-  return "Something went wrong. Try again.";
-}
-
-function clerkErrorCode(err: unknown): string | undefined {
-  if (
-    err &&
-    typeof err === "object" &&
-    "errors" in err &&
-    Array.isArray((err as { errors: unknown }).errors)
-  ) {
-    return (err as { errors: Array<{ code?: string }> }).errors[0]?.code;
-  }
-  return undefined;
+function isVerifyMode(mode: AuthMode): boolean {
+  return mode === "sign-in-verify" || mode === "sign-up-verify";
 }
 
 export function AuthForm() {
@@ -202,21 +82,19 @@ export function AuthForm() {
     useSignUp();
   const activateSession = setActive ?? setActiveFromSignUp;
 
-  const step: Step =
-    pathname === AUTH_VERIFY_PATH ? "verify" : "credentials";
+  const mode = getAuthMode(pathname);
 
   const [email, setEmail] = React.useState("");
-  const [password, setPassword] = React.useState("");
   const [digits, setDigits] = React.useState<string[]>(() =>
     Array.from({ length: OTP_LENGTH }, () => ""),
   );
-  const [flow, setFlow] = React.useState<AuthFlow>("sign-in");
+  const [flow, setFlow] = React.useState<AuthFlow>(() => flowFromMode(mode));
   const [error, setError] = React.useState<string | null>(null);
   const [pending, setPending] = React.useState(false);
   const [resendCooldown, setResendCooldown] = React.useState(0);
-  const [showPassword, setShowPassword] = React.useState(false);
   const [acceptedLegal, setAcceptedLegal] = React.useState(false);
   const otpRefs = React.useRef<(HTMLInputElement | null)[]>([]);
+  const finalizingSignUpRef = React.useRef(false);
 
   const isLoaded = authLoaded && signInLoaded && signUpLoaded;
   const busy = pending || !isLoaded;
@@ -235,14 +113,12 @@ export function AuthForm() {
         emailStatus === "unverified" ||
         emailStatus === "expired" ||
         emailStatus === "failed");
-    return (
-      !!saved ||
-      signUpNeedsEmail ||
-      signIn?.status === "needs_second_factor"
-    );
+    const signInNeedsEmailCode =
+      signIn?.status === "needs_first_factor" ||
+      signIn?.status === "needs_second_factor";
+    return !!saved || signUpNeedsEmail || signInNeedsEmailCode;
   }, [signUp, signIn]);
 
-  /** Prefer Clerk resource state over React state (survives remounts / HMR). */
   const resolveVerifyFlow = React.useCallback((): AuthFlow => {
     const emailStatus = signUp?.verifications?.emailAddress?.status;
     const signUpNeedsEmail =
@@ -254,27 +130,34 @@ export function AuthForm() {
         emailStatus === "failed");
 
     if (signUpNeedsEmail) return "sign-up";
-    if (signIn?.status === "needs_second_factor") return "sign-in";
+    if (
+      signIn?.status === "needs_first_factor" ||
+      signIn?.status === "needs_second_factor"
+    ) {
+      return "sign-in";
+    }
     return readVerifyFlow() ?? flow;
   }, [signUp, signIn, flow]);
 
-  /** End OTP and return to the email/password screen. */
   const exitVerifyToCredentials = React.useCallback(() => {
+    const activeFlow = resolveVerifyFlow();
     clearVerifySession();
-    setFlow("sign-in");
+    setFlow(activeFlow);
     resetOtp();
     void resetAuthAttempts(signIn, signUp);
-    if (pathname !== AUTH_SIGN_IN_PATH) {
+
+    const target = credentialsPathForFlow(activeFlow);
+    if (pathname !== target) {
       try {
-        sessionStorage.setItem(VERIFY_INTERRUPTED_KEY, "1");
+        sessionStorage.setItem("unfold-auth-verify-interrupted", "1");
       } catch {
         // ignore
       }
-      router.replace(AUTH_SIGN_IN_PATH);
+      router.replace(target);
     } else {
       setError(VERIFY_INTERRUPTED_MESSAGE);
     }
-  }, [signIn, signUp, resetOtp, pathname, router]);
+  }, [signIn, signUp, resetOtp, pathname, router, resolveVerifyFlow]);
 
   const enterVerifyStep = React.useCallback(
     (nextFlow: AuthFlow) => {
@@ -283,40 +166,36 @@ export function AuthForm() {
       setFlow(nextFlow);
       setDigits(Array.from({ length: OTP_LENGTH }, () => ""));
       setError(null);
-      // Don't lock Resend on first land — only after a successful resend.
       setResendCooldown(0);
-      router.push(AUTH_VERIFY_PATH);
+      router.push(verifyPathForFlow(nextFlow));
     },
     [email, router],
   );
 
   React.useEffect(() => {
-    if (authLoaded && isSignedIn) {
+    if (authLoaded && isSignedIn && !isVerifyMode(mode)) {
       clearVerifySession();
       clearVerifyInterrupted();
       window.location.assign("/dashboard");
     }
-  }, [authLoaded, isSignedIn]);
+  }, [authLoaded, isSignedIn, mode]);
 
-  // Restore email / flow when landing on the verify route.
   React.useEffect(() => {
-    if (step !== "verify") return;
+    if (!isVerifyMode(mode)) return;
     const savedEmail = readVerifyEmail();
     if (savedEmail) setEmail(savedEmail);
     const savedFlow = readVerifyFlow();
     if (savedFlow) setFlow(savedFlow);
-  }, [step]);
+  }, [mode]);
 
-  // Verify URL without an active session → restart auth.
   React.useEffect(() => {
-    if (!isLoaded || step !== "verify") return;
+    if (!isLoaded || !isVerifyMode(mode)) return;
     if (hasActiveVerifySession()) return;
     exitVerifyToCredentials();
-  }, [isLoaded, step, hasActiveVerifySession, exitVerifyToCredentials]);
+  }, [isLoaded, mode, hasActiveVerifySession, exitVerifyToCredentials]);
 
-  // Leaving the verify route invalidates the OTP session (Back, links, refresh).
   React.useEffect(() => {
-    if (step !== "verify") return;
+    if (!isVerifyMode(mode)) return;
 
     const mountId = ++verifyMountId;
 
@@ -328,20 +207,18 @@ export function AuthForm() {
 
     return () => {
       window.removeEventListener("pagehide", onPageHide);
-      // Microtask runs before the next page's useEffects; Strict Mode remount bumps mountId.
       queueMicrotask(() => {
         if (verifyMountId !== mountId) return;
         if (!readVerifyFlow()) return;
         markVerifyInterrupted();
       });
     };
-  }, [step]);
+  }, [mode]);
 
-  // bfcache restore of verify → force restart on the auth route.
   React.useEffect(() => {
     const onPageShow = (event: PageTransitionEvent) => {
       if (!event.persisted) return;
-      if (pathname !== AUTH_VERIFY_PATH) return;
+      if (!isVerifyMode(getAuthMode(pathname))) return;
       if (!consumeVerifyInterrupted()) return;
       exitVerifyToCredentials();
     };
@@ -349,16 +226,15 @@ export function AuthForm() {
     return () => window.removeEventListener("pageshow", onPageShow);
   }, [pathname, exitVerifyToCredentials]);
 
-  // After leaving verify, show the interrupted message on the credentials screen.
   React.useEffect(() => {
-    if (!isLoaded || step === "verify") return;
+    if (!isLoaded || isVerifyMode(mode)) return;
     if (!consumeVerifyInterrupted()) return;
 
-    setFlow("sign-in");
+    setFlow(flowFromMode(mode));
     resetOtp();
     setError(VERIFY_INTERRUPTED_MESSAGE);
     void resetAuthAttempts(signIn, signUp);
-  }, [isLoaded, step, signIn, signUp, resetOtp]);
+  }, [isLoaded, mode, signIn, signUp, resetOtp]);
 
   const requireLegal = () => {
     if (!acceptedLegal) {
@@ -382,42 +258,9 @@ export function AuthForm() {
       await activateSession({ session: sessionId });
       clearVerifySession();
       clearVerifyInterrupted();
-      // Full navigation — avoids sitting on the auth skeleton while the app hydrates.
       window.location.assign("/dashboard");
     },
     [activateSession],
-  );
-
-  const buildCompletionPayload = React.useCallback(
-    (resource: {
-      missingFields?: string[];
-      legalAcceptedAt?: number | null;
-      emailAddress?: string | null;
-    }) => {
-      const missing = resource.missingFields ?? [];
-      const payload: Record<string, string | boolean> = {};
-
-      if (missing.includes("legal_accepted") || !resource.legalAcceptedAt) {
-        payload.legalAccepted = true;
-      }
-
-      // Username may still be required in Clerk — never show a form for it.
-      if (missing.includes("username")) {
-        const base =
-          (email.trim() || resource.emailAddress || "user")
-            .split("@")[0]
-            ?.replace(/[^a-zA-Z0-9_]/g, "")
-            .slice(0, 18)
-            .toLowerCase() || "user";
-        payload.username = `${base}_${Math.random().toString(36).slice(2, 8)}`;
-      }
-
-      if (missing.includes("first_name")) payload.firstName = "Unfold";
-      if (missing.includes("last_name")) payload.lastName = "Member";
-
-      return payload;
-    },
-    [email],
   );
 
   const finalizeSignUp = React.useCallback(
@@ -447,145 +290,117 @@ export function AuthForm() {
         }>;
       } | null,
     ): Promise<{ ok: boolean; missing?: string[] }> => {
+      if (finalizingSignUpRef.current) return { ok: false };
+      finalizingSignUpRef.current = true;
+
       const active = resource ?? signUp;
-      if (!active || !activateSession) return { ok: false };
-
-      const tryActivate = async (sessionId: string | null | undefined) => {
-        if (!sessionId) return false;
-        await activateSession({ session: sessionId });
-        clearVerifySession();
-        clearVerifyInterrupted();
-        window.location.assign("/dashboard");
-        return true;
-      };
-
-      if (active.status === "complete") {
-        if (await tryActivate(active.createdSessionId)) return { ok: true };
+      if (!active || !activateSession) {
+        finalizingSignUpRef.current = false;
+        return { ok: false };
       }
 
-      const attemptComplete = async (
-        target: NonNullable<typeof active>,
-      ): Promise<{ ok: boolean; missing?: string[] }> => {
-        if (target.status === "complete") {
-          if (await tryActivate(target.createdSessionId)) return { ok: true };
-        }
-        if (target.status !== "missing_requirements") {
-          return { ok: false, missing: target.missingFields };
+      try {
+        const tryActivate = async (sessionId: string | null | undefined) => {
+          if (!sessionId) return false;
+          await activateSession({ session: sessionId });
+          clearVerifySession();
+          clearVerifyInterrupted();
+          window.location.assign("/dashboard");
+          return true;
+        };
+
+        if (active.status === "complete") {
+          if (await tryActivate(active.createdSessionId)) return { ok: true };
         }
 
-        const payload = buildCompletionPayload(target);
-        if (Object.keys(payload).length === 0) {
-          return { ok: false, missing: target.missingFields };
-        }
-
-        try {
-          const updated = await target.update(payload);
-          if (updated.status === "complete") {
-            if (await tryActivate(updated.createdSessionId)) return { ok: true };
+        const attemptComplete = async (
+          target: NonNullable<typeof active>,
+        ): Promise<{ ok: boolean; missing?: string[] }> => {
+          if (target.status === "complete") {
+            if (await tryActivate(target.createdSessionId)) return { ok: true };
           }
-          // Username collision — retry once with a new username.
-          if (
-            updated.status === "missing_requirements" &&
-            (updated.missingFields ?? []).includes("username")
-          ) {
-            const retry = await target.update({
-              ...payload,
-              username: `user_${Math.random().toString(36).slice(2, 10)}`,
-              legalAccepted: true,
-            });
-            if (retry.status === "complete") {
-              if (await tryActivate(retry.createdSessionId)) return { ok: true };
+          if (target.status !== "missing_requirements") {
+            return { ok: false, missing: target.missingFields };
+          }
+
+          const payload = buildSignUpCompletionPayload(target, email.trim());
+          if (Object.keys(payload).length === 0) {
+            return { ok: false, missing: target.missingFields };
+          }
+
+          try {
+            const updated = await target.update(payload);
+            if (updated.status === "complete") {
+              if (await tryActivate(updated.createdSessionId)) return { ok: true };
             }
-            return { ok: false, missing: retry.missingFields };
+            if (
+              updated.status === "missing_requirements" &&
+              (updated.missingFields ?? []).includes("username")
+            ) {
+              const retry = await target.update({
+                ...payload,
+                username: `user_${Math.random().toString(36).slice(2, 10)}`,
+                legalAccepted: true,
+              });
+              if (retry.status === "complete") {
+                if (await tryActivate(retry.createdSessionId)) return { ok: true };
+              }
+              return { ok: false, missing: retry.missingFields };
+            }
+            return { ok: false, missing: updated.missingFields };
+          } catch {
+            return { ok: false, missing: target.missingFields };
           }
-          return { ok: false, missing: updated.missingFields };
-        } catch {
-          return { ok: false, missing: target.missingFields };
-        }
-      };
+        };
 
-      const first = await attemptComplete(active);
-      if (first.ok) return first;
-
-      if (active.reload) {
-        try {
-          const reloaded = await active.reload();
-          return attemptComplete(reloaded);
-        } catch {
-          // ignore
-        }
+        return await attemptComplete(active);
+      } finally {
+        finalizingSignUpRef.current = false;
       }
-
-      return first;
     },
-    [signUp, activateSession, router, buildCompletionPayload],
+    [signUp, activateSession, email],
   );
 
-  // Email already verified but session not active — finish without another OTP attempt.
+  // Remount / bfcache only — normal verify completion runs in handleVerify.
   React.useEffect(() => {
-    if (!isLoaded || step !== "verify" || pending) return;
-    if (signUp?.verifications?.emailAddress?.status !== "verified") return;
-    if (signUp.status === "complete" && signUp.createdSessionId) {
+    if (!isLoaded || mode !== "sign-up-verify" || pending) return;
+    if (signUp?.status === "complete" && signUp.createdSessionId) {
       void goDashboard(signUp.createdSessionId);
-      return;
     }
-    if (signUp.status === "missing_requirements") {
-      void finalizeSignUp(signUp).then((finished) => {
-        if (!finished.ok && finished.missing?.length) {
-          setError(
-            `Email verified — still need: ${finished.missing.join(", ")}. In Clerk, turn off extra required fields like username.`,
-          );
-        }
-      });
-    }
-  }, [isLoaded, step, pending, signUp, goDashboard, finalizeSignUp]);
+  }, [isLoaded, mode, pending, signUp?.status, signUp?.createdSessionId, goDashboard]);
 
-  const startEmailVerification = async () => {
-    if (!signUp) return;
-    await signUp.prepareVerification({ strategy: "email_code" });
-    enterVerifyStep("sign-up");
+  const findEmailCodeFactor = () => {
+    const firstFactor = signIn?.supportedFirstFactors?.find(
+      (factor): factor is EmailCodeFactor => factor.strategy === "email_code",
+    );
+    if (firstFactor) return { factor: firstFactor, asSecondFactor: false };
+
+    const secondFactor = signIn?.supportedSecondFactors?.find(
+      (factor): factor is EmailCodeFactor => factor.strategy === "email_code",
+    );
+    if (secondFactor) return { factor: secondFactor, asSecondFactor: true };
+
+    return null;
   };
 
-  /** Create account + send OTP. Used for true first-time users. */
-  const createAccountAndSendCode = async (): Promise<
-    "ok" | "wrong_password" | "error"
-  > => {
-    if (!signUp) return "error";
-    if (!isStrongPassword(password)) {
-      setError(PASSWORD_RULES_MESSAGE);
-      return "error";
-    }
+  const sendSignInEmailCode = async () => {
+    if (!signIn) return false;
 
-    try {
-      await signUp.create({
-        emailAddress: email.trim(),
-        password,
-        legalAccepted: true,
+    const emailCode = findEmailCodeFactor();
+    if (!emailCode) return false;
+
+    if (emailCode.asSecondFactor) {
+      await signIn.prepareSecondFactor({
+        strategy: "email_code",
+        emailAddressId: emailCode.factor.emailAddressId,
       });
-      await startEmailVerification();
-      return "ok";
-    } catch (signUpErr) {
-      const code = clerkErrorCode(signUpErr) ?? "";
-      const message = clerkErrorMessage(signUpErr);
-      const alreadyExists =
-        code === "form_identifier_exists" ||
-        /already|exists|taken/i.test(message);
-
-      if (alreadyExists) {
-        // Incomplete prior sign-up — resume email verification if possible.
-        try {
-          await signUp.prepareVerification({ strategy: "email_code" });
-          enterVerifyStep("sign-up");
-          return "ok";
-        } catch {
-          // Account is already registered — the sign-in password was wrong.
-          return "wrong_password";
-        }
-      }
-
-      setError(message);
-      return "error";
+    } else {
+      await signIn.prepareFirstFactor({
+        strategy: "email_code",
+        emailAddressId: emailCode.factor.emailAddressId,
+      });
     }
+    return true;
   };
 
   const signInWithOAuth = async (strategy: OAuthStrategy) => {
@@ -618,9 +433,69 @@ export function AuthForm() {
     }
   };
 
-  const handleCredentials = async (e: React.FormEvent) => {
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isLoaded || !signIn || !signUp) return;
+    if (!isLoaded || !signIn) return;
+    if (isSignedIn) {
+      router.replace("/dashboard");
+      return;
+    }
+    if (!isValidEmail(email)) {
+      setError(EMAIL_INVALID_MESSAGE);
+      return;
+    }
+
+    setError(null);
+    setPending(true);
+
+    try {
+      await resetAuthAttempts(signIn, signUp);
+      const attempt = await signIn.create({
+        identifier: email.trim(),
+      });
+
+      if (attempt.status === "complete") {
+        await goDashboard(attempt.createdSessionId);
+        return;
+      }
+
+      if (
+        attempt.status === "needs_first_factor" ||
+        attempt.status === "needs_second_factor"
+      ) {
+        const sent = await sendSignInEmailCode();
+        if (sent) {
+          enterVerifyStep("sign-in");
+          return;
+        }
+        setError(
+          "Email verification isn't available for this account. Try Continue with Google.",
+        );
+        return;
+      }
+
+      setError("Couldn't finish signing in. Please try again.");
+    } catch (err) {
+      if (isAlreadySignedInError(err)) {
+        router.replace("/dashboard");
+        return;
+      }
+
+      const code = clerkErrorCode(err);
+      if (code === "form_identifier_not_found") {
+        setError("No account found with this email. Sign up instead.");
+        return;
+      }
+
+      setError(clerkErrorMessage(err));
+    } finally {
+      setPending(false);
+    }
+  };
+
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isLoaded || !signUp) return;
     if (isSignedIn) {
       router.replace("/dashboard");
       return;
@@ -635,61 +510,31 @@ export function AuthForm() {
     setPending(true);
 
     try {
-      const attempt = await signIn.create({
-        identifier: email.trim(),
-        password,
+      await resetAuthAttempts(undefined, signUp);
+      await signUp.create({
+        emailAddress: email.trim(),
+        legalAccepted: true,
       });
-
-      if (attempt.status === "complete") {
-        await goDashboard(attempt.createdSessionId);
-        return;
-      }
-
-      if (attempt.status === "needs_second_factor") {
-        const emailCodeFactor = attempt.supportedSecondFactors?.find(
-          (factor): factor is EmailCodeFactor => factor.strategy === "email_code",
-        );
-        if (emailCodeFactor) {
-          await signIn.prepareSecondFactor({
-            strategy: "email_code",
-            emailAddressId: emailCodeFactor.emailAddressId,
-          });
-          enterVerifyStep("sign-in");
-        } else {
-          setError(
-            "Additional verification is required, but no email code option is available.",
-          );
-        }
-        return;
-      }
-
-      setError("Couldn’t finish signing in. Please try again.");
+      await signUp.prepareVerification({ strategy: "email_code" });
+      enterVerifyStep("sign-up");
     } catch (err) {
       if (isAlreadySignedInError(err)) {
         router.replace("/dashboard");
         return;
       }
 
-      const code = clerkErrorCode(err);
-      // Clerk may return password_incorrect for unknown emails when user
-      // enumeration protection is on — so try sign-up for both. If sign-up
-      // then says the email is taken, the password was simply wrong.
-      if (
-        code === "form_identifier_not_found" ||
-        code === "form_password_incorrect"
-      ) {
-        const result = await createAccountAndSendCode();
-        if (result === "ok") return;
-        if (result === "wrong_password") {
-          setError(
-            "Incorrect password. Try again, or Continue with Google.",
-          );
-          return;
-        }
+      const code = clerkErrorCode(err) ?? "";
+      const message = clerkErrorMessage(err);
+      const alreadyExists =
+        code === "form_identifier_exists" ||
+        /already|exists|taken/i.test(message);
+
+      if (alreadyExists) {
+        setError("An account with this email already exists. Sign in instead.");
         return;
       }
 
-      setError(clerkErrorMessage(err));
+      setError(message);
     } finally {
       setPending(false);
     }
@@ -734,10 +579,11 @@ export function AuthForm() {
             const finished = await finalizeSignUp(attempt);
             if (finished.ok) return;
             const missing = finished.missing?.filter(Boolean) ?? [];
+            const missingLabel = formatMissingSignUpFields(missing);
             setError(
-              missing.length > 0
-                ? `Almost done — still need: ${missing.join(", ")}. Check Clerk required fields (turn off username if enabled).`
-                : "Couldn’t finish creating your account. Please try again.",
+              missingLabel
+                ? `Almost done — still need: ${missingLabel}. Check Clerk required fields (turn off username if enabled).`
+                : "Couldn't finish creating your account. Please try again.",
             );
             return;
           }
@@ -753,12 +599,12 @@ export function AuthForm() {
               router.replace("/dashboard");
               return;
             }
-            // Don't show Clerk's raw message — email is done; account finish failed.
             const missing = finished.missing?.filter(Boolean) ?? [];
+            const missingLabel = formatMissingSignUpFields(missing);
             setError(
-              missing.length > 0
-                ? `Email verified — still need: ${missing.join(", ")}. In Clerk, turn off extra required fields like username.`
-                : "Email is verified, but we couldn’t open your account. Use Continue with Google, then try again.",
+              missingLabel
+                ? `Email verified — still need: ${missingLabel}. In Clerk, turn off extra required fields like username.`
+                : "Email is verified, but we couldn't open your account. Use Continue with Google, then try again.",
             );
             return;
           }
@@ -766,14 +612,36 @@ export function AuthForm() {
         }
       }
 
-      const attempt = await signIn.attemptSecondFactor({
-        strategy: "email_code",
-        code: otp,
-      });
-      if (attempt.status === "complete") {
-        await goDashboard(attempt.createdSessionId);
-        return;
+      if (signIn.status === "needs_second_factor") {
+        const attempt = await signIn.attemptSecondFactor({
+          strategy: "email_code",
+          code: otp,
+        });
+        if (attempt.status === "complete") {
+          await goDashboard(attempt.createdSessionId);
+          return;
+        }
+      } else {
+        const attempt = await signIn.attemptFirstFactor({
+          strategy: "email_code",
+          code: otp,
+        });
+        if (attempt.status === "complete") {
+          await goDashboard(attempt.createdSessionId);
+          return;
+        }
+        if (attempt.status === "needs_second_factor") {
+          const sent = await sendSignInEmailCode();
+          if (sent) {
+            resetOtp();
+            setError(null);
+            setResendCooldown(0);
+            otpRefs.current[0]?.focus();
+            return;
+          }
+        }
       }
+
       setError("Verification incomplete. Check the code and try again.");
     } catch (err) {
       if (isAlreadyVerifiedError(err)) {
@@ -784,10 +652,11 @@ export function AuthForm() {
           return;
         }
         const missing = finished.missing?.filter(Boolean) ?? [];
+        const missingLabel = formatMissingSignUpFields(missing);
         setError(
-          missing.length > 0
-            ? `Email verified — still need: ${missing.join(", ")}. In Clerk, turn off extra required fields like username.`
-            : "Email is verified, but we couldn’t open your account. Use Continue with Google, then try again.",
+          missingLabel
+            ? `Email verified — still need: ${missingLabel}. In Clerk, turn off extra required fields like username.`
+            : "Email is verified, but we couldn't open your account. Use Continue with Google, then try again.",
         );
         return;
       }
@@ -814,32 +683,26 @@ export function AuthForm() {
           setError("Session expired. Go back and continue with your email again.");
           return;
         }
-        // Email already verified — finish account instead of sending another code.
         const emailStatus = signUp.verifications?.emailAddress?.status;
         if (emailStatus === "verified") {
           const finished = await finalizeSignUp(signUp);
           if (finished.ok) return;
           const missing = finished.missing?.filter(Boolean) ?? [];
+          const missingLabel = formatMissingSignUpFields(missing);
           setError(
-            missing.length > 0
-              ? `Email verified — still need: ${missing.join(", ")}. In Clerk, turn off extra required fields like username.`
-              : "Email is verified, but we couldn’t open your account. Use Continue with Google, then try again.",
+            missingLabel
+              ? `Email verified — still need: ${missingLabel}. In Clerk, turn off extra required fields like username.`
+              : "Email is verified, but we couldn't open your account. Use Continue with Google, then try again.",
           );
           return;
         }
         await signUp.prepareVerification({ strategy: "email_code" });
       } else {
-        const emailCodeFactor = signIn.supportedSecondFactors?.find(
-          (factor): factor is EmailCodeFactor => factor.strategy === "email_code",
-        );
-        if (!emailCodeFactor) {
-          setError("Couldn’t resend the code. Try signing in again.");
+        const sent = await sendSignInEmailCode();
+        if (!sent) {
+          setError("Couldn't resend the code. Try signing in again.");
           return;
         }
-        await signIn.prepareSecondFactor({
-          strategy: "email_code",
-          emailAddressId: emailCodeFactor.emailAddressId,
-        });
       }
       resetOtp();
       setResendCooldown(30);
@@ -850,7 +713,7 @@ export function AuthForm() {
         const finished = await finalizeSignUp(signUp);
         if (finished.ok) return;
         setError(
-          "Email is verified, but we couldn’t open your account. Use Continue with Google, then try again.",
+          "Email is verified, but we couldn't open your account. Use Continue with Google, then try again.",
         );
         return;
       }
@@ -871,7 +734,6 @@ export function AuthForm() {
       return;
     }
 
-    // Paste or multi-digit entry
     const chars = cleaned.slice(0, OTP_LENGTH - index).split("");
     setDigits((prev) => {
       const next = [...prev];
@@ -914,26 +776,24 @@ export function AuthForm() {
     otpRefs.current[Math.min(pasted.length, OTP_LENGTH) - 1]?.focus();
   };
 
-  // Only block the UI when we already know the user is signed in and are
-  // redirecting — keep it minimal (not the form wireframe).
-  if (authLoaded && isSignedIn) {
+  if (authLoaded && isSignedIn && !isVerifyMode(mode)) {
     return (
-      <div className="auth-shell auth-shell--top">
+      <div className="auth-shell">
         <p className="auth-redirecting">Opening Unfold…</p>
       </div>
     );
   }
 
+  const showVerify = isVerifyMode(mode);
+
   return (
-    <div className={`auth-shell${step === "verify" ? " auth-shell--top" : ""}`}>
-      <div className={step === "verify" ? "auth-verify" : "auth-card"}>
-        {step === "credentials" ? (
+    <div className="auth-shell">
+      <div className={showVerify ? "auth-verify" : "auth-card"}>
+        {mode === "sign-in" ? (
           <>
             <header className="auth-header">
-              <h1 className="auth-title">Welcome to Unfold</h1>
-              <p className="auth-subtitle">
-                Sign in or create an account to continue.
-              </p>
+              <h1 className="auth-title">Welcome back</h1>
+              <p className="auth-subtitle">Continue where your thoughts left off.</p>
             </header>
 
             <button
@@ -947,10 +807,10 @@ export function AuthForm() {
             </button>
 
             <div className="auth-divider" role="separator">
-              <span>or</span>
+              <span>or continue with</span>
             </div>
 
-            <form className="auth-form" onSubmit={handleCredentials} noValidate>
+            <form className="auth-form" onSubmit={handleSignIn} noValidate>
               <div className="auth-fields">
                 <label className="auth-field">
                   <span>Email</span>
@@ -983,42 +843,80 @@ export function AuthForm() {
                     {error}
                   </p>
                 ) : null}
+              </div>
 
+              {error && !isFieldError(error) ? (
+                <p className="auth-error" role="alert">
+                  {error}
+                </p>
+              ) : null}
+
+              <button type="submit" className="auth-submit" disabled={busy}>
+                {pending ? "Continuing…" : "Continue"}
+              </button>
+            </form>
+
+            <p className="auth-switch-line">
+              Don&apos;t have an account?{" "}
+              <Link href={AUTH_SIGN_UP_PATH} className="auth-inline-link">
+                Sign Up
+              </Link>
+            </p>
+
+            <div id="clerk-captcha" />
+          </>
+        ) : null}
+
+        {mode === "sign-up" ? (
+          <>
+            <header className="auth-header">
+              <h1 className="auth-title">Start unfolding</h1>
+              <p className="auth-subtitle">
+                Create your space to write and reflect.
+              </p>
+            </header>
+
+            <button
+              type="button"
+              className={`auth-google ${btnSecondary("md")}`}
+              disabled={busy}
+              onClick={() => signInWithOAuth("oauth_google")}
+            >
+              <GoogleMark />
+              Continue with Google
+            </button>
+
+            <div className="auth-divider" role="separator">
+              <span>or continue with</span>
+            </div>
+
+            <form className="auth-form" onSubmit={handleSignUp} noValidate>
+              <div className="auth-fields">
                 <label className="auth-field">
-                  <span>Password</span>
-                  <div className="auth-password-row">
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      name="password"
-                      autoComplete="current-password"
-                      required
-                      value={password}
-                      onChange={(e) => {
-                        setPassword(e.target.value);
-                        if (error === PASSWORD_RULES_MESSAGE) setError(null);
-                      }}
-                      placeholder="Your password"
-                      disabled={pending}
-                      aria-invalid={error === PASSWORD_RULES_MESSAGE}
-                      aria-describedby={
-                        error === PASSWORD_RULES_MESSAGE
-                          ? "auth-password-error"
-                          : undefined
-                      }
-                    />
-                    <button
-                      type="button"
-                      className="auth-password-toggle"
-                      onClick={() => setShowPassword((v) => !v)}
-                      aria-label={showPassword ? "Hide password" : "Show password"}
-                    >
-                      {showPassword ? "Hide" : "Show"}
-                    </button>
-                  </div>
+                  <span>Email</span>
+                  <input
+                    type="email"
+                    name="email"
+                    autoComplete="email"
+                    required
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      if (error === EMAIL_INVALID_MESSAGE) setError(null);
+                    }}
+                    placeholder="you@example.com"
+                    disabled={pending}
+                    aria-invalid={error === EMAIL_INVALID_MESSAGE}
+                    aria-describedby={
+                      error === EMAIL_INVALID_MESSAGE
+                        ? "auth-email-error"
+                        : undefined
+                    }
+                  />
                 </label>
-                {error === PASSWORD_RULES_MESSAGE ? (
+                {error === EMAIL_INVALID_MESSAGE ? (
                   <p
-                    id="auth-password-error"
+                    id="auth-email-error"
                     className="auth-error auth-error--field"
                     role="alert"
                   >
@@ -1034,7 +932,7 @@ export function AuthForm() {
                   onChange={(e) => setAcceptedLegal(e.target.checked)}
                   disabled={pending}
                 />
-                <span>
+                <span className="pt-0.5">
                   I have read and agree to the{" "}
                   <Link href="/terms" target="_blank" rel="noreferrer">
                     Terms and Conditions
@@ -1064,54 +962,62 @@ export function AuthForm() {
               </button>
             </form>
 
+            <p className="auth-switch-line">
+              Already have an account?{" "}
+              <Link href={AUTH_SIGN_IN_PATH} className="auth-inline-link">
+                Sign In
+              </Link>
+            </p>
+
             <div id="clerk-captcha" />
           </>
         ) : null}
 
-        {step === "verify" ? (
+        {showVerify ? (
           <>
             <header className="auth-header">
               <h1 className="auth-title">Check your inbox</h1>
               <p className="auth-subtitle auth-subtitle--inline text-sm!" title={email}>
-                Enter the verification code we just sent to <br /><span className="auth-email text-sm!">{email}</span>
+                Enter the verification code we just sent to <br />
+                <span className="auth-email text-sm!">{email}</span>
               </p>
             </header>
 
             <form className="auth-form" onSubmit={handleVerify}>
-             <div className="flex w-fit flex-col gap-4">
-             <div
-                className="auth-otp"
-                role="group"
-                aria-label="Verification code"
-              >
-                {digits.map((digit, index) => (
-                  <input
-                    key={index}
-                    ref={(el) => {
-                      otpRefs.current[index] = el;
-                    }}
-                    className="auth-otp-box"
-                    type="text"
-                    inputMode="numeric"
-                    autoComplete={index === 0 ? "one-time-code" : "off"}
-                    maxLength={1}
-                    value={digit}
-                    disabled={pending}
-                    autoFocus={index === 0}
-                    aria-label={`Digit ${index + 1}`}
-                    onChange={(e) => handleOtpChange(index, e.target.value)}
-                    onKeyDown={(e) => handleOtpKeyDown(index, e)}
-                    onPaste={handleOtpPaste}
-                  />
-                ))}
-              </div>
+              <div className="auth-otp-wrap">
+                <div
+                  className="auth-otp"
+                  role="group"
+                  aria-label="Verification code"
+                >
+                  {digits.map((digit, index) => (
+                    <input
+                      key={index}
+                      ref={(el) => {
+                        otpRefs.current[index] = el;
+                      }}
+                      className="auth-otp-box"
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete={index === 0 ? "one-time-code" : "off"}
+                      maxLength={1}
+                      value={digit}
+                      disabled={pending}
+                      autoFocus={index === 0}
+                      aria-label={`Digit ${index + 1}`}
+                      onChange={(e) => handleOtpChange(index, e.target.value)}
+                      onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                      onPaste={handleOtpPaste}
+                    />
+                  ))}
+                </div>
 
-              {error ? (
-                <p className="auth-error" role="alert">
-                  {error}
-                </p>
-              ) : null}
-             </div>
+                {error ? (
+                  <p className="auth-error" role="alert">
+                    {error}
+                  </p>
+                ) : null}
+              </div>
 
               <button type="submit" className="auth-submit" disabled={busy}>
                 {pending ? "Verifying…" : "Verify"}

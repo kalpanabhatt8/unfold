@@ -1,10 +1,6 @@
-import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { AuthForm } from "@/components/auth/auth-form";
+import { AUTH_SIGN_IN_PATH } from "@/lib/auth-routes";
 
-export default async function SignInVerifyPage() {
-  const { userId } = await auth();
-  if (userId) redirect("/dashboard");
-
-  return <AuthForm />;
+export default function LegacyGetStartedVerifyRedirect() {
+  redirect(AUTH_SIGN_IN_PATH);
 }

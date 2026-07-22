@@ -1,10 +1,6 @@
-import { SSOCallbackHandler } from "@/components/auth/sso-callback-handler";
-import "@/components/auth/auth-form.css";
+import { redirect } from "next/navigation";
+import { AUTH_SSO_CALLBACK_PATH } from "@/lib/auth-routes";
 
-export default function SSOCallbackPage() {
-  return (
-    <div className="auth-shell auth-shell--top">
-      <SSOCallbackHandler />
-    </div>
-  );
+export default function LegacyGetStartedSsoRedirect() {
+  redirect(AUTH_SSO_CALLBACK_PATH);
 }

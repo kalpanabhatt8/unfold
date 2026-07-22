@@ -2,7 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { AuthForm } from "@/components/auth/auth-form";
 
-export default async function SignInPage() {
+export default async function SignUpVerifyPage() {
   const { userId } = await auth();
   if (userId) redirect("/dashboard");
 

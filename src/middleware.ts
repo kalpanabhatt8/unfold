@@ -22,7 +22,7 @@ export default clerkMiddleware(async (auth, req) => {
   const { userId } = await auth()
   if (userId) return
 
-  // Always send unauthenticated users to our app /get-started — never Clerk's
+  // Always send unauthenticated users to our app sign-in — never Clerk's
   // Account Portal (*.accounts.dev), which is the fallback when
   // NEXT_PUBLIC_CLERK_SIGN_IN_URL is missing at runtime (e.g. on Vercel).
   const signIn = new URL(AUTH_SIGN_IN_PATH, req.url)
