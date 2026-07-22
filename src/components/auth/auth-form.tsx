@@ -548,7 +548,7 @@ export function AuthForm() {
 
   /** Create account + send OTP. Used for true first-time users. */
   const createAccountAndSendCode = async (): Promise<
-    "ok" | "exists" | "error"
+    "ok" | "wrong_password" | "error"
   > => {
     if (!signUp) return "error";
     if (!isStrongPassword(password)) {
@@ -578,7 +578,8 @@ export function AuthForm() {
           enterVerifyStep("sign-up");
           return "ok";
         } catch {
-          return "exists";
+          // Account is already registered — the sign-in password was wrong.
+          return "wrong_password";
         }
       }
 
@@ -671,16 +672,17 @@ export function AuthForm() {
 
       const code = clerkErrorCode(err);
       // Clerk may return password_incorrect for unknown emails when user
-      // enumeration protection is on — so always try sign-up for both.
+      // enumeration protection is on — so try sign-up for both. If sign-up
+      // then says the email is taken, the password was simply wrong.
       if (
         code === "form_identifier_not_found" ||
         code === "form_password_incorrect"
       ) {
         const result = await createAccountAndSendCode();
         if (result === "ok") return;
-        if (result === "exists") {
+        if (result === "wrong_password") {
           setError(
-            "An account with this email already exists. Check your password, or Continue with Google.",
+            "Incorrect password. Try again, or Continue with Google.",
           );
           return;
         }
