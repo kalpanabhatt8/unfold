@@ -1632,6 +1632,14 @@ input[type='number'] {
   color: color-mix(in srgb, var(--sidebar-ink-soft) 92%, transparent);
 }
 
+.pattern-accordion__row-secondary {
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.45;
+  letter-spacing: 0.005em;
+  color: color-mix(in srgb, var(--sidebar-ink-soft) 88%, transparent);
+}
+
 .pattern-accordion__row-chevron {
   pointer-events: none;
   display: inline-flex;

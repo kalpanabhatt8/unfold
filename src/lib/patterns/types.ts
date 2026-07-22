@@ -68,8 +68,12 @@ export type SurfacedPattern = {
   evidence: PatternEvidenceItem[];
   /** e.g. "usually late evening" — null when timing is mixed. */
   timeHint: string | null;
-  /** Human labels for patterns that often appear in the same entries. */
+  /** Human labels — moderate co-occurrence, pattern still distinct. */
   coPatterns: string[];
+  /** Human labels — overlap-folded secondaries (separate UI copy from coPatterns). */
+  foldedLabels: string[];
+  /** Overlap-suppressed slugs — internal/debug only, not user-facing. */
+  suppressedPatterns: PatternName[];
   /** Landing card copy — populated async; independent of PatternPassage. */
   display: PatternDisplay | null;
 };

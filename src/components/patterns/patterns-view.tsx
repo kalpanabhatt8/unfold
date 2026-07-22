@@ -6,6 +6,7 @@ import { ChevronDown, ChevronUp, Menu } from "lucide-react";
 import { PATTERN_LABELS } from "@/lib/patterns/vocabulary";
 import type { PatternName } from "@/lib/patterns/vocabulary";
 import { PatternDetailView } from "@/components/patterns/pattern-detail-view";
+import { PatternSecondaryLines } from "@/components/patterns/pattern-secondary-lines";
 import { usePatternDisplay } from "@/hooks/use-pattern-display";
 import { usePatternsAggregate } from "@/hooks/use-patterns-aggregate";
 import { useViewportLayout } from "@/hooks/use-viewport-layout";
@@ -212,6 +213,10 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
                         {factLine}
                       </span>
                     ) : null}
+                    <PatternSecondaryLines
+                      foldedLabels={pattern.foldedLabels}
+                      coPatterns={pattern.coPatterns}
+                    />
                   </span>
                   <span
                     className={`pattern-accordion__row-chevron shrink-0 ${btnIconTransparent("xs")}`}

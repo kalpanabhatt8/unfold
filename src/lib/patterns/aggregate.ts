@@ -9,20 +9,24 @@
 import { readAllEntries, type JournalEntry } from "@/lib/journal-entries";
 import { resolveBookDisplayTitle } from "@/lib/book-title";
 import { listAnalyses } from "@/lib/patterns/analysis-store";
-import { deriveCoPatterns } from "@/lib/patterns/co-patterns";
+import { applyOverlapSuppression } from "@/lib/patterns/overlap-policy";
 import { deriveTimeHint } from "@/lib/patterns/time-hint";
 import { SURFACE_MIN_ENTRIES, type PatternName } from "@/lib/patterns/vocabulary";
 import type {
+  EntryAnalysis,
   PatternEvidenceItem,
   PatternsAggregate,
   SurfacedPattern,
 } from "@/lib/patterns/types";
 
-export function aggregateAnalyses(): PatternsAggregate {
-  const analyses = listAnalyses();
-
+/** Build surfaced patterns from analyses + entries (test/replay helper). */
+export function aggregateFromInputs(
+  analyses: EntryAnalysis[],
+  entries: JournalEntry[],
+  options?: { applyOverlapSuppression?: boolean },
+): PatternsAggregate {
   const entriesById = new Map<string, JournalEntry>(
-    readAllEntries().map((entry) => [entry.id, entry]),
+    entries.map((entry) => [entry.id, entry]),
   );
 
   const byPattern = new Map<PatternName, PatternEvidenceItem[]>();
@@ -64,18 +68,28 @@ export function aggregateAnalyses(): PatternsAggregate {
         (b.sealedAt ?? b.lastEditedAt ?? b.createdAt) -
         (a.sealedAt ?? a.lastEditedAt ?? a.createdAt),
     );
-    const entryIds = evidence.map((item) => item.entryId);
     surfaced.push({
       name,
       entryCount: evidence.length,
       evidence,
       timeHint: deriveTimeHint(evidence),
-      coPatterns: deriveCoPatterns(name, entryIds),
+      coPatterns: [],
+      foldedLabels: [],
+      suppressedPatterns: [],
       display: null,
     });
   }
 
   surfaced.sort((a, b) => b.entryCount - a.entryCount);
 
-  return { analyzedEntryCount: analyses.length, surfaced };
+  const applySuppression = options?.applyOverlapSuppression !== false;
+
+  return {
+    analyzedEntryCount: analyses.length,
+    surfaced: applySuppression ? applyOverlapSuppression(surfaced) : surfaced,
+  };
+}
+
+export function aggregateAnalyses(): PatternsAggregate {
+  return aggregateFromInputs(listAnalyses(), readAllEntries());
 }
