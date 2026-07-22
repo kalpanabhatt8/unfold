@@ -42,6 +42,20 @@
   font-family: var(--font-body);
 }
 
+.lp-chrome__nav-link {
+  color: var(--lp-ink-soft);
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.2;
+  text-decoration: none;
+  transition: color 180ms ease;
+}
+
+.lp-chrome__nav-link:hover {
+  color: var(--canvas-title-ink);
+}
+
 .lp-chrome__cta:hover {
   background: var(--sidebar-tab-selected-bg);
 }

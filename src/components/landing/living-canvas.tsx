@@ -14,8 +14,7 @@ import {
   WRITE_NATURALLY,
 } from "./story";
 import {
-  btnIcon,
-  btnState,
+  btnIconInvisible,
   iconFixed,
   iconPx,
   iconStroke,
@@ -321,6 +320,9 @@ export function LivingCanvas() {
           <span className="mr-[0.03em]">U</span>NFOLD
         </Link>
         <div className="lp-live__nav-actions">
+          <Link href={CTA.header.signInHref} className="lp-chrome__nav-link">
+            {CTA.header.signIn}
+          </Link>
           <Link href={CTA.header.primaryHref} className="lp-chrome__cta lp-chrome__cta--lg">
             {CTA.header.primary}
           </Link>
@@ -579,7 +581,7 @@ export function LivingCanvas() {
                       <Tooltip content="Seal entry" bubbleClassName="tooltip-bubble-stamp">
                         <button
                           type="button"
-                          className={`lp-live__stamp-btn group shrink-0 cursor-pointer select-none outline-none ${btnIcon("md", "xl")} ${btnState.default} ${btnState.hover} ${btnState.active}`}
+                          className={`lp-live__stamp-btn group shrink-0 cursor-pointer select-none outline-none ${btnIconInvisible("md", "xl")}`}
                           aria-label="Seal entry"
                           onClick={() => {
                             const now = Date.now();
