@@ -19,6 +19,7 @@ import {
 import {
   collectJournalWordTokens,
   extractJournalPlainText,
+  snapshotHasContent,
 } from "@/lib/canvas-word-count";
 import {
   ENTRY_BOARD_STORAGE_PREFIX,
@@ -124,6 +125,7 @@ export const commitEntrySeal = (
   if (typeof existing.sealedAt === "number") {
     return existing.sealedAt;
   }
+  if (!snapshotHasContent(snapshot)) return null;
 
   const now = Date.now();
   const sealedSnapshot: CanvasSnapshot = { ...snapshot, sealedAt: now };

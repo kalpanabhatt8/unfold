@@ -107,6 +107,8 @@ export const JournalTiptapEditor = forwardRef<
   onWritingActivityRef.current = onWritingActivity;
   const initialContentRef = useRef(blocksToDoc(initialBlocks));
   const isLocked = isSealed || isSealing;
+  /** TipTap emits onUpdate during init; defer user-activity until settled. */
+  const acceptWritingActivityRef = useRef(false);
 
   const editor = useEditor({
     extensions: [
@@ -144,7 +146,15 @@ export const JournalTiptapEditor = forwardRef<
     },
     onUpdate: ({ editor: ed }) => {
       onBlocksChangeRef.current(docToBlocks(ed.getJSON()));
-      onWritingActivityRef.current?.();
+      if (acceptWritingActivityRef.current) {
+        onWritingActivityRef.current?.();
+      }
+    },
+    onCreate: () => {
+      acceptWritingActivityRef.current = false;
+      window.requestAnimationFrame(() => {
+        acceptWritingActivityRef.current = true;
+      });
     },
     onSelectionUpdate: ({ editor: ed }) => {
       const hit = findJournalBlockAtSelection(ed);

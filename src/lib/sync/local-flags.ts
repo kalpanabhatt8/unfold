@@ -21,6 +21,20 @@ const IMPORTED_KEY = "unfold-sync-imported";
 /** Fired whenever something becomes dirty — the sync provider debounces on it. */
 export const SYNC_DIRTY_EVENT = "unfold-sync-dirty";
 
+/**
+ * Fired by `flushPendingSync` so in-memory editors (canvas / title) write through
+ * to localStorage + dirty queues before a forced push (e.g. sign-out).
+ */
+export const FLUSH_LOCAL_WRITES_EVENT = "unfold-flush-local-writes";
+
+/** Fired when a sync lock starts/ends — `{ status: "syncing" | "idle" }`. */
+export const SYNC_STATUS_EVENT = "unfold-sync-status";
+
+/** Fired once the first post-sign-in `fullSync` settles for this session. */
+export const INITIAL_SYNC_DONE_EVENT = "unfold-initial-sync-done";
+
+export type SyncStatusDetail = { status: "syncing" | "idle" };
+
 const hasWindow = () => typeof window !== "undefined";
 
 const readJson = <T>(key: string, fallback: T): T => {
@@ -163,6 +177,12 @@ export const isPatternsDirty = (): boolean =>
 export const clearPatternsDirty = () => {
   writeJson(PATTERNS_DIRTY_KEY, false);
 };
+
+/** True when dirty entries, delete tombstones, or patterns still need a push. */
+export const hasPendingSync = (): boolean =>
+  readJson<string[]>(DIRTY_ENTRIES_KEY, []).length > 0 ||
+  readJson<EntryTombstone[]>(DELETED_ENTRIES_KEY, []).length > 0 ||
+  readJson<boolean>(PATTERNS_DIRTY_KEY, false);
 
 // ── Pull cursor + import flag ───────────────────────────────────────────────
 

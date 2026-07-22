@@ -10,7 +10,12 @@ import { useEffect, useLayoutEffect } from "react";
 import { useUser } from "@clerk/nextjs";
 import { ensureAuthUserScope } from "@/lib/clear-local-data";
 import { SYNC_DIRTY_EVENT } from "@/lib/sync/local-flags";
-import { fullSync, pushSync } from "@/lib/sync/sync-client";
+import {
+  ensureInitialSync,
+  fullSync,
+  pushSync,
+  resetInitialSyncGate,
+} from "@/lib/sync/sync-client";
 
 const PUSH_DEBOUNCE_MS = 4_000;
 const FULL_SYNC_INTERVAL_MS = 5 * 60_000;
@@ -20,13 +25,14 @@ export function SyncProvider() {
 
   useLayoutEffect(() => {
     if (!isSignedIn || !user?.id) return;
-    ensureAuthUserScope(user.id);
+    const wiped = ensureAuthUserScope(user.id);
+    if (wiped) resetInitialSyncGate();
   }, [isSignedIn, user?.id]);
 
   useEffect(() => {
     if (!isSignedIn || !user?.id) return;
 
-    void fullSync();
+    void ensureInitialSync();
 
     let pushTimer: ReturnType<typeof setTimeout> | null = null;
     const schedulePush = () => {

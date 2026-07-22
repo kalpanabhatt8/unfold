@@ -44,6 +44,7 @@ import { useViewportLayout } from "@/hooks/use-viewport-layout";
 import {
   collectJournalWordTokens,
   extractJournalPlainText,
+  snapshotHasContent,
 } from "@/lib/canvas-word-count";
 import {
   createWritingSlots,
@@ -65,6 +66,8 @@ import {
   CONTENT_COLUMN_MAX_WIDTH,
   PAGE_PADDING_X_CLASS,
 } from "@/lib/layout";
+import { useSaveStatus } from "@/hooks/use-save-status";
+import { FLUSH_LOCAL_WRITES_EVENT } from "@/lib/sync/local-flags";
 
 /* -------------------------------------------------------------------------- */
 /*  Types                                                                     */
@@ -108,8 +111,6 @@ const WRITING_INK = "var(--canvas-ink)";
 /** Save behaviour. Local mirror is fast (no data loss); milestone save fires
  *  after 7s of typing inactivity. */
 const LOCAL_MIRROR_DEBOUNCE_MS = 600;
-/** Only surface "saving" when a mirror is still pending past the debounce. */
-const SAVING_LABEL_DELAY_MS = 800;
 /** Milestone save (persists `lastEditedAt`) fires after this typing pause. */
 const MILESTONE_SAVE_INACTIVITY_MS = 7_000;
 /** Patterns → Journal quote tint: visible hold, then CSS fade, then clear. */
@@ -118,6 +119,16 @@ const QUOTE_HIGHLIGHT_HOLD_MS = 18_000;
 const QUOTE_HIGHLIGHT_FADE_MS = 5_000;
 const QUOTE_HIGHLIGHT_TOTAL_MS =
   QUOTE_HIGHLIGHT_HOLD_MS + QUOTE_HIGHLIGHT_FADE_MS;
+
+/** Stable compare for "did the user change the writing?" — ignores block ids. */
+const fingerprintBlocks = (blocks: JournalTextBlock[]): string =>
+  JSON.stringify(
+    blocks.map((b) => ({
+      k: b.blockKind,
+      t: b.text,
+      c: b.checked ?? false,
+    })),
+  );
 
 /** Minimum selected-character count before the text format bar appears. */
 const TEXT_CTX_SELECTION_MIN = 4;
@@ -152,7 +163,7 @@ export const emptySnapshot = (): CanvasSnapshot => ({
 });
 
 const snapshotHasBodyText = (snap: CanvasSnapshot): boolean =>
-  snap.textColumns.some((col) => col.some((b) => b.text.trim().length > 0));
+  snapshotHasContent(snap);
 
 /** Rebuild minimal paragraph blocks when a sealed board was lost but searchText remains. */
 const blocksFromSearchText = (searchText: string): JournalTextBlock[] => {
@@ -385,7 +396,8 @@ function CanvasBoardInner(
   const writingZoneRef = useRef<HTMLDivElement | null>(null);
   const [lastSavedAt, setLastSavedAt] = useState<number>(() => sessionEditedAt);
   const [showSavingLabel, setShowSavingLabel] = useState(false);
-  const savingLabelTimerRef = useRef<number | null>(null);
+  const [hasEditedThisSession, setHasEditedThisSession] = useState(false);
+  const localMirrorTimerRef = useRef<number | null>(null);
   const quoteHighlightClearTimerRef = useRef<number | null>(null);
   const quoteHighlightDismissRef = useRef<(() => void) | null>(null);
   /** Snapshot `updatedAt` — frozen while editing; bumped only on close. */
@@ -518,37 +530,41 @@ function CanvasBoardInner(
     };
   }, [sealedAt]);
 
-  const clearSavingLabelTimer = useCallback(() => {
-    if (savingLabelTimerRef.current !== null) {
-      window.clearTimeout(savingLabelTimerRef.current);
-      savingLabelTimerRef.current = null;
-    }
+  const clearSavingLabel = useCallback(() => {
     setShowSavingLabel(false);
   }, []);
 
+  const clearLocalMirrorTimers = useCallback(() => {
+    if (localMirrorTimerRef.current !== null) {
+      window.clearTimeout(localMirrorTimerRef.current);
+      localMirrorTimerRef.current = null;
+    }
+    clearSavingLabel();
+  }, [clearSavingLabel]);
+
   // Fast local mirror so a tab close never loses keystrokes. This is *not*
   // the "milestone" save (AI title regen) — that fires from a coarser timer
-  // and the manual button, below. Once sealed, persistence is owned by the
-  // seal pipeline — keep mirroring off so stamp animation doesn't fight
-  // navigation to a new entry.
-  useEffect(() => {
+  // below. Only runs after user edits — never on hydrate, entry switch, or
+  // sync. Once sealed, persistence is owned by the seal pipeline.
+  const scheduleLocalMirror = useCallback(() => {
     if (sealedAt !== null) return;
 
-    savingLabelTimerRef.current = window.setTimeout(() => {
-      setShowSavingLabel(true);
-    }, SAVING_LABEL_DELAY_MS);
+    if (localMirrorTimerRef.current !== null) {
+      window.clearTimeout(localMirrorTimerRef.current);
+    }
 
-    const timer = window.setTimeout(() => {
+    localMirrorTimerRef.current = window.setTimeout(() => {
+      localMirrorTimerRef.current = null;
       try {
         const meta = readEntryById(entryIdFromBoardStorageKey(storageKey));
         // Entry was deleted — do not rewrite board storage or resurrect metadata.
         if (!meta) {
-          clearSavingLabelTimer();
+          clearSavingLabel();
           return;
         }
         // Seal may have committed before this debounce fires / React re-renders.
         if (typeof meta.sealedAt === "number") {
-          clearSavingLabelTimer();
+          clearSavingLabel();
           return;
         }
         const snap = buildLiveSnapshot();
@@ -558,25 +574,23 @@ function CanvasBoardInner(
       } catch {
         /* noop */
       } finally {
-        clearSavingLabelTimer();
+        clearSavingLabel();
       }
     }, LOCAL_MIRROR_DEBOUNCE_MS);
-
-    return () => {
-      window.clearTimeout(timer);
-      if (savingLabelTimerRef.current !== null) {
-        window.clearTimeout(savingLabelTimerRef.current);
-        savingLabelTimerRef.current = null;
-      }
-    };
   }, [
     buildLiveSnapshot,
-    clearSavingLabelTimer,
-    journalBlocks,
+    clearSavingLabel,
     onSnapshotChange,
     sealedAt,
     storageKey,
   ]);
+
+  useEffect(
+    () => () => {
+      clearLocalMirrorTimers();
+    },
+    [clearLocalMirrorTimers],
+  );
 
   const triggerMilestoneSave = useCallback(() => {
     const entryId = entryIdFromBoardStorageKey(storageKey);
@@ -596,6 +610,35 @@ function CanvasBoardInner(
 
   const isDirtyRef = useRef(false);
   const milestoneTimerRef = useRef<number | null>(null);
+  /** Content at editor ready — save status only when live text diverges. */
+  const contentBaselineRef = useRef<string | null>(null);
+
+  const liveJournalBlocks = useCallback((): JournalTextBlock[] => {
+    const editor = journalEditorRef.current;
+    return editor ? editor.getBlocks() : journalBlocksRef.current;
+  }, []);
+
+  const hasUserChangedContent = useCallback((): boolean => {
+    const baseline = contentBaselineRef.current;
+    if (baseline === null) return false;
+    return fingerprintBlocks(liveJournalBlocks()) !== baseline;
+  }, [liveJournalBlocks]);
+
+  // Capture baseline after TipTap init settles; ignore init onUpdate on refresh.
+  useEffect(() => {
+    if (!isContentReady) return;
+    contentBaselineRef.current = null;
+    let innerFrame = 0;
+    const outerFrame = window.requestAnimationFrame(() => {
+      innerFrame = window.requestAnimationFrame(() => {
+        contentBaselineRef.current = fingerprintBlocks(liveJournalBlocks());
+      });
+    });
+    return () => {
+      window.cancelAnimationFrame(outerFrame);
+      if (innerFrame) window.cancelAnimationFrame(innerFrame);
+    };
+  }, [isContentReady, liveJournalBlocks, storageKey]);
 
   /** Persist `lastEditedAt` after a typing pause. No AI runs while writing. */
   const scheduleMilestoneSave = useCallback(() => {
@@ -611,12 +654,21 @@ function CanvasBoardInner(
     }, MILESTONE_SAVE_INACTIVITY_MS);
   }, [triggerMilestoneSave]);
 
-  // Each editor edit simply marks the draft dirty and (re)arms the save timer.
+  // Each editor edit marks the draft dirty and (re)arms local mirror + milestone.
   const handleWritingActivity = useCallback(() => {
     if (sealedAt !== null) return;
+    if (!hasUserChangedContent()) return;
     isDirtyRef.current = true;
+    setHasEditedThisSession(true);
+    setShowSavingLabel(true);
+    scheduleLocalMirror();
     scheduleMilestoneSave();
-  }, [scheduleMilestoneSave, sealedAt]);
+  }, [
+    hasUserChangedContent,
+    scheduleLocalMirror,
+    scheduleMilestoneSave,
+    sealedAt,
+  ]);
 
   useEffect(
     () => () => {
@@ -626,6 +678,49 @@ function CanvasBoardInner(
     },
     [],
   );
+
+  // Sign-out / forced sync: write any in-memory editor state before pushSync.
+  useEffect(() => {
+    const flushLocalWrites = () => {
+      if (sealedAt !== null) return;
+      const entryId = entryIdFromBoardStorageKey(storageKey);
+      const meta = readEntryById(entryId);
+      if (!meta || typeof meta.sealedAt === "number") return;
+
+      const snap = buildLiveSnapshot();
+      try {
+        window.localStorage.setItem(storageKey, JSON.stringify(snap));
+      } catch {
+        /* best effort */
+      }
+      setLastSavedAt(snap.updatedAt);
+      clearLocalMirrorTimers();
+      onSnapshotChange?.(snap);
+
+      if (isDirtyRef.current) {
+        if (milestoneTimerRef.current !== null) {
+          window.clearTimeout(milestoneTimerRef.current);
+          milestoneTimerRef.current = null;
+        }
+        onSave?.(snap);
+        isDirtyRef.current = false;
+      }
+    };
+
+    window.addEventListener(FLUSH_LOCAL_WRITES_EVENT, flushLocalWrites);
+    return () => {
+      window.removeEventListener(FLUSH_LOCAL_WRITES_EVENT, flushLocalWrites);
+    };
+  }, [
+    buildLiveSnapshot,
+    clearLocalMirrorTimers,
+    onSave,
+    onSnapshotChange,
+    sealedAt,
+    storageKey,
+  ]);
+
+  const saveStatus = useSaveStatus(showSavingLabel, hasEditedThisSession);
 
   const maybePrefetchSealTitle = useCallback(() => {
     if (sealedAt !== null) return;
@@ -639,6 +734,16 @@ function CanvasBoardInner(
     prefetchSealTitle(text);
   }, [buildLiveSnapshot, sealedAt, title]);
 
+  const canSeal = useMemo(() => {
+    if (sealedAt !== null || !isContentReady) return false;
+    return snapshotHasContent({
+      version: CANVAS_SNAPSHOT_VERSION,
+      textColumns: [journalBlocks],
+      background: CANVAS_BACKGROUND,
+      updatedAt: 0,
+    });
+  }, [isContentReady, journalBlocks, sealedAt]);
+
   const applySealCommit = useCallback(() => {
     // Cancel pending draft saves so they cannot overwrite the sealed board.
     if (milestoneTimerRef.current !== null) {
@@ -648,7 +753,10 @@ function CanvasBoardInner(
     isDirtyRef.current = false;
 
     const entryId = entryIdFromBoardStorageKey(storageKey);
-    const committed = commitEntrySeal(entryId, buildLiveSnapshot());
+    const snap = buildLiveSnapshot();
+    if (!snapshotHasContent(snap)) return null;
+
+    const committed = commitEntrySeal(entryId, snap);
     if (committed !== null) {
       setSealedAt(committed);
     }
@@ -703,6 +811,7 @@ function CanvasBoardInner(
   }, [finishAuroraAnimation, isSealing]);
 
   const beginSealSideEffects = useCallback(() => {
+    if (!canSeal) return;
     // Persist immediately so "+" / navigation can leave this page while the
     // stamp animation and AI title finish in the background.
     maybePrefetchSealTitle();
@@ -715,7 +824,7 @@ function CanvasBoardInner(
       sealAuroraStartTimerRef.current = null;
       startAuroraSeal();
     }, JOURNAL_SEAL_AURORA_START_MS);
-  }, [applySealCommit, maybePrefetchSealTitle, startAuroraSeal]);
+  }, [applySealCommit, canSeal, maybePrefetchSealTitle, startAuroraSeal]);
 
   useEffect(() => {
     return () => {
@@ -956,6 +1065,7 @@ function CanvasBoardInner(
       <JournalStamp
         ref={stampRef}
         isSealed={!!sealedAt}
+        canSeal={canSeal}
         onStampBegin={beginSealSideEffects}
         onStampHover={maybePrefetchSealTitle}
       />
@@ -983,7 +1093,7 @@ function CanvasBoardInner(
               title={title}
               editedAt={headerDisplayedAt}
               sealedAt={sealedAt}
-              showSaving={showSavingLabel}
+              saveStatus={sealedAt !== null ? null : saveStatus}
               onTitleChange={onTitleChange}
               isSealed={sealedAt !== null}
             />
@@ -1032,60 +1142,60 @@ function CanvasBoardInner(
 
       {/* —————————— Text contextual format bar —————————— */}
       {showTextCtx && textCtxPos && activeBlockId && (
+        <div
+          data-ctx
+          className={clsx(
+            "pointer-events-auto fixed z-40",
+            !textCtxPos.placeBelow && "-translate-y-full",
+          )}
+          style={{ left: textCtxPos.x, top: textCtxPos.y }}
+        >
           <div
-            data-ctx
-            className={clsx(
-              "pointer-events-auto fixed z-40",
-              !textCtxPos.placeBelow && "-translate-y-full",
-            )}
-            style={{ left: textCtxPos.x, top: textCtxPos.y }}
+            className="flex items-center gap-0.5 rounded-lg border border-black/[0.06] bg-white/95 px-1 py-0.5 shadow-[0_0.25rem_1.25rem_rgba(15,15,15,0.10)] backdrop-blur-md sm:rounded-xl sm:px-1.5 sm:py-1"
+            style={{
+              fontFamily:
+                "var(--font-body)",
+            }}
           >
-            <div
-              className="flex items-center gap-0.5 rounded-lg border border-black/[0.06] bg-white/95 px-1 py-0.5 shadow-[0_0.25rem_1.25rem_rgba(15,15,15,0.10)] backdrop-blur-md sm:rounded-xl sm:px-1.5 sm:py-1"
-              style={{
-                fontFamily:
-                  "var(--font-body)",
-              }}
-            >
-              {(
-                [
-                  {
-                    kind: "paragraph" as const,
-                    icon: <Pilcrow size={14} strokeWidth={iconStrokePx(14)} />,
-                    label: "Paragraph",
-                  },
-                  {
-                    kind: "bullet" as const,
-                    icon: <List size={14} strokeWidth={iconStrokePx(14)} />,
-                    label: "Bullet list",
-                  },
-                  {
-                    kind: "checklist" as const,
-                    icon: (
-                      <ListChecks size={14} strokeWidth={iconStrokePx(14)} />
-                    ),
-                    label: "Checklist",
-                  },
-                ] as const
-              ).map(({ kind, icon, label }) => (
-                <button
-                  key={kind}
-                  type="button"
-                  aria-label={label}
-                  onClick={() => setBlockKind(activeBlockId, kind)}
-                  className={clsx(
-                    "inline-flex h-6 w-6 items-center justify-center rounded-md transition sm:h-7 sm:w-7 sm:rounded-lg",
-                    activeTextKind === kind
-                      ? "bg-black/10 text-(--color-canvas-toolbar-icon)"
-                      : "text-(--color-canvas-toolbar-icon)/70 hover:bg-black/[0.05] hover:text-(--color-canvas-toolbar-icon)"
-                  )}
-                >
-                  {icon}
-                </button>
-              ))}
-            </div>
+            {(
+              [
+                {
+                  kind: "paragraph" as const,
+                  icon: <Pilcrow size={14} strokeWidth={iconStrokePx(14)} />,
+                  label: "Paragraph",
+                },
+                {
+                  kind: "bullet" as const,
+                  icon: <List size={14} strokeWidth={iconStrokePx(14)} />,
+                  label: "Bullet list",
+                },
+                {
+                  kind: "checklist" as const,
+                  icon: (
+                    <ListChecks size={14} strokeWidth={iconStrokePx(14)} />
+                  ),
+                  label: "Checklist",
+                },
+              ] as const
+            ).map(({ kind, icon, label }) => (
+              <button
+                key={kind}
+                type="button"
+                aria-label={label}
+                onClick={() => setBlockKind(activeBlockId, kind)}
+                className={clsx(
+                  "inline-flex h-6 w-6 items-center justify-center rounded-md transition sm:h-7 sm:w-7 sm:rounded-lg",
+                  activeTextKind === kind
+                    ? "bg-black/10 text-(--color-canvas-toolbar-icon)"
+                    : "text-(--color-canvas-toolbar-icon)/70 hover:bg-black/[0.05] hover:text-(--color-canvas-toolbar-icon)"
+                )}
+              >
+                {icon}
+              </button>
+            ))}
           </div>
-        )}
+        </div>
+      )}
     </div>
   );
 }
@@ -1133,7 +1243,7 @@ type CanvasHeaderProps = {
   editedAt: number;
   /** Unix ms when the entry was sealed — shown instead of editedAt once stamped. */
   sealedAt?: number | null;
-  showSaving?: boolean;
+  saveStatus?: "saving" | "saved" | null;
   onTitleChange?: (title: string) => void;
   isSealed?: boolean;
 };
@@ -1142,7 +1252,7 @@ function CanvasHeader({
   title,
   editedAt,
   sealedAt = null,
-  showSaving = false,
+  saveStatus = null,
   onTitleChange,
   isSealed = false,
 }: CanvasHeaderProps) {
@@ -1150,6 +1260,8 @@ function CanvasHeader({
     typeof title === "string" ? title.trim() : "";
   const [value, setValue] = useState(persistedTitle);
   const isTitleFocusedRef = useRef(false);
+  const valueRef = useRef(value);
+  valueRef.current = value;
   const hasTitle = value.trim().length > 0;
 
   useEffect(() => {
@@ -1172,6 +1284,22 @@ function CanvasHeader({
     const timer = window.setTimeout(() => onTitleChange(next), 400);
     return () => window.clearTimeout(timer);
   }, [onTitleChange, persistedTitle, value]);
+
+  // Sign-out flush: commit a pending title before cloud push.
+  useEffect(() => {
+    if (!onTitleChange || isSealed) return;
+    const flushTitle = () => {
+      const next = commitBookTitle(valueRef.current);
+      if (next !== persistedTitle) {
+        setValue(next);
+        onTitleChange(next);
+      }
+    };
+    window.addEventListener(FLUSH_LOCAL_WRITES_EVENT, flushTitle);
+    return () => {
+      window.removeEventListener(FLUSH_LOCAL_WRITES_EVENT, flushTitle);
+    };
+  }, [isSealed, onTitleChange, persistedTitle]);
 
   const displayAt =
     isSealed && typeof sealedAt === "number" && Number.isFinite(sealedAt)
@@ -1228,33 +1356,35 @@ function CanvasHeader({
         )}
         style={{ fontFamily: "var(--font-heading)" }}
       />
-      <time
-        dateTime={isoDateTime}
-        className="col-start-1 row-start-2 block text-left font-light text-xs tracking-[0.04em] sm:col-start-2 sm:row-start-1 sm:text-right sm:text-xs"
-        style={{ lineHeight: 1.45 }}
-      >
-        {isSealed && signedStamp ? (
-          <span className="text-(--canvas-date-time)">{signedStamp}</span>
-        ) : (
-          <>
-            <span className="text-(--canvas-date-time) mb-[-0.0625rem]">
-              {editedStamp.date},{" "}
-            </span>
-            <span className="text-(--canvas-date-time)">
-              {editedStamp.time}
-            </span>
-          </>
-        )}
-      </time>
-      {showSaving ? (
-        <p
-          aria-live="polite"
-          className="col-start-1 row-start-3 block text-left text-xs tracking-[0.01em] text-(--canvas-time) sm:col-start-2 sm:row-start-2 sm:text-right sm:text-sm"
+      <div>
+        <time
+          dateTime={isoDateTime}
+          className="col-start-1 row-start-2 block text-left font-light text-xs tracking-[0.04em] sm:col-start-2 sm:row-start-1 sm:text-right sm:text-xs"
           style={{ lineHeight: 1.45 }}
         >
-          saving
-        </p>
-      ) : null}
+          {isSealed && signedStamp ? (
+            <span className="text-(--canvas-date-time)">{signedStamp}</span>
+          ) : (
+            <>
+              <span className="text-(--canvas-date-time) mb-[-0.0625rem]">
+                {editedStamp.date},{" "}
+              </span>
+              <span className="text-(--canvas-date-time)">
+                {editedStamp.time}
+              </span>
+            </>
+          )}
+        </time>
+        {saveStatus ? (
+          <p
+            aria-live="polite"
+            className="text-tertiary col-start-1 row-start-3 block text-left text-xs tracking-[0.01em] sm:col-start-2 sm:row-start-2 sm:text-right sm:text-sm"
+            style={{ lineHeight: 1.45 }}
+          >
+            {saveStatus === "saving" ? "Saving..." : "Saved"}
+          </p>
+        ) : null}
+      </div>
     </header>
   );
 }

@@ -39,8 +39,11 @@ import {
 import { isPatternName } from "@/lib/patterns/vocabulary";
 import {
   clearPatternsDirty,
+  FLUSH_LOCAL_WRITES_EVENT,
   getPullCursor,
   hasEntryTombstone,
+  hasPendingSync,
+  INITIAL_SYNC_DONE_EVENT,
   isEntryDeleted,
   isImported,
   isPatternsDirty,
@@ -49,10 +52,12 @@ import {
   restoreEntryTombstones,
   setImported,
   setPullCursor,
+  SYNC_STATUS_EVENT,
   takeDirtyEntries,
   takeEntryTombstones,
   withDirtyTrackingSuppressed,
   type EntryTombstone,
+  type SyncStatusDetail,
 } from "@/lib/sync/local-flags";
 import type {
   EntriesPullResponse,
@@ -62,6 +67,12 @@ import type {
   WireEntry,
 } from "@/lib/sync/wire-types";
 
+const emitSyncStatus = (status: SyncStatusDetail["status"]) => {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent<SyncStatusDetail>(SYNC_STATUS_EVENT, { detail: { status } }),
+  );
+};
 // ── Local readers ───────────────────────────────────────────────────────────
 
 const readBoardSnapshot = (entryId: string): CanvasSnapshot | null => {
@@ -389,36 +400,123 @@ const maybeImport = async (): Promise<void> => {
 
 // ── Entry point ─────────────────────────────────────────────────────────────
 
-let syncInFlight = false;
+/** Serializes full/push/flush so overlapping callers never share the network pass. */
+let syncGate: Promise<void> = Promise.resolve();
+
+const withSyncLock = async (fn: () => Promise<void>): Promise<void> => {
+  const previous = syncGate;
+  let release!: () => void;
+  syncGate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  await previous;
+  emitSyncStatus("syncing");
+  try {
+    await fn();
+  } finally {
+    emitSyncStatus("idle");
+    release();
+  }
+};
 
 export const fullSync = async (): Promise<void> => {
-  if (typeof window === "undefined" || syncInFlight) return;
-  syncInFlight = true;
-  try {
-    await maybeImport();
-    // Push deletes before pull so a live server copy cannot reappear locally.
-    await pushEntryTombstones();
-    await pullAndApplyEntries();
-    await pullAndApplyPatterns();
-    await pushDirtyEntries();
-    await pushPatternsIfDirty();
-  } catch (error) {
-    console.error("Sync failed", error);
-  } finally {
-    syncInFlight = false;
-  }
+  if (typeof window === "undefined") return;
+  await withSyncLock(async () => {
+    try {
+      await maybeImport();
+      // Push deletes before pull so a live server copy cannot reappear locally.
+      await pushEntryTombstones();
+      await pullAndApplyEntries();
+      await pullAndApplyPatterns();
+      await pushDirtyEntries();
+      await pushPatternsIfDirty();
+    } catch (error) {
+      console.error("Sync failed", error);
+    }
+  });
 };
 
 /** Push-only pass — used on the dirty-event debounce between full syncs. */
 export const pushSync = async (): Promise<void> => {
-  if (typeof window === "undefined" || syncInFlight) return;
-  syncInFlight = true;
-  try {
+  if (typeof window === "undefined") return;
+  await withSyncLock(async () => {
+    try {
+      await pushDirtyEntries();
+      await pushPatternsIfDirty();
+    } catch (error) {
+      console.error("Sync push failed", error);
+    }
+  });
+};
+
+/**
+ * Persist any in-memory editor state, then push all dirty queues to the server.
+ * Returns true when nothing remains pending. Used before sign-out.
+ */
+export const flushPendingSync = async (): Promise<boolean> => {
+  if (typeof window === "undefined") return true;
+
+  // Synchronous: canvas / title listeners write through to local dirty queues.
+  window.dispatchEvent(new Event(FLUSH_LOCAL_WRITES_EVENT));
+
+  const pushAll = async () => {
+    await pushEntryTombstones();
     await pushDirtyEntries();
     await pushPatternsIfDirty();
-  } catch (error) {
-    console.error("Sync push failed", error);
-  } finally {
-    syncInFlight = false;
+  };
+
+  await withSyncLock(async () => {
+    try {
+      await pushAll();
+    } catch (error) {
+      console.error("Sync flush failed", error);
+    }
+  });
+
+  // One more pass if something was marked dirty while the flush ran.
+  if (hasPendingSync()) {
+    await withSyncLock(async () => {
+      try {
+        await pushAll();
+      } catch (error) {
+        console.error("Sync flush retry failed", error);
+      }
+    });
   }
+
+  return !hasPendingSync();
+};
+
+// ── Initial sync gate (skeletons / dashboard routing) ───────────────────────
+
+let initialSyncCompleted = false;
+let initialSyncPromise: Promise<void> | null = null;
+
+export const isInitialSyncCompleted = (): boolean => initialSyncCompleted;
+
+/** Cleared when local caches are wiped for a new signed-in user. */
+export const resetInitialSyncGate = (): void => {
+  initialSyncCompleted = false;
+  initialSyncPromise = null;
+};
+
+const markInitialSyncCompleted = (): void => {
+  initialSyncCompleted = true;
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(INITIAL_SYNC_DONE_EVENT));
+};
+
+/**
+ * Shared first-fullSync promise for this session. Safe to call from SyncProvider,
+ * dashboard routing, and journal hydrate — concurrent callers await the same pass.
+ */
+export const ensureInitialSync = async (): Promise<void> => {
+  if (typeof window === "undefined") return;
+  if (initialSyncCompleted) return;
+  if (!initialSyncPromise) {
+    initialSyncPromise = fullSync().finally(() => {
+      markInitialSyncCompleted();
+    });
+  }
+  await initialSyncPromise;
 };

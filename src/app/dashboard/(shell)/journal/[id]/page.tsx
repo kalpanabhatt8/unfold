@@ -31,6 +31,8 @@ import {
 } from "@/lib/journal-entries";
 import { notifyEntryCompleted } from "@/lib/patterns/entry-completion";
 import { takeJournalQuoteFocus } from "@/lib/journal-quote-focus";
+import { resolveNewEntryTarget } from "@/lib/entry-draft";
+import { ensureInitialSync } from "@/lib/sync/sync-client";
 
 /** Flatten a snapshot's written blocks into one lowercase-searchable string. */
 const flattenSnapshotText = (snapshot: CanvasSnapshot): string =>
@@ -86,25 +88,44 @@ const JournalEntryPage = () => {
     setCrisisDismissed(isCrisisDismissed(entryId));
   }, [entryId]);
 
-  // Hydrate (or create) this entry's metadata on open.
-  // Existing entries: read-only — avoid rewriting drafts + marking dirty.
+  // Hydrate this entry's metadata on open. Unknown ids (after sync) redirect to
+  // the single empty draft — never upsert a ghost entry at the URL id.
   useEffect(() => {
-    const existing = readEntryById(entryId);
-    if (existing) {
-      entryRef.current = existing;
-      setEntry(existing);
-      setIsHydrated(true);
-      // Already-sealed entries were completed in a prior session (the reconciler
-      // covers any missing analysis) — only a fresh seal this session counts.
-      completionFiredRef.current = typeof existing.sealedAt === "number";
-      return;
-    }
-    const hydrated = upsertEntry(entryId, { title: "" });
-    entryRef.current = hydrated;
-    setEntry(hydrated);
-    setIsHydrated(true);
-    completionFiredRef.current = false;
-  }, [entryId]);
+    let cancelled = false;
+
+    const hydrate = async () => {
+      const existing = readEntryById(entryId);
+      if (existing) {
+        entryRef.current = existing;
+        setEntry(existing);
+        setIsHydrated(true);
+        // Already-sealed entries were completed in a prior session (the reconciler
+        // covers any missing analysis) — only a fresh seal this session counts.
+        completionFiredRef.current = typeof existing.sealedAt === "number";
+        return;
+      }
+
+      await ensureInitialSync();
+      if (cancelled) return;
+
+      const synced = readEntryById(entryId);
+      if (synced) {
+        entryRef.current = synced;
+        setEntry(synced);
+        setIsHydrated(true);
+        completionFiredRef.current = typeof synced.sealedAt === "number";
+        return;
+      }
+
+      const { id } = resolveNewEntryTarget();
+      router.replace(`/dashboard/journal/${id}`);
+    };
+
+    void hydrate();
+    return () => {
+      cancelled = true;
+    };
+  }, [entryId, router]);
 
   useEffect(() => {
     isHydratedRef.current = isHydrated;

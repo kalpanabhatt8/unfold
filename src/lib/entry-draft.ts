@@ -72,3 +72,6 @@ export const resolveNewEntryTarget = (): { id: string; created: boolean } => {
   upsertEntry(id, { title: "" });
   return { id, created: true };
 };
+
+/** Where to land when opening the Entries tab (dashboard root). */
+export const resolveEntryOpenTarget = resolveNewEntryTarget;

@@ -34,6 +34,45 @@ export const IMPLICIT_SEAL_INACTIVITY_MS = 24 * 60 * 60 * 1000;
 /** Minimum words for the inactivity trigger (same ballpark as a real entry). */
 export const IMPLICIT_SEAL_MIN_WORDS = 50;
 
+/**
+ * Resolve idle threshold for implicit analysis.
+ *
+ * Production always uses 24h. In development only, you can shorten it to
+ * exercise the inactivity path without waiting a day:
+ *
+ *   NEXT_PUBLIC_IMPLICIT_SEAL_INACTIVITY_MS=120000   # 2 minutes (restart next)
+ *   // or, in the browser console (no restart):
+ *   window.__UNFOLD_IMPLICIT_SEAL_INACTIVITY_MS__ = 120_000
+ */
+export function getImplicitSealInactivityMs(): number {
+  if (process.env.NODE_ENV !== "development") {
+    return IMPLICIT_SEAL_INACTIVITY_MS;
+  }
+
+  if (typeof window !== "undefined") {
+    const runtime = (
+      window as Window & { __UNFOLD_IMPLICIT_SEAL_INACTIVITY_MS__?: number }
+    ).__UNFOLD_IMPLICIT_SEAL_INACTIVITY_MS__;
+    if (
+      typeof runtime === "number" &&
+      Number.isFinite(runtime) &&
+      runtime > 0
+    ) {
+      return runtime;
+    }
+  }
+
+  const raw = process.env.NEXT_PUBLIC_IMPLICIT_SEAL_INACTIVITY_MS;
+  if (raw) {
+    const parsed = Number(raw);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+
+  return IMPLICIT_SEAL_INACTIVITY_MS;
+}
+
 const lastActivityAt = (entry: JournalEntry): number =>
   entry.lastEditedAt ?? entry.updatedAt;
 
@@ -46,7 +85,7 @@ export const isExplicitlySealed = (entry: JournalEntry): boolean =>
  */
 export const isImplicitlySealedForAnalysis = (entry: JournalEntry): boolean => {
   if (isExplicitlySealed(entry)) return false;
-  if (Date.now() - lastActivityAt(entry) < IMPLICIT_SEAL_INACTIVITY_MS) {
+  if (Date.now() - lastActivityAt(entry) < getImplicitSealInactivityMs()) {
     return false;
   }
   return countWords(readEntryText(entry.id)) >= IMPLICIT_SEAL_MIN_WORDS;

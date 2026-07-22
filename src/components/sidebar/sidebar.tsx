@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import clsx from "clsx";
 import Link from "next/link";
 import { useParams, usePathname, useRouter } from "next/navigation";
@@ -27,6 +27,8 @@ import {
   type JournalEntry,
 } from "@/lib/journal-entries";
 import { resolveNewEntryTarget } from "@/lib/entry-draft";
+import { useInitialSyncReady } from "@/lib/sync/use-initial-sync-ready";
+import { SidebarEntriesSkeleton } from "@/components/sidebar/sidebar-entries-skeleton";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useSurfacedPatterns } from "@/hooks/use-surfaced-patterns";
 import { PatternsSidebarLink } from "@/components/sidebar/patterns-sidebar-link";
@@ -89,11 +91,15 @@ export function Sidebar() {
   const activeEntryId = params?.id;
   const { user, isLoaded } = useUser();
 
+  // Empty on first paint so SSR and client HTML match; hydrate from localStorage
+  // in useLayoutEffect (below) before the browser paints.
   const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [query, setQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const isOverlayNav = useMediaQuery(OVERLAY_NAV_QUERY);
   const [collapsed, setCollapsed] = useState(false);
+  const initialSyncReady = useInitialSyncReady();
+  const showEntriesSkeleton = !initialSyncReady && entries.length === 0;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -112,7 +118,7 @@ export function Sidebar() {
   const { hasSurfaced: hasSurfacedPatterns, count: surfacedPatternCount } =
     useSurfacedPatterns();
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const load = () => {
       try {
         setEntries(readAllEntries());
@@ -198,8 +204,9 @@ export function Sidebar() {
   const handleNewEntry = () => {
     // Seal/title work for the previous entry continues in journal-seal.ts —
     // do not wait for the stamp animation. Create (or reuse) then navigate
-    // immediately so the route change outranks the sidebar refresh.
+    // immediately; refresh the list so the new row is selected on arrival.
     const { id } = resolveNewEntryTarget();
+    setEntries(readAllEntries());
     router.push(`/dashboard/journal/${id}?new=1`);
     closeOverlayNav();
   };
@@ -213,11 +220,13 @@ export function Sidebar() {
 
     const remaining = readAllEntries();
     if (remaining.length > 0) {
+      setEntries(remaining);
       router.replace(`/dashboard/journal/${remaining[0].id}`);
       return;
     }
 
     const { id: newId } = resolveNewEntryTarget();
+    setEntries(readAllEntries());
     router.replace(`/dashboard/journal/${newId}?new=1`);
   };
 
@@ -419,7 +428,9 @@ export function Sidebar() {
             className="sidebar-entries-scroll min-h-0 h-full overflow-y-auto overscroll-y-contain"
             aria-label="Entries"
           >
-          {filteredEntries.length === 0 ? (
+          {showEntriesSkeleton ? (
+            <SidebarEntriesSkeleton />
+          ) : filteredEntries.length === 0 ? (
             <p className="px-2 py-6 text-center text-sm text-(--sidebar-ink-soft)">
               {entries.length === 0 ? "No entries yet" : "No matches"}
             </p>

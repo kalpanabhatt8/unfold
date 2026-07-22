@@ -14,8 +14,7 @@ import { useAuth, useClerk, useSession } from "@clerk/nextjs";
 import type { PublicUserData, UserResource } from "@clerk/types";
 import { Signature } from "lucide-react";
 import {
-  btnIcon,
-  btnState,
+  btnIconInvisible,
   iconFixed,
   iconPx,
   iconStroke,
@@ -331,6 +330,8 @@ export interface JournalStampProps {
    * When true the imprint is shown immediately, with no animation.
    */
   isSealed: boolean;
+  /** Whether the entry has writing content and may be sealed. */
+  canSeal: boolean;
 }
 
 /**
@@ -344,7 +345,7 @@ export interface JournalStampProps {
  */
 export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
   function JournalStamp(
-    { onStampBegin, onStampImpact, onStampHover, isSealed },
+    { onStampBegin, onStampImpact, onStampHover, isSealed, canSeal },
     ref,
   ) {
   const clerk = useClerk();
@@ -450,7 +451,7 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
   }, [phase]);
 
   const playSealAnimation = useCallback(() => {
-    if (sealStartedRef.current || isSealed) return;
+    if (sealStartedRef.current || isSealed || !canSeal) return;
     sealStartedRef.current = true;
 
     onStampBegin?.();
@@ -477,7 +478,7 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
         }, STAMP_INK_FADE_MS);
       }, STAMP_IMPACT_HOLD_MS);
     }, STAMP_PRESS_MS);
-  }, [isSealed, onStampBegin, onStampImpact]);
+  }, [canSeal, isSealed, onStampBegin, onStampImpact]);
 
   useImperativeHandle(ref, () => ({ playSealAnimation }), [playSealAnimation]);
 
@@ -530,23 +531,32 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
       {/* ── Sign control — icon at rest; press animation leaves signature imprint ── */}
       {showSealButton && (
         <div className="pointer-events-auto" style={stampCornerAnchor}>
-          <Tooltip content="Seal entry" bubbleClassName="tooltip-bubble-stamp">
+          <Tooltip
+            content={
+              canSeal ? "Seal entry" : "Write something before sealing"
+            }
+            bubbleClassName="tooltip-bubble-stamp"
+          >
             <button
               type="button"
+              disabled={!canSeal}
               onPointerDown={(e) => {
+                if (!canSeal) return;
                 e.preventDefault();
                 startSeal();
               }}
               onKeyDown={(e) => {
+                if (!canSeal) return;
                 if (e.key !== "Enter" && e.key !== " ") return;
                 e.preventDefault();
                 startSeal();
               }}
               onClick={(e) => e.preventDefault()}
-              onPointerEnter={onStampHover}
-              onFocus={onStampHover}
-              aria-label="Seal entry"
-              className={`group shrink-0 cursor-pointer select-none outline-none ${btnIcon(stampButtonSize, "soft")} ${btnState.default} ${btnState.hover} ${btnState.active}`}
+              onPointerEnter={canSeal ? onStampHover : undefined}
+              onFocus={canSeal ? onStampHover : undefined}
+              aria-label={canSeal ? "Seal entry" : "Seal entry (disabled — empty)"}
+              aria-disabled={!canSeal}
+              className={`group shrink-0 select-none outline-none disabled:cursor-not-allowed disabled:opacity-40 ${canSeal ? "cursor-pointer" : ""} ${btnIconInvisible(stampButtonSize, "soft")}`}
             >
               <Signature
                 size={iconPx(stampButtonSize)}

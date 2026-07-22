@@ -55,3 +55,7 @@ export const extractJournalPlainText = (snapshot: CanvasSnapshot): string => {
 
   return lines.join("\n");
 };
+
+/** Whether the snapshot has any non-whitespace writing content. */
+export const snapshotHasContent = (snapshot: CanvasSnapshot): boolean =>
+  extractJournalPlainText(snapshot).trim().length > 0;
