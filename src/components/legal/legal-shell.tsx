@@ -48,8 +48,8 @@ export function LegalShell({ title, active, children }: LegalShellProps) {
 
           <div className="legal-doc__body">{children}</div>
 
-          <Link href="/sign-in" className="auth-ghost legal-doc__back">
-            Back to sign in
+          <Link href="/get-started" className="auth-ghost legal-doc__back">
+            Back to get started
           </Link>
         </div>
       </article>

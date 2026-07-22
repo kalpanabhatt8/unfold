@@ -67,10 +67,10 @@ export const PATTERN = {
 
 export const CTA = {
   primary: "Get started",
-  href: "/sign-in",
+  href: "/get-started",
   whisper: "Your writing stays yours.",
   header: {
     primary: "Get started",
-    primaryHref: "/sign-in",
+    primaryHref: "/get-started",
   },
 };

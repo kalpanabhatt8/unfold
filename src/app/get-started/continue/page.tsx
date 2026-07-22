@@ -9,7 +9,7 @@ import "@/components/auth/auth-form.css";
 
 /**
  * Silent finish for OAuth when Clerk still needs legalAccepted / username.
- * Any other state (cancel, stale email OTP, etc.) returns to /sign-in quietly.
+ * Any other state (cancel, stale email OTP, etc.) returns to /get-started quietly.
  */
 export default function ContinueSignUpPage() {
   const router = useRouter();

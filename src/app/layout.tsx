@@ -45,8 +45,8 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <ClerkProvider
-      signInUrl="/sign-in"
-      signUpUrl="/sign-in"
+      signInUrl="/get-started"
+      signUpUrl="/get-started"
       afterSignInUrl="/dashboard"
       afterSignUpUrl="/dashboard"
     >

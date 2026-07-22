@@ -2,23 +2,27 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth, useSignIn, useSignUp } from "@clerk/nextjs";
 import type { EmailCodeFactor, OAuthStrategy } from "@clerk/types";
 import {
   AUTH_AFTER_SIGN_IN_PATH,
+  AUTH_SIGN_IN_PATH,
   AUTH_SSO_CALLBACK_PATH,
+  AUTH_VERIFY_PATH,
   authAbsoluteUrl,
 } from "@/lib/auth-routes";
 import { resetAuthAttempts } from "@/lib/auth-finalize";
 import { btnSecondary } from "@/components/ui/button-system";
-import "./auth-form.css";
+import "@/components/auth/auth-form.css";
 
 type Step = "credentials" | "verify";
 type AuthFlow = "sign-in" | "sign-up";
 
 const OTP_LENGTH = 6;
 const VERIFY_FLOW_KEY = "unfold-auth-verify-flow";
+const VERIFY_EMAIL_KEY = "unfold-auth-verify-email";
+const VERIFY_INTERRUPTED_KEY = "unfold-auth-verify-interrupted";
 
 const PASSWORD_RULES_MESSAGE =
   "Must be at least 8 characters long and include an uppercase letter, lowercase letter, number, and special character";
@@ -28,9 +32,16 @@ const EMAIL_INVALID_MESSAGE = "Please enter a valid email address.";
 const LEGAL_REQUIRED_MESSAGE =
   "Please agree to the Terms and Conditions and Privacy Policy to continue.";
 
-function persistVerifyFlow(flow: AuthFlow) {
+const VERIFY_INTERRUPTED_MESSAGE =
+  "Verification was interrupted. Please sign in or start again.";
+
+/** Cancels a pending "left verify" mark (React Strict Mode remount). */
+let verifyMountId = 0;
+
+function persistVerifySession(flow: AuthFlow, emailAddress: string) {
   try {
     sessionStorage.setItem(VERIFY_FLOW_KEY, flow);
+    sessionStorage.setItem(VERIFY_EMAIL_KEY, emailAddress);
   } catch {
     // ignore
   }
@@ -45,9 +56,46 @@ function readVerifyFlow(): AuthFlow | null {
   }
 }
 
-function clearVerifyFlow() {
+function readVerifyEmail(): string {
+  try {
+    return sessionStorage.getItem(VERIFY_EMAIL_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+function clearVerifySession() {
   try {
     sessionStorage.removeItem(VERIFY_FLOW_KEY);
+    sessionStorage.removeItem(VERIFY_EMAIL_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+function markVerifyInterrupted() {
+  try {
+    sessionStorage.setItem(VERIFY_INTERRUPTED_KEY, "1");
+  } catch {
+    // ignore
+  }
+  clearVerifySession();
+}
+
+function consumeVerifyInterrupted(): boolean {
+  try {
+    const value = sessionStorage.getItem(VERIFY_INTERRUPTED_KEY);
+    if (!value) return false;
+    sessionStorage.removeItem(VERIFY_INTERRUPTED_KEY);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function clearVerifyInterrupted() {
+  try {
+    sessionStorage.removeItem(VERIFY_INTERRUPTED_KEY);
   } catch {
     // ignore
   }
@@ -147,18 +195,21 @@ function clerkErrorCode(err: unknown): string | undefined {
 
 export function AuthForm() {
   const router = useRouter();
+  const pathname = usePathname();
   const { isLoaded: authLoaded, isSignedIn } = useAuth();
   const { isLoaded: signInLoaded, signIn, setActive } = useSignIn();
   const { isLoaded: signUpLoaded, signUp, setActive: setActiveFromSignUp } =
     useSignUp();
   const activateSession = setActive ?? setActiveFromSignUp;
 
+  const step: Step =
+    pathname === AUTH_VERIFY_PATH ? "verify" : "credentials";
+
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [digits, setDigits] = React.useState<string[]>(() =>
     Array.from({ length: OTP_LENGTH }, () => ""),
   );
-  const [step, setStep] = React.useState<Step>("credentials");
   const [flow, setFlow] = React.useState<AuthFlow>("sign-in");
   const [error, setError] = React.useState<string | null>(null);
   const [pending, setPending] = React.useState(false);
@@ -173,6 +224,23 @@ export function AuthForm() {
   const resetOtp = React.useCallback(() => {
     setDigits(Array.from({ length: OTP_LENGTH }, () => ""));
   }, []);
+
+  const hasActiveVerifySession = React.useCallback((): boolean => {
+    const saved = readVerifyFlow();
+    const emailStatus = signUp?.verifications?.emailAddress?.status;
+    const signUpNeedsEmail =
+      !!signUp?.id &&
+      signUp.status !== "complete" &&
+      (signUp.unverifiedFields?.includes("email_address") ||
+        emailStatus === "unverified" ||
+        emailStatus === "expired" ||
+        emailStatus === "failed");
+    return (
+      !!saved ||
+      signUpNeedsEmail ||
+      signIn?.status === "needs_second_factor"
+    );
+  }, [signUp, signIn]);
 
   /** Prefer Clerk resource state over React state (survives remounts / HMR). */
   const resolveVerifyFlow = React.useCallback((): AuthFlow => {
@@ -190,48 +258,107 @@ export function AuthForm() {
     return readVerifyFlow() ?? flow;
   }, [signUp, signIn, flow]);
 
+  /** End OTP and return to the email/password screen. */
+  const exitVerifyToCredentials = React.useCallback(() => {
+    clearVerifySession();
+    setFlow("sign-in");
+    resetOtp();
+    void resetAuthAttempts(signIn, signUp);
+    if (pathname !== AUTH_SIGN_IN_PATH) {
+      try {
+        sessionStorage.setItem(VERIFY_INTERRUPTED_KEY, "1");
+      } catch {
+        // ignore
+      }
+      router.replace(AUTH_SIGN_IN_PATH);
+    } else {
+      setError(VERIFY_INTERRUPTED_MESSAGE);
+    }
+  }, [signIn, signUp, resetOtp, pathname, router]);
+
   const enterVerifyStep = React.useCallback(
     (nextFlow: AuthFlow) => {
-      persistVerifyFlow(nextFlow);
+      clearVerifyInterrupted();
+      persistVerifySession(nextFlow, email.trim());
       setFlow(nextFlow);
       setDigits(Array.from({ length: OTP_LENGTH }, () => ""));
       setError(null);
-      setStep("verify");
       // Don't lock Resend on first land — only after a successful resend.
       setResendCooldown(0);
+      router.push(AUTH_VERIFY_PATH);
     },
-    [],
+    [email, router],
   );
 
   React.useEffect(() => {
     if (authLoaded && isSignedIn) {
-      clearVerifyFlow();
+      clearVerifySession();
+      clearVerifyInterrupted();
       window.location.assign("/dashboard");
     }
   }, [authLoaded, isSignedIn]);
 
-  // If we remount mid-verify, restore the OTP step from Clerk / session.
+  // Restore email / flow when landing on the verify route.
+  React.useEffect(() => {
+    if (step !== "verify") return;
+    const savedEmail = readVerifyEmail();
+    if (savedEmail) setEmail(savedEmail);
+    const savedFlow = readVerifyFlow();
+    if (savedFlow) setFlow(savedFlow);
+  }, [step]);
+
+  // Verify URL without an active session → restart auth.
+  React.useEffect(() => {
+    if (!isLoaded || step !== "verify") return;
+    if (hasActiveVerifySession()) return;
+    exitVerifyToCredentials();
+  }, [isLoaded, step, hasActiveVerifySession, exitVerifyToCredentials]);
+
+  // Leaving the verify route invalidates the OTP session (Back, links, refresh).
+  React.useEffect(() => {
+    if (step !== "verify") return;
+
+    const mountId = ++verifyMountId;
+
+    const onPageHide = () => {
+      if (!readVerifyFlow()) return;
+      markVerifyInterrupted();
+    };
+    window.addEventListener("pagehide", onPageHide);
+
+    return () => {
+      window.removeEventListener("pagehide", onPageHide);
+      // Microtask runs before the next page's useEffects; Strict Mode remount bumps mountId.
+      queueMicrotask(() => {
+        if (verifyMountId !== mountId) return;
+        if (!readVerifyFlow()) return;
+        markVerifyInterrupted();
+      });
+    };
+  }, [step]);
+
+  // bfcache restore of verify → force restart on the auth route.
+  React.useEffect(() => {
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (!event.persisted) return;
+      if (pathname !== AUTH_VERIFY_PATH) return;
+      if (!consumeVerifyInterrupted()) return;
+      exitVerifyToCredentials();
+    };
+    window.addEventListener("pageshow", onPageShow);
+    return () => window.removeEventListener("pageshow", onPageShow);
+  }, [pathname, exitVerifyToCredentials]);
+
+  // After leaving verify, show the interrupted message on the credentials screen.
   React.useEffect(() => {
     if (!isLoaded || step === "verify") return;
-    const saved = readVerifyFlow();
-    const emailStatus = signUp?.verifications?.emailAddress?.status;
-    const signUpNeedsEmail =
-      !!signUp?.id &&
-      signUp.status !== "complete" &&
-      (signUp.unverifiedFields?.includes("email_address") ||
-        emailStatus === "unverified" ||
-        emailStatus === "expired" ||
-        emailStatus === "failed");
-    if (signUpNeedsEmail || (saved === "sign-up" && signUp?.id)) {
-      setFlow("sign-up");
-      setStep("verify");
-      return;
-    }
-    if (signIn?.status === "needs_second_factor") {
-      setFlow("sign-in");
-      setStep("verify");
-    }
-  }, [isLoaded, step, signUp, signIn]);
+    if (!consumeVerifyInterrupted()) return;
+
+    setFlow("sign-in");
+    resetOtp();
+    setError(VERIFY_INTERRUPTED_MESSAGE);
+    void resetAuthAttempts(signIn, signUp);
+  }, [isLoaded, step, signIn, signUp, resetOtp]);
 
   const requireLegal = () => {
     if (!acceptedLegal) {
@@ -253,7 +380,8 @@ export function AuthForm() {
         throw new Error("No active session was created. Please try again.");
       }
       await activateSession({ session: sessionId });
-      clearVerifyFlow();
+      clearVerifySession();
+      clearVerifyInterrupted();
       // Full navigation — avoids sitting on the auth skeleton while the app hydrates.
       window.location.assign("/dashboard");
     },
@@ -325,7 +453,8 @@ export function AuthForm() {
       const tryActivate = async (sessionId: string | null | undefined) => {
         if (!sessionId) return false;
         await activateSession({ session: sessionId });
-        clearVerifyFlow();
+        clearVerifySession();
+        clearVerifyInterrupted();
         window.location.assign("/dashboard");
         return true;
       };
@@ -467,7 +596,8 @@ export function AuthForm() {
     setError(null);
     setPending(true);
     try {
-      clearVerifyFlow();
+      clearVerifySession();
+      clearVerifyInterrupted();
       resetOtp();
       await resetAuthAttempts(signIn, signUp);
 
@@ -1015,7 +1145,7 @@ export function AuthForm() {
               onClick={() => {
                 setError(null);
                 resetOtp();
-                clearVerifyFlow();
+                clearVerifySession();
                 void signInWithOAuth("oauth_google");
               }}
             >
