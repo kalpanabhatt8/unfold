@@ -86,6 +86,8 @@ body:has(.lp-live) {
   scrollbar-color: color-mix(in srgb, var(--sidebar-icon) 40%, transparent)
     transparent;
   background: #fdfcfc;
+  /* Stop rubber-band overscroll from yanking the pinned canvas off-center */
+  overscroll-behavior-y: none;
 }
 
 html:has(.lp-live)::-webkit-scrollbar {
@@ -170,18 +172,24 @@ html:has(.lp-live)::-webkit-scrollbar-button {
 }
 
 .lp-live__scroll {
+  /* Scroll runway for the story — stage is fixed, so this is only height */
   height: 520vh;
+  pointer-events: none;
 }
 
 .lp-live__stage {
-  position: sticky;
+  /* Fixed (not sticky): never unsticks / slides up past center at scroll end */
+  position: fixed;
   top: 0;
+  left: 0;
+  z-index: 1;
   height: 100svh;
   width: 100%;
   overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
+  pointer-events: auto;
 }
 
 /* Clean page wash — pink comes from the bloom only */
@@ -314,14 +322,18 @@ html:has(.lp-live)::-webkit-scrollbar-button {
 
 .lp-live__canvas-aura-shape {
   position: absolute;
-  top: 8%;
-  left: 6%;
-  width: 112%;
-  height: 68%;
-  border-radius: 3rem;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 40%;
   opacity: 1;
-  background: linear-gradient(180deg, #eadce2 0%, #c299ac 100%);
-  filter: blur(8.25rem);
+  /* Blur is baked into the SVG — avoid CSS filter (Safari under-renders large blurs). */
+  filter: none;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
 .lp-live__canvas-aura-fade {

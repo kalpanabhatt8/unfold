@@ -185,9 +185,15 @@ export function LivingCanvas() {
     const onScroll = () => {
       const el = rootRef.current;
       if (!el) return;
-      const rect = el.getBoundingClientRect();
       const total = el.offsetHeight - window.innerHeight;
-      const next = reduced ? 1 : clamp(-rect.top / Math.max(total, 1));
+      const maxScroll = Math.max(total, 0);
+      // Don't allow scrolling past the story end — that used to unstick the
+      // canvas and leave white body visible below a frame parked too high.
+      if (window.scrollY > maxScroll) {
+        window.scrollTo(0, maxScroll);
+      }
+      const y = Math.min(Math.max(window.scrollY, 0), maxScroll);
+      const next = reduced ? 1 : clamp(y / Math.max(maxScroll, 1));
       setProgress(next);
       if (
         viewOverride !== "auto" &&
@@ -197,7 +203,7 @@ export function LivingCanvas() {
       }
     };
     onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("scroll", onScroll, { passive: false });
     return () => window.removeEventListener("scroll", onScroll);
   }, [reduced, viewOverride]);
 
@@ -343,7 +349,16 @@ export function LivingCanvas() {
             aria-hidden
           >
             <div className="lp-live__canvas-aura">
-              <div className="lp-live__canvas-aura-shape" />
+              {/* Pre-blurred Figma asset — Safari paints large CSS filter:blur much weaker than Chrome */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                className="lp-live__canvas-aura-shape"
+                src="/Images/canvasShadowHomepage.svg"
+                alt=""
+                width={1440}
+                height={780}
+                decoding="async"
+              />
             </div>
             <div className="lp-live__canvas-aura-fade" />
           </div>
