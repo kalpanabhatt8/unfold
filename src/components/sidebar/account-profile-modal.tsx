@@ -12,6 +12,7 @@ import {
   btnSecondary,
 } from "@/components/ui/button-system";
 import {
+  avatarInitial,
   preferredNameMetadata,
   resolvePreferredName,
 } from "@/lib/user-display";
@@ -32,12 +33,6 @@ const pageTitleStyle = {
 } as const;
 
 const PANEL_HEIGHT = "min(44rem, calc(100svh - 2rem))";
-
-function avatarLetter(source: string | null | undefined): string {
-  const word = source?.trim().split(/\s+/)[0];
-  const letter = word?.[0];
-  return letter ? letter.toLowerCase() : "u";
-}
 
 function PreferredNameField({
   value,
@@ -409,7 +404,7 @@ function AccountPanelView() {
     "";
   const name = resolvePreferredName(user);
   const showPhoto = Boolean(user.hasImage && user.imageUrl);
-  const letter = avatarLetter(name || user.username);
+  const letter = avatarInitial(name || user.username);
 
   return (
     <div className="flex flex-col gap-10">

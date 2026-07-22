@@ -5,7 +5,7 @@ import { useClerk, useUser } from "@clerk/nextjs";
 import { AccountProfileModal } from "@/components/sidebar/account-profile-modal";
 import { SendFeedbackModal } from "@/components/sidebar/send-feedback-modal";
 import { clearLocalUnfoldData } from "@/lib/clear-local-data";
-import { resolvePreferredName } from "@/lib/user-display";
+import { resolvePreferredName, avatarInitial } from "@/lib/user-display";
 
 // const SUPPORT_MAILTO =
 //   "mailto:hello@unfold.app?subject=Supporting%20Unfold";
@@ -18,12 +18,6 @@ const menuItemStyle = {
   lineHeight: "var(--text-sm--line-height)",
 } as const;
 
-function avatarLetter(source: string | null | undefined): string {
-  const word = source?.trim().split(/\s+/)[0];
-  const letter = word?.[0];
-  return letter ? letter.toLowerCase() : "u";
-}
-
 export function SidebarAccountMenu() {
   const clerk = useClerk();
   const { user, isLoaded } = useUser();
@@ -35,7 +29,7 @@ export function SidebarAccountMenu() {
 
   const showPhoto = Boolean(isLoaded && user?.hasImage && user.imageUrl);
   const letter = isLoaded
-    ? avatarLetter(resolvePreferredName(user) || user?.username)
+    ? avatarInitial(resolvePreferredName(user) || user?.username)
     : "";
 
   useEffect(() => {
@@ -87,7 +81,7 @@ export function SidebarAccountMenu() {
           aria-expanded={menuOpen}
           aria-controls={menuOpen ? menuId : undefined}
           onClick={() => setMenuOpen((prev) => !prev)}
-          className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-sm bg-(--canvas-title-ink) text-[0.8125rem] font-semibold leading-none text-white transition-opacity duration-150 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20 active:opacity-80"
+          className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-[5px] bg-(--canvas-title-ink) text-[0.8125rem] font-medium leading-none text-white transition-opacity duration-150 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20 active:opacity-80"
           style={{ fontFamily: "var(--font-body)", fontSize: "0.8125rem" }}
         >
           {showPhoto && user ? (
