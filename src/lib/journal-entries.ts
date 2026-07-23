@@ -14,7 +14,6 @@
  */
 
 import "@/lib/storage-namespace";
-import { startTransition } from "react";
 import {
   clearDirtyEntry,
   isEntryDeleted,
@@ -142,11 +141,7 @@ const writeDraftsRaw = (drafts: Record<string, unknown>) => {
       ENTRY_DRAFTS_STORAGE_KEY,
       JSON.stringify(drafts),
     );
-    // Defer sidebar refresh so urgent work (route changes after "+" / seal)
-    // is not blocked behind a recents-list re-render.
-    startTransition(() => {
-      window.dispatchEvent(new Event(ENTRIES_UPDATED_EVENT));
-    });
+    window.dispatchEvent(new Event(ENTRIES_UPDATED_EVENT));
   } catch (error) {
     console.error("Failed to save journal entries", error);
   }

@@ -6,7 +6,6 @@ import { ChevronDown, ChevronUp, Menu } from "lucide-react";
 import { PATTERN_LABELS } from "@/lib/patterns/vocabulary";
 import type { PatternName } from "@/lib/patterns/vocabulary";
 import { PatternDetailView } from "@/components/patterns/pattern-detail-view";
-import { PatternSecondaryLines } from "@/components/patterns/pattern-secondary-lines";
 import { usePatternDisplay } from "@/hooks/use-pattern-display";
 import { usePatternsAggregate } from "@/hooks/use-patterns-aggregate";
 import { useViewportLayout } from "@/hooks/use-viewport-layout";
@@ -14,8 +13,11 @@ import {
   formatPatternTimeline,
   patternTimelineEnd,
 } from "@/lib/patterns/time-hint";
+import { isPatternFullyReady } from "@/lib/patterns/pattern-readiness";
+import { PATTERN_DISPLAY_UPDATED_EVENT } from "@/lib/patterns/pattern-display-store";
+import { PATTERN_PASSAGE_UPDATED_EVENT } from "@/lib/patterns/passage-store";
 import {
-  btnIconTransparent,
+  btnIconChrome,
   iconFixed,
   iconPx,
   iconStroke,
@@ -46,27 +48,38 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
   const aggregate = usePatternsAggregate();
   const patterns = usePatternDisplay(aggregate);
   const itemRefs = useRef<Map<PatternName, HTMLLIElement>>(new Map());
-
-  const hasSurfaced = (aggregate?.surfaced.length ?? 0) > 0;
+  const [readinessTick, setReadinessTick] = useState(0);
 
   useEffect(() => {
-    if (aggregate === null) return;
-    if (!hasSurfaced) {
-      router.replace("/dashboard");
-    }
-  }, [aggregate, hasSurfaced, router]);
+    const bump = () => setReadinessTick((t) => t + 1);
+    window.addEventListener(PATTERN_DISPLAY_UPDATED_EVENT, bump);
+    window.addEventListener(PATTERN_PASSAGE_UPDATED_EVENT, bump);
+    window.addEventListener("storage", bump);
+    return () => {
+      window.removeEventListener(PATTERN_DISPLAY_UPDATED_EVENT, bump);
+      window.removeEventListener(PATTERN_PASSAGE_UPDATED_EVENT, bump);
+      window.removeEventListener("storage", bump);
+    };
+  }, []);
 
   const listPatterns = useMemo(() => {
     if (aggregate === null) return [];
     const enriched = patterns.length > 0 ? patterns : aggregate.surfaced;
-    // Only include patterns whose landing copy is ready — no skeleton tease.
-    const ready = enriched.filter((pattern) => pattern.display !== null);
-    // Most recent first.
+    const ready = enriched.filter((pattern) => isPatternFullyReady(pattern));
     return [...ready].sort(
       (a, b) =>
         patternTimelineEnd(b.evidence) - patternTimelineEnd(a.evidence),
     );
-  }, [aggregate, patterns]);
+  }, [aggregate, patterns, readinessTick]);
+
+  const hasReadyPatterns = listPatterns.length > 0;
+
+  useEffect(() => {
+    if (aggregate === null) return;
+    if (!hasReadyPatterns) {
+      router.replace("/dashboard");
+    }
+  }, [aggregate, hasReadyPatterns, router]);
 
   /** null = all collapsed. */
   const [expanded, setExpanded] = useState<PatternName | null>(
@@ -118,7 +131,7 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
     };
   }, [expanded]);
 
-  if (aggregate === null || !hasSurfaced || listPatterns.length === 0) {
+  if (aggregate === null || !hasReadyPatterns) {
     return null;
   }
 
@@ -213,13 +226,9 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
                         {factLine}
                       </span>
                     ) : null}
-                    <PatternSecondaryLines
-                      foldedLabels={pattern.foldedLabels}
-                      coPatterns={pattern.coPatterns}
-                    />
                   </span>
                   <span
-                    className={`pattern-accordion__row-chevron shrink-0 ${btnIconTransparent("xs")}`}
+                    className={`pattern-accordion__row-chevron shrink-0 ${btnIconChrome("xs")}`}
                     aria-hidden
                   >
                     {isOpen ? (

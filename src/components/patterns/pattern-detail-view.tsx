@@ -76,7 +76,7 @@ export function PatternDetailView({
   const viewport = useViewportLayout();
   const aggregate = usePatternsAggregate();
   const displayPatterns = usePatternDisplay(aggregate);
-  const patterns = usePatternPassages(aggregate, patternName);
+  const patterns = usePatternPassages(aggregate);
   const [phaseIndex, setPhaseIndex] = useState(0);
   const [readerReady, setReaderReady] = useState(false);
   const [closingVote, setClosingVote] = useState<PatternVoteValue | null>(null);

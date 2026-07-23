@@ -1,17 +1,10 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { generatePassageVoiceForPattern } from "@/lib/ai/pattern-slots/client";
 import { buildEvidenceKey } from "@/lib/patterns/evidence-signals";
 import { isVoiceArcShape } from "@/lib/patterns/discovery-arc";
-import { getVoiceGenerationPromise } from "@/lib/patterns/pattern-lifecycle";
-import { getCachedPassage } from "@/lib/patterns/passage-store";
-import {
-  logPassageVoiceReady,
-  logReconcileStart,
-  logVoiceGenerationBatchEnd,
-  logVoiceGenerationBatchStart,
-} from "@/lib/patterns/pattern-timing";
+import { getCachedPassage, PATTERN_PASSAGE_UPDATED_EVENT } from "@/lib/patterns/passage-store";
+import { logReconcileStart } from "@/lib/patterns/pattern-timing";
 import { reconcileAllPassages } from "@/lib/patterns/passage-orchestrator";
 import {
   passageCacheVersionIsCurrent,
@@ -68,7 +61,6 @@ const preferPassage = (
   const currentVoiceCurrent = passageCacheVersionIsCurrent(current.cacheKey);
   const nextVoiceCurrent = passageCacheVersionIsCurrent(next.cacheKey);
 
-  // Prefer a current-contract scaffold over stale complete voice (force regen).
   if (
     sameEvidence &&
     !currentVoiceCurrent &&
@@ -78,7 +70,6 @@ const preferPassage = (
     return next;
   }
 
-  // Never downgrade discovery to evidence-only.
   if (
     sameEvidence &&
     current.shapeId === "discovery" &&
@@ -88,7 +79,6 @@ const preferPassage = (
     return current;
   }
 
-  // Always take a voice-arc upgrade over a complete evidence-only passage.
   if (
     sameEvidence &&
     isVoiceArcShape(next.shapeId) &&
@@ -130,16 +120,30 @@ const preferPassage = (
   return next;
 };
 
+const reconcileSurfaced = (surfaced: SurfacedPattern[]): PatternWithPassage[] => {
+  const finishReconcile = logReconcileStart();
+  const reconciled = reconcileAllPassages(
+    surfaced.map((p) => ({
+      name: p.name as PatternName,
+      evidence: p.evidence,
+    })),
+    Date.now(),
+  );
+  finishReconcile();
+  return mergeReconciledPassages(surfaced, reconciled);
+};
+
+/**
+ * Enriches surfaced patterns with reconciled passages from cache.
+ * Voice generation is owned by usePatternGeneration — this hook reads + reconciles only.
+ */
 export function usePatternPassages(
   aggregate: PatternsAggregate | null,
-  /** When set, voice generation runs only for this pattern (detail view). */
-  voiceForPattern?: PatternName,
 ): PatternWithPassage[] {
   const [patterns, setPatterns] = useState<PatternWithPassage[]>(() =>
     aggregate?.surfaced.length ? mergePassageFromCache(aggregate.surfaced) : [],
   );
-  const patternsRef = useRef(patterns);
-  patternsRef.current = patterns;
+
   const aggregateRef = useRef(aggregate);
   aggregateRef.current = aggregate;
 
@@ -148,142 +152,38 @@ export function usePatternPassages(
     [aggregate],
   );
 
-  const evidenceKeyRef = useRef(evidenceKey);
-  evidenceKeyRef.current = evidenceKey;
-  const reconcileGenRef = useRef(0);
-
-  // Sync reconcile before paint so reopen reads the same passage as localStorage.
-  useLayoutEffect(() => {
+  const syncFromAggregate = () => {
     const current = aggregateRef.current;
     if (!current?.surfaced.length) {
       setPatterns([]);
       return;
     }
+    setPatterns(reconcileSurfaced(current.surfaced));
+  };
 
-    const surfaced = current.surfaced;
-    const finishReconcile = logReconcileStart();
-    const reconciled = reconcileAllPassages(
-      surfaced.map((p) => ({
-        name: p.name as PatternName,
-        evidence: p.evidence,
-      })),
-      Date.now(),
-    );
-    finishReconcile();
-
-    const merged = mergeReconciledPassages(surfaced, reconciled);
-    setPatterns(merged);
+  useLayoutEffect(() => {
+    syncFromAggregate();
   }, [evidenceKey]);
 
   useEffect(() => {
-    const current = aggregateRef.current;
-    if (!current?.surfaced.length) {
-      return;
-    }
-
-    const keyAtStart = evidenceKey;
-    const surfaced = current.surfaced;
-    const generation = reconcileGenRef.current + 1;
-    reconcileGenRef.current = generation;
-
-    const run = async () => {
-      const merged = mergeReconciledPassages(
-        surfaced,
-        reconcileAllPassages(
-          surfaced.map((p) => ({
-            name: p.name as PatternName,
-            evidence: p.evidence,
-          })),
-          Date.now(),
-        ),
-      );
-
-      for (const row of merged) {
-        if (!row.passage) continue;
-        const prev = patternsRef.current.find((x) => x.name === row.name)?.passage;
-        logPassageVoiceReady(prev ?? null, row.passage);
-        console.log(`[use-pattern-passages] ${row.name}`, {
-          shapeId: row.passage.shapeId,
-          lifecycle: row.passage.lifecycle,
-          slotKinds: row.passage.slots.map((s) => s.kind),
-          needsGeneration: passageNeedsGeneration(row.passage),
-        });
-      }
-
-      if (keyAtStart === evidenceKeyRef.current && generation === reconcileGenRef.current) {
-        setPatterns(merged);
-      }
-
-      let pending = merged.filter(
-        (p) => p.passage && passageNeedsGeneration(p.passage),
-      );
-
-      if (voiceForPattern) {
-        pending = pending.filter((p) => p.name === voiceForPattern);
-      }
-
-      if (pending.length === 0) {
-        console.log("[use-pattern-passages] no generation pending");
-        return;
-      }
-
-      console.log(
-        "[use-pattern-passages] generating voice for",
-        pending.map((p) => p.name),
-      );
-
-      const batchNames = pending.map((p) => p.name);
-      const batchStart = performance.now();
-      logVoiceGenerationBatchStart(batchNames);
-
-      const filled = new Map<PatternName, PatternPassage>();
-      await Promise.all(
-        pending.map(async (p) => {
-          const name = p.name as PatternName;
-          const inflight = getVoiceGenerationPromise(name);
-          const passage = inflight
-            ? await inflight
-            : await generatePassageVoiceForPattern({
-                name,
-                passage: p.passage!,
-              });
-          filled.set(name, passage);
+    const refreshFromCache = () => {
+      const current = aggregateRef.current;
+      if (!current?.surfaced.length) return;
+      setPatterns((prev) =>
+        current.surfaced.map((p) => {
+          const existing = prev.find((row) => row.name === p.name);
+          const cached = getCachedPassage(p.name as PatternName);
+          const passage = preferPassage(cached, existing?.passage ?? undefined);
+          return { ...p, passage };
         }),
       );
-
-      logVoiceGenerationBatchEnd(batchNames, batchStart);
-
-      const filledMerged = merged.map((p) => {
-        const prev = p.passage;
-        const next =
-          filled.get(p.name as PatternName) ??
-          getCachedPassage(p.name as PatternName) ??
-          p.passage;
-        if (prev && next) logPassageVoiceReady(prev, next);
-        return { ...p, passage: preferPassage(next, prev) };
-      });
-
-      if (keyAtStart === evidenceKeyRef.current && generation === reconcileGenRef.current) {
-        setPatterns(filledMerged);
-      } else {
-        console.log(
-          "[use-pattern-passages] evidence changed during generation — cache updated",
-        );
-      }
-
-      const stillPending = filledMerged.filter(
-        (p) => p.passage && passageNeedsGeneration(p.passage),
-      );
-      if (stillPending.length > 0) {
-        console.warn(
-          "[use-pattern-passages] voice still incomplete for",
-          stillPending.map((p) => p.name),
-        );
-      }
     };
 
-    void run();
-  }, [evidenceKey, voiceForPattern]);
+    window.addEventListener(PATTERN_PASSAGE_UPDATED_EVENT, refreshFromCache);
+    return () => {
+      window.removeEventListener(PATTERN_PASSAGE_UPDATED_EVENT, refreshFromCache);
+    };
+  }, []);
 
   return patterns;
 }

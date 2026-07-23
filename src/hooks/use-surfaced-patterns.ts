@@ -1,39 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchPatternDisplay } from "@/lib/ai/pattern-display/client";
 import { ENTRIES_UPDATED_EVENT } from "@/lib/journal-entries";
 import { aggregateAnalyses } from "@/lib/patterns/aggregate";
 import { ANALYSES_UPDATED_EVENT } from "@/lib/patterns/analysis-store";
-import { buildEvidenceKey } from "@/lib/patterns/evidence-signals";
-import {
-  getCachedDisplay,
-  PATTERN_DISPLAY_UPDATED_EVENT,
-} from "@/lib/patterns/pattern-display-store";
-import type { SurfacedPattern } from "@/lib/patterns/types";
-import type { PatternName } from "@/lib/patterns/vocabulary";
-
-const isDisplayReady = (pattern: SurfacedPattern): boolean => {
-  const evidenceKey = buildEvidenceKey(pattern.evidence);
-  return getCachedDisplay(pattern.name, evidenceKey) !== null;
-};
-
-/** Prefetch landing copy so the sidebar only lights up when the list can render. */
-const prefetchMissingDisplays = (surfaced: SurfacedPattern[]) => {
-  for (const pattern of surfaced) {
-    if (isDisplayReady(pattern)) continue;
-    const evidenceKey = buildEvidenceKey(pattern.evidence);
-    void fetchPatternDisplay({
-      name: pattern.name as PatternName,
-      evidenceKey,
-      quotes: pattern.evidence.flatMap((item) => item.quotes),
-    });
-  }
-};
+import { PATTERN_DISPLAY_UPDATED_EVENT } from "@/lib/patterns/pattern-display-store";
+import { countFullyReadyPatterns } from "@/lib/patterns/pattern-readiness";
+import { PATTERN_PASSAGE_UPDATED_EVENT } from "@/lib/patterns/passage-store";
 
 /**
- * Live count of patterns ready to open from the sidebar.
- * Surfaced-but-not-yet-titled patterns stay hidden until display metadata lands.
+ * Live count of patterns fully ready (title + voice) for the sidebar.
+ * Generation is owned by usePatternGeneration — this hook only reads cache state.
  */
 export function useSurfacedPatterns() {
   const [count, setCount] = useState(0);
@@ -42,8 +19,7 @@ export function useSurfacedPatterns() {
     const refresh = () => {
       try {
         const { surfaced } = aggregateAnalyses();
-        prefetchMissingDisplays(surfaced);
-        setCount(surfaced.filter(isDisplayReady).length);
+        setCount(countFullyReadyPatterns(surfaced));
       } catch {
         setCount(0);
       }
@@ -55,11 +31,13 @@ export function useSurfacedPatterns() {
     window.addEventListener(ANALYSES_UPDATED_EVENT, refresh);
     window.addEventListener(ENTRIES_UPDATED_EVENT, refresh);
     window.addEventListener(PATTERN_DISPLAY_UPDATED_EVENT, refresh);
+    window.addEventListener(PATTERN_PASSAGE_UPDATED_EVENT, refresh);
     return () => {
       window.removeEventListener("storage", refresh);
       window.removeEventListener(ANALYSES_UPDATED_EVENT, refresh);
       window.removeEventListener(ENTRIES_UPDATED_EVENT, refresh);
       window.removeEventListener(PATTERN_DISPLAY_UPDATED_EVENT, refresh);
+      window.removeEventListener(PATTERN_PASSAGE_UPDATED_EVENT, refresh);
     };
   }, []);
 

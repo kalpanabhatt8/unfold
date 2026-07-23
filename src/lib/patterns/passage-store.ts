@@ -10,6 +10,13 @@ import { isPatternName, type PatternName } from "@/lib/patterns/vocabulary";
 import { markPatternsDirty } from "@/lib/sync/local-flags";
 
 export const PATTERN_PASSAGES_STORAGE_KEY = "unfold-pattern-passages";
+/** Same-tab signal when a passage is written (scaffold, partial, or complete). */
+export const PATTERN_PASSAGE_UPDATED_EVENT = "unfold-pattern-passage-updated";
+
+const notifyPassageUpdated = () => {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event(PATTERN_PASSAGE_UPDATED_EVENT));
+};
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null;
@@ -71,6 +78,7 @@ export const putCachedPassage = (passage: PatternPassage): void => {
   map[passage.name] = passage;
   writeAll(map);
   markPatternsDirty();
+  notifyPassageUpdated();
 };
 
 export const deleteCachedPassage = (name: PatternName): void => {
@@ -78,4 +86,5 @@ export const deleteCachedPassage = (name: PatternName): void => {
   if (!(name in map)) return;
   delete map[name];
   writeAll(map);
+  notifyPassageUpdated();
 };

@@ -71,7 +71,7 @@ export function usePatternDisplay(
       const pending = merged.filter(needsDisplay);
       if (pending.length === 0) return;
 
-      const filled = await Promise.all(
+      await Promise.all(
         pending.map(async (pattern) => {
           const evidenceKeyForPattern = buildEvidenceKey(pattern.evidence);
           const display = await fetchPatternDisplay({
@@ -79,16 +79,21 @@ export function usePatternDisplay(
             evidenceKey: evidenceKeyForPattern,
             quotes: pattern.evidence.flatMap((item) => item.quotes),
           });
-          return { ...pattern, display };
+
+          if (
+            keyAtStart !== evidenceKeyRef.current ||
+            generation !== generationRef.current
+          ) {
+            return;
+          }
+
+          setPatterns((prev) =>
+            prev.map((p) =>
+              p.name === pattern.name ? { ...p, display } : p,
+            ),
+          );
         }),
       );
-
-      const byName = new Map(filled.map((p) => [p.name, p]));
-      merged = merged.map((p) => byName.get(p.name) ?? p);
-
-      if (keyAtStart === evidenceKeyRef.current && generation === generationRef.current) {
-        setPatterns(merged);
-      }
     };
 
     void run();
