@@ -1,0 +1,43 @@
+---
+description: Guard AI prompt behavioral constraints — check git history before removing prompt rules
+globs: src/lib/ai/**/prompt.ts
+alwaysApply: false
+---
+
+# AI prompt behavioral constraints
+
+When editing any file matching `src/lib/ai/**/prompt.ts`, treat prompt text as **behavioral policy**, not copy. Unrelated refactors have silently reverted fixed constraints before (e.g. Loop islands→bridges replaced by "concrete details" in `681f321`).
+
+## Before finishing or committing
+
+1. **Diff against HEAD** for the file(s) you changed:
+   ```bash
+   git diff HEAD -- src/lib/ai/**/prompt.ts
+   ```
+2. **Scan the diff for removals** of:
+   - `BEHAVIORAL CONSTRAINTS` / file-header guard blocks
+   - REJECT / ACCEPT example blocks
+   - Explicit "Do NOT" rules, validation-linked reasons (e.g. `incident_stitch`), or named anti-patterns
+   - Framing that flips policy direction (e.g. generic abstract shape ↔ quote-specific montage)
+3. **If constraints were removed or weakened**, stop and **flag the user explicitly** before committing:
+   - What was removed or inverted
+   - Which user-facing behavior it controlled
+   - Whether removal was intentional or accidental collateral from an unrelated edit
+4. **Do not commit prompt regressions** unless the user explicitly approves the policy change.
+
+## When adding or changing constraints
+
+- Keep or extend the file-header `BEHAVIORAL CONSTRAINTS` block when the prompt encodes non-obvious product rules.
+- If validation enforces a rule (e.g. `incident_stitch` in `validation.ts`), mention the linked validator in the header.
+- Prefer REJECT/ACCEPT examples with real failure modes, not abstract instructions alone.
+
+## Known high-risk prompts (verify on touch)
+
+| File | Constraint |
+|------|------------|
+| `pattern-slots/prompt.ts` | Loop = generic bridges between evidence islands; never stitch quote incidents into a montage |
+| `pattern-display/prompt.ts` | Curiosity titles, not behavior summaries or pattern labels |
+| `title/prompt.ts` | Memory-anchor page names, not emotional summaries |
+| `pattern-extraction/prompt.ts` | Closed vocabulary, confidence floor, evidence quotes |
+
+If git history shows a prior fix for the same behavior, cite the commit or regression when flagging.
