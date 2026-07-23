@@ -121,10 +121,20 @@ export const btnDestructiveSolid = (size: ButtonSize = "sm", radius?: BtnRadius)
 export const btnInvisible = (size: ButtonSize = "md", radius?: BtnRadius) =>
   `${btnText(size, radius)} ${btnType.invisible}`;
 
-export const btnIconInvisible = (size: ButtonSize = "md", radius?: BtnRadius) =>
-  `${btnIcon(size, radius)} ${btnType.invisible}`;
+/** Icon-only chrome — matches modal close buttons (Send feedback, Account). */
+export const btnIconChromeType =
+  "bg-transparent text-(--sidebar-ink-soft) border border-transparent " +
+  "hover:bg-[color-mix(in_srgb,var(--text-primary)_6%,transparent)] hover:text-(--sidebar-ink) " +
+  "active:bg-[color-mix(in_srgb,var(--text-primary)_9%,transparent)] active:text-(--sidebar-ink)";
 
-/** @deprecated Prefer `btnIconInvisible`. */
-export const btnIconTransparent = btnIconInvisible;
+export const btnIconChrome = (size: ButtonSize = "sm", radius?: BtnRadius) => {
+  const radiusClass = radius ? btnRadius[radius] : "rounded-md";
+  return `${btnBase} ${buttonSize[size].iconButton} ${radiusClass} ${btnIconChromeType}`;
+};
+
+export const btnIconInvisible = btnIconChrome;
+
+/** @deprecated Prefer `btnIconChrome`. */
+export const btnIconTransparent = btnIconChrome;
 
 export const iconFixed = "shrink-0";

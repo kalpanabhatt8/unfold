@@ -286,7 +286,7 @@ export function DiscoveryCanvas({
       </div>
 
       <footer className="discovery-footer shrink-0">
-        <div className="flex justify-end">
+        <div className="flex justify-end pr-4">
           {isFinalPhase ? null : (
             <button
               type="button"

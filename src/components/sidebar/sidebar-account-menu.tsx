@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useClerk, useUser } from "@clerk/nextjs";
 import { AccountProfileModal } from "@/components/sidebar/account-profile-modal";
 import { SendFeedbackModal } from "@/components/sidebar/send-feedback-modal";
 import { clearLocalUnfoldData } from "@/lib/clear-local-data";
+import { hasPendingSync } from "@/lib/sync/local-flags";
+import { flushPendingSync } from "@/lib/sync/sync-client";
 import { resolvePreferredName, avatarInitial } from "@/lib/user-display";
 
 // const SUPPORT_MAILTO =
@@ -18,6 +20,22 @@ const menuItemStyle = {
   lineHeight: "var(--text-sm--line-height)",
 } as const;
 
+/** Max wait before offering keep-waiting vs force sign-out. */
+const SIGN_OUT_FLUSH_TIMEOUT_MS = 18_000;
+
+type SignOutPhase = "idle" | "saving" | "error" | "timeout";
+type FlushResult = "ok" | "fail" | "timeout";
+
+const runFlushForSignOut = async (): Promise<FlushResult> => {
+  const flushTask = flushPendingSync().then(
+    (ok): "ok" | "fail" => (ok ? "ok" : "fail"),
+  );
+  const timeoutTask = new Promise<"timeout">((resolve) => {
+    window.setTimeout(() => resolve("timeout"), SIGN_OUT_FLUSH_TIMEOUT_MS);
+  });
+  return Promise.race([flushTask, timeoutTask]);
+};
+
 export function SidebarAccountMenu() {
   const clerk = useClerk();
   const { user, isLoaded } = useUser();
@@ -26,6 +44,9 @@ export function SidebarAccountMenu() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [signOutPhase, setSignOutPhase] = useState<SignOutPhase>("idle");
+  const [signOutError, setSignOutError] = useState<string | null>(null);
+  const [signOutBusy, setSignOutBusy] = useState(false);
 
   const showPhoto = Boolean(isLoaded && user?.hasImage && user.imageUrl);
   const letter = isLoaded
@@ -33,7 +54,15 @@ export function SidebarAccountMenu() {
     : "";
 
   useEffect(() => {
-    if (!menuOpen) return;
+    if (!menuOpen) {
+      if (signOutPhase !== "saving" && !signOutBusy) {
+        setSignOutPhase("idle");
+        setSignOutError(null);
+      }
+      return;
+    }
+
+    if (signOutPhase === "saving" || signOutBusy) return;
 
     const onPointerDown = (event: PointerEvent) => {
       const root = rootRef.current;
@@ -51,7 +80,7 @@ export function SidebarAccountMenu() {
       document.removeEventListener("pointerdown", onPointerDown);
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, [menuOpen]);
+  }, [menuOpen, signOutPhase, signOutBusy]);
 
   const closeMenu = () => setMenuOpen(false);
 
@@ -65,10 +94,56 @@ export function SidebarAccountMenu() {
     setFeedbackOpen(true);
   };
 
-  const signOut = () => {
-    closeMenu();
+  const finishSignOut = useCallback(() => {
     clearLocalUnfoldData();
     void clerk.signOut({ redirectUrl: "/" });
+  }, [clerk]);
+
+  const handleFlushResult = useCallback(
+    (result: FlushResult) => {
+      setSignOutBusy(false);
+      if (result === "ok") {
+        finishSignOut();
+        return;
+      }
+      if (result === "timeout") {
+        setSignOutPhase("timeout");
+        return;
+      }
+      setSignOutPhase("error");
+      setSignOutError(
+        "Couldn't save your changes. Check your connection and try again.",
+      );
+    },
+    [finishSignOut],
+  );
+
+  const signOut = async () => {
+    if (signOutBusy) return;
+
+    setSignOutError(null);
+    setSignOutBusy(true);
+    if (hasPendingSync()) {
+      setSignOutPhase("saving");
+    }
+
+    const result = await runFlushForSignOut();
+    handleFlushResult(result);
+  };
+
+  const keepWaitingSignOut = async () => {
+    if (signOutBusy) return;
+
+    setSignOutError(null);
+    setSignOutBusy(true);
+    setSignOutPhase("saving");
+
+    const result = await runFlushForSignOut();
+    handleFlushResult(result);
+  };
+
+  const forceSignOut = () => {
+    finishSignOut();
   };
 
   return (
@@ -134,15 +209,59 @@ export function SidebarAccountMenu() {
               Support us
             </a>
             */}
-            <button
-              type="button"
-              role="menuitem"
-              onClick={signOut}
-              className={menuItemClassName}
-              style={menuItemStyle}
-            >
-              Sign out
-            </button>
+            {signOutPhase === "timeout" ? (
+              <>
+                <p
+                  className="px-3 py-2 text-(--sidebar-ink-soft) text-xs leading-snug"
+                  style={menuItemStyle}
+                >
+                  Still saving your changes. Unsynced work may be lost if you
+                  sign out now.
+                </p>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => void keepWaitingSignOut()}
+                  className={menuItemClassName}
+                  style={menuItemStyle}
+                >
+                  Keep waiting
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={forceSignOut}
+                  className={menuItemClassName}
+                  style={menuItemStyle}
+                >
+                  Sign out anyway
+                </button>
+              </>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => void signOut()}
+                  disabled={signOutBusy}
+                  aria-busy={signOutPhase === "saving"}
+                  className={`${menuItemClassName}${signOutBusy ? " opacity-50" : ""}`}
+                  style={menuItemStyle}
+                >
+                  {signOutPhase === "saving" ? "Saving..." : "Sign out"}
+                </button>
+                {signOutPhase === "error" && signOutError ? (
+                  <p
+                    role="alert"
+                    aria-live="polite"
+                    className="px-3 py-2 text-(--sidebar-ink-soft) text-xs leading-snug"
+                    style={menuItemStyle}
+                  >
+                    {signOutError}
+                  </p>
+                ) : null}
+              </>
+            )}
           </div>
         ) : null}
       </div>

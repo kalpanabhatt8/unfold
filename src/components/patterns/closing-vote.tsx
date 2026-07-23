@@ -3,10 +3,10 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
+import { btnIconChrome } from "@/components/ui/button-system";
 import type { PatternVoteValue } from "@/lib/patterns/pattern-vote-store";
 
 export type ClosingVoteProps = {
-  /** Pattern id — stored with downvote reasons so review scripts can group them. */
   patternName?: string;
   value: PatternVoteValue | null;
   onVote: (vote: PatternVoteValue) => void;
@@ -259,7 +259,7 @@ export function ClosingVote({ patternName, value, onVote }: ClosingVoteProps) {
               type="button"
               aria-label="Close"
               onClick={() => setFormDismissed(true)}
-              className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-(--sidebar-ink-soft) transition-colors hover:bg-(--sidebar-hover-bg) hover:text-primary"
+              className={`shrink-0 ${btnIconChrome("xs")}`}
             >
               <X size={15} strokeWidth={1.85} aria-hidden />
             </button>

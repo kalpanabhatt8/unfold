@@ -14,7 +14,7 @@ import {
   X,
 } from "lucide-react";
 import {
-  btnIconTransparent,
+  btnIconChrome,
   iconFixed,
   iconPx,
   iconStroke,
@@ -31,6 +31,7 @@ import { useInitialSyncReady } from "@/lib/sync/use-initial-sync-ready";
 import { SidebarEntriesSkeleton } from "@/components/sidebar/sidebar-entries-skeleton";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useSurfacedPatterns } from "@/hooks/use-surfaced-patterns";
+import { usePatternGeneration } from "@/hooks/use-pattern-generation";
 import { PatternsSidebarLink } from "@/components/sidebar/patterns-sidebar-link";
 import { SidebarAccountMenu } from "@/components/sidebar/sidebar-account-menu";
 import { OVERLAY_NAV_QUERY } from "@/lib/breakpoints";
@@ -117,6 +118,7 @@ export function Sidebar() {
   const prevPathnameRef = useRef(pathname);
   const { hasSurfaced: hasSurfacedPatterns, count: surfacedPatternCount } =
     useSurfacedPatterns();
+  usePatternGeneration();
 
   useLayoutEffect(() => {
     const load = () => {
@@ -307,7 +309,7 @@ export function Sidebar() {
       type="button"
       onClick={expandSidebar}
       aria-label="Open menu"
-      className={`shrink-0 ${btnIconTransparent(SIDEBAR_TOGGLE_SIZE)}`}
+      className={`shrink-0 ${btnIconChrome(SIDEBAR_TOGGLE_SIZE)}`}
     >
       <Menu
         size={iconPx(SIDEBAR_TOGGLE_SIZE)}
@@ -341,7 +343,7 @@ export function Sidebar() {
           type="button"
           onClick={toggleCollapsed}
           aria-label="Close menu"
-          className={`shrink-0 ${btnIconTransparent(SIDEBAR_TOGGLE_SIZE)}`}
+          className={`shrink-0 ${btnIconChrome(SIDEBAR_TOGGLE_SIZE)}`}
         >
           <ChevronsLeft
             size={iconPx(SIDEBAR_TOGGLE_SIZE)}
@@ -381,9 +383,14 @@ export function Sidebar() {
                 type="button"
                 onClick={closeSearch}
                 aria-label="Close search"
-                className="flex shrink-0 items-center justify-center text-(--sidebar-icon) transition-colors duration-150 hover:text-(--sidebar-ink)"
+                className={`shrink-0 ${btnIconChrome(SIDEBAR_ACTION_SIZE)}`}
               >
-                <X size={14} strokeWidth={1.9} aria-hidden />
+                <X
+                  size={iconPx(SIDEBAR_ACTION_SIZE)}
+                  strokeWidth={iconStroke(SIDEBAR_ACTION_SIZE)}
+                  aria-hidden
+                  className={iconFixed}
+                />
               </button>
             </div>
           ) : (
@@ -396,7 +403,7 @@ export function Sidebar() {
                   type="button"
                   onClick={() => setSearchOpen(true)}
                   aria-label="Search entries"
-                  className={`shrink-0 ${btnIconTransparent(SIDEBAR_ACTION_SIZE)}`}
+                  className={`shrink-0 ${btnIconChrome(SIDEBAR_ACTION_SIZE)}`}
                 >
                   <Search
                     size={iconPx(SIDEBAR_ACTION_SIZE)}
@@ -409,7 +416,7 @@ export function Sidebar() {
                   type="button"
                   onClick={handleNewEntry}
                   aria-label="New entry"
-                  className={`shrink-0 ${btnIconTransparent(SIDEBAR_ACTION_SIZE)}`}
+                  className={`shrink-0 ${btnIconChrome(SIDEBAR_ACTION_SIZE)}`}
                 >
                   <Plus
                     size={iconPx(SIDEBAR_ACTION_SIZE)}

@@ -539,7 +539,6 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
           >
             <button
               type="button"
-              disabled={!canSeal}
               onPointerDown={(e) => {
                 if (!canSeal) return;
                 e.preventDefault();
@@ -556,13 +555,18 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
               onFocus={canSeal ? onStampHover : undefined}
               aria-label={canSeal ? "Seal entry" : "Seal entry (disabled — empty)"}
               aria-disabled={!canSeal}
-              className={`group shrink-0 select-none outline-none disabled:cursor-not-allowed disabled:opacity-40 ${canSeal ? "cursor-pointer" : ""} ${btnIconInvisible(stampButtonSize, "soft")}`}
+              tabIndex={canSeal ? 0 : -1}
+              className={`group shrink-0 select-none outline-none ${btnIconInvisible(stampButtonSize, "soft")} ${
+                canSeal
+                  ? "cursor-pointer !text-(--sidebar-ink)"
+                  : "cursor-not-allowed !text-tertiary"
+              }`}
             >
               <Signature
                 size={iconPx(stampButtonSize)}
                 strokeWidth={iconStroke(stampButtonSize)}
                 aria-hidden
-                className={`${iconFixed} origin-center rounded-[12px]! transition-transform duration-200 ease-out group-hover:rotate-0`}
+                className={`${iconFixed} origin-center rounded-[12px]! transition-[color,transform] duration-200 ease-out group-hover:rotate-0`}
               />
             </button>
           </Tooltip>

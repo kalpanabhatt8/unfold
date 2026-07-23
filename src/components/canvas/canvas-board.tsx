@@ -1357,23 +1357,28 @@ function CanvasHeader({
         style={{ fontFamily: "var(--font-heading)" }}
       />
       <div
-        className="col-start-1 row-start-2 block text-left font-light text-xs tracking-[0.04em] sm:col-start-2 sm:row-start-1 sm:text-right sm:text-xs"
-        style={{ lineHeight: 1.45 }}
+        className="col-start-1 row-start-2 flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5 text-left text-xs font-light tracking-[0.05em] sm:col-start-2 sm:row-start-1 sm:justify-end sm:text-right"
+        style={{ lineHeight: 1.5 }}
       >
         {saveStatus ? (
           <>
-            <span aria-live="polite" className="text-tertiary">
+            <span aria-live="polite" className="shrink-0 text-tertiary">
               {saveStatus === "saving" ? "Saving..." : "Saved"}
             </span>
-            <span className="text-(--canvas-date-time)"> · </span>
+            <span className="shrink-0 text-(--canvas-date-time)" aria-hidden>
+              ·
+            </span>
           </>
         ) : null}
-        <time dateTime={isoDateTime} className="inline text-(--canvas-date-time)">
+        <time
+          dateTime={isoDateTime}
+          className="inline-flex flex-wrap items-baseline gap-x-1 text-(--canvas-date-time)"
+        >
           {isSealed && signedStamp ? (
             signedStamp
           ) : (
             <>
-              <span className="mb-[-0.0625rem]">{editedStamp.date}, </span>
+              <span>{editedStamp.date},</span>
               <span>{editedStamp.time}</span>
             </>
           )}

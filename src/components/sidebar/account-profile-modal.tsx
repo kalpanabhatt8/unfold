@@ -9,6 +9,7 @@ import { Laptop, Smartphone, X } from "lucide-react";
 import {
   btnDestructive,
   btnDestructiveSolid,
+  btnIconChrome,
   btnSecondary,
 } from "@/components/ui/button-system";
 import {
@@ -673,11 +674,11 @@ export function AccountProfileModal({ open, onClose }: AccountProfileModalProps)
             type="button"
             aria-label="Close"
             onClick={onClose}
-            className="absolute top-3 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-md text-(--sidebar-ink-soft) transition-colors hover:bg-(--sidebar-hover-bg) hover:text-(--sidebar-ink) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20"
+            className={`absolute top-5 right-6 z-10 ${btnIconChrome("sm")}`}
           >
             <X size={16} strokeWidth={1.85} aria-hidden />
           </button>
-          <div className="min-h-0 flex-1 overflow-y-auto px-6 pr-12">
+          <div className="min-h-0 flex-1 overflow-y-auto px-6">
             <AccountPanelView />
           </div>
         </div>
