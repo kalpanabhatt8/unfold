@@ -62,7 +62,7 @@ export function usePatternDisplay(
     generationRef.current = generation;
 
     const run = async () => {
-      let merged = mergeDisplayFromCache(surfaced);
+      const merged = mergeDisplayFromCache(surfaced);
 
       if (keyAtStart === evidenceKeyRef.current && generation === generationRef.current) {
         setPatterns(merged);
