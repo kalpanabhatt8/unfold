@@ -112,7 +112,14 @@ const buildCatastrophizingBatch = () => {
   };
 };
 
-type Batch = ReturnType<typeof buildOverthinkingBatch>;
+type Batch = {
+  label: string;
+  displayTitles: Partial<Record<PatternName, string>>;
+  entries: JournalEntry[];
+  analyses: EntryAnalysis[];
+  expectedPrimaryCount: number;
+  expectedSecondaryPattern: PatternName;
+};
 
 const summarize = (
   batch: Batch,
