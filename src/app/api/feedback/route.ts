@@ -1,4 +1,8 @@
 import { NextResponse } from "next/server";
+import {
+  isValidFeedbackPayload,
+  normalizeFeedbackCategories,
+} from "@/lib/feedback";
 import { requireUser } from "@/lib/server/auth";
 import { db } from "@/lib/server/db";
 
@@ -10,12 +14,16 @@ const MAX_FEEDBACK_CHARS = 4_000;
 export async function POST(request: Request) {
   try {
     const userId = await requireUser();
-    const body = (await request.json()) as { text?: unknown };
+    const body = (await request.json()) as {
+      text?: unknown;
+      categories?: unknown;
+    };
     const text = typeof body.text === "string" ? body.text.trim() : "";
+    const categories = normalizeFeedbackCategories(body.categories);
 
-    if (!text) {
+    if (!isValidFeedbackPayload(categories, text)) {
       return NextResponse.json(
-        { error: "Feedback text is required" },
+        { error: "Pick a category or add a note" },
         { status: 400 },
       );
     }
@@ -28,7 +36,7 @@ export async function POST(request: Request) {
     }
 
     const row = await db.feedback.create({
-      data: { userId, text },
+      data: { userId, categories, text },
       select: { id: true, createdAt: true },
     });
 

@@ -39,17 +39,36 @@ const createClient = () => {
 };
 
 /**
+ * Bump when the Prisma schema changes so long-lived dev/HMR processes
+ * recreate the client instead of validating against a stale DMMF.
+ */
+const PRISMA_SCHEMA_REVISION = "feedback-categories-v1";
+
+/**
  * Recreate the singleton when a long-lived Next process still holds a client
  * generated before a new model (e.g. Feedback) existed — otherwise
  * `db.feedback` stays undefined across HMR.
  */
 const getClient = (): PrismaClient => {
   const cached = globalForPrisma.prisma;
-  if (cached && typeof (cached as { feedback?: unknown }).feedback === "undefined") {
+  if (
+    cached &&
+    (typeof (cached as { feedback?: unknown }).feedback === "undefined" ||
+      (cached as { __schemaRevision?: string }).__schemaRevision !==
+        PRISMA_SCHEMA_REVISION)
+  ) {
     void cached.$disconnect().catch(() => {});
     globalForPrisma.prisma = undefined;
   }
-  return (globalForPrisma.prisma ??= createClient());
+
+  if (!globalForPrisma.prisma) {
+    const client = createClient();
+    (client as { __schemaRevision?: string }).__schemaRevision =
+      PRISMA_SCHEMA_REVISION;
+    globalForPrisma.prisma = client;
+  }
+
+  return globalForPrisma.prisma;
 };
 
 export const db = getClient();
