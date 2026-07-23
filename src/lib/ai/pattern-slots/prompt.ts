@@ -1,3 +1,12 @@
+/**
+ * Loop (mechanism) + reflection slot generation prompts.
+ *
+ * BEHAVIORAL CONSTRAINTS — do not revert without explicit review:
+ * - Evidence quotes are "islands" shown verbatim in the UI; the Loop names
+ *   generic bridges (the recurring shape), never a montage of quote incidents.
+ * - Programmatic guard: validation.ts → stitchesIncidents (incident_stitch).
+ */
+
 import type { SlotGenerationInput } from "@/lib/ai/pattern-slots/input";
 import {
   SLOT_MAX_LINE_WORDS,
@@ -25,42 +34,50 @@ ACCEPT (observational / curious about the pattern itself — no change implied, 
 - "When the first doubt shows up, what usually happens next in the loop?"`;
   }
   if (slot.role === "mechanism") {
-    return `Slot ${slot.index} (mechanism): Replay how the user kept arriving here — reconstruct their loop, not a summary of it. ${SLOT_MIN_MECHANISM_SENTENCES}–${SLOT_MAX_MECHANISM_SENTENCES} short sentences (≤${SLOT_MAX_MECHANISM_CHARS} chars total). Each sentence is one step; cause should lead to effect; one step should naturally lead to the next. Stay close to the user's own words and concrete details from the evidence. Simple, conversational, human. No "You…".
+    return `Slot ${slot.index} (Loop / mechanism): Build BRIDGES between evidence islands — name the recurring shape of how the user kept arriving here, not a montage of separate entry incidents.
+
+The numbered evidence quotes are already shown to the user as Moments from different entries. Your job is NOT to restate, compress, or walk through those specific incidents in order. Your job is to describe the generic loop — the shift or pressure that keeps repeating — in plain language.
+
+Think: Evidence = islands (already visible). Loop = one abstracted chain that could apply across many of those moments.
+
+Write ${SLOT_MIN_MECHANISM_SENTENCES}–${SLOT_MAX_MECHANISM_SENTENCES} short sentences (≤${SLOT_MAX_MECHANISM_CHARS} chars total). Each sentence is one step in the recurring shape; cause should lead to effect; one step should naturally lead to the next. Simple, conversational, human. No "You…".
 
 The only question to answer: "How did the user keep arriving here?"
-It should feel like replaying their day, not explaining it — and never like coaching them out of it.
+It should feel like naming a familiar pattern, not replaying a highlight reel of their journal — and never like coaching them out of it.
 
-Compressed / telegraphic style is fine (dropping "I"/"you" is ok), but every sentence must still parse as a complete grammatical clause — keep the words needed for the sentence to make sense. Do not over-compress into fragments that drop objects, prepositions, or connectors required to parse.
+Compressed / telegraphic style is fine (dropping "I"/"you" is ok), but every sentence must still parse as a complete grammatical clause.
 
 Do:
-- Replay the sequence of events
-- Show cause → effect
+- Describe the recurring loop in generic terms (roles, pressures, hesitations — not quote-specific objects)
+- Show cause → effect inside that shape
 - Stop before conclusions or judgments
-- Name the pattern's shape descriptively, without implying anything is wrong
+- Stay grounded in what the evidence shows, without naming each incident
 
 Do NOT:
-- Summarize the evidence
+- Stitch separate entry incidents into an implied timeline or montage
+- Restate, compress, or closely paraphrase the specific actions/objects from individual quotes
+- Summarize the evidence as a list of things that happened
 - Invent emotions or psychology
 - Explain what the behavior means
 - Diagnose, advise, or moralize
-- Imply the user should stop, notice, examine, or change something
-- Suggest alternative behavior, even as a question
-- Append citation brackets or quote numbers in the text (e.g. "[1,2,3]") — quote numbers are for the application only, never visible prose
-- Drop words until a clause no longer parses (e.g. "years started" instead of "years of experience")
+- Append citation brackets or quote numbers in the text (e.g. "[1,2,3]")
 
-REJECT (corrective / judgmental — implies something should be fixed):
+REJECT — incident_stitch (stitches separate entry incidents into a fake causal sequence):
+- "Saw someone's number posted. Saw a feature shipped. Saw a week away become a year's measure."
+- "Saw a salary posted, then did the math on years of experience. Saw their launch go live. Counted how far behind I was."
+
+REJECT (paraphrase / restating islands — each line is a shorter rewrite of a quote):
+- Evidence: "I kept watching tutorials." / "I reorganized my folders."
+- ● Watching tutorials.
+- ● Reorganizing folders.
+
+REJECT (corrective / judgmental):
 - "The gap between 'stupid' and 'fixed three bugs' stays unexamined."
 - "Opening and checking repeated across hours [1,2,3,4,5,6]"
-- "The shift happens before dismissing what comes next."
 
-REJECT (over-compressed / ungrammatical — telegraphic but broken):
-- "Saw a salary posted, did the math on years started."
-
-ACCEPT (telegraphic but still a complete clause):
-- "Saw a salary posted, then did the math on years of experience."
-
-ACCEPT (purely descriptive — names the shape, no correction implied):
-- "A bug appeared. Nearby code got reorganized. Files needed new names. The deployment never moved."
+ACCEPT (generic abstracted loop shape — one recurring pattern, not a montage):
+- "Someone asked for help or time. Saying no felt harder than it should. The yes came out instead."
+- "Learning started feeling safer than beginning."
 - "The work felt too big to begin. Something smaller felt easier. That became something else. By the end of the day, the original task was still waiting."
 - "A message sat unopened. Checking filled the gaps. The thread stayed unread."`;
   }
@@ -78,15 +95,15 @@ export function buildSlotPrompt(input: SlotGenerationInput): string {
   const { label, definition, quotes, voiceSlots } = input;
 
   const arcNote = input.shapeId === "discovery"
-    ? "\nArc: guided discovery. The user's quotes are the primary voice. You ask questions and replay how they kept arriving here — never interpret psychology, explain the user to themselves, or suggest they should do anything differently.\n"
+    ? "\nArc: guided discovery. The user's quotes are the primary voice — already shown verbatim. You name the generic loop shape between them (bridges, not islands), ask questions, and never interpret psychology or suggest they should do anything differently.\n"
     : "";
 
-  return `You write very small pieces of text for a private journal reflection. The application already placed the user's quotes — you add questions and at most one mechanism passage that replays how the user kept arriving here.
+  return `You write very small pieces of text for a private journal reflection. The application already placed the user's quotes — you add questions and at most one mechanism passage that names how they kept arriving here in generic terms.
 ${arcNote}
 Pattern label (never use in your text): ${label}
 Definition (never repeat or paraphrase): ${definition}
 ${priorVoiceBlock(input)}
-Evidence quotes (for grounding only — do NOT repeat these words back; do NOT cite them as [1] or [1,2,3] in your text):
+Evidence quotes (islands — already shown verbatim; for grounding only — do NOT restate these incidents; do NOT cite them as [1] or [1,2,3] in your text):
 ${quotes.map((q, i) => `${i + 1}. "${q}"`).join("\n")}
 
 Slots to fill:
@@ -94,35 +111,47 @@ ${voiceSlots.map((s) => describeSlot(s)).join("\n")}
 
 Rules:
 - Use as few words as possible
-- For mechanism slots: stay close to the user's words and concrete details from the evidence; do not copy full quotes verbatim
-- For mechanism slots: compressed phrasing is fine, but every sentence must still be a complete grammatical clause — do not drop words needed for it to parse
+- For mechanism slots: describe the generic recurring loop shape — NOT a montage of quote-specific incidents from separate entries
+- For mechanism slots: do NOT restate concrete actions, objects, or phrases from individual quotes as sequential steps
+- For mechanism slots: compressed phrasing is fine, but every sentence must still be a complete grammatical clause
 - For recognition/reflection: NEVER paraphrase or echo the user's quote text
 - No advice, no therapy voice, no pattern names, no diagnoses
 - No invented emotions or psychology; no explaining what the behavior means
 - No motive-based phrasing ("because you", "trying to", "permission to")
-- Never imply the user's thinking is a problem to correct — no "stays unexamined," "before dismissing," "notice the shift," or "what would it feel like to try X instead"
+- Never imply the user's thinking is a problem to correct
 - Never suggest alternative behavior, even framed as a question
-- Never presume a negative outcome the journal did not state — no "worst version," "spiral," "catastrophe," or similar
+- Never presume a negative outcome the journal did not state
 - Reflection questions must stay purely observational/curious about the pattern itself
-- Never include raw citation brackets or quote-index lists in visible text (no "[1]", "[1,2]", "[1,2,3,4,5,6]")
+- Never include raw citation brackets or quote-index lists in visible text
 - Reflection slots MUST end with "?"
 - Mechanism slots must NOT end with "?" and must NOT start with "You"
-- Mechanism slots must replay cause → effect; stop before conclusions or judgments
+- Mechanism slots must show cause → effect inside the recurring shape; stop before conclusions or judgments
 - Never use em dashes (—) or en dashes (–) in mechanism or question text; use a comma or period instead
 
 Return ONLY valid JSON:
 [{"index":<slot index>,"text":"<your line>"}]`;
 }
 
+const RETRY_COACHING: Record<string, string> = {
+  incident_stitch:
+    "Your Loop stitched separate entry incidents into a timeline. The quotes are already shown — describe the generic recurring shape (bridges), not a montage of those specific moments. No sequential 'Saw X / Saw Y / Saw Z' from different entries.",
+};
+
 export function buildSlotRetryPrompt(
   input: SlotGenerationInput,
   rejection: string,
 ): string {
+  const coaching = RETRY_COACHING[rejection] ?? rejection;
+  const toneHint =
+    rejection === "incident_stitch"
+      ? "More abstract. Name the recurring shape — not quote-specific incidents."
+      : "Shorter. Purely descriptive — no corrective framing, no suggested alternatives, no citation brackets.";
+
   return `${buildSlotPrompt(input)}
 
-Your previous response was rejected: ${rejection}
+Your previous response was rejected: ${coaching}
 
-Return a corrected JSON array only. Shorter. More concrete. Purely descriptive — no corrective framing, no suggested alternatives, no citation brackets.`;
+Return a corrected JSON array only. ${toneHint}`;
 }
 
 export const SLOT_REJECTION_MESSAGES: Record<string, string> = {
@@ -149,7 +178,9 @@ export const SLOT_REJECTION_MESSAGES: Record<string, string> = {
   multiple_sentences: "A line contained more than one sentence.",
   too_few_sentences: "A mechanism slot needs at least two sentences.",
   too_many_sentences: "A mechanism slot used more than four sentences.",
-  summary_voice: "The mechanism summarized or explained instead of replaying how the user kept arriving here.",
+  summary_voice: "The mechanism summarized or explained instead of naming the recurring loop shape.",
+  incident_stitch:
+    "The Loop stitched separate entry incidents into a montage timeline instead of describing the generic recurring shape.",
   clause_join: "A line joined multiple realizations with 'and' or 'but'.",
   you_opener: "A line opened with 'You'.",
 };

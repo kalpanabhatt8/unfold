@@ -8,6 +8,7 @@ import {
   stripCitationBrackets,
 } from "../src/lib/ai/pattern-slots/citations";
 import { validateSlotFills } from "../src/lib/ai/pattern-slots/validation";
+import { PATTERN_DEFINITIONS } from "../src/lib/patterns/vocabulary";
 import { splitMechanismSteps } from "../src/lib/patterns/mechanism-steps";
 import {
   buildPassageCacheKey,
@@ -233,6 +234,60 @@ console.log("closing label stays Done");
   assert(
     "mechanism → reflection stays Continue",
     discoveryContinueLabel(arc, 2) === "Continue",
+  );
+}
+
+console.log("incident stitch rejected");
+{
+  const comparisonQuotes = [
+    "Someone posted their salary on LinkedIn and I did the math on years of experience.",
+    "A feature I'd been sketching shipped on Product Hunt before I started.",
+    "A week away from my goal somehow became a year's measure of being behind.",
+  ];
+  const badLoop =
+    "Saw someone's number posted. Saw a feature shipped. Saw a week away become a year's measure.";
+  const rejectStitch = validateSlotFills(
+    [{ index: 0, text: badLoop }],
+    [
+      {
+        index: 0,
+        kind: "line",
+        endingKind: "line",
+        role: "mechanism",
+        precedingQuotes: comparisonQuotes,
+      },
+    ],
+    comparisonQuotes,
+    PATTERN_DEFINITIONS.comparison,
+    "comparison",
+  );
+  assert(
+    "bad montage loop rejected as incident_stitch",
+    rejectStitch.rejected.some((r) => r.reason === "incident_stitch"),
+    JSON.stringify(rejectStitch.rejected),
+  );
+
+  const goodLoop =
+    "Someone else's milestone showed up. The bar moved before my own work started. Everything else waited.";
+  const acceptGeneric = validateSlotFills(
+    [{ index: 0, text: goodLoop }],
+    [
+      {
+        index: 0,
+        kind: "line",
+        endingKind: "line",
+        role: "mechanism",
+        precedingQuotes: comparisonQuotes,
+      },
+    ],
+    comparisonQuotes,
+    PATTERN_DEFINITIONS.comparison,
+    "comparison",
+  );
+  assert(
+    "generic loop shape accepted",
+    acceptGeneric.ok && acceptGeneric.fills.length === 1,
+    JSON.stringify(acceptGeneric.rejected),
   );
 }
 

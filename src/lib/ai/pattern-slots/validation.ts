@@ -1,4 +1,5 @@
 import { hasCitationBrackets } from "@/lib/ai/pattern-slots/citations";
+import { stitchesIncidents } from "@/lib/ai/pattern-slots/incident-stitch";
 import {
   SLOT_MAX_LINE_CHARS,
   SLOT_MAX_LINE_WORDS,
@@ -156,6 +157,7 @@ const validateLine = (
     if (/^you\b/i.test(text)) return "you_opener";
     if (INTERPRETIVE_MARKERS.test(text)) return "interpretive_voice";
     if (soundsLikeSummary(text)) return "summary_voice";
+    if (stitchesIncidents(text, allQuotes)) return "incident_stitch";
   }
 
   if (TEMPLATE_MARKERS.test(text)) return "template_voice";

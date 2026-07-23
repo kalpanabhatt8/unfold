@@ -14,11 +14,17 @@ import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { aggregateFromInputs } from "../src/lib/patterns/aggregate";
 import { entryOverlapRatio } from "../src/lib/patterns/overlap-policy";
-import { formatPatternLabelList } from "../src/components/patterns/pattern-secondary-lines";
 import type { EntryAnalysis } from "../src/lib/patterns/types";
 import type { JournalEntry } from "../src/lib/journal-entries";
 import type { PatternName } from "../src/lib/patterns/vocabulary";
 import { PATTERN_LABELS } from "../src/lib/patterns/vocabulary";
+
+const formatPatternLabelList = (labels: string[]): string => {
+  if (labels.length === 0) return "";
+  if (labels.length === 1) return labels[0]!;
+  if (labels.length === 2) return `${labels[0]} and ${labels[1]}`;
+  return `${labels.slice(0, -1).join(", ")}, and ${labels.at(-1)}`;
+};
 
 const foldedLine = (labels: string[]): string | null =>
   labels.length > 0
