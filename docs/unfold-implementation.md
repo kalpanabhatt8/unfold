@@ -240,9 +240,9 @@ Exactly **10** mental patterns. The model may not invent others.
 | Name | Meaning |
 |------|---------|
 | Comparison | Measuring self against others |
-| Self-doubt | Questioning ability / worth |
+| Self-doubt | Questioning ability / competence — uncertainty (“can I?”) |
 | Overthinking | Looping without resolution — **only when no more specific pattern fits** |
-| Perfectionism | Standards so high nothing ships / feels done |
+| Perfectionism | Finished work still gets rechecked, redone, or never shipped |
 | Avoidance | Putting off or escaping what matters |
 | Catastrophizing | Escalating to worst case |
 | People-pleasing | Others’ comfort over own needs |
@@ -389,7 +389,7 @@ Prototype interactions on `/` (open fake entries, search, patterns) are local UI
 - Age ≥13; you own your content; limited license to operate Unfold.
 - Writing syncs to the database; images to blob storage; pattern features may send excerpts to Anthropic.
 - Not medical/therapeutic/diagnostic.
-- Soft-delete entries clear writing for sync; full account deletion / export via email (`hello@unfold.app`).
+- Soft-delete entries clear writing for sync; full account deletion / export via email (`hello.unfoldapp@gmail.com`).
 - No separate analytics/ads SDK claimed in privacy copy.
 - Processors called out: Clerk, Postgres host, Vercel Blob, Anthropic, Google (sign-in + fonts).
 

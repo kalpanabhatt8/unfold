@@ -1,15 +1,118 @@
+import { renderArbitrationPromptBlock } from "@/lib/patterns/arbitration";
 import {
+  EXTRACTION_SHARED_EXAMPLES,
+  EXTRACTION_SOLO_EXAMPLE_ORDER,
   MAX_EVIDENCE_PER_PATTERN,
   MAX_PATTERNS_PER_ENTRY,
   MAX_TOPICS_PER_ENTRY,
+  PATTERN_CATALOG,
   PATTERN_CONFIDENCE_FLOOR,
-  PATTERN_DEFINITIONS,
   PATTERN_NAMES,
+  type PatternExample,
+  type PatternName,
+  type SharedExtractionExample,
 } from "@/lib/patterns/vocabulary";
 
-const patternListForPrompt = PATTERN_NAMES.map(
-  (name) => `- ${name}: ${PATTERN_DEFINITIONS[name]}`,
-).join("\n");
+/**
+ * BEHAVIORAL CONSTRAINTS (pattern extraction):
+ * - Closed vocabulary only — names from PATTERN_CATALOG / PATTERN_NAMES.
+ * - Confidence floor, max patterns/topics/evidence — see vocabulary constants.
+ * - Pattern behavioral tests live in PATTERN_CATALOG (definition + disambiguation
+ *   + examples). Do NOT hardcode per-pattern meaning here; edit the catalog.
+ * - Pairwise TIE-BREAKERS are rendered from arbitration.ts (ARBITRATION_RULES) —
+ *   the SAME table enforced post-hoc in validation.ts (reconcilePatterns). Edit
+ *   the rule there, never re-word tie-breakers only in this prompt.
+ * - Run `npm run check:pattern-vocab` after catalog or this-file changes.
+ */
+
+const patternListForPrompt = PATTERN_NAMES.map((name) => {
+  const spec = PATTERN_CATALOG[name];
+  return `- ${name}: ${spec.definition}`;
+}).join("\n");
+
+const disambiguationBlock = PATTERN_NAMES.map((name) => {
+  const spec = PATTERN_CATALOG[name];
+  return `- ${spec.disambiguation}`;
+}).join("\n");
+
+function formatJsonRight(payload: unknown): string {
+  return JSON.stringify(payload);
+}
+
+function renderSharedExample(
+  example: SharedExtractionExample,
+): string {
+  if (example.kind === "none") {
+    return `${example.heading}
+Entry:
+"""
+${example.entry}
+"""
+Output:
+${formatJsonRight({ topics: example.topics, patterns: [] })}`;
+  }
+
+  return `${example.heading}
+Entry:
+"""
+${example.entry}
+"""
+Output:
+${formatJsonRight({
+  topics: example.topics,
+  patterns: example.patterns.map((p) => ({
+    name: p.name,
+    confidence: p.confidence,
+    evidence: p.evidence,
+  })),
+})}`;
+}
+
+function renderSoloExample(
+  name: PatternName,
+  example: PatternExample,
+  index: number,
+): string {
+  const heading = `EXAMPLE ${index} (${name} — NOT overthinking)`;
+  const wrongLine = example.wrong ? `Wrong: ${example.wrong}\nRight:\n` : "";
+  const right = formatJsonRight({
+    topics: example.topics,
+    patterns: [
+      {
+        name,
+        confidence: example.confidence,
+        evidence: example.evidence,
+      },
+    ],
+  });
+
+  return `${heading}
+Entry:
+"""
+${example.entry}
+"""
+${wrongLine}${right}`;
+}
+
+function buildExamplesBlock(): string {
+  const parts: string[] = [];
+
+  for (const shared of EXTRACTION_SHARED_EXAMPLES) {
+    parts.push(renderSharedExample(shared));
+  }
+
+  let n = EXTRACTION_SHARED_EXAMPLES.length + 1;
+  for (const name of EXTRACTION_SOLO_EXAMPLE_ORDER) {
+    const example = PATTERN_CATALOG[name].examples[0];
+    if (!example) continue;
+    // Skip residual/empty overthinking-style placeholders.
+    if (example.confidence <= 0 || example.evidence.length === 0) continue;
+    parts.push(renderSoloExample(name, example, n));
+    n += 1;
+  }
+
+  return parts.join("\n\n");
+}
 
 /** Pattern extraction prompt — structured JSON only, no creative writing. */
 export function buildExtractionPrompt(text: string): string {
@@ -25,12 +128,10 @@ MENTAL PATTERNS (use these names EXACTLY; never invent others):
 ${patternListForPrompt}
 
 DISAMBIGUATION (pick the MOST SPECIFIC fit; do not use overthinking as a catch-all):
-- self_doubt = uncertainty ("can I?"); self_criticism = harsh judgment ("I'm terrible").
-- comparison ranks self against others; fear_of_judgment worries about being evaluated.
-- catastrophizing escalates to a worst-case outcome ("they're unhappy", "it'll blow up").
-- perfectionism = standards so high that finished work still gets rechecked, redone, or never shipped.
-- avoidance = putting off, escaping, or distracting from the thing that matters (including stalling by rereading / busywork).
-- overthinking = looping on the same thought or decision WITHOUT a clearer fit above. Prefer a specific pattern whenever one fits. If the loop is "assuming the worst" → catastrophizing. If it is "how this looks to others" → fear_of_judgment. If it is "redoing/rechecking finished work" → perfectionism. If it is measuring against someone else → comparison. If it is stalling on the real task → avoidance.
+${disambiguationBlock}
+
+TIE-BREAKERS (when two patterns both seem to fit, apply these before choosing):
+${renderArbitrationPromptBlock()}
 
 RULES:
 - If no pattern is clearly present, return an empty "patterns" array. Do NOT force a match.
@@ -49,66 +150,7 @@ SCHEMA:
   ]
 }
 
-EXAMPLE 1
-Entry:
-"""
-Another rejection. People my age are already leading teams and I'm still here. Maybe I'm just not good enough for this. I keep rewriting my resume but never actually send it.
-"""
-Output:
-{"topics":["career","job search"],"patterns":[{"name":"comparison","confidence":0.92,"evidence":["People my age are already leading teams and I'm still here"]},{"name":"self_doubt","confidence":0.86,"evidence":["Maybe I'm just not good enough for this"]},{"name":"avoidance","confidence":0.7,"evidence":["I keep rewriting my resume but never actually send it"]}]}
-
-EXAMPLE 2 (no patterns)
-Entry:
-"""
-Walked by the river after dinner. The air was cool and it smelled like rain. Felt good to just move for a while.
-"""
-Output:
-{"topics":["evening walk"],"patterns":[]}
-
-EXAMPLE 3 (avoidance — NOT overthinking)
-Entry:
-"""
-Sat down to fix the bug. Reread the same file three times instead of changing anything. Still not started.
-"""
-Wrong: overthinking (rereading is stalling on the real task).
-Right:
-{"topics":["a bug fix"],"patterns":[{"name":"avoidance","confidence":0.88,"evidence":["Reread the same file three times instead of changing anything"]}]}
-
-EXAMPLE 4 (comparison — NOT overthinking)
-Entry:
-"""
-Saw two people from college post about their promotions today. Felt weird about it. Remembered I'm building my own thing so it's not really comparable but still checked their LinkedIn anyway.
-"""
-Wrong: overthinking (the move is measuring against others).
-Right:
-{"topics":["career","social media"],"patterns":[{"name":"comparison","confidence":0.9,"evidence":["not really comparable but still checked their LinkedIn anyway"]}]}
-
-EXAMPLE 5 (catastrophizing — NOT overthinking)
-Entry:
-"""
-Client hasn't replied to the invoice email in 3 days. Thought maybe they're unhappy with the work — or just busy. Started planning how I'd redo the whole project for free if they asked.
-"""
-Wrong: overthinking (this escalates to a worst case and a rescue plan).
-Right:
-{"topics":["a client","an invoice"],"patterns":[{"name":"catastrophizing","confidence":0.9,"evidence":["Thought maybe they're unhappy with the work","how I'd redo the whole project for free if they asked"]}]}
-
-EXAMPLE 6 (perfectionism — NOT overthinking)
-Entry:
-"""
-Fixed the bug. Tested it once, then five more times. Started reading the surrounding code "to be sure" nothing else was broken. Two hours later realized I never actually shipped it.
-"""
-Wrong: overthinking (rechecking finished work / never shipping).
-Right:
-{"topics":["a bug fix"],"patterns":[{"name":"perfectionism","confidence":0.91,"evidence":["Tested it once, then five more times","never actually shipped it"]}]}
-
-EXAMPLE 7 (fear_of_judgment — NOT overthinking)
-Entry:
-"""
-Posted the Unfold screenshot on Twitter. Immediately regretted the caption — thought it sounded try-hard. Refreshed three times in ten minutes. No replies yet so now thinking it looks bad.
-"""
-Wrong: overthinking (the worry is how others perceive it).
-Right:
-{"topics":["a social post"],"patterns":[{"name":"fear_of_judgment","confidence":0.9,"evidence":["Immediately regretted the caption — thought it sounded try-hard"]}]}
+${buildExamplesBlock()}
 
 Now analyze this entry and respond with JSON only:
 """

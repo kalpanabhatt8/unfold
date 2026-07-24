@@ -1,19 +1,19 @@
-import type { PatternName } from "@/lib/patterns/vocabulary";
+import {
+  PATTERN_CATALOG,
+  PATTERN_NAMES,
+  type PatternName,
+} from "@/lib/patterns/vocabulary";
 import type { PatternDisplay } from "@/lib/patterns/types";
 
-/** Tension-first fallbacks when hook generation fails — never psychology labels. */
-const PATTERN_HOOK_FALLBACKS: Record<PatternName, string> = {
-  comparison: "Already Behind?",
-  self_doubt: "Not Ready Yet?",
-  overthinking: "Still Not Settled.",
-  perfectionism: "Almost Finished.",
-  avoidance: "Left Until Tomorrow.",
-  catastrophizing: "What If Worst?",
-  people_pleasing: "Their Comfort First?",
-  fear_of_judgment: "Who's Watching?",
-  self_criticism: "My Fault Again?",
-  all_or_nothing: "No Middle Ground?",
-};
+/**
+ * Tension-first fallbacks when hook generation fails — never psychology labels.
+ * Derived from PATTERN_CATALOG so the hook lives beside the pattern it belongs
+ * to (single source); `check:pattern-vocab` guards each hook against echoing the
+ * definition or label.
+ */
+const PATTERN_HOOK_FALLBACKS: Record<PatternName, string> = Object.fromEntries(
+  PATTERN_NAMES.map((name) => [name, PATTERN_CATALOG[name].fallbackHook]),
+) as Record<PatternName, string>;
 
 export function fallbackDisplay(
   name: PatternName,
