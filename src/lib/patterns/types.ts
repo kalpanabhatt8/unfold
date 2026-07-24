@@ -60,6 +60,12 @@ export type PatternDisplay = {
   createdAt: number;
 };
 
+/** Folded secondary — retained on the survivor, not deleted from the model. */
+export type RelatedPatternRef = {
+  name: PatternName;
+  label: string;
+};
+
 /** A pattern that crossed the surfacing threshold, with its evidence. */
 export type SurfacedPattern = {
   name: PatternName;
@@ -70,10 +76,15 @@ export type SurfacedPattern = {
   timeHint: string | null;
   /** Human labels — moderate co-occurrence, pattern still distinct. */
   coPatterns: string[];
-  /** Human labels — overlap-folded secondaries (separate UI copy from coPatterns). */
+  /** Human labels — overlap-folded secondaries (mirrors relatedPatterns labels). */
   foldedLabels: string[];
-  /** Overlap-suppressed slugs — internal/debug only, not user-facing. */
+  /** Overlap-suppressed slugs — retained for debug / generation survivors-only. */
   suppressedPatterns: PatternName[];
+  /**
+   * Folded secondaries kept as references on the survivor card
+   * ("also shows up in: …"). Empty when nothing was folded.
+   */
+  relatedPatterns: RelatedPatternRef[];
   /** Landing card copy — populated async; independent of PatternPassage. */
   display: PatternDisplay | null;
 };

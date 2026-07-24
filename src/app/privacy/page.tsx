@@ -21,7 +21,7 @@ export default function PrivacyPage() {
       <p>
         Unfold (“we”, “us”) operates the Unfold web app. For privacy questions or
         data requests, contact{" "}
-        <a href="mailto:hello@unfold.app">hello@unfold.app</a>.
+        <a href="mailto:hello.unfoldapp@gmail.com">hello.unfoldapp@gmail.com</a>.
       </p>
 
       <h2>2. Information we collect</h2>
@@ -139,7 +139,7 @@ export default function PrivacyPage() {
       </p>
       <p>
         To request account deletion or a copy of your data, email{" "}
-        <a href="mailto:hello@unfold.app">hello@unfold.app</a>. We will respond
+        <a href="mailto:hello.unfoldapp@gmail.com">hello.unfoldapp@gmail.com</a>. We will respond
         and delete or anonymize personal data we control, unless we must retain
         something for legal or security reasons.
       </p>

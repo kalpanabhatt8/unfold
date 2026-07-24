@@ -26,6 +26,35 @@ const BEHAVIOR_DESCRIPTION =
 const TENSION_SIGNALS =
   /\b(why|what|how|still|not|never|until|almost|left|waiting|waited|stopped|didn't|won't|yet|again|here|tomorrow|easier|end|ended|moved|done|changed|last|important|unfinished)\b/i;
 
+/**
+ * Timing / process framing — titles that name a moment or mechanism, not a
+ * settled trait. Presence exempts absolute-quantifier and flat-verdict checks.
+ */
+const PROCESS_TIMING_WORDS =
+  /\b(when|before|after|while|during|until|arrives?|arrived|settles?|settled|expands?|expanded|hardens?|hardened|returns?|returned|keeps?|kept|lingers?|builds?|fades?|starts?|started|ends?|ended|stops?|stopped|wouldn'?t|won'?t|moves?|moved)\b/i;
+
+/** Absolute trait quantifiers. */
+const ABSOLUTE_QUANTIFIER =
+  /\b(can'?t|cannot|never|always|no (?:discipline|trust|confidence))\b/i;
+
+/**
+ * Absolute quantifier near a verb — "Can't Just Say…", "Never Finishes…",
+ * "Always Needs…", "No Discipline Left".
+ */
+const ABSOLUTE_PLUS_VERB =
+  /\b(?:can'?t|cannot|never|always)\b(?:\s+\w+){0,3}\s+\b(?:say|do|be|get|feel|make|take|give|keep|let|stop|start|finish|finishes|choose|chose|chosen|know|think|need|needs|want|have|has|had|is|are|was|were|am|good|thank)\b|\bno (?:discipline|trust|confidence)\b/i;
+
+/**
+ * Short declarative with a personal subject stating an outcome as fact
+ * ("They Chose Wrong", "I'm Not Good At This") — not a process noun phrase.
+ */
+const FLAT_VERDICT_SUBJECT =
+  /^(?:they|he|she|we|i|i'?m|i'?ve|i'?ll)\s+[a-z']/i;
+
+/** Noun-phrase / curiosity openings that are not flat verdicts. */
+const CURIOSITY_OPENING =
+  /^(?:the|a|an|almost|still|left|before|after|why|what|how|everything|when|while)\b/i;
+
 const BANNED_SELF_HELP = [
   "moving forward",
   "self-discovery",
@@ -119,6 +148,31 @@ const isVagueTitle = (title: string): boolean => {
   return false;
 };
 
+const isFlatVerdictStatement = (title: string): boolean => {
+  const trimmed = title.trim().replace(/[.!]+$/, "");
+  const words = wordCount(trimmed);
+  if (words < 2 || words > 6) return false;
+  if (/\?\s*$/.test(title.trim())) return false;
+  if (CURIOSITY_OPENING.test(trimmed)) return false;
+  return FLAT_VERDICT_SUBJECT.test(trimmed);
+};
+
+/**
+ * Settled trait-verdict about the person, vs a neutral mechanism / moment.
+ * Process/timing words exempt; otherwise absolute+verb or flat personal verdict.
+ */
+export function isVerdictTitle(title: string): boolean {
+  const trimmed = title.trim();
+  if (!trimmed) return false;
+  if (PROCESS_TIMING_WORDS.test(trimmed)) return false;
+
+  if (ABSOLUTE_QUANTIFIER.test(trimmed) && ABSOLUTE_PLUS_VERB.test(trimmed)) {
+    return true;
+  }
+  if (isFlatVerdictStatement(trimmed)) return true;
+  return false;
+}
+
 const validateTitle = (
   title: string,
   quotes: string[],
@@ -144,6 +198,7 @@ const validateTitle = (
   ) {
     return "banned_voice";
   }
+  if (isVerdictTitle(title)) return "verdict_voice";
   if (echoesLabel(title, label)) return "label_echo";
   if (echoesDefinition(title, definition)) return "definition_echo";
   if (isVagueTitle(title)) return "vague_title";

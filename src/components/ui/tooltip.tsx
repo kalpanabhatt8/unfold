@@ -32,8 +32,9 @@ function isPositionedClass(className?: string) {
 
 function measureBubble(bubble: HTMLElement): DOMRect {
   const prev = bubble.style.cssText;
+  // Clear transform so scale animations don't shrink the measured box.
   bubble.style.cssText =
-    "position:fixed;top:-999rem;left:0;visibility:hidden;opacity:1;pointer-events:none;";
+    "position:fixed;top:-999rem;left:0;visibility:hidden;opacity:1;pointer-events:none;transform:none;";
   const rect = bubble.getBoundingClientRect();
   bubble.style.cssText = prev;
   return rect;
@@ -59,15 +60,12 @@ function computeBubbleStyle(
     ? triggerRect.top - tooltipRect.height - TOOLTIP_GAP
     : triggerRect.bottom + TOOLTIP_GAP;
 
+  // Always origin from the trigger center; only nudge to stay in the viewport.
   let left =
     triggerRect.left + (triggerRect.width - tooltipRect.width) / 2;
-
-  if (left + tooltipRect.width > window.innerWidth - VIEWPORT_MARGIN) {
-    left = triggerRect.right - tooltipRect.width;
-  }
-  if (left < VIEWPORT_MARGIN) {
-    left = VIEWPORT_MARGIN;
-  }
+  const maxLeft = window.innerWidth - VIEWPORT_MARGIN - tooltipRect.width;
+  if (left > maxLeft) left = Math.max(VIEWPORT_MARGIN, maxLeft);
+  if (left < VIEWPORT_MARGIN) left = VIEWPORT_MARGIN;
 
   return { position: "fixed", top, left, zIndex: 9999 };
 }

@@ -92,7 +92,7 @@ export default function TermsPage() {
       <h2>10. Contact</h2>
       <p>
         Questions about these Terms:{" "}
-        <a href="mailto:hello@unfold.app">hello@unfold.app</a>
+        <a href="mailto:hello.unfoldapp@gmail.com">hello.unfoldapp@gmail.com</a>
       </p>
     </LegalShell>
   );

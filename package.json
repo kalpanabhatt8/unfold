@@ -11,6 +11,7 @@
     "db:deploy": "prisma migrate deploy",
     "start": "next start",
     "lint": "eslint",
+    "check:pattern-vocab": "npx tsx scripts/check-pattern-vocab.ts",
     "review:shapes": "npx tsx scripts/review-pattern-shapes.ts",
     "review:feedback": "npx tsx scripts/review-feedback.ts"
   },

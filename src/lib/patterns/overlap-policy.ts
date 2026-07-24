@@ -1,21 +1,33 @@
 /**
  * Overlap suppression — one surfaced card per behavioral thread.
  *
- * After aggregation, patterns whose entry sets overlap heavily (same journal
- * moments multi-tagged under different names) collapse into a single survivor.
- * Secondary names become folded metadata, not separate cards.
+ * After aggregation, patterns fold when EITHER:
+ *   - entry-set overlap ≥ OVERLAP_SUPPRESSION_THRESHOLD, or
+ *   - mechanism (evidence-quote) embedding cosine ≥ MECHANISM_SIMILARITY_THRESHOLD
+ *
+ * Secondary names become relatedPatterns / foldedLabels on the survivor —
+ * retained as references, not deleted from the data model.
  */
 
 import { deriveCoPatterns } from "@/lib/patterns/co-patterns";
-import type { SurfacedPattern } from "@/lib/patterns/types";
+import {
+  MECHANISM_SIMILARITY_THRESHOLD,
+  mechanismSimilarity,
+} from "@/lib/patterns/mechanism-embed";
+import type {
+  RelatedPatternRef,
+  SurfacedPattern,
+} from "@/lib/patterns/types";
 import {
   PATTERN_LABELS,
   PATTERN_NAMES,
   type PatternName,
 } from "@/lib/patterns/vocabulary";
 
-/** Default overlap gate — tune in dev via window.__UNFOLD_OVERLAP_THRESHOLD__. */
-export const OVERLAP_SUPPRESSION_THRESHOLD = 0.65;
+/** Default entry-overlap gate — tune in dev via window.__UNFOLD_OVERLAP_THRESHOLD__. */
+export const OVERLAP_SUPPRESSION_THRESHOLD = 0.5;
+
+export { MECHANISM_SIMILARITY_THRESHOLD };
 
 /** Extraction disambiguation: specific patterns outrank overthinking catch-all. */
 export const PATTERN_SPECIFICITY_RANK: Record<PatternName, number> = {
@@ -73,6 +85,28 @@ export const entryOverlapRatio = (
   return intersection / minSize;
 };
 
+/** Fold when entry overlap OR mechanism similarity trips. */
+export const shouldFoldPair = (
+  a: SurfacedPattern,
+  b: SurfacedPattern,
+  options?: {
+    entryThreshold?: number;
+    mechanismThreshold?: number;
+    mechanismEmbeddings?: ReadonlyMap<string, number[]>;
+  },
+): boolean => {
+  const entryThreshold =
+    options?.entryThreshold ?? effectiveOverlapThreshold();
+  if (entryOverlapRatio(a, b) >= entryThreshold) return true;
+
+  const mechanismThreshold =
+    options?.mechanismThreshold ?? MECHANISM_SIMILARITY_THRESHOLD;
+  return (
+    mechanismSimilarity(a, b, options?.mechanismEmbeddings) >=
+    mechanismThreshold
+  );
+};
+
 /** Negative when `a` outranks `b` as cluster survivor. */
 export const compareSurvivorPriority = (
   a: SurfacedPattern,
@@ -113,6 +147,24 @@ export const filterCoPatternsExcludingSuppressed = (
   return labels.filter((label) => !suppressedLabels.has(label));
 };
 
+export const relatedPatternRef = (name: PatternName): RelatedPatternRef => ({
+  name,
+  label: PATTERN_LABELS[name],
+});
+
+/** UI copy: "also shows up in: Self-doubt" */
+export const formatRelatedPatternsLine = (
+  related: RelatedPatternRef[],
+): string | null => {
+  if (related.length === 0) return null;
+  const labels = related.map((item) => item.label);
+  if (labels.length === 1) return `also shows up in: ${labels[0]}`;
+  if (labels.length === 2) {
+    return `also shows up in: ${labels[0]} and ${labels[1]}`;
+  }
+  return `also shows up in: ${labels.slice(0, -1).join(", ")}, and ${labels.at(-1)}`;
+};
+
 const enrichSurvivor = (
   survivor: SurfacedPattern,
   suppressedPatterns: PatternName[],
@@ -120,7 +172,8 @@ const enrichSurvivor = (
   const suppressed = [...suppressedPatterns].sort(
     (a, b) => nameOrderIndex(a) - nameOrderIndex(b),
   );
-  const foldedLabels = suppressed.map((name) => PATTERN_LABELS[name]);
+  const relatedPatterns = suppressed.map(relatedPatternRef);
+  const foldedLabels = relatedPatterns.map((item) => item.label);
   const entryIds = survivor.evidence.map((item) => item.entryId);
   const coPatterns = filterCoPatternsExcludingSuppressed(
     deriveCoPatterns(survivor.name, entryIds),
@@ -132,6 +185,7 @@ const enrichSurvivor = (
     coPatterns,
     foldedLabels,
     suppressedPatterns: suppressed,
+    relatedPatterns,
   };
 };
 
@@ -156,12 +210,21 @@ class UnionFind {
   }
 }
 
+export type OverlapSuppressionOptions = {
+  entryThreshold?: number;
+  mechanismThreshold?: number;
+  /** Injected embeddings (tests / future remote embed cache), keyed by pattern name. */
+  mechanismEmbeddings?: ReadonlyMap<string, number[]>;
+};
+
 /**
- * Collapse heavily overlapping surfaced patterns. Singletons pass through with
- * coPatterns from deriveCoPatterns; multi-member clusters keep one survivor.
+ * Collapse overlapping / mechanism-similar surfaced patterns. Singletons pass
+ * through with coPatterns; multi-member clusters keep one survivor and retain
+ * suppressed names as relatedPatterns.
  */
 export function applyOverlapSuppression(
   surfaced: SurfacedPattern[],
+  options?: OverlapSuppressionOptions,
 ): SurfacedPattern[] {
   if (surfaced.length === 0) return [];
 
@@ -169,12 +232,11 @@ export function applyOverlapSuppression(
     return [enrichSurvivor(surfaced[0]!, [])];
   }
 
-  const threshold = effectiveOverlapThreshold();
   const unionFind = new UnionFind(surfaced.length);
 
   for (let i = 0; i < surfaced.length; i += 1) {
     for (let j = i + 1; j < surfaced.length; j += 1) {
-      if (entryOverlapRatio(surfaced[i]!, surfaced[j]!) >= threshold) {
+      if (shouldFoldPair(surfaced[i]!, surfaced[j]!, options)) {
         unionFind.union(i, j);
       }
     }

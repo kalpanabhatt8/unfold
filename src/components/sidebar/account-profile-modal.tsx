@@ -21,7 +21,7 @@ import { clearLocalUnfoldData } from "@/lib/clear-local-data";
 import { cacheStampDisplayName } from "@/lib/stamp-display-name";
 
 const EXPORT_MAILTO =
-  "mailto:hello@unfold.app?subject=Export%20my%20Unfold%20data&body=Please%20send%20a%20copy%20of%20my%20Unfold%20data.";
+  "mailto:hello.unfoldapp@gmail.com?subject=Export%20my%20Unfold%20data&body=Please%20send%20a%20copy%20of%20my%20Unfold%20data.";
 
 const copyStyle = {
   fontSize: "var(--text-sm)",
@@ -565,10 +565,10 @@ function SupportSection() {
             <p className="mt-2 text-(--sidebar-ink-soft)" style={copyStyle}>
               Account deletion isn’t enabled for this account yet. Contact{" "}
               <a
-                href="mailto:hello@unfold.app"
+                href="mailto:hello.unfoldapp@gmail.com"
                 className="text-(--canvas-title-ink) underline-offset-2 hover:underline"
               >
-                hello@unfold.app
+                hello.unfoldapp@gmail.com
               </a>
               .
             </p>

@@ -76,6 +76,7 @@ export function aggregateFromInputs(
       coPatterns: [],
       foldedLabels: [],
       suppressedPatterns: [],
+      relatedPatterns: [],
       display: null,
     });
   }

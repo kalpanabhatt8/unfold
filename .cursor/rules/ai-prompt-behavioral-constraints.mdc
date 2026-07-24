@@ -38,6 +38,14 @@ When editing any file matching `src/lib/ai/**/prompt.ts`, treat prompt text as *
 | `pattern-slots/prompt.ts` | Loop = generic bridges between evidence islands; never stitch quote incidents into a montage |
 | `pattern-display/prompt.ts` | Curiosity titles, not behavior summaries or pattern labels |
 | `title/prompt.ts` | Memory-anchor page names, not emotional summaries |
-| `pattern-extraction/prompt.ts` | Closed vocabulary, confidence floor, evidence quotes |
+| `pattern-extraction/prompt.ts` | Closed vocabulary, confidence floor, evidence quotes — behavioral tests live in `PATTERN_CATALOG` (`vocabulary.ts`), prompt only renders |
+
+## Pattern vocabulary catalog
+
+When editing `src/lib/patterns/vocabulary.ts` or `src/lib/ai/pattern-extraction/prompt.ts`:
+
+1. Keep each pattern's **definition**, **disambiguation**, and **examples** co-located in `PATTERN_CATALOG` — do not re-introduce hardcoded per-pattern meaning in the prompt file.
+2. Run `npm run check:pattern-vocab` before finishing. Hard fails must be fixed; walk the printed checklist for definition↔disambiguation drift (same class as the old perfectionism "feels good enough" vs recheck/never-ship split).
+3. If you change a definition, remember silent couplings: `definition_echo` validators (slots + display), `docs/unfold-implementation.md` meaning table, `pattern-display/fallback.ts` hooks, and `shape-review.ts` fixtures.
 
 If git history shows a prior fix for the same behavior, cite the commit or regression when flagging.

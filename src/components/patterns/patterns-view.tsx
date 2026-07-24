@@ -13,6 +13,7 @@ import {
   formatPatternTimeline,
   patternTimelineEnd,
 } from "@/lib/patterns/time-hint";
+import { formatRelatedPatternsLine } from "@/lib/patterns/overlap-policy";
 import { isPatternFullyReady } from "@/lib/patterns/pattern-readiness";
 import { PATTERN_DISPLAY_UPDATED_EVENT } from "@/lib/patterns/pattern-display-store";
 import { PATTERN_PASSAGE_UPDATED_EVENT } from "@/lib/patterns/passage-store";
@@ -191,6 +192,9 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
             const entryLabel = formatEntryCount(entryCount);
             const timeline = formatPatternTimeline(pattern.evidence);
             const factLine = [timeline, entryLabel].filter(Boolean).join(" · ");
+            const relatedLine = formatRelatedPatternsLine(
+              pattern.relatedPatterns ?? [],
+            );
 
             return (
               <li
@@ -209,7 +213,9 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
                   aria-controls={
                     isOpen ? `pattern-expanded-panel-${pattern.name}` : undefined
                   }
-                  aria-label={factLine ? `${title}, ${factLine}` : title}
+                  aria-label={
+                    [title, factLine, relatedLine].filter(Boolean).join(", ")
+                  }
                   id={`pattern-expanded-${pattern.name}`}
                   onClick={() =>
                     setExpanded((prev) =>
@@ -224,6 +230,11 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
                     {factLine ? (
                       <span className="pattern-accordion__row-fact">
                         {factLine}
+                      </span>
+                    ) : null}
+                    {relatedLine ? (
+                      <span className="pattern-accordion__row-related">
+                        {relatedLine}
                       </span>
                     ) : null}
                   </span>

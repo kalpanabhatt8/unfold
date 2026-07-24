@@ -10,7 +10,7 @@ import { flushPendingSync } from "@/lib/sync/sync-client";
 import { resolvePreferredName, avatarInitial } from "@/lib/user-display";
 
 // const SUPPORT_MAILTO =
-//   "mailto:hello@unfold.app?subject=Supporting%20Unfold";
+//   "mailto:hello.unfoldapp@gmail.com?subject=Supporting%20Unfold";
 
 const menuItemClassName =
   "flex w-full items-center px-3 py-2 text-left text-sm font-medium leading-snug text-primary opacity-80 transition-colors duration-150 hover:bg-(--sidebar-hover-bg) focus-visible:bg-(--sidebar-hover-bg) focus-visible:outline-none";

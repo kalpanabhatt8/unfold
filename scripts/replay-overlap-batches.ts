@@ -162,9 +162,17 @@ const printBatch = (batch: Batch) => {
     console.log(`    entryCount: ${pattern.entryCount}`);
     console.log(`    entryIds: ${pattern.evidence.map((e) => e.entryId).join(", ")}`);
     console.log(`    foldedLabels: ${JSON.stringify(pattern.foldedLabels)}`);
+    console.log(`    relatedPatterns: ${JSON.stringify(pattern.relatedPatterns)}`);
     console.log(`    suppressedPatterns: ${JSON.stringify(pattern.suppressedPatterns)}`);
     console.log(`    coPatterns: ${JSON.stringify(pattern.coPatterns)}`);
     console.log(`    UI folded line: ${foldedLine(pattern.foldedLabels) ?? "(none)"}`);
+    console.log(
+      `    UI related line: ${
+        pattern.relatedPatterns.length > 0
+          ? `also shows up in: ${pattern.relatedPatterns.map((r) => r.label).join(", ")}`
+          : "(none)"
+      }`,
+    );
   }
 
   const survivor = after.surfaced[0]!;
@@ -186,6 +194,7 @@ const formatPatternLine = (pattern: {
   name: PatternName;
   entryCount: number;
   foldedLabels: string[];
+  relatedPatterns: Array<{ name: PatternName; label: string }>;
   suppressedPatterns: PatternName[];
   coPatterns: string[];
   evidence: Array<{ entryId: string }>;
@@ -194,7 +203,16 @@ const formatPatternLine = (pattern: {
     `${pattern.name} — ${pattern.entryCount} entries`,
     `ids=[${pattern.evidence.map((e) => e.entryId).join(", ")}]`,
   ];
-  if (pattern.foldedLabels.length > 0) {
+  if (pattern.relatedPatterns.length > 0) {
+    parts.push(
+      `related=${JSON.stringify(pattern.relatedPatterns.map((r) => r.label))}`,
+    );
+    parts.push(
+      `relatedLine=${JSON.stringify(
+        `also shows up in: ${pattern.relatedPatterns.map((r) => r.label).join(", ")}`,
+      )}`,
+    );
+  } else if (pattern.foldedLabels.length > 0) {
     parts.push(`folded=${JSON.stringify(pattern.foldedLabels)}`);
     parts.push(`foldedLine=${JSON.stringify(foldedLine(pattern.foldedLabels))}`);
   }
@@ -287,15 +305,15 @@ const printLiveExport = (
   }
 
   if (before.surfaced.length >= 2) {
-    console.log("\nPairwise overlap matrix (before, ≥0.65 would cluster):");
+    console.log("\nPairwise overlap matrix (before, ≥0.5 would cluster on entries):");
     for (let i = 0; i < before.surfaced.length; i += 1) {
       for (let j = i + 1; j < before.surfaced.length; j += 1) {
         const a = before.surfaced[i]!;
         const b = before.surfaced[j]!;
         const ratio = entryOverlapRatio(a, b);
-        if (ratio >= 0.5) {
+        if (ratio >= 0.4) {
           console.log(
-            `  ${a.name} ↔ ${b.name}: ${ratio.toFixed(3)}${ratio >= 0.65 ? " ✓ clusters" : ""}`,
+            `  ${a.name} ↔ ${b.name}: ${ratio.toFixed(3)}${ratio >= 0.5 ? " ✓ clusters" : ""}`,
           );
         }
       }
