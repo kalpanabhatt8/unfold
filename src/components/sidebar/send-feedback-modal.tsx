@@ -135,8 +135,7 @@ export function SendFeedbackModal({ open, onClose }: SendFeedbackModalProps) {
             >
               <h2
                 id={titleId}
-                className="text-lg font-semibold tracking-tight text-primary"
-                style={{ fontFamily: "var(--font-heading)" }}
+                className="header-md tracking-tight"
               >
                 Send feedback
               </h2>

@@ -30,6 +30,7 @@ import {
   type JournalEntry,
 } from "@/lib/journal-entries";
 import { notifyEntryCompleted } from "@/lib/patterns/entry-completion";
+import { hasAnalysis } from "@/lib/patterns/analysis-store";
 import { takeJournalQuoteFocus } from "@/lib/journal-quote-focus";
 import { resolveNewEntryTarget } from "@/lib/entry-draft";
 import { ensureInitialSync } from "@/lib/sync/sync-client";
@@ -99,9 +100,18 @@ const JournalEntryPage = () => {
         entryRef.current = existing;
         setEntry(existing);
         setIsHydrated(true);
-        // Already-sealed entries were completed in a prior session (the reconciler
-        // covers any missing analysis) — only a fresh seal this session counts.
-        completionFiredRef.current = typeof existing.sealedAt === "number";
+        // Already sealed: still notify when analysis is missing so reopen can
+        // retry after spend-limit / crash. Durable attempt gate blocks double
+        // spend while a first attempt is fresh. Mark fired so a same-session
+        // seal transition does not queue a second notify.
+        if (typeof existing.sealedAt === "number") {
+          completionFiredRef.current = true;
+          if (!hasAnalysis(entryId)) {
+            void notifyEntryCompleted(entryId, "seal");
+          }
+        } else {
+          completionFiredRef.current = false;
+        }
         return;
       }
 
@@ -113,7 +123,14 @@ const JournalEntryPage = () => {
         entryRef.current = synced;
         setEntry(synced);
         setIsHydrated(true);
-        completionFiredRef.current = typeof synced.sealedAt === "number";
+        if (typeof synced.sealedAt === "number") {
+          completionFiredRef.current = true;
+          if (!hasAnalysis(entryId)) {
+            void notifyEntryCompleted(entryId, "seal");
+          }
+        } else {
+          completionFiredRef.current = false;
+        }
         return;
       }
 

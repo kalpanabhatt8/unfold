@@ -13,6 +13,7 @@ import {
 import { createPortal } from "react-dom";
 
 export type TooltipSide = "top" | "bottom";
+export type TooltipAlign = "center" | "end";
 
 const VIEWPORT_MARGIN = 8;
 const TOOLTIP_GAP = 8;
@@ -20,6 +21,8 @@ const TOOLTIP_GAP = 8;
 type TooltipProps = {
   content: string;
   side?: TooltipSide;
+  /** Horizontal alignment vs the trigger. `end` = right edges flush. */
+  align?: TooltipAlign;
   className?: string;
   bubbleClassName?: string;
   children: ReactNode;
@@ -44,6 +47,7 @@ function computeBubbleStyle(
   triggerRect: DOMRect,
   tooltipRect: DOMRect,
   preferredSide: TooltipSide,
+  align: TooltipAlign,
 ): CSSProperties {
   const needsHeight = tooltipRect.height + TOOLTIP_GAP;
   const spaceAbove = triggerRect.top - VIEWPORT_MARGIN;
@@ -60,9 +64,11 @@ function computeBubbleStyle(
     ? triggerRect.top - tooltipRect.height - TOOLTIP_GAP
     : triggerRect.bottom + TOOLTIP_GAP;
 
-  // Always origin from the trigger center; only nudge to stay in the viewport.
+  // Center or flush right edges with the trigger; clamp only if it would leave the viewport.
   let left =
-    triggerRect.left + (triggerRect.width - tooltipRect.width) / 2;
+    align === "end"
+      ? triggerRect.right - tooltipRect.width
+      : triggerRect.left + (triggerRect.width - tooltipRect.width) / 2;
   const maxLeft = window.innerWidth - VIEWPORT_MARGIN - tooltipRect.width;
   if (left > maxLeft) left = Math.max(VIEWPORT_MARGIN, maxLeft);
   if (left < VIEWPORT_MARGIN) left = VIEWPORT_MARGIN;
@@ -74,6 +80,7 @@ function computeBubbleStyle(
 export function Tooltip({
   content,
   side = "top",
+  align = "center",
   className,
   bubbleClassName,
   children,
@@ -95,8 +102,8 @@ export function Tooltip({
 
     const triggerRect = trigger.getBoundingClientRect();
     const tooltipRect = measureBubble(bubble);
-    setBubbleStyle(computeBubbleStyle(triggerRect, tooltipRect, side));
-  }, [side]);
+    setBubbleStyle(computeBubbleStyle(triggerRect, tooltipRect, side, align));
+  }, [align, side]);
 
   const show = useCallback(() => {
     reposition();

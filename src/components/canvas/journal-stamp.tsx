@@ -535,6 +535,7 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
             content={
               canSeal ? "Seal entry" : "Write something before sealing"
             }
+            align="end"
             bubbleClassName="tooltip-bubble-stamp"
           >
             <button

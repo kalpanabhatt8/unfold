@@ -11,6 +11,10 @@
  * V1 idempotency = existence: one analysis per entryId, ever. (When a
  * pre-final trigger is introduced later, add a content hash here so edited
  * drafts re-analyze.)
+ *
+ * Attempt durability: `analysis-attempt-store` records startedAt before any
+ * await. Retries require outcome "fail" (fast path) or startedAt older than
+ * ATTEMPT_STALE_MS (sole unlock for tab-close / crash with no outcome).
  */
 
 import { fetchCrisisRisk } from "@/lib/ai/crisis-risk/client";
@@ -24,6 +28,13 @@ import {
   upsertEntry,
   type JournalEntry,
 } from "@/lib/journal-entries";
+import {
+  clearAnalysisAttempt,
+  isAnalysisAttemptAllowed,
+  markAnalysisAttemptFailed,
+  markAnalysisAttemptOk,
+  markAnalysisAttemptStarted,
+} from "@/lib/patterns/analysis-attempt-store";
 import { hasAnalysis, putAnalysis } from "@/lib/patterns/analysis-store";
 import { countWords, readEntryText } from "@/lib/patterns/entry-text";
 import type { CompletionSource } from "@/lib/patterns/types";
@@ -111,15 +122,23 @@ export async function notifyEntryCompleted(
 ): Promise<void> {
   if (!entryId || hasAnalysis(entryId) || inflight.has(entryId)) return;
 
+  const entry = readEntryById(entryId);
+  if (entry?.crisisFlagged === true) return;
+  if (entry?.qualityFlagged === true) return;
+
+  const text = readEntryText(entryId);
+  if (!text.trim()) return;
+
+  // Durable gate — deny while a recent attempt has no fail outcome (in flight
+  // or abandoned < ATTEMPT_STALE_MS). Survives reload / other tabs.
+  if (!isAnalysisAttemptAllowed(entryId)) return;
+
+  // Claim same-tab lock before writing attempt / awaiting — #1 and #2 can race.
   inflight.add(entryId);
+  // Sync write before any await — abandoned tabs unlock only via stale age.
+  markAnalysisAttemptStarted(entryId);
+
   try {
-    const entry = readEntryById(entryId);
-    if (entry?.crisisFlagged === true) return;
-    if (entry?.qualityFlagged === true) return;
-
-    const text = readEntryText(entryId);
-    if (!text.trim()) return;
-
     // Crisis gate — separate classification step before any pattern extraction.
     // Fail open: API failure/timeout → treat as unflagged, log for monitoring.
     const crisis = await fetchCrisisRisk(text);
@@ -143,6 +162,8 @@ export async function notifyEntryCompleted(
         at,
         path: source,
       });
+      // Terminal skip — drop attempt so we don't stale-retry into the same flag.
+      clearAnalysisAttempt(entryId);
       return; // do not call fetchEntryAnalysis / putAnalysis
     } else {
       console.info("[crisis-risk]", {
@@ -178,6 +199,7 @@ export async function notifyEntryCompleted(
         at,
         path: source,
       });
+      clearAnalysisAttempt(entryId);
       return; // do not call fetchEntryAnalysis / putAnalysis
     } else {
       console.info("[content-quality]", {
@@ -190,11 +212,17 @@ export async function notifyEntryCompleted(
     }
 
     const payload = await fetchEntryAnalysis(text);
-    if (!payload) return; // failure → not stored → retried by reconciler later
+    if (!payload) {
+      // Optional fast-path — reconciler may retry before stale timeout.
+      markAnalysisAttemptFailed(entryId);
+      return;
+    }
 
     putAnalysis({ entryId, sourceContentHash: contentHash(text), ...payload });
+    markAnalysisAttemptOk(entryId);
   } catch (error) {
     console.error("Entry completion analysis failed", error);
+    markAnalysisAttemptFailed(entryId);
   } finally {
     inflight.delete(entryId);
   }
@@ -213,6 +241,7 @@ export async function reconcileAnalyses(): Promise<void> {
     .filter((entry) => entry.qualityFlagged !== true)
     .filter((entry) => isAnalysisEligible(entry))
     .filter((entry) => !hasAnalysis(entry.id))
+    .filter((entry) => isAnalysisAttemptAllowed(entry.id))
     .sort((a, b) => {
       const aExplicit = isExplicitlySealed(a) ? 0 : 1;
       const bExplicit = isExplicitlySealed(b) ? 0 : 1;

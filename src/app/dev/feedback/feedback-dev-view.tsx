@@ -23,10 +23,7 @@ export function FeedbackDevView({
   return (
     <div className="flex flex-col gap-5">
       <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <h1
-          className="text-xl font-semibold text-primary"
-          style={{ fontFamily: "var(--font-heading)" }}
-        >
+        <h1 className="header-md tracking-tight">
           Feedback inbox
         </h1>
 

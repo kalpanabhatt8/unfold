@@ -216,8 +216,7 @@ export function DiscoveryCanvas({
           {showInlineTitle ? (
             <header className="discovery-headline">
               <h2
-                className="pattern-content-title font-medium tracking-tight text-(--sidebar-ink)"
-                style={{ fontFamily: "var(--font-heading)" }}
+                className="pattern-content-title header-sm tracking-tight"
               >
                 {arc.headline.title}
               </h2>

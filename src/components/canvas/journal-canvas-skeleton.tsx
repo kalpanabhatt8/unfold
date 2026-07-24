@@ -51,7 +51,7 @@ export function JournalCanvasSkeleton() {
               className="mb-8 grid w-full grid-cols-1 items-end gap-y-1.5 sm:mb-10 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-x-4 sm:gap-y-0 md:gap-x-6 lg:mb-14 lg:gap-x-8 xl:gap-x-12"
               aria-hidden
             >
-              <span className="col-start-1 row-start-1 block h-[1.3em] w-[42%] max-w-[16rem] animate-pulse self-end rounded-sm bg-(--canvas-title-ink)/12 sm:w-[38%]" />
+              <span className="col-start-1 row-start-1 block h-[1.3em] w-[42%] max-w-[16rem] animate-pulse self-end rounded-sm bg-(--text-primary)/12 sm:w-[38%]" />
               <span className="col-start-1 row-start-2 mt-0.5 block h-3 w-38 animate-pulse rounded-sm bg-(--canvas-date-time)/35 sm:col-start-2 sm:row-start-1 sm:mt-0 sm:mb-1 sm:justify-self-end sm:w-40" />
             </header>
 

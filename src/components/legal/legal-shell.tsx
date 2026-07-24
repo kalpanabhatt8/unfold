@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BRAND } from "@/components/landing/story";
+import { UnfoldBrand } from "@/components/brand/unfold-brand";
 import "@/components/auth/auth-form.css";
 
 type LegalShellProps = {
@@ -14,13 +14,11 @@ export function LegalShell({ title, active, children }: LegalShellProps) {
       <article className="auth-card legal-doc">
         <header className="legal-doc__header">
           <nav className="legal-doc__switch" aria-label="Legal documents">
-            <Link href="/" className="legal-doc__brand logo-font">
-              <span className="mr-[0.03em]">{BRAND}</span>
-            </Link>
+            <UnfoldBrand className="legal-doc__brand" />
 
             <div className="legal-doc__switch-links">
               <Link
-                href="/terms"
+                href="/terms-and-conditions"
                 className={`legal-doc__switch-link${active === "terms" ? " is-active" : ""}`}
                 aria-current={active === "terms" ? "page" : undefined}
               >

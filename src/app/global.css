@@ -1,7 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/* Typography scale — 2xs/xs/sm/md = body text, lg/xl = headers */
+/* Typography scale — 2xs/xs/sm/md = body text, lg/xl = header md/lg (20/24) */
 @theme inline {
   --font-sans: var(--font-figtree), system-ui, sans-serif;
 
@@ -22,8 +22,8 @@
      --text-lg: 1.25rem;   /* 20/16 */
      --text-lg--line-height: 1.3;
      
-     --text-xl: 1.75rem;   /* 28/16 */
-     --text-xl--line-height: 1.2;
+     --text-xl: 1.5rem;    /* 24/16 — header-lg */
+     --text-xl--line-height: 1.25;
 }
 
 /* Animate quote-highlight alpha without washing the hue toward black. */
@@ -313,7 +313,8 @@
 }
 
 .tooltip-bubble-stamp {
-  transform-origin: center bottom;
+  /* Grow from the signature's right edge — matches align="end" placement. */
+  transform-origin: right bottom;
   transition:
     opacity 180ms ease,
     transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -348,35 +349,43 @@ h5,
 h6 {
   font-family: var(--font-heading);
   letter-spacing: -0.01em;
+  /* App headings use text-primary; landing overrides with accent. */
+  color: var(--text-primary);
 }
 
-/* Header scale — lg / xl with heading font (desktop sizes at sm+) */
+/* Header scale — sm 16 / md 20 / lg 24 (fixed; heading font + weight 600) */
+.header-sm,
+.header-md,
 .header-lg {
   font-family: var(--font-heading);
-  font-size: var(--text-md);
-  line-height: var(--text-md--line-height);
+  font-weight: 600;
   letter-spacing: -0.01em;
+  color: var(--text-primary);
 }
 
-@media (min-width: 40rem) {
-  .header-lg {
-    font-size: var(--text-lg);
-    line-height: var(--text-lg--line-height);
-  }
+.header-sm {
+  font-size: var(--text-md); /* 16 */
+  line-height: var(--text-md--line-height);
 }
 
+.header-md {
+  font-size: var(--text-lg); /* 20 */
+  line-height: var(--text-lg--line-height);
+}
+
+.header-lg {
+  font-size: var(--text-xl); /* 24 */
+  line-height: var(--text-xl--line-height);
+}
+
+/* Alias — prefer header-lg */
 .header-xl {
   font-family: var(--font-heading);
-  font-size: var(--text-lg);
-  line-height: var(--text-lg--line-height);
+  font-weight: 600;
+  font-size: var(--text-xl);
+  line-height: var(--text-xl--line-height);
   letter-spacing: -0.01em;
-}
-
-@media (min-width: 40rem) {
-  .header-xl {
-    font-size: var(--text-xl);
-    line-height: var(--text-xl--line-height);
-  }
+  color: var(--text-primary);
 }
 
 /* Small helpers used in existing pages */
@@ -386,6 +395,17 @@ h6 {
 
 .logo-font {
   font-family: var(--font-heading);
+}
+
+/* Shared Unfold logo mark — landing / legal / auth (not sidebar title). */
+.unfold-brand {
+  font-family: var(--font-heading);
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--canvas-title-ink);
+  text-decoration: none;
 }
 
 /* Text system — COLOR state helpers (size stays separate: text-xs/sm/md/lg).
@@ -1762,16 +1782,6 @@ input[type='number'] {
 .pattern-content-title {
   margin: 0;
   padding-top: 0.1em;
-  font-size: var(--text-sm);
-  line-height: var(--text-sm--line-height);
-  letter-spacing: -0.01em;
-}
-
-@media (min-width: 40rem) {
-  .pattern-content-title {
-    font-size: var(--text-md);
-    line-height: var(--text-md--line-height);
-  }
 }
 
 /* ── App toast — reuse anywhere; tweak tokens below ── */

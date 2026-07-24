@@ -1351,10 +1351,9 @@ function CanvasHeader({
         spellCheck={false}
         aria-label="Book title"
         className={clsx(
-          "header-lg col-start-1 row-start-1 min-w-0 w-full truncate self-end border-0 bg-transparent p-0 text-left font-medium tracking-tight outline-none focus:outline-none placeholder:text-(--canvas-title-placeholder)",
-          hasTitle ? "text-(--canvas-title-ink)" : "text-(--canvas-title-placeholder)"
+          "header-md col-start-1 row-start-1 min-w-0 w-full truncate self-end border-0 bg-transparent p-0 text-left tracking-tight outline-none focus:outline-none placeholder:text-(--canvas-title-placeholder)",
+          hasTitle ? "text-primary" : "text-(--canvas-title-placeholder)"
         )}
-        style={{ fontFamily: "var(--font-heading)" }}
       />
       <div
         className="col-start-1 row-start-2 flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5 text-left text-xs font-light tracking-[0.05em] sm:col-start-2 sm:row-start-1 sm:justify-end sm:text-right"

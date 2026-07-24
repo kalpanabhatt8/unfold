@@ -22,10 +22,7 @@ export function CrisisResponse({ onBackToEntry }: CrisisResponseProps) {
     >
       <div className="mx-auto flex w-full max-w-md flex-col gap-6">
         <div className="flex flex-col gap-3">
-          <h1
-            className="text-xl font-medium tracking-tight"
-            style={{ lineHeight: 1.35 }}
-          >
+          <h1 className="header-md tracking-tight">
             If things feel too heavy right now, you don&apos;t have to carry
             this alone.
           </h1>

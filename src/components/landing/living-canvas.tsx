@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { ChevronsLeft, Plus, Search, Signature, Waypoints, X } from "lucide-react";
+import { UnfoldBrand } from "@/components/brand/unfold-brand";
 import { LandingEndCta } from "./landing-chrome";
 import { MechanismChain } from "@/components/patterns/mechanism-chain";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -316,9 +317,7 @@ export function LivingCanvas() {
         data-hidden={navOpacity < 0.05}
         aria-hidden={navOpacity < 0.05}
       >
-        <Link href="/" className="lp-live__brand">
-          <span className="mr-[0.03em]">U</span>NFOLD
-        </Link>
+        <UnfoldBrand />
         <div className="lp-live__nav-actions">
           <Link href={CTA.header.signInHref} className="lp-chrome__nav-link">
             {CTA.header.signIn}
@@ -539,8 +538,8 @@ export function LivingCanvas() {
                       <p
                         className={
                           writeSealed
-                            ? "lp-live__journal-title header-lg"
-                            : "lp-live__journal-title header-lg lp-live__title-placeholder"
+                            ? "lp-live__journal-title header-md"
+                            : "lp-live__journal-title header-md lp-live__title-placeholder"
                         }
                       >
                         {writeSealed
@@ -578,7 +577,7 @@ export function LivingCanvas() {
                     </p>
                   ) : (
                     <div className="lp-live__stamp-btn-wrap">
-                      <Tooltip content="Seal entry" bubbleClassName="tooltip-bubble-stamp">
+                      <Tooltip content="Seal entry" align="end" bubbleClassName="tooltip-bubble-stamp">
                         <button
                           type="button"
                           className={`lp-live__stamp-btn group shrink-0 cursor-pointer select-none outline-none ${btnIconInvisible("md", "xl")}`}
@@ -610,7 +609,7 @@ export function LivingCanvas() {
                 >
                   <div className="lp-live__column">
                     <header className="lp-live__journal-head">
-                      <h1 className="lp-live__journal-title header-lg">
+                      <h1 className="lp-live__journal-title header-md">
                         {activeEntry.title}
                       </h1>
                       <time className="lp-live__journal-meta">
@@ -704,7 +703,7 @@ export function LivingCanvas() {
                   aria-hidden={patternOpacity < 0.05}
                 >
                   <div className="lp-live__column lp-live__pattern-inner">
-                    <h2 className="lp-live__pattern-title header-lg">
+                    <h2 className="lp-live__pattern-title header-md">
                       {PATTERN.title}
                     </h2>
                     <div
@@ -741,7 +740,7 @@ export function LivingCanvas() {
                       }}
                     >
                       <p
-                        className="lp-live__pattern-question header-lg"
+                        className="lp-live__pattern-question header-md"
                         style={{
                           opacity:
                             viewOverride === "pattern" ? 1 : showReflect,

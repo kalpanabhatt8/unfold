@@ -179,7 +179,7 @@ export default function PrivacyPage() {
       <h2>12. Related</h2>
       <p>
         Your use of Unfold is also covered by our{" "}
-        <Link href="/terms">Terms and Conditions</Link>.
+        <Link href="/terms-and-conditions">Terms and Conditions</Link>.
       </p>
     </LegalShell>
   );

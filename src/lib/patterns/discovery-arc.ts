@@ -311,7 +311,7 @@ export function getInitialRevealIndex(arc: DiscoveryArc): number {
 /**
  * Deterministic CTA copy.
  * - Done on the final phase
- * - “Show the pattern” when leaving quotes (reveals the rest of the arc)
+ * - “What's the pattern here?” when leaving quotes (reveals the rest of the arc)
  * - Continue for any other mid-arc advance
  */
 export function discoveryContinueLabel(
@@ -320,7 +320,7 @@ export function discoveryContinueLabel(
 ): string {
   if (currentIndex >= arc.phases.length - 1) return "Done";
   const current = arc.phases[currentIndex];
-  if (current === "evidence") return "Show the pattern";
+  if (current === "evidence") return "What's the pattern here?";
   return "Continue";
 }
 

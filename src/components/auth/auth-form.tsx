@@ -934,7 +934,11 @@ export function AuthForm() {
                 />
                 <span className="pt-0.5">
                   I have read and agree to the{" "}
-                  <Link href="/terms" target="_blank" rel="noreferrer">
+                  <Link
+                    href="/terms-and-conditions"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
                     Terms and Conditions
                   </Link>{" "}
                   and{" "}

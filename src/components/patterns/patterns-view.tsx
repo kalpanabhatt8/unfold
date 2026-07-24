@@ -13,7 +13,7 @@ import {
   formatPatternTimeline,
   patternTimelineEnd,
 } from "@/lib/patterns/time-hint";
-import { formatRelatedPatternsLine } from "@/lib/patterns/overlap-policy";
+// import { formatRelatedPatternsLine } from "@/lib/patterns/overlap-policy";
 import { isPatternFullyReady } from "@/lib/patterns/pattern-readiness";
 import { PATTERN_DISPLAY_UPDATED_EVENT } from "@/lib/patterns/pattern-display-store";
 import { PATTERN_PASSAGE_UPDATED_EVENT } from "@/lib/patterns/passage-store";
@@ -31,7 +31,7 @@ import {
 import "@/lib/patterns/passage-debug";
 
 const formatEntryCount = (count: number): string =>
-  count === 1 ? "1 entry" : `${count} entries`;
+  count === 1 ? "Spotted in 1 moment" : `Spotted in ${count} moments`;
 
 export type PatternsViewProps = {
   /** Prefill expansion (e.g. legacy `/patterns/[name]` deep link). */
@@ -169,8 +169,7 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
             </button>
           ) : null}
           <h1
-            className="header-lg font-medium tracking-tight text-(--sidebar-active-ink)"
-            style={{ fontFamily: "var(--font-heading)" }}
+            className="header-md tracking-tight"
           >
             Patterns
           </h1>
@@ -192,9 +191,9 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
             const entryLabel = formatEntryCount(entryCount);
             const timeline = formatPatternTimeline(pattern.evidence);
             const factLine = [timeline, entryLabel].filter(Boolean).join(" · ");
-            const relatedLine = formatRelatedPatternsLine(
-              pattern.relatedPatterns ?? [],
-            );
+            // const relatedLine = formatRelatedPatternsLine(
+            //   pattern.relatedPatterns ?? [],
+            // );
 
             return (
               <li
@@ -214,7 +213,7 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
                     isOpen ? `pattern-expanded-panel-${pattern.name}` : undefined
                   }
                   aria-label={
-                    [title, factLine, relatedLine].filter(Boolean).join(", ")
+                    [title, factLine].filter(Boolean).join(", ")
                   }
                   id={`pattern-expanded-${pattern.name}`}
                   onClick={() =>
@@ -232,11 +231,11 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
                         {factLine}
                       </span>
                     ) : null}
-                    {relatedLine ? (
+                    {/* {relatedLine ? (
                       <span className="pattern-accordion__row-related">
                         {relatedLine}
                       </span>
-                    ) : null}
+                    ) : null} */}
                   </span>
                   <span
                     className={`pattern-accordion__row-chevron shrink-0 ${btnIconChrome("xs")}`}

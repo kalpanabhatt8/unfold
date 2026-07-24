@@ -5,6 +5,9 @@
  * - Evidence quotes are "islands" shown verbatim in the UI; the Loop names
  *   generic bridges (the recurring shape), never a montage of quote incidents.
  * - Programmatic guard: validation.ts → stitchesIncidents (incident_stitch).
+ * - Form variety: mechanism beat count/length and reflection openings must
+ *   vary across patterns — never default to a fixed 3-beat / "When…" template.
+ *   Content rules (neutral, mechanism-level, non-verdict) stay unchanged.
  */
 
 import type { SlotGenerationInput } from "@/lib/ai/pattern-slots/input";
@@ -22,16 +25,24 @@ const describeSlot = (
   if (slot.role === "reflection") {
     return `Slot ${slot.index} (reflection): ONE observational wondering question about the pattern's shape (≤${SLOT_MAX_QUESTION_CHARS} chars), must end with "?". Pure curiosity about what is already happening — never suggest an action, alternative, or that the user should notice/stop/change anything. No advice, no conclusions, no therapy.
 
+Variety (form only — content rules unchanged):
+- Vary the grammatical opening. Do NOT default to "When X, what usually happens / comes next / signals Y?"
+- Prefer a different opener than a fixed house style: Where…, What part…, How often…, Which…, Once…, After…, Does…, Is there a moment when…, At what point…
+- "When…" is allowed occasionally when it fits, but it must not be the default opener across patterns
+- Stay observational and neutral — variety is syntax, not advice or verdict
+
 REJECT (corrective / suggests a different behavior, or presumes a negative outcome the journal never stated):
 - "What would it feel like to leave it unopened for an hour?"
 - "What would it look like to notice the shift before dismissing what comes next?"
 - "What if you waited before checking again?"
 - "How quickly does the worst version arrive once the first doubt appears?"
 
-ACCEPT (observational / curious about the pattern itself — no change implied, no presumed downside):
+ACCEPT (observational / curious about the pattern itself — no change implied, no presumed downside; openings deliberately varied):
 - "Where does the pull to check show up most sharply in a day like this?"
 - "What part of the loop feels most familiar when it starts again?"
-- "When the first doubt shows up, what usually happens next in the loop?"`;
+- "Once the first doubt shows up, what tends to follow in the loop?"
+- "Does the shift arrive before the checking, or after?"
+- "At what point does the original task start waiting again?"`;
   }
   if (slot.role === "mechanism") {
     return `Slot ${slot.index} (Loop / mechanism): Build BRIDGES between evidence islands — name the recurring shape of how the user kept arriving here, not a montage of separate entry incidents.
@@ -40,7 +51,12 @@ The numbered evidence quotes are already shown to the user as Moments from diffe
 
 Think: Evidence = islands (already visible). Loop = one abstracted chain that could apply across many of those moments.
 
-Write ${SLOT_MIN_MECHANISM_SENTENCES}–${SLOT_MAX_MECHANISM_SENTENCES} short sentences (≤${SLOT_MAX_MECHANISM_CHARS} chars total). Each sentence is one step in the recurring shape; cause should lead to effect; one step should naturally lead to the next. Simple, conversational, human. No "You…".
+Write ${SLOT_MIN_MECHANISM_SENTENCES}–${SLOT_MAX_MECHANISM_SENTENCES} sentences (≤${SLOT_MAX_MECHANISM_CHARS} chars total). Each sentence is one step in the recurring shape; one step should naturally lead to the next. Simple, conversational, human. No "You…".
+
+Variety (form only — content rules unchanged):
+- Choose ${SLOT_MIN_MECHANISM_SENTENCES}, 3, or ${SLOT_MAX_MECHANISM_SENTENCES} beats to fit THIS loop — do NOT default to exactly 3 every time
+- Vary sentence length — mix a short punchy beat with a longer one; avoid three evenly clipped declaratives of similar length
+- Still mechanism-level and neutral: name how arrival keeps happening, never a verdict about the person
 
 The only question to answer: "How did the user keep arriving here?"
 It should feel like naming a familiar pattern, not replaying a highlight reel of their journal — and never like coaching them out of it.
@@ -49,7 +65,7 @@ Compressed / telegraphic style is fine (dropping "I"/"you" is ok), but every sen
 
 Do:
 - Describe the recurring loop in generic terms (roles, pressures, hesitations — not quote-specific objects)
-- Show cause → effect inside that shape
+- Show how one step leads into the next inside that shape
 - Stop before conclusions or judgments
 - Stay grounded in what the evidence shows, without naming each incident
 
@@ -61,6 +77,7 @@ Do NOT:
 - Explain what the behavior means
 - Diagnose, advise, or moralize
 - Append citation brackets or quote numbers in the text (e.g. "[1,2,3]")
+- Write every loop as three equal-length beats (that reads as a fixed template)
 
 REJECT — incident_stitch (stitches separate entry incidents into a fake causal sequence):
 - "Saw someone's number posted. Saw a feature shipped. Saw a week away become a year's measure."
@@ -75,11 +92,11 @@ REJECT (corrective / judgmental):
 - "The gap between 'stupid' and 'fixed three bugs' stays unexamined."
 - "Opening and checking repeated across hours [1,2,3,4,5,6]"
 
-ACCEPT (generic abstracted loop shape — one recurring pattern, not a montage):
-- "Someone asked for help or time. Saying no felt harder than it should. The yes came out instead."
-- "Learning started feeling safer than beginning."
-- "The work felt too big to begin. Something smaller felt easier. That became something else. By the end of the day, the original task was still waiting."
-- "A message sat unopened. Checking filled the gaps. The thread stayed unread."`;
+ACCEPT (generic abstracted loop shape — one recurring pattern, not a montage; beat count and length deliberately varied):
+- 2 beats, uneven length: "A message sat unopened. Checking filled every gap until the thread was still unread."
+- 3 beats: "Someone asked for help or time. Saying no felt harder than it should. The yes came out instead."
+- 4 beats, last longer: "The work felt too big to begin. Something smaller felt easier. That became something else. By the end of the day, the original task was still waiting."
+- 2 beats, short: "Learning started feeling safer than shipping. The start stayed postponed."`;
   }
   return `Slot ${slot.index}: ONE terse line (≤${SLOT_MAX_LINE_WORDS} words).`;
 };
@@ -114,7 +131,9 @@ Rules:
 - For mechanism slots: describe the generic recurring loop shape — NOT a montage of quote-specific incidents from separate entries
 - For mechanism slots: do NOT restate concrete actions, objects, or phrases from individual quotes as sequential steps
 - For mechanism slots: compressed phrasing is fine, but every sentence must still be a complete grammatical clause
+- For mechanism slots: vary beat count (${SLOT_MIN_MECHANISM_SENTENCES}–${SLOT_MAX_MECHANISM_SENTENCES}, not always 3) and sentence length — avoid a fixed equal-beat template
 - For recognition/reflection: NEVER paraphrase or echo the user's quote text
+- For reflection: vary the grammatical opening — do not default to "When X, what usually happens/comes next/signals Y?"
 - No advice, no therapy voice, no pattern names, no diagnoses
 - No invented emotions or psychology; no explaining what the behavior means
 - No motive-based phrasing ("because you", "trying to", "permission to")
@@ -125,7 +144,7 @@ Rules:
 - Never include raw citation brackets or quote-index lists in visible text
 - Reflection slots MUST end with "?"
 - Mechanism slots must NOT end with "?" and must NOT start with "You"
-- Mechanism slots must show cause → effect inside the recurring shape; stop before conclusions or judgments
+- Mechanism slots must show how one step leads into the next inside the recurring shape; stop before conclusions or judgments
 - Never use em dashes (—) or en dashes (–) in mechanism or question text; use a comma or period instead
 
 Return ONLY valid JSON:

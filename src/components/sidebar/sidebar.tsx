@@ -333,8 +333,7 @@ export function Sidebar() {
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <SidebarAccountMenu />
           <p
-            className="min-w-0 flex-1 truncate text-[1rem] font-bold leading-tight tracking-tight text-(--canvas-title-ink)"
-            style={{ fontFamily: "var(--font-heading)" }}
+            className="header-sm min-w-0 flex-1 truncate leading-tight tracking-tight"
           >
             {displayName ? `${displayName}\u2019s ` : ""}Unfold
           </p>

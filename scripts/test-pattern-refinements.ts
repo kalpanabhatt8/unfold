@@ -228,8 +228,8 @@ console.log("closing label stays Done");
     discoveryContinueLabel(arc, 3) === "Done",
   );
   assert(
-    "leaving quotes for AI uses Show the pattern",
-    discoveryContinueLabel(arc, 1) === "Show the pattern",
+    "leaving quotes for AI uses What's the pattern here?",
+    discoveryContinueLabel(arc, 1) === "What's the pattern here?",
   );
   assert(
     "mechanism → reflection stays Continue",

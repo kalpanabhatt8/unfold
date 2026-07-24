@@ -38,19 +38,6 @@
   text-align: center;
 }
 
-.auth-brand {
-  font-size: 1.125rem;
-  font-weight: 500;
-  letter-spacing: 0.02em;
-  color: var(--auth-ink);
-  text-decoration: none;
-  opacity: 0.9;
-}
-
-.auth-brand:hover {
-  opacity: 1;
-}
-
 .auth-card {
   width: 100%;
   max-width: 22rem;
@@ -96,11 +83,11 @@
 .auth-title {
   margin: 0;
   font-family: var(--font-heading);
-  font-size: 1.35rem;
+  font-size: var(--text-xl); /* header-lg — 24 */
   font-weight: 600;
-  letter-spacing: -0.02em;
-  color: var(--auth-ink);
-  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  line-height: var(--text-xl--line-height);
 }
 
 .auth-subtitle {
@@ -505,17 +492,35 @@
   margin-top: 0.75rem;
 }
 
-.legal-doc {
+/* Legal pages share auth-shell / auth-card — card UI, slightly below top, no page scroll */
+.auth-shell:has(.auth-card.legal-doc) {
+  justify-content: flex-start;
+  overflow: hidden;
+  max-height: 100svh;
+  padding: max(10vh, calc(env(safe-area-inset-top) + 1.25rem)) 1.25rem
+    max(1.25rem, env(safe-area-inset-bottom));
+}
+
+.auth-card.legal-doc {
   display: flex;
   flex-direction: column;
+  width: 100%;
   max-width: 40rem;
-  max-height: min(82svh, 44rem);
+  /* Fit remaining viewport under top/bottom padding so only the doc scrolls */
+  max-height: min(44rem, calc(100svh - 6vh - 2.5rem - env(safe-area-inset-top) - env(safe-area-inset-bottom)));
+  margin-inline: auto;
   overflow: hidden;
   text-align: left;
   padding: 0;
+  background: var(--app-bg);
+  border: 1px solid var(--auth-line);
+  border-radius: calc(var(--radius-md) + 4px);
+  box-shadow:
+    0 1px 0 color-mix(in srgb, var(--auth-ink) 4%, transparent),
+    0 18px 40px -22px color-mix(in srgb, var(--auth-ink) 14%, transparent);
 }
 
-.legal-doc .auth-title {
+.auth-card.legal-doc .auth-title {
   text-align: left;
   margin-top: 0;
 }
@@ -531,15 +536,6 @@
 
 .legal-doc__brand {
   flex-shrink: 0;
-  font-size: 1.05rem;
-  font-weight: 500;
-  letter-spacing: 0.04em;
-  color: var(--auth-ink);
-  text-decoration: none;
-}
-
-.legal-doc__brand:hover {
-  opacity: 0.82;
 }
 
 .legal-doc__switch {
@@ -633,10 +629,10 @@
 
 .legal-doc__body h2 {
   margin: 0.75rem 0 0;
-  font-family: var(--font-heading);
+  font-family: var(--font-body);
   font-size: 0.95rem;
   font-weight: 600;
-  color: var(--auth-ink);
+  color: var(--text-primary);
 }
 
 .legal-doc__body h3 {

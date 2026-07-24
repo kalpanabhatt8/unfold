@@ -169,16 +169,6 @@ html:has(.lp-live)::-webkit-scrollbar-button {
   pointer-events: none;
 }
 
-.lp-live__brand {
-  font-family: var(--font-heading);
-  font-size: 1.125rem;
-  font-weight: 600;
-  line-height: 1.25;
-  letter-spacing: -0.01em;
-  color: var(--canvas-title-ink);
-  text-decoration: none;
-}
-
 .lp-live__nav-actions {
   display: flex;
   align-items: center;
@@ -428,10 +418,11 @@ html:has(.lp-live)::-webkit-scrollbar-button {
   white-space: nowrap;
   font-family: var(--font-heading);
   font-size: 1rem;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.25;
   letter-spacing: -0.01em;
-  color: var(--canvas-title-ink);
+  /* Landing mock only — real sidebar uses text-primary */
+  color: var(--accent);
 }
 
 .lp-live__sidebar-icon-btn {
@@ -781,7 +772,7 @@ html:has(.lp-live)::-webkit-scrollbar-button {
   background: var(--canvas-bg-gradient);
 }
 
-/* Match CanvasHeader layout + header-lg / sealed stamp typography */
+/* Match CanvasHeader layout + header-md / sealed stamp typography */
 .lp-live__journal-head {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -800,11 +791,11 @@ html:has(.lp-live)::-webkit-scrollbar-button {
 .lp-live__journal-title {
   margin: 0;
   min-width: 0;
-  /* header-lg already sets size; keep product color + weight */
+  /* header-md already sets size; landing-only heading accent */
   font-family: var(--font-heading);
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: -0.01em;
-  color: var(--canvas-title-ink);
+  color: var(--accent);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1043,11 +1034,11 @@ html:has(.lp-live)::-webkit-scrollbar-button {
 
 .lp-live__pattern-title {
   margin: 0;
-  /* Size from .header-lg — same as canvas "Maybe Tomorrow" */
+  /* Size from .header-md — same as canvas title */
   font-family: var(--font-heading);
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: -0.01em;
-  color: var(--canvas-title-ink);
+  color: var(--accent);
 }
 
 .lp-live__loops {
@@ -1067,9 +1058,9 @@ html:has(.lp-live)::-webkit-scrollbar-button {
 .lp-live__pattern-question {
   margin: 0;
   font-family: var(--font-heading);
-  font-weight: 500;
+  font-weight: 600;
   letter-spacing: -0.01em;
-  color: var(--canvas-title-ink);
+  color: var(--accent);
   text-wrap: balance;
   white-space: normal;
 }
