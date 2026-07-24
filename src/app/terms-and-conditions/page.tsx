@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { LegalShell } from "@/components/legal/legal-shell";
 
 export const metadata: Metadata = {
-  title: "Terms and Conditions — Unfold",
+  title: "Terms and Conditions - Unfold",
   description: "Terms for using Unfold, a private journaling and pattern space.",
 };
 
@@ -10,7 +10,7 @@ export default function TermsPage() {
   return (
     <LegalShell title="Terms and Conditions" active="terms">
       <p>
-        These Terms and Conditions (“Terms”) govern your use of Unfold — a private
+        These Terms and Conditions (“Terms”) govern your use of Unfold, a private
         journaling product that helps you write, seal entries, and notice
         patterns in your own writing. By creating an account or using Unfold,
         you agree to these Terms.
@@ -36,7 +36,7 @@ export default function TermsPage() {
         You own the writing, images, captions, and other materials you create in
         Unfold (“Your Content”). You grant us a limited license to store, sync,
         display, and process Your Content only as needed to operate Unfold for
-        you — including backups, sync across devices, and optional AI features
+        you, including backups, sync across devices, and optional AI features
         described in our Privacy Policy.
       </p>
       <p>
@@ -49,7 +49,7 @@ export default function TermsPage() {
         When you write and sync, Your Content is stored in our database under
         your account. Images you attach may be stored with our file host. If you
         use pattern and analysis features, excerpts of your writing may be sent
-        to our AI provider to generate titles, topics, patterns, and summaries —
+        to our AI provider to generate titles, topics, patterns, and summaries,
         as described in the Privacy Policy.
       </p>
 
@@ -64,7 +64,7 @@ export default function TermsPage() {
       <p>
         We may update, pause, or discontinue features. We try to keep Unfold
         reliable, but we do not guarantee uninterrupted access. We are not
-        liable for lost content beyond what applicable law requires — please keep
+        liable for lost content beyond what applicable law requires. Please keep
         your own copies of important writing if that matters to you.
       </p>
 

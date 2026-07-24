@@ -3,7 +3,7 @@ import Link from "next/link";
 import { LegalShell } from "@/components/legal/legal-shell";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — Unfold",
+  title: "Privacy Policy - Unfold",
   description:
     "How Unfold collects, stores, and uses your journal data and account information.",
 };
@@ -14,7 +14,7 @@ export default function PrivacyPage() {
       <p>
         This Privacy Policy explains what information Unfold collects, how we
         use it, and who helps us process it. Unfold is built for private
-        writing — this document matches how the product works today.
+        writing. This document matches how the product works today.
       </p>
 
       <h2>1. Who we are</h2>
@@ -28,8 +28,8 @@ export default function PrivacyPage() {
       <h3>Account information</h3>
       <p>
         When you sign up or sign in, our authentication provider (Clerk) may
-        collect your email address, password (stored by Clerk), username, and —
-        if you use Google — profile details Google shares for sign-in (such as
+        collect your email address, password (stored by Clerk), username, and
+        (if you use Google) profile details Google shares for sign-in (such as
         name and email). We store your Clerk user id in our database so your
         journal data stays tied to your account. We do not copy your password
         into our database.
@@ -80,8 +80,8 @@ export default function PrivacyPage() {
 
       <h2>4. How AI uses your writing</h2>
       <p>
-        Some features send limited portions of your journal text — or short quotes
-        already extracted from it — to Anthropic’s Claude API to generate
+        Some features send limited portions of your journal text, or short quotes
+        already extracted from it, to Anthropic’s Claude API to generate
         titles, patterns, and summaries. Prompts treat the text as a private
         journal. We send what the feature needs (not your entire account history
         in one request), subject to size limits in the product.
@@ -98,22 +98,22 @@ export default function PrivacyPage() {
       </p>
       <ul>
         <li>
-          <strong>Clerk</strong> — authentication, sessions, and account
+          <strong>Clerk</strong>: authentication, sessions, and account
           credentials
         </li>
         <li>
-          <strong>Our database host (PostgreSQL)</strong> — storing your entries,
+          <strong>Our database host (PostgreSQL)</strong>: storing your entries,
           pattern data, and attachment metadata, scoped to your account
         </li>
         <li>
-          <strong>Vercel Blob</strong> — hosting attached image files
+          <strong>Vercel Blob</strong>: hosting attached image files
         </li>
         <li>
-          <strong>Anthropic</strong> — AI inference on text/quotes you trigger
+          <strong>Anthropic</strong>: AI inference on text/quotes you trigger
           through product features
         </li>
         <li>
-          <strong>Google</strong> — only if you choose Google sign-in (via Clerk),
+          <strong>Google</strong>: only if you choose Google sign-in (via Clerk),
           and for fonts loaded by the app
         </li>
       </ul>

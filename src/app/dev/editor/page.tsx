@@ -15,7 +15,7 @@ export default function EditorDevPage() {
   );
   const editorRef = useRef<JournalTiptapEditorHandle>(null);
 
-  // TipTap with immediatelyRender requires a browser document — skip SSR.
+  // TipTap with immediatelyRender requires a browser document - skip SSR.
   useEffect(() => {
     setMounted(true);
   }, []);

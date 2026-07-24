@@ -8,7 +8,7 @@ export const FEEDBACK_CATEGORIES = [
 
 export type FeedbackCategoryId = (typeof FEEDBACK_CATEGORIES)[number]["id"];
 
-/** Alias for modal chip picker — same ids as FEEDBACK_CATEGORIES. */
+/** Alias for modal chip picker - same ids as FEEDBACK_CATEGORIES. */
 export type FeedbackChipId = FeedbackCategoryId;
 
 export const FEEDBACK_CHIPS = FEEDBACK_CATEGORIES;

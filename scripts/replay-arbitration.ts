@@ -3,7 +3,7 @@
  *
  *   npx tsx scripts/replay-arbitration.ts
  *
- * Zero Claude API calls — reads stored `entry_analyses` straight from the DB,
+ * Zero Claude API calls - reads stored `entry_analyses` straight from the DB,
  * replays `reconcilePatterns` (src/lib/patterns/arbitration.ts), and reports:
  *   - every analysis whose PRIMARY pattern changes or whose set shrinks
  *   - before/after agreement vs the provisional oracle labels
@@ -26,7 +26,7 @@ import { isPatternName, type PatternName } from "../src/lib/patterns/vocabulary"
 import type { PatternMatch } from "../src/lib/patterns/types";
 
 /**
- * Provisional oracle — mirrors scripts/audit-extraction-labels.ts LABELS.
+ * Provisional oracle - mirrors scripts/audit-extraction-labels.ts LABELS.
  * Inlined so this harness never imports that script (which fires a live
  * extraction on load). Update both together if the ground truth is revised.
  */
@@ -113,7 +113,7 @@ async function main() {
 
     console.log("\n" + rule);
     console.log(
-      `ARBITRATION REPLAY — ${analyses.length} stored analyses, zero API calls`,
+      `ARBITRATION REPLAY - ${analyses.length} stored analyses, zero API calls`,
     );
     console.log(rule);
     console.log(`analyses touched by a rule: ${totalChanged}`);

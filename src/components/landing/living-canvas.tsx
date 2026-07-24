@@ -34,7 +34,7 @@ function stage(p: number, start: number, end: number) {
   return clamp((p - start) / (end - start));
 }
 
-/** Same stamp format as canvas header — e.g. "14 July 2026, 08:12". */
+/** Same stamp format as canvas header - e.g. "14 July 2026, 08:12". */
 function formatVisitStamp(ts: number): { date: string; time: string } {
   const d = new Date(ts);
   const day = d.getDate();
@@ -48,7 +48,7 @@ function formatVisitStamp(ts: number): { date: string; time: string } {
   return { date: `${day} ${month} ${year}`, time };
 }
 
-/** Sealed header — e.g. "🪷 Sealed · 14 Jul 2026". */
+/** Sealed header - e.g. "🪷 Sealed · 14 Jul 2026". */
 function formatSealedStamp(ts: number): string {
   const d = new Date(ts);
   const day = d.getDate();
@@ -187,7 +187,7 @@ export function LivingCanvas() {
       if (!el) return;
       const total = el.offsetHeight - window.innerHeight;
       const maxScroll = Math.max(total, 0);
-      // Don't allow scrolling past the story end — that used to unstick the
+      // Don't allow scrolling past the story end - that used to unstick the
       // canvas and leave white body visible below a frame parked too high.
       if (window.scrollY > maxScroll) {
         window.scrollTo(0, maxScroll);
@@ -335,7 +335,7 @@ export function LivingCanvas() {
           {/*
             Pink blur lives in its OWN oversized box (sibling of the card).
             filter:blur is always clipped to its transformed ancestor’s border
-            box — when that box was the card, moving the card down exposed a
+            box - when that box was the card, moving the card down exposed a
             hard cut under the header. This bloom box is larger so the cut
             (if any) sits outside the soft falloff.
           */}
@@ -350,7 +350,7 @@ export function LivingCanvas() {
             aria-hidden
           >
             <div className="lp-live__canvas-aura">
-              {/* Pre-blurred Figma asset — Safari paints large CSS filter:blur much weaker than Chrome */}
+              {/* Pre-blurred Figma asset - Safari paints large CSS filter:blur much weaker than Chrome */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 className="lp-live__canvas-aura-shape"
@@ -390,7 +390,7 @@ export function LivingCanvas() {
             <div className="lp-live__frame">
               <div className="lp-live__desktop" data-interactive={interactive}>
               <aside className="lp-live__sidebar">
-                {/* Soft bottom wash behind Patterns — matches real dashboard sidebar. */}
+                {/* Soft bottom wash behind Patterns - matches real dashboard sidebar. */}
                 <div className="lp-live__sidebar-wash" aria-hidden />
 
                 <div className="lp-live__sidebar-top">
@@ -501,7 +501,7 @@ export function LivingCanvas() {
                         })}
                       </ul>
                     </nav>
-                    {/* Soft fade — not a hard divider (real sidebar pattern). */}
+                    {/* Soft fade - not a hard divider (real sidebar pattern). */}
                     <div className="lp-live__sidebar-fade" aria-hidden />
                   </div>
                 </section>

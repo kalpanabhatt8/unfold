@@ -452,7 +452,7 @@ function AccountPanelView() {
                 value={name}
                 onSave={async (next) => {
                   // Name attrs aren't enabled on this Clerk instance for client
-                  // updates — store preferred name in writable unsafeMetadata.
+                  // updates - store preferred name in writable unsafeMetadata.
                   await user.update({
                     unsafeMetadata: preferredNameMetadata(
                       user.unsafeMetadata,

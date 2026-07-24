@@ -1,5 +1,5 @@
 /**
- * Unfold — longitudinal state for living patterns.
+ * Unfold - longitudinal state for living patterns.
  *
  * One record per pattern name, in its own localStorage namespace
  * (`unfold-pattern-state`). This is the planner's *memory*: the lifecycle stage
@@ -14,7 +14,7 @@
  *
  * Persistence is thin; all state transitions are pure functions with an
  * injected `now`, so the classifier and planner can be unit-tested without a
- * DOM. This module is the only place that touches the store — swap it for a
+ * DOM. This module is the only place that touches the store - swap it for a
  * server-backed repository later without changing callers.
  */
 
@@ -27,7 +27,7 @@ export const PATTERN_STATE_STORAGE_KEY = "unfold-pattern-state";
 const SIGNATURE_MEMORY = 3;
 
 /**
- * A pattern's stage of life. `resting` means "no new evidence to judge by" —
+ * A pattern's stage of life. `resting` means "no new evidence to judge by" -
  * we never imply the user changed without data; it is distinct from
  * `weakening`, which is a genuine, data-backed decline while journaling
  * continues.
@@ -46,12 +46,12 @@ export type EndingKind = "none" | "line" | "question" | "quote";
 export type PatternState = {
   name: PatternName;
   lifecycle: Lifecycle;
-  /** When we entered the current lifecycle (epoch ms) — powers hysteresis. */
+  /** When we entered the current lifecycle (epoch ms) - powers hysteresis. */
   lifecycleSince: number;
   /** Most-recent-last, capped at SIGNATURE_MEMORY. */
   recentSignatures: string[];
   lastEndingKind: EndingKind;
-  /** Advances only when `evidenceKey` changes — the regeneration trigger. */
+  /** Advances only when `evidenceKey` changes - the regeneration trigger. */
   planEpoch: number;
   /** Fingerprint of the evidence set the current plan was built from. */
   evidenceKey: string;
@@ -124,7 +124,7 @@ export const withLifecycle = (
 
 /**
  * Register the current evidence fingerprint. Advances `planEpoch` only when
- * the fingerprint changed — this is the "regenerate only when evidence
+ * the fingerprint changed - this is the "regenerate only when evidence
  * changes" trigger. Returns the (possibly unchanged) state plus a `changed`
  * flag callers use to decide whether to re-plan.
  */
@@ -173,7 +173,7 @@ const readAll = (): Record<string, PatternState> => {
     const parsed = JSON.parse(raw);
     if (!isRecord(parsed)) return {};
     // Defensively drop malformed / orphaned records rather than trusting the
-    // blob — a bad PatternState would corrupt lifecycle and repetition logic.
+    // blob - a bad PatternState would corrupt lifecycle and repetition logic.
     const clean: Record<string, PatternState> = {};
     for (const [key, value] of Object.entries(parsed)) {
       if (isValidState(value) && value.name === key) clean[key] = value;
@@ -212,7 +212,7 @@ export const putState = (state: PatternState): void => {
 
 /**
  * Remove a pattern's state. NOT used when a pattern merely disappears from the
- * surface — that history is what lets us detect a later return. Intended for
+ * surface - that history is what lets us detect a later return. Intended for
  * explicit resets / tests only.
  */
 export const deleteState = (name: PatternName): void => {

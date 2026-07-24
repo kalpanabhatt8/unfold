@@ -66,7 +66,7 @@ type PatternStats = {
 };
 
 const pct = (n: number, d: number): string =>
-  d === 0 ? "—" : `${Math.round((n / d) * 100)}%`;
+  d === 0 ? "-" : `${Math.round((n / d) * 100)}%`;
 
 const pad = (s: string, width: number, align: "left" | "right" = "left"): string => {
   if (s.length >= width) return s;
@@ -75,7 +75,7 @@ const pad = (s: string, width: number, align: "left" | "right" = "left"): string
 };
 
 const formatReasons = (reasons: Map<string, number>): string => {
-  if (reasons.size === 0) return "—";
+  if (reasons.size === 0) return "-";
   const parts = [...reasons.entries()]
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
     .map(([reason, count]) => `${reason}×${count}`);
@@ -137,7 +137,7 @@ async function main() {
         attributedReasons += 1;
         let stats = byPattern.get(parsed.patternName);
         if (!stats) {
-          // Reason without a matching vote row — still surface the pattern.
+          // Reason without a matching vote row - still surface the pattern.
           stats = {
             patternName: parsed.patternName,
             total: 0,

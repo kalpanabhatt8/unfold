@@ -1,5 +1,5 @@
 /**
- * Unfold — read a completed entry's plain text for analysis.
+ * Unfold - read a completed entry's plain text for analysis.
  *
  * Prefers the canvas board snapshot (`unfold-board-{id}`, read as inert JSON so
  * we never touch the canvas runtime), falling back to the entry's cached
@@ -46,7 +46,7 @@ export function countWords(text: string): number {
   return trimmed.split(/\s+/).filter(Boolean).length;
 }
 
-/** An entry's full plain text — snapshot first, cached `searchText` fallback. */
+/** An entry's full plain text - snapshot first, cached `searchText` fallback. */
 export function readEntryText(entryId: string): string {
   if (typeof window !== "undefined") {
     try {

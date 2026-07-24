@@ -1,6 +1,6 @@
 /**
  * Server-side auth helpers. Every data route resolves the Clerk userId here;
- * all queries are scoped to it — there is no cross-user data path.
+ * all queries are scoped to it - there is no cross-user data path.
  */
 
 import { auth } from "@clerk/nextjs/server";
@@ -42,7 +42,7 @@ const ensureUserRow = async (userId: string): Promise<void> => {
 
 /**
  * Ensure the users row exists (first write from a new account creates it)
- * and return the userId. Throws when unauthenticated — middleware should
+ * and return the userId. Throws when unauthenticated - middleware should
  * have rejected the request already, so this is a backstop.
  */
 export const requireUser = async (): Promise<string> => {

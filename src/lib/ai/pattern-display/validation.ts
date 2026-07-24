@@ -27,7 +27,7 @@ const TENSION_SIGNALS =
   /\b(why|what|how|still|not|never|until|almost|left|waiting|waited|stopped|didn't|won't|yet|again|here|tomorrow|easier|end|ended|moved|done|changed|last|important|unfinished)\b/i;
 
 /**
- * Timing / process framing — titles that name a moment or mechanism, not a
+ * Timing / process framing - titles that name a moment or mechanism, not a
  * settled trait. Presence exempts absolute-quantifier and flat-verdict checks.
  */
 const PROCESS_TIMING_WORDS =
@@ -38,7 +38,7 @@ const ABSOLUTE_QUANTIFIER =
   /\b(can'?t|cannot|never|always|no (?:discipline|trust|confidence))\b/i;
 
 /**
- * Absolute quantifier near a verb — "Can't Just Say…", "Never Finishes…",
+ * Absolute quantifier near a verb - "Can't Just Say…", "Never Finishes…",
  * "Always Needs…", "No Discipline Left".
  */
 const ABSOLUTE_PLUS_VERB =
@@ -46,7 +46,7 @@ const ABSOLUTE_PLUS_VERB =
 
 /**
  * Short declarative with a personal subject stating an outcome as fact
- * ("They Chose Wrong", "I'm Not Good At This") — not a process noun phrase.
+ * ("They Chose Wrong", "I'm Not Good At This") - not a process noun phrase.
  */
 const FLAT_VERDICT_SUBJECT =
   /^(?:they|he|she|we|i|i'?m|i'?ve|i'?ll)\s+[a-z']/i;

@@ -1,7 +1,7 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-/* Typography scale — 2xs/xs/sm/md = body text, lg/xl = header md/lg (20/24) */
+/* Typography scale - 2xs/xs/sm/md = body text, lg/xl = header md/lg (20/24) */
 @theme inline {
   --font-sans: var(--font-figtree), system-ui, sans-serif;
 
@@ -22,7 +22,7 @@
      --text-lg: 1.25rem;   /* 20/16 */
      --text-lg--line-height: 1.3;
      
-     --text-xl: 1.5rem;    /* 24/16 — header-lg */
+     --text-xl: 1.5rem;    /* 24/16 - header-lg */
      --text-xl--line-height: 1.25;
 }
 
@@ -33,11 +33,11 @@
   initial-value: 1;
 }
 
-/* Unfold — Minimal calm journal foundation
+/* Unfold - Minimal calm journal foundation
    Light mode only, minimal tokens, minimal component CSS.
 */
 :root {
-  /* Base gray ramp (systematic — keep as-is). Semantic roles follow. */
+  /* Base gray ramp (systematic - keep as-is). Semantic roles follow. */
   --gray-25: #FDFCFC;
   --gray-50: #FBFBFB;
   --gray-75: #F5F5F5;
@@ -117,24 +117,24 @@
    * Prefer these roles; legacy names below are aliases for call-site compat.
    */
 
-  /* 1. ACCENT — CTAs, brand, title ink (one wine) */
+  /* 1. ACCENT - CTAs, brand, title ink (one wine) */
   --accent: #430f24;
   --accent-hover: color-mix(in srgb, var(--accent) 86%, black);
   --accent-active: color-mix(in srgb, var(--accent) 72%, black);
   --accent-foreground: #fff8f2;
 
-  /* 2. SURFACE-CANVAS — main content / page, fully neutral */
+  /* 2. SURFACE-CANVAS - main content / page, fully neutral */
   --surface-canvas: #fcfcfc;
 
-  /* 3. SURFACE-CHROME — sidebar (warm pink), 3 steps only */
+  /* 3. SURFACE-CHROME - sidebar (warm pink), 3 steps only */
   --surface-chrome: #faf8f9;
   --surface-chrome-hover: #f6f3f5;
   --surface-chrome-active: #f0eaed;
 
-  /* 4. SURFACE-RAISED — cards, accordion, writing paper */
+  /* 4. SURFACE-RAISED - cards, accordion, writing paper */
   --surface-raised: #ffffff;
 
-  /* 5. TEXT — primary / secondary / muted (+ disabled for UI state) */
+  /* 5. TEXT - primary / secondary / muted (+ disabled for UI state) */
   --text-primary: #141314;
   --text-secondary: #544e52;
   --text-muted: #928a90;
@@ -217,7 +217,7 @@
   --sidebar-width: 88vw;
 
   /*
-   * Layout containers — use these instead of per-component fixed widths.
+   * Layout containers - use these instead of per-component fixed widths.
    * Full-bleed on phone (`100%`) so `px-4` aligns with the overlay menu;
    * px caps apply on laptop+ where `mx-auto` centers the column.
    */
@@ -246,7 +246,7 @@
   --popup-shadow: var(--shadow);
   --color-focus-ring: var(--gray-900);
 
-  /* Tooltips — darkest primary + soft edge (IconButton hints) */
+  /* Tooltips - darkest primary + soft edge (IconButton hints) */
   --tooltip-bg: var(--accent-active);
   --tooltip-fg: var(--accent-foreground);
   --tooltip-border: color-mix(in srgb, var(--accent-foreground) 14%, transparent);
@@ -275,7 +275,7 @@
   --auth-font-buttons: var(--font-body);
   --auth-font-heading: var(--font-heading);
 
-  /* Typography — body vs heading */
+  /* Typography - body vs heading */
   --font-body: var(--font-figtree), system-ui, -apple-system, "Segoe UI",
     Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
   --font-heading: var(--font-bricolage), system-ui, sans-serif;
@@ -283,7 +283,7 @@
   --stamp-imprint-tilt: -18deg;
 }
 
-/* Sidebar width — scales with viewport; caps on large screens */
+/* Sidebar width - scales with viewport; caps on large screens */
 @media (min-width: 48rem) {
   :root {
     --sidebar-width: 40vw;
@@ -296,7 +296,7 @@
   }
 }
 
-/* Shared tooltip bubble — darkest primary, soft border */
+/* Shared tooltip bubble - darkest primary, soft border */
 .tooltip-bubble,
 .tooltip-bubble-stamp {
   background: var(--tooltip-bg);
@@ -313,7 +313,7 @@
 }
 
 .tooltip-bubble-stamp {
-  /* Grow from the signature's right edge — matches align="end" placement. */
+  /* Grow from the signature's right edge - matches align="end" placement. */
   transform-origin: right bottom;
   transition:
     opacity 180ms ease,
@@ -353,7 +353,7 @@ h6 {
   color: var(--text-primary);
 }
 
-/* Header scale — sm 16 / md 20 / lg 24 (fixed; heading font + weight 600) */
+/* Header scale - sm 16 / md 20 / lg 24 (fixed; heading font + weight 600) */
 .header-sm,
 .header-md,
 .header-lg {
@@ -378,7 +378,7 @@ h6 {
   line-height: var(--text-xl--line-height);
 }
 
-/* Alias — prefer header-lg */
+/* Alias - prefer header-lg */
 .header-xl {
   font-family: var(--font-heading);
   font-weight: 600;
@@ -397,7 +397,7 @@ h6 {
   font-family: var(--font-heading);
 }
 
-/* Shared Unfold logo mark — landing / legal / auth (not sidebar title). */
+/* Shared Unfold logo mark - landing / legal / auth (not sidebar title). */
 .unfold-brand {
   font-family: var(--font-heading);
   font-size: 1.125rem;
@@ -408,7 +408,7 @@ h6 {
   text-decoration: none;
 }
 
-/* Text system — COLOR state helpers (size stays separate: text-xs/sm/md/lg).
+/* Text system - COLOR state helpers (size stays separate: text-xs/sm/md/lg).
    Kept in the components layer so Tailwind utilities (e.g. hover:text-*)
    still override the base state color. */
 @layer components {
@@ -436,7 +436,7 @@ h6 {
     color: var(--text-color-disabled);
   }
 
-  /* Sidebar entry list — thumb flush to the right edge */
+  /* Sidebar entry list - thumb flush to the right edge */
   .sidebar-entries-scroll {
     scrollbar-width: thin;
     scrollbar-color: color-mix(in srgb, var(--sidebar-icon) 45%, transparent)
@@ -500,7 +500,7 @@ h6 {
 button:hover {
   cursor: pointer;
 }
-/* Unfold — Minimal calm journal foundation
+/* Unfold - Minimal calm journal foundation
    Light mode only, minimal tokens, minimal component CSS.
 */
 
@@ -527,7 +527,7 @@ body {
   overflow-x: clip;
 }
 
-/* Thin scrollbars by default — Firefox + WebKit/Chromium.
+/* Thin scrollbars by default - Firefox + WebKit/Chromium.
    Without ::-webkit-scrollbar width, Chromium can fall back to a thick classic bar. */
 * {
   scrollbar-width: thin;
@@ -642,7 +642,7 @@ h6 {
   font-family: var(--auth-font) !important;
 }
 
-/* White form panel — square bottom where Continue ends, flush to footer */
+/* White form panel - square bottom where Continue ends, flush to footer */
 .clerk-card,
 .clerk-main {
   background: var(--auth-card-bg) !important;
@@ -666,7 +666,7 @@ h6 {
   display: none !important;
 }
 
-/* Hide “Secured by Clerk” + orphaned “Secured by” — keep Sign in/up link */
+/* Hide “Secured by Clerk” + orphaned “Secured by” - keep Sign in/up link */
 .clerk-footer-pages,
 .cl-footerPages,
 .clerk-dev-box,
@@ -850,7 +850,7 @@ input[type='number'] {
   transform: none;
 }
 
-/* —— Tiptap journal editor ————————————————————————————————————————— */
+/* -- Tiptap journal editor ----------------------------------------- */
 .journal-tiptap {
   flex: 0 0 auto;
 }
@@ -863,7 +863,7 @@ input[type='number'] {
 
 }
 
-/* Margin — NOT padding — so the gap between lines isn't part of the upper block's click target. */
+/* Margin - NOT padding - so the gap between lines isn't part of the upper block's click target. */
 .journal-tiptap p.journal-block {
   margin: 0 0 1.75em;
   font-weight: 400;
@@ -963,7 +963,7 @@ input[type='number'] {
 }
 
 /* Patterns → Journal: temporary tint on the quoted passage.
-   Hold ~18s, then 5s fade — bg alpha + (on sealed) ink back to sealed.
+   Hold ~18s, then 5s fade - bg alpha + (on sealed) ink back to sealed.
    Must stay in sync with QUOTE_HIGHLIGHT_*_MS in canvas-board.tsx. */
 .journal-tiptap .journal-quote-highlight {
   background-color: color-mix(
@@ -1021,13 +1021,13 @@ input[type='number'] {
   }
 }
 
-/* —— Journal seal — top-left → bottom-right aurora sweep — */
+/* -- Journal seal - top-left → bottom-right aurora sweep - */
 
 [data-writing-zone] {
   --seal-aurora-ms: 1800ms;
   --seal-sealed-opacity: 0.7;
   --seal-sealed-ink: color-mix(in srgb, var(--canvas-ink) 78%, var(--canvas-muted) 22%);
-  /* Final engraved look — baked into the sweep so we never run a second global fade. */
+  /* Final engraved look - baked into the sweep so we never run a second global fade. */
   --seal-sealed-ink-visible: color-mix(
     in srgb,
     var(--seal-sealed-ink) calc(var(--seal-sealed-opacity) * 100%),
@@ -1079,7 +1079,7 @@ input[type='number'] {
   pointer-events: none;
 }
 
-/* Final sealed ink — suppressed while aurora runs (both attrs can be set once
+/* Final sealed ink - suppressed while aurora runs (both attrs can be set once
    the seal commits in the background before the sweep finishes). */
 [data-writing-zone][data-sealed]:not([data-sealing]) .journal-tiptap p.journal-block {
   color: var(--seal-sealed-ink-visible) !important;
@@ -1121,7 +1121,7 @@ input[type='number'] {
   }
 }
 
-/* ── Pattern reflection — reading typography (sidebar palette only) ── */
+/* ── Pattern reflection - reading typography (sidebar palette only) ── */
 .reflection-body {
   font-family: var(--font-lora);
   font-size: 1.0625rem;
@@ -1144,8 +1144,8 @@ input[type='number'] {
   color: color-mix(in srgb, var(--sidebar-ink-soft) 72%, transparent);
 }
 
-/* Evidence — pastel quote cards in a responsive grid.
-   1-col mobile (<640) · 2-col tablet · 3-col desktop — unchanged from prior design. */
+/* Evidence - pastel quote cards in a responsive grid.
+   1-col mobile (<640) · 2-col tablet · 3-col desktop - unchanged from prior design. */
 .evidence-section {
   display: grid;
   grid-template-columns: 1fr;
@@ -1301,20 +1301,20 @@ input[type='number'] {
   }
 }
 
-/* Legacy aliases — peeks / loaders still reference these */
+/* Legacy aliases - peeks / loaders still reference these */
 .evidence-quote-list {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-/* Discovery canvas — evolving guided reflection */
+/* Discovery canvas - evolving guided reflection */
 .discovery-canvas {
   position: relative;
   min-height: 0;
 }
 
-/* Title lives in the scroll stream — scrolls away with prior beats. */
+/* Title lives in the scroll stream - scrolls away with prior beats. */
 .discovery-headline {
   padding-top: 0.15rem;
   padding-bottom: 1.25rem;
@@ -1322,7 +1322,7 @@ input[type='number'] {
   overflow: visible;
 }
 
-/* Content hugs height — page scroll only when real content overflows. */
+/* Content hugs height - page scroll only when real content overflows. */
 .discovery-scroll {
   overflow: visible;
   min-height: 0;
@@ -1342,7 +1342,7 @@ input[type='number'] {
 }
 
 /*
- * Typographic hierarchy — the role of each beat, not just its content:
+ * Typographic hierarchy - the role of each beat, not just its content:
  *   quotes (evidence-card)          = vertical reading list
  *   observation                     = realization, between quote and question
  *   recognition + reflection        = contemplation, the visual focus
@@ -1508,7 +1508,7 @@ input[type='number'] {
 }
 
 /*
- * Unfolding page — each beat is deposited below the last and recedes as
+ * Unfolding page - each beat is deposited below the last and recedes as
  * newer beats arrive. One animation on entry, one eased transition after.
  */
 .discovery-layer {
@@ -1517,7 +1517,7 @@ input[type='number'] {
   scroll-margin-top: 1.25rem;
 }
 
-/* Entry animation — opacity only. Transforms break scroll positioning and
+/* Entry animation - opacity only. Transforms break scroll positioning and
    clip the first line of a newly focused beat. */
 .discovery-layer[data-state="focus"] {
   animation: discovery-reveal 550ms cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -1561,7 +1561,7 @@ input[type='number'] {
 }
 
 
-/* ── Pattern accordion — card rows (0.5rem) / expanded card (0.75rem) ── */
+/* ── Pattern accordion - card rows (0.5rem) / expanded card (0.75rem) ── */
 
 .pattern-accordion {
   --pattern-card-radius-collapsed: 0.875rem;
@@ -1579,7 +1579,7 @@ input[type='number'] {
   gap: 0.65rem;
 }
 
-/* Accordion rows — default clearance; no floating menu on Patterns */
+/* Accordion rows - default clearance; no floating menu on Patterns */
 .pattern-accordion__item {
   display: flex;
   flex-direction: column;
@@ -1593,6 +1593,37 @@ input[type='number'] {
 
 .pattern-accordion__item[data-expanded="true"] {
   border-radius: var(--pattern-card-radius-expanded);
+}
+
+.pattern-accordion__item[data-unread="true"] {
+  background: color-mix(
+    in srgb,
+    var(--journal-quote-highlight) 72%,
+    var(--surface-raised)
+  );
+  border-color: color-mix(
+    in srgb,
+    var(--journal-quote-highlight) 55%,
+    var(--sidebar-border)
+  );
+}
+
+.pattern-accordion__item[data-unread="true"] .pattern-accordion__row:hover {
+  background-color: color-mix(
+    in srgb,
+    var(--journal-quote-highlight) 88%,
+    transparent
+  );
+}
+
+.pattern-accordion__unread-dot {
+  display: inline-block;
+  width: 0.375rem;
+  height: 0.375rem;
+  margin-right: 0.45rem;
+  border-radius: 9999px;
+  background: var(--accent);
+  flex-shrink: 0;
 }
 
 .pattern-accordion__row {
@@ -1654,6 +1685,8 @@ input[type='number'] {
   line-height: 1.35;
   letter-spacing: -0.01em;
   color: var(--sidebar-ink);
+  display: inline-flex;
+  align-items: center;
 }
 
 .pattern-accordion__row-fact {
@@ -1684,9 +1717,9 @@ input[type='number'] {
 }
 
 /*
- * Expanded body — lives inside the same card shell.
+ * Expanded body - lives inside the same card shell.
  * Flex column: quotes scroll in the middle; CTA stays pinned below
- * (not sticky-over-content — that covered quote text on phone).
+ * (not sticky-over-content - that covered quote text on phone).
  */
 .pattern-accordion__panel {
   display: flex;
@@ -1784,7 +1817,7 @@ input[type='number'] {
   padding-top: 0.1em;
 }
 
-/* ── App toast — reuse anywhere; tweak tokens below ── */
+/* ── App toast - reuse anywhere; tweak tokens below ── */
 
 .app-toast {
   --toast-radius: 0.75rem; /* rounded-lg */

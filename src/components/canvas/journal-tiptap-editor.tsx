@@ -37,7 +37,7 @@ export type JournalTiptapEditorHandle = {
     kind: TextBlockKind,
     blockIds?: string[]
   ) => void;
-  /** Live blocks from the TipTap doc — source of truth while editing. */
+  /** Live blocks from the TipTap doc - source of truth while editing. */
   getBlocks: () => JournalTextBlock[];
   getActiveBlockId: () => string | null;
   getSelectionRect: () => DOMRect | null;

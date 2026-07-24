@@ -1,6 +1,6 @@
 /**
  * UI-only: map planner passage slots into progressive reading beats.
- * Does not change passage structure — presentation layer only.
+ * Does not change passage structure - presentation layer only.
  */
 
 import type { PassageSlot } from "@/lib/patterns/passage-types";
@@ -9,7 +9,7 @@ import type { QuoteRef } from "@/lib/patterns/evidence-signals";
 /** Default quotes visible on a moments beat. */
 export const VISIBLE_QUOTE_COUNT = 6;
 
-/** Opening evidence screen — one strong quote; more moments follow on the next card. */
+/** Opening evidence screen - one strong quote; more moments follow on the next card. */
 export const OPENING_QUOTE_COUNT = 1;
 
 /** A later "more moments" evidence card surfaces several quotes at once. */
@@ -84,7 +84,7 @@ export function passageToBeats(
             type: "moments",
             visible,
             overflow,
-            // Evidence stays primary — keep per-quote dates on every
+            // Evidence stays primary - keep per-quote dates on every
             // evidence card so recognition builds from the user's own words.
             showQuoteMeta: true,
           });

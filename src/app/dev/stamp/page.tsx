@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Stamp layout playground — open at /dev/stamp
+ * Stamp layout playground - open at /dev/stamp
  */
 
 import React, { useState } from "react";
@@ -34,7 +34,7 @@ export default function StampDevPage() {
         <header>
           <h1 className="text-xl font-semibold text-[#3a2820]">Stamp preview</h1>
           <p className="mt-1 text-sm text-black/50">
-            Text-only imprint — wraps at word boundaries with equal inset padding.
+            Text-only imprint - wraps at word boundaries with equal inset padding.
           </p>
         </header>
 
@@ -98,7 +98,7 @@ export default function StampDevPage() {
         <section className="rounded-2xl border border-dashed border-black/15 bg-white/40 p-5 text-sm text-black/55">
           <p className="font-medium text-black/70">Layout rules</p>
           <ul className="mt-2 list-inside list-disc space-y-1">
-            <li>One line by default — wraps only if it truly overflows</li>
+            <li>One line by default - wraps only if it truly overflows</li>
             <li>Whole words move to the next line; never split mid-word</li>
             <li>Text box uses full width minus {12}px padding on each side</li>
           </ul>

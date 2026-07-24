@@ -1,5 +1,5 @@
 /**
- * Canonical breakpoints — aligned with Tailwind defaults (sm/md/lg).
+ * Canonical breakpoints - aligned with Tailwind defaults (sm/md/lg).
  * Use these (or Tailwind `sm:` / `md:` / `lg:`) everywhere; avoid one-off fixed units.
  *
  * | Token | rem    | Role                                      |

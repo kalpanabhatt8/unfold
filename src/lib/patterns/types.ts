@@ -1,5 +1,5 @@
 /**
- * Unfold — entry analysis + aggregation types (V1, minimal).
+ * Unfold - entry analysis + aggregation types (V1, minimal).
  */
 
 import type { PatternName } from "@/lib/patterns/vocabulary";
@@ -20,7 +20,7 @@ export type AnalysisPayload = {
 /** What we persist per completed entry (minimal V1 shape). */
 export type EntryAnalysis = {
   entryId: string;
-  /** Fingerprint of the text this analysis was generated from — when the
+  /** Fingerprint of the text this analysis was generated from - when the
    * entry's current hash drifts, the analysis is stale and may re-run. */
   sourceContentHash?: string;
 } & AnalysisPayload;
@@ -28,7 +28,7 @@ export type EntryAnalysis = {
 /** What fired the completion trigger. Wiring-only; not persisted. */
 export type CompletionSource = "seal" | "inactivity";
 
-/** Analysis route response — success carries a payload, failure carries a reason. */
+/** Analysis route response - success carries a payload, failure carries a reason. */
 export type EntryAnalysisFailureReason =
   | "no_api_key"
   | "upstream_error"
@@ -42,17 +42,17 @@ export type EntryAnalysisResult =
 /** One entry's contribution to a surfaced pattern. */
 export type PatternEvidenceItem = {
   entryId: string;
-  /** Canvas stamp title — gives drawer quotes context. */
+  /** Canvas stamp title - gives drawer quotes context. */
   entryTitle: string;
   createdAt: number;
   sealedAt?: number;
-  /** Last content edit — used as the date anchor when the entry is not sealed. */
+  /** Last content edit - used as the date anchor when the entry is not sealed. */
   lastEditedAt?: number;
   quotes: string[];
   confidence: number;
 };
 
-/** Landing-page identity for a surfaced pattern — independent of guided passage. */
+/** Landing-page identity for a surfaced pattern - independent of guided passage. */
 export type PatternDisplay = {
   displayTitle: string;
   summary: string | null;
@@ -60,7 +60,7 @@ export type PatternDisplay = {
   createdAt: number;
 };
 
-/** Folded secondary — retained on the survivor, not deleted from the model. */
+/** Folded secondary - retained on the survivor, not deleted from the model. */
 export type RelatedPatternRef = {
   name: PatternName;
   label: string;
@@ -72,20 +72,20 @@ export type SurfacedPattern = {
   /** Distinct entries exhibiting the pattern. */
   entryCount: number;
   evidence: PatternEvidenceItem[];
-  /** e.g. "usually late evening" — null when timing is mixed. */
+  /** e.g. "usually late evening" - null when timing is mixed. */
   timeHint: string | null;
-  /** Human labels — moderate co-occurrence, pattern still distinct. */
+  /** Human labels - moderate co-occurrence, pattern still distinct. */
   coPatterns: string[];
-  /** Human labels — overlap-folded secondaries (mirrors relatedPatterns labels). */
+  /** Human labels - overlap-folded secondaries (mirrors relatedPatterns labels). */
   foldedLabels: string[];
-  /** Overlap-suppressed slugs — retained for debug / generation survivors-only. */
+  /** Overlap-suppressed slugs - retained for debug / generation survivors-only. */
   suppressedPatterns: PatternName[];
   /**
    * Folded secondaries kept as references on the survivor card
    * ("also shows up in: …"). Empty when nothing was folded.
    */
   relatedPatterns: RelatedPatternRef[];
-  /** Landing card copy — populated async; independent of PatternPassage. */
+  /** Landing card copy - populated async; independent of PatternPassage. */
   display: PatternDisplay | null;
 };
 

@@ -1,11 +1,11 @@
 /**
- * Overlap suppression — one surfaced card per behavioral thread.
+ * Overlap suppression - one surfaced card per behavioral thread.
  *
  * After aggregation, patterns fold when EITHER:
  *   - entry-set overlap ≥ OVERLAP_SUPPRESSION_THRESHOLD, or
  *   - mechanism (evidence-quote) embedding cosine ≥ MECHANISM_SIMILARITY_THRESHOLD
  *
- * Secondary names become relatedPatterns / foldedLabels on the survivor —
+ * Secondary names become relatedPatterns / foldedLabels on the survivor -
  * retained as references, not deleted from the data model.
  */
 
@@ -24,7 +24,7 @@ import {
   type PatternName,
 } from "@/lib/patterns/vocabulary";
 
-/** Default entry-overlap gate — tune in dev via window.__UNFOLD_OVERLAP_THRESHOLD__. */
+/** Default entry-overlap gate - tune in dev via window.__UNFOLD_OVERLAP_THRESHOLD__. */
 export const OVERLAP_SUPPRESSION_THRESHOLD = 0.5;
 
 export { MECHANISM_SIMILARITY_THRESHOLD };
@@ -52,7 +52,7 @@ const meanConfidence = (pattern: SurfacedPattern): number => {
   return sum / pattern.evidence.length;
 };
 
-/** Dev-only runtime override — same pattern as __UNFOLD_PATTERN_TIMING__. */
+/** Dev-only runtime override - same pattern as __UNFOLD_PATTERN_TIMING__. */
 export const effectiveOverlapThreshold = (): number => {
   if (typeof window !== "undefined") {
     const override = (

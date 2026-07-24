@@ -1,10 +1,10 @@
 /**
- * Sync bookkeeping in localStorage — dirty entry ids, delete tombstones,
+ * Sync bookkeeping in localStorage - dirty entry ids, delete tombstones,
  * a durable deleted-id set (so deletes never resurrect), a patterns-dirty
  * flag, the pull cursor, and the one-time import flag.
  *
  * Zero imports on purpose: the data stores (journal-entries, pattern stores)
- * call into this module, and the sync engine reads from it — keeping it
+ * call into this module, and the sync engine reads from it - keeping it
  * dependency-free avoids cycles.
  */
 
@@ -12,13 +12,13 @@ import "@/lib/storage-namespace";
 
 const DIRTY_ENTRIES_KEY = "unfold-sync-dirty-entries";
 const DELETED_ENTRIES_KEY = "unfold-sync-deleted-entries";
-/** Durable set of entry ids the user (or sync) has deleted — never resurrect. */
+/** Durable set of entry ids the user (or sync) has deleted - never resurrect. */
 const DELETED_IDS_KEY = "unfold-sync-deleted-ids";
 const PATTERNS_DIRTY_KEY = "unfold-sync-patterns-dirty";
 const PULL_CURSOR_KEY = "unfold-sync-cursor";
 const IMPORTED_KEY = "unfold-sync-imported";
 
-/** Fired whenever something becomes dirty — the sync provider debounces on it. */
+/** Fired whenever something becomes dirty - the sync provider debounces on it. */
 export const SYNC_DIRTY_EVENT = "unfold-sync-dirty";
 
 /**
@@ -27,7 +27,7 @@ export const SYNC_DIRTY_EVENT = "unfold-sync-dirty";
  */
 export const FLUSH_LOCAL_WRITES_EVENT = "unfold-flush-local-writes";
 
-/** Fired when a sync lock starts/ends — `{ status: "syncing" | "idle" }`. */
+/** Fired when a sync lock starts/ends - `{ status: "syncing" | "idle" }`. */
 export const SYNC_STATUS_EVENT = "unfold-sync-status";
 
 /** Fired once the first post-sign-in `fullSync` settles for this session. */

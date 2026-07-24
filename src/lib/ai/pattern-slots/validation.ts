@@ -20,7 +20,7 @@ const ADVICE_MARKERS =
 const THERAPY_MARKERS =
   /\b(healing|mindfulness|self-care|trauma|wellness|journey|growth mindset)\b/i;
 
-/** Coaching / corrective framing — implies the user should change something. */
+/** Coaching / corrective framing - implies the user should change something. */
 const CORRECTIVE_MARKERS =
   /\b(stays unexamined|unexamined|before dismissing|notice the shift|leave it unopened|what would it feel like to|what would it look like to|what if you|worst version|once the first doubt)\b/i;
 
@@ -87,7 +87,7 @@ const echoesLabel = (text: string, label: string): boolean => {
 /**
  * Reject lines that mostly reuse another voice slot (connection ≈
  * realization). Uses the SAME predicate as the cache reconciler
- * (passageVoiceEchoes) — if they disagree, accepted voice gets invalidated
+ * (passageVoiceEchoes) - if they disagree, accepted voice gets invalidated
  * on the next open and the passage regenerates forever.
  */
 const repeatsVoiceLine = (text: string, others: string[]): boolean =>
@@ -121,11 +121,11 @@ const validateQuestion = (text: string): string | null => {
 const INTERPRETIVE_MARKERS =
   /\b(avoidance|permission|fear|anxiety|because you|trying to|means you|shows you|became the)\b/i;
 
-/** Comma-separated activity lists — summary, not a chain of events. */
+/** Comma-separated activity lists - summary, not a chain of events. */
 const MECHANISM_SUMMARY_MARKERS =
   /^\s*\w+ing(?:,\s*\w+ing){1,}/i;
 
-/** "X filled the day while Y remained" — behavior summary, not sequence. */
+/** "X filled the day while Y remained" - behavior summary, not sequence. */
 const MECHANISM_WHILE_SUMMARY =
   /\bwhile\b.{0,40}\b(remained|stayed|untouched|waiting|in place)\b/i;
 

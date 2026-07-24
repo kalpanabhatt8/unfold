@@ -1,4 +1,4 @@
-# Local journal export — never commit real entry data.
+# Local journal export - never commit real entry data.
 overlap-live-export.json
 _extraction-audit-tmp.json
 _extraction-audit-results.json

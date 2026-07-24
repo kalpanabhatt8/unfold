@@ -1,5 +1,5 @@
 /**
- * Dev inbox — product feedback + pattern closing votes.
+ * Dev inbox - product feedback + pattern closing votes.
  * Open at /dev/feedback (local development only).
  */
 

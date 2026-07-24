@@ -1,9 +1,9 @@
 /**
- * Unfold — deterministic evidence signals for the planner.
+ * Unfold - deterministic evidence signals for the planner.
  *
  * Extracts pair/echo candidates, builds the evidence fingerprint (regeneration
- * trigger), and selects quotes by inner-experience strength — moments where
- * the user reveals what it felt like from the inside — not keyword confidence.
+ * trigger), and selects quotes by inner-experience strength - moments where
+ * the user reveals what it felt like from the inside - not keyword confidence.
  * Entry diversity and near-duplicate filtering keep the top 6 surfaced quotes
  * distinct and each revealing a different part of the pattern.
  */
@@ -18,7 +18,7 @@ import type { PatternEvidenceItem } from "@/lib/patterns/types";
 
 const DAY_MS = 86_400_000;
 
-/** Max quotes surfaced in a passage — only the strongest moments. */
+/** Max quotes surfaced in a passage - only the strongest moments. */
 export const MAX_PASSAGE_QUOTES = 6;
 
 const ECHO_MIN_TOKEN_LEN = 4;
@@ -26,7 +26,7 @@ const ECHO_MIN_ENTRIES = 2;
 
 /**
  * Common words that recur in journals without being a meaningful artifact.
- * A closing "phrase" beat must be distinctive — not "kept", "written", etc.
+ * A closing "phrase" beat must be distinctive - not "kept", "written", etc.
  */
 const ECHO_STOPWORDS = new Set([
   "about", "after", "again", "being", "could", "doing", "every", "first",
@@ -76,7 +76,7 @@ const daysBetween = (a: number, b: number): number => Math.abs(a - b) / DAY_MS;
 const recencyWeight = (anchorTs: number, now: number): number =>
   0.5 ** (daysBetween(now, anchorTs) / QUOTE_SELECTION_HALF_LIFE_DAYS);
 
-/** Interior voice — felt experience, tension, self-reflection. */
+/** Interior voice - felt experience, tension, self-reflection. */
 const INTERIOR_MARKERS =
   /\b(felt|feeling|feel like|feels like|somehow|quietly|told myself|realized|meant to|supposed to|actually|still (?:waiting|there|stuck|sitting|un)?|never (?:moved|started|sent|finished|got)|nothing (?:actually|really)|even though|although|instead of|rather than|but nothing|learning something|good enough|not ready|too (?:big|much|hard|overwhelming)|easier|harder|stuck|relief|guilty|productive|empty|dread|anxious|overwhelm|restless|numb|avoiding|wondering|noticed|knew|thought)\b/i;
 
@@ -138,7 +138,7 @@ const quoteRankScore = (quote: QuoteRef, now: number): number =>
   recencyWeight(quote.anchorTs, now) * 0.2 +
   quote.confidence * 0.1;
 
-/** Fingerprint for regeneration — changes on new/deleted entry or confidence/quote change. */
+/** Fingerprint for regeneration - changes on new/deleted entry or confidence/quote change. */
 export function buildEvidenceKey(evidence: PatternEvidenceItem[]): string {
   return [...evidence]
     .sort((a, b) => a.entryId.localeCompare(b.entryId))
@@ -153,8 +153,8 @@ export function buildEvidenceKey(evidence: PatternEvidenceItem[]): string {
  * Select quotes: pin the strongest inner-experience moment, then fill to
  * MAX_PASSAGE_QUOTES with:
  *
- *  1. Entry diversity — one quote per entry until every entry is represented.
- *  2. No near-duplicates — skip quotes that mostly repeat an already-selected one.
+ *  1. Entry diversity - one quote per entry until every entry is represented.
+ *  2. No near-duplicates - skip quotes that mostly repeat an already-selected one.
  *
  * Ranking prioritizes felt experience over keyword confidence or recency.
  */

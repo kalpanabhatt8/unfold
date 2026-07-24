@@ -66,7 +66,7 @@ export function splitSentences(sourceText: string): SentenceSpan[] {
   return spans;
 }
 
-/** Truncate at the last whitespace before `maxChars` — never mid-word. */
+/** Truncate at the last whitespace before `maxChars` - never mid-word. */
 export function truncateAtWordBoundary(text: string, maxChars: number): string {
   if (text.length <= maxChars) return text;
   const hard = text.slice(0, maxChars);
@@ -130,7 +130,7 @@ export function normalizeEvidenceQuote(
 }
 
 /**
- * Validate and normalize extraction output — schema + verbatim evidence only.
+ * Validate and normalize extraction output - schema + verbatim evidence only.
  * Returns null when structurally unusable (caller retries later).
  */
 export function validateExtraction(
@@ -177,7 +177,7 @@ export function validateExtraction(
 
   patterns.sort((a, b) => b.confidence - a.confidence);
 
-  // Pairwise arbitration re-ranks/drops by POLICY (see arbitration.ts) — must
+  // Pairwise arbitration re-ranks/drops by POLICY (see arbitration.ts) - must
   // run after the confidence sort and must NOT be followed by another sort.
   const { patterns: reconciled } = reconcilePatterns(patterns);
 

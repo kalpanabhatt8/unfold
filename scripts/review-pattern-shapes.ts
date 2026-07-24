@@ -13,7 +13,7 @@ for (const r of results) {
     SHAPE_FIXTURES.find((f) => f.id === r.fixtureId)!,
   );
   // "recognition" asserts the recognition *family* (line / question / deep),
-  // not a specific ending — the planner picks the ending by seed + diversity.
+  // not a specific ending - the planner picks the ending by seed + diversity.
   const familyMatch =
     r.expectShape === "recognition" &&
     isolated.shapeId.startsWith("recognition");

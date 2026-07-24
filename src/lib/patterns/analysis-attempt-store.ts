@@ -1,5 +1,5 @@
 /**
- * Durable per-entry analysis attempt records — localStorage, same persistence
+ * Durable per-entry analysis attempt records - localStorage, same persistence
  * class as `unfold-entry-analyses` (survives reload; shared across tabs).
  *
  * Retry policy:
@@ -66,7 +66,7 @@ const writeAll = (map: Record<string, AnalysisAttempt>) => {
       JSON.stringify(map),
     );
   } catch {
-    /* private mode / quota — best effort */
+    /* private mode / quota - best effort */
   }
 };
 
@@ -92,7 +92,7 @@ export function isAnalysisAttemptAllowed(
   return now - attempt.startedAt >= ATTEMPT_STALE_MS;
 }
 
-/** Sync — call before any await. Clears prior outcome (new attempt in flight). */
+/** Sync - call before any await. Clears prior outcome (new attempt in flight). */
 export function markAnalysisAttemptStarted(
   entryId: string,
   now: number = Date.now(),
@@ -103,7 +103,7 @@ export function markAnalysisAttemptStarted(
   writeAll(map);
 }
 
-/** Optional fast-path — next reconcile may retry without waiting for stale. */
+/** Optional fast-path - next reconcile may retry without waiting for stale. */
 export function markAnalysisAttemptFailed(entryId: string): void {
   if (!entryId) return;
   const map = readAll();
@@ -115,7 +115,7 @@ export function markAnalysisAttemptFailed(entryId: string): void {
   writeAll(map);
 }
 
-/** Settled successfully (analysis stored) — do not retry. */
+/** Settled successfully (analysis stored) - do not retry. */
 export function markAnalysisAttemptOk(entryId: string): void {
   if (!entryId) return;
   const map = readAll();

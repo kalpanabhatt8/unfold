@@ -1,8 +1,8 @@
-/* Custom auth — matches landing (lp-*) tokens: paper, rose wash, title ink. */
+/* Custom auth - matches landing (lp-*) tokens: paper, rose wash, title ink. */
 
 .auth-shell {
   --auth-ink: var(--canvas-title-ink);
-  /* Softer CTA than title ink — same family, less heavy */
+  /* Softer CTA than title ink - same family, less heavy */
   --auth-cta: color-mix(in srgb, var(--canvas-title-ink) 62%, #c48496);
   --auth-cta-hover: color-mix(in srgb, var(--canvas-title-ink) 72%, #b87085);
   --auth-soft: var(--sidebar-ink-soft);
@@ -83,7 +83,7 @@
 .auth-title {
   margin: 0;
   font-family: var(--font-heading);
-  font-size: var(--text-xl); /* header-lg — 24 */
+  font-size: var(--text-xl); /* header-lg - 24 */
   font-weight: 600;
   letter-spacing: -0.01em;
   color: var(--text-primary);
@@ -122,7 +122,7 @@
   font-weight: 500;
 }
 
-/* Visually hidden label — keeps accessibility without clutter */
+/* Visually hidden label - keeps accessibility without clutter */
 .sr-only {
   position: absolute;
   width: 0.0625rem;
@@ -180,7 +180,7 @@
   gap: 1rem;
 }
 
-/* Email + password as one grouped block — keeps CTA visually separate */
+/* Email + password as one grouped block - keeps CTA visually separate */
 .auth-fields {
   display: flex;
   flex-direction: column;
@@ -492,7 +492,7 @@
   margin-top: 0.75rem;
 }
 
-/* Legal pages share auth-shell / auth-card — card UI, slightly below top, no page scroll */
+/* Legal pages share auth-shell / auth-card - card UI, slightly below top, no page scroll */
 .auth-shell:has(.auth-card.legal-doc) {
   justify-content: flex-start;
   overflow: hidden;
@@ -586,7 +586,7 @@
   user-select: none;
 }
 
-/* Only this region scrolls — scrollbar stays below the header */
+/* Only this region scrolls - scrollbar stays below the header */
 .legal-doc__scroll {
   flex: 1 1 auto;
   min-height: 0;

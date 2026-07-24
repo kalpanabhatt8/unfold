@@ -1,8 +1,8 @@
 /**
- * Unfold — apply Claude fills to a materialized passage.
+ * Unfold - apply Claude fills to a materialized passage.
  *
  * Voice slots keep their scaffold (text: null) when a fill is missing so
- * generation can retry. Only filled text replaces null — slots are never
+ * generation can retry. Only filled text replaces null - slots are never
  * dropped here (dropping caused degraded passages to cache as "complete").
  */
 
@@ -55,7 +55,7 @@ const contentTokens = (text: string): string[] =>
 
 /**
  * Two AI voice lines saying the same thing. Shared between generation
- * validation and cache reconciliation — the checks MUST agree, otherwise
+ * validation and cache reconciliation - the checks MUST agree, otherwise
  * generation stores voice the orchestrator later rejects, and the passage
  * regenerates forever.
  */
@@ -74,7 +74,7 @@ export const voiceLinesEcho = (a: string, b: string): boolean => {
   return shared / Math.min(wordsA.length, wordsB.length) >= 0.6;
 };
 
-/** Any two AI voice lines that say the same thing — a repeated insight. */
+/** Any two AI voice lines that say the same thing - a repeated insight. */
 export const passageVoiceEchoes = (passage: PatternPassage): boolean => {
   if (!isVoiceShape(passage.shapeId)) return false;
 
@@ -161,7 +161,7 @@ export const applySlotFills = (
   return { ...passage, slots };
 };
 
-/** Collapsed preview — always prefer the user's words over AI voice. */
+/** Collapsed preview - always prefer the user's words over AI voice. */
 export const passagePreviewText = (passage: PatternPassage): string | null => {
   for (const slot of passage.slots) {
     if (slot.kind === "moments" && slot.quotes[0])
@@ -189,7 +189,7 @@ export const passageIsLoading = (passage: PatternPassage): boolean =>
         slot.text === null),
   );
 
-/** Rough ratio of quote characters to AI characters — for quality review. */
+/** Rough ratio of quote characters to AI characters - for quality review. */
 export const passageEvidenceRatio = (passage: PatternPassage): number => {
   let evidence = 0;
   let voice = 0;

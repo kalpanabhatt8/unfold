@@ -7,7 +7,7 @@ type PageProps = {
 };
 
 /**
- * Legacy deep link — patterns live on one page as a collapsible list.
+ * Legacy deep link - patterns live on one page as a collapsible list.
  * Bounce to the index and expand the matching pattern.
  */
 export default async function PatternDetailPage({ params }: PageProps) {

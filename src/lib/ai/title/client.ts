@@ -136,10 +136,10 @@ export async function fetchJournalTitle(text: string): Promise<string> {
   }
 }
 
-/** @deprecated Use prepareTitleInput — kept for callers migrating from journal-title. */
+/** @deprecated Use prepareTitleInput - kept for callers migrating from journal-title. */
 export const truncateTextForTitle = prepareTitleInput;
 
-/** @deprecated Use resolveTitleFromApi internally — kept for external callers. */
+/** @deprecated Use resolveTitleFromApi internally - kept for external callers. */
 export const resolveSealTitle = resolveTitleFromApi;
 
 export const TITLE_API_TIMEOUT_MS = TITLE_CLIENT_TIMEOUT_MS;

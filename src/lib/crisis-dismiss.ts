@@ -1,5 +1,5 @@
 /**
- * Local dismiss for CrisisResponse — survives reload so returning to a
+ * Local dismiss for CrisisResponse - survives reload so returning to a
  * flagged entry does not feel like a lock-out after the user chose to go back.
  * Does not clear crisisFlagged on the entry itself.
  */

@@ -4,7 +4,7 @@ import {
 } from "@/lib/ai/title/constants";
 import { countTitleInputWords } from "@/lib/ai/title/input";
 
-/** Writer-voice fallbacks when title generation fails — personal, vague, human. */
+/** Writer-voice fallbacks when title generation fails - personal, vague, human. */
 const WRITER_VOICE_FALLBACKS = [
   "Again",
   "Not Sure",

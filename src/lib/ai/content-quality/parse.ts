@@ -1,4 +1,4 @@
-/** Extract the first JSON object from model output — content-quality feature only. */
+/** Extract the first JSON object from model output - content-quality feature only. */
 export function parseContentQualityResponse(raw: string): unknown | null {
   const cleaned = raw
     .replace(/```json\s*/gi, "")

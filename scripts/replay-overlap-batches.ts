@@ -139,7 +139,7 @@ const printBatch = (batch: Batch) => {
   for (const pattern of before.surfaced) {
     const title = batch.displayTitles[pattern.name] ?? PATTERN_LABELS[pattern.name];
     console.log(
-      `  • ${pattern.name} (${title}) — ${pattern.entryCount} entries`,
+      `  • ${pattern.name} (${title}) - ${pattern.entryCount} entries`,
     );
   }
   if (before.surfaced.length >= 2) {
@@ -200,7 +200,7 @@ const formatPatternLine = (pattern: {
   evidence: Array<{ entryId: string }>;
 }): string => {
   const parts = [
-    `${pattern.name} — ${pattern.entryCount} entries`,
+    `${pattern.name} - ${pattern.entryCount} entries`,
     `ids=[${pattern.evidence.map((e) => e.entryId).join(", ")}]`,
   ];
   if (pattern.relatedPatterns.length > 0) {
@@ -237,7 +237,7 @@ const printLiveExport = (
   });
 
   console.log(`\n${"═".repeat(72)}`);
-  console.log("LIVE EXPORT — all surfaced patterns");
+  console.log("LIVE EXPORT - all surfaced patterns");
   console.log("═".repeat(72));
   console.log(
     `\nAnalyses: ${analyses.length} | Entries in export: ${entries.length}`,
@@ -343,7 +343,7 @@ if (existsSync(LIVE_EXPORT)) {
   ranLive = true;
 } else {
   console.log(
-    "No scripts/fixtures/overlap-live-export.json — skipping live export.\n" +
+    "No scripts/fixtures/overlap-live-export.json - skipping live export.\n" +
       "Save DevTools export there, then re-run.",
   );
 }

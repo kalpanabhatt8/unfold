@@ -5,7 +5,7 @@ import { newBlockId } from "@/lib/journal-blocks";
 
 const CHECKLIST_HIT_WIDTH_PX = 28;
 
-/** Block = one <p> inside the contenteditable — same model as standard editors. */
+/** Block = one <p> inside the contenteditable - same model as standard editors. */
 export const JournalBlock = Node.create({
   name: "journalBlock",
   priority: 1000,

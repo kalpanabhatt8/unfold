@@ -1,4 +1,4 @@
-/** Haiku — low temperature for binary crisis classification. */
+/** Haiku - low temperature for binary crisis classification. */
 export const CRISIS_MODEL = "claude-haiku-4-5-20251001";
 export const CRISIS_MAX_TOKENS = 64;
 export const CRISIS_TEMPERATURE = 0;

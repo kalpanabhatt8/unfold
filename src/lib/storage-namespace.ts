@@ -23,7 +23,7 @@ function renamePrefixedKeys(storage: Storage, from: string, to: string) {
   }
 }
 
-/** Idempotent — safe to call from multiple modules on client boot. */
+/** Idempotent - safe to call from multiple modules on client boot. */
 export function migrateKeepsStorageNamespace(): void {
   if (typeof window === "undefined") return;
   try {

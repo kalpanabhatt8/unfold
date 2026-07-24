@@ -5,7 +5,7 @@ import type { EntryAnalysisResult } from "@/lib/patterns/types";
 import { requireUser } from "@/lib/server/auth";
 import { requireAiUser } from "@/lib/server/ai-auth";
 
-/** Dev warm-up — compiles the route without calling Claude. */
+/** Dev warm-up - compiles the route without calling Claude. */
 export async function GET() {
   try {
     await requireUser();

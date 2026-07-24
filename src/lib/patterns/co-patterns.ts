@@ -1,6 +1,6 @@
 /**
  * Find mental patterns that frequently co-occur with a surfaced pattern in the
- * same entries — the "often alongside" line on pattern cards.
+ * same entries - the "often alongside" line on pattern cards.
  */
 
 import { listAnalyses } from "@/lib/patterns/analysis-store";

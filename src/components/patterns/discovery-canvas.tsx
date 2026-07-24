@@ -48,7 +48,7 @@ export type DiscoveryCanvasProps = {
   onOpenEntry: (entryId: string, quoteText?: string) => void;
 };
 
-/** How long one reveal takes — Continue is locked for this window. */
+/** How long one reveal takes - Continue is locked for this window. */
 const REVEAL_MS = 550;
 
 /**
@@ -80,7 +80,7 @@ type LayerProps = {
   children: ReactNode;
 };
 
-/** One deposited layer of the unfolding page — never replaced, only recedes. */
+/** One deposited layer of the unfolding page - never replaced, only recedes. */
 function Layer({
   phase,
   age,
@@ -121,7 +121,7 @@ export function DiscoveryCanvas({
 }: DiscoveryCanvasProps) {
   const lockedUntilRef = useRef(0);
   const focusRef = useRef<HTMLElement | null>(null);
-  /** Only auto-scroll after Continue — never on first paint. */
+  /** Only auto-scroll after Continue - never on first paint. */
   const allowAutoScrollRef = useRef(false);
   const focusPhase = phaseAtIndex(arc, currentIndex);
 
@@ -168,7 +168,7 @@ export function DiscoveryCanvas({
   }, [revealKey]);
 
   // After Continue: park the new beat near the top of the page scroll.
-  // Previous beats stay in the document above — no nested scrollport.
+  // Previous beats stay in the document above - no nested scrollport.
   useEffect(() => {
     if (!allowAutoScrollRef.current) return;
 

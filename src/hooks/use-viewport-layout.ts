@@ -10,16 +10,16 @@ export type ViewportLayout = {
   stampButtonSizePx: number;
   /**
    * Vertical page padding (px). On overlay nav this clears the fixed
-   * hamburger — use for journal.
+   * hamburger - use for journal.
    */
   pagePaddingYPx: number;
   /**
-   * Patterns page top padding — tighter on phone because the menu is in-flow
+   * Patterns page top padding - tighter on phone because the menu is in-flow
    * (no floating hamburger to clear).
    */
   patternsPagePaddingYPx: number;
   scrollComfortBottomPx: number;
-  /** True below lg — fixed hamburger is visible when the drawer is closed. */
+  /** True below lg - fixed hamburger is visible when the drawer is closed. */
   isOverlayNav: boolean;
 };
 
@@ -34,7 +34,7 @@ function computeViewportLayout(width: number): ViewportLayout {
   const pagePaddingYPx = isOverlayNav
     ? Math.max(basePaddingY, OVERLAY_MENU_CLEARANCE_PX)
     : basePaddingY;
-  // Patterns: menu lives in the header — only need a small top inset on phone.
+  // Patterns: menu lives in the header - only need a small top inset on phone.
   const patternsPagePaddingYPx =
     width >= BREAKPOINT_LG ? 64 : width >= BREAKPOINT_MD ? 28 : 16;
   const scrollComfortBottomPx =
@@ -50,7 +50,7 @@ function computeViewportLayout(width: number): ViewportLayout {
   };
 }
 
-/** Responsive spacing for canvas corners and page padding — desktop values unchanged at lg+. */
+/** Responsive spacing for canvas corners and page padding - desktop values unchanged at lg+. */
 export function useViewportLayout(): ViewportLayout {
   const [layout, setLayout] = useState<ViewportLayout>(() =>
     computeViewportLayout(

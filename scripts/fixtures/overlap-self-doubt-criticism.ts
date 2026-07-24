@@ -1,6 +1,6 @@
 /**
  * Structural fixture: self_doubt vs self_criticism on a ~10-entry sample.
- * Entries 2 and 3 are the only shared votes — entry overlap = 2/4 = 0.5.
+ * Entries 2 and 3 are the only shared votes - entry overlap = 2/4 = 0.5.
  *
  * Used by overlap-policy tests (Fix 3) and reusable for Fix 5 fixture sets.
  */

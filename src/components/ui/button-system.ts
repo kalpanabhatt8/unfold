@@ -121,7 +121,7 @@ export const btnDestructiveSolid = (size: ButtonSize = "sm", radius?: BtnRadius)
 export const btnInvisible = (size: ButtonSize = "md", radius?: BtnRadius) =>
   `${btnText(size, radius)} ${btnType.invisible}`;
 
-/** Icon-only chrome — matches modal close buttons (Send feedback, Account). */
+/** Icon-only chrome - matches modal close buttons (Send feedback, Account). */
 export const btnIconChromeType =
   "bg-transparent text-(--sidebar-ink-soft) border border-transparent " +
   "hover:bg-[color-mix(in_srgb,var(--text-primary)_6%,transparent)] hover:text-(--sidebar-ink) " +

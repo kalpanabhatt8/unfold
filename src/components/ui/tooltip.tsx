@@ -76,7 +76,7 @@ function computeBubbleStyle(
   return { position: "fixed", top, left, zIndex: 9999 };
 }
 
-/** Hover/focus tooltip — bubble is portaled; trigger layout stays unchanged. */
+/** Hover/focus tooltip - bubble is portaled; trigger layout stays unchanged. */
 export function Tooltip({
   content,
   side = "top",

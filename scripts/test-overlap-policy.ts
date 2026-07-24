@@ -35,7 +35,7 @@ const assert = (label: string, condition: boolean, detail?: string) => {
     console.log(`  ✓ ${label}`);
   } else {
     failed += 1;
-    console.error(`  ✗ ${label}${detail ? ` — ${detail}` : ""}`);
+    console.error(`  ✗ ${label}${detail ? ` - ${detail}` : ""}`);
   }
 };
 
@@ -84,7 +84,7 @@ console.log("threshold constants");
   );
 }
 
-console.log("1. subset collapse — smaller pattern folded + relatedPatterns");
+console.log("1. subset collapse - smaller pattern folded + relatedPatterns");
 {
   const shared = ids("shared", 5);
   const extra = ids("extra", 5);
@@ -123,7 +123,7 @@ console.log("1. subset collapse — smaller pattern folded + relatedPatterns");
   );
 }
 
-console.log("2. threshold boundary — 49% vs 50%");
+console.log("2. threshold boundary - 49% vs 50%");
 {
   // 16/33 ≈ 0.485 < 0.5
   const shared49 = ids("b49", 16);
@@ -195,7 +195,7 @@ console.log("3. transitive union-find cluster");
   );
 }
 
-console.log("4. tie-break — specificity beats overthinking");
+console.log("4. tie-break - specificity beats overthinking");
 {
   const shared = ids("spec", 4);
   const members = [
@@ -218,7 +218,7 @@ console.log("4. tie-break — specificity beats overthinking");
   );
 }
 
-console.log("5. tie-break — mean confidence");
+console.log("5. tie-break - mean confidence");
 {
   const shared = ids("conf", 4);
   const members = [
@@ -231,7 +231,7 @@ console.log("5. tie-break — mean confidence");
   );
 }
 
-console.log("6. tie-break — stable PATTERN_NAMES order");
+console.log("6. tie-break - stable PATTERN_NAMES order");
 {
   const shared = ids("order", 4);
   const members = [
@@ -348,7 +348,7 @@ console.log("10. unrelated mechanisms do not over-fold at low entry overlap");
   assert("both cards remain", result.length === 2, `${result.length}`);
 }
 
-console.log("11. fixture — self_doubt vs self_criticism (entries 2+3)");
+console.log("11. fixture - self_doubt vs self_criticism (entries 2+3)");
 {
   const fixture = buildSelfDoubtCriticismFixture();
   const before = aggregateFromInputs(fixture.analyses, fixture.entries, {

@@ -1,8 +1,8 @@
 /**
  * Fixed-window per-key rate limiter (in-memory).
  *
- * Best-effort on multi-instance / serverless deploys — each isolate has its
- * own map — but enough to blunt single-session scripted Anthropic abuse.
+ * Best-effort on multi-instance / serverless deploys - each isolate has its
+ * own map - but enough to blunt single-session scripted Anthropic abuse.
  */
 
 type Bucket = {

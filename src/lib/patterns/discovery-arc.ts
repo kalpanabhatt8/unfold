@@ -1,9 +1,9 @@
 /**
- * Discovery arc — four-beat guided reflection (presentation layer).
+ * Discovery arc - four-beat guided reflection (presentation layer).
  *
  * Headline → Evidence → Mechanism? → Reflection
  *
- * The mechanism beat replays the chain of events that leads into the pattern —
+ * The mechanism beat replays the chain of events that leads into the pattern -
  * never a summary of the entries or a description of behavior.
  */
 
@@ -63,18 +63,18 @@ type LineSlot = Extract<PassageSlot, { kind: "line" }>;
 type CloseSlot = Extract<PassageSlot, { kind: "close" }>;
 
 /**
- * Structural slot selection — which slots back which beats.
+ * Structural slot selection - which slots back which beats.
  *
  * This depends ONLY on the slot layout the planner cached, never on the
  * generated text. The beat list must be identical before and after voice
- * fills arrive, and across regenerations of the same plan — otherwise the
+ * fills arrive, and across regenerations of the same plan - otherwise the
  * beat count (and the Continue/Done CTA) changes between opens.
  */
 /**
  * Pick the line slot that backs the mechanism beat.
  *
  * Legacy plans may still carry a first line that was the old recognition
- * question — skip it and use the mechanism line that followed.
+ * question - skip it and use the mechanism line that followed.
  */
 const selectMechanismSlot = (
   lineSlots: LineSlot[],
@@ -117,7 +117,7 @@ export function buildOrientingLine(momentCount: number): string {
  *
  * The phase list is STRUCTURAL: a beat exists iff its backing slot exists in
  * the cached plan. Generated text only fills beats in, it never adds or
- * removes them — so the beat count is final before the first render and
+ * removes them - so the beat count is final before the first render and
  * identical on every open of the same passage.
  */
 export function buildDiscoveryArc(
@@ -202,7 +202,7 @@ export type BeatTrace = {
 };
 
 /**
- * Explain, beat-by-beat, why the arc has the phases it does. Pure — safe to
+ * Explain, beat-by-beat, why the arc has the phases it does. Pure - safe to
  * call from debug logging. Shows which beats were dropped and why, so a
  * collapsed flow (e.g. only headline + evidence) can be traced to its cause.
  */
@@ -290,7 +290,7 @@ const phaseHasContent = (arc: DiscoveryArc, phase: DiscoveryPhase): boolean => {
 };
 
 /**
- * First reveal index — never open on headline alone.
+ * First reveal index - never open on headline alone.
  * Prefer evidence so the opening state always includes journal content.
  */
 export function getInitialRevealIndex(arc: DiscoveryArc): number {

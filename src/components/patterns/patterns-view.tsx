@@ -14,8 +14,14 @@ import {
   patternTimelineEnd,
 } from "@/lib/patterns/time-hint";
 // import { formatRelatedPatternsLine } from "@/lib/patterns/overlap-policy";
+import { buildEvidenceKey } from "@/lib/patterns/evidence-signals";
 import { isPatternFullyReady } from "@/lib/patterns/pattern-readiness";
 import { PATTERN_DISPLAY_UPDATED_EVENT } from "@/lib/patterns/pattern-display-store";
+import {
+  isReadyPatternUnread,
+  markPatternSeen,
+  PATTERN_VIEWS_UPDATED_EVENT,
+} from "@/lib/patterns/pattern-view-store";
 import { PATTERN_PASSAGE_UPDATED_EVENT } from "@/lib/patterns/passage-store";
 import {
   btnIconChrome,
@@ -39,7 +45,7 @@ export type PatternsViewProps = {
 };
 
 /**
- * Patterns — collapsible list. Rows show title + date/entry meta; tapping
+ * Patterns - collapsible list. Rows show title + date/entry meta; tapping
  * expands the detail view (quotes only inside the panel, not the header).
  * Only one pattern open at a time. The same header toggles collapse on click.
  */
@@ -50,16 +56,24 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
   const patterns = usePatternDisplay(aggregate);
   const itemRefs = useRef<Map<PatternName, HTMLLIElement>>(new Map());
   const [readinessTick, setReadinessTick] = useState(0);
+  const [viewsTick, setViewsTick] = useState(0);
 
   useEffect(() => {
     const bump = () => setReadinessTick((t) => t + 1);
+    const bumpViews = () => setViewsTick((t) => t + 1);
+    const onStorage = () => {
+      bump();
+      bumpViews();
+    };
     window.addEventListener(PATTERN_DISPLAY_UPDATED_EVENT, bump);
     window.addEventListener(PATTERN_PASSAGE_UPDATED_EVENT, bump);
-    window.addEventListener("storage", bump);
+    window.addEventListener(PATTERN_VIEWS_UPDATED_EVENT, bumpViews);
+    window.addEventListener("storage", onStorage);
     return () => {
       window.removeEventListener(PATTERN_DISPLAY_UPDATED_EVENT, bump);
       window.removeEventListener(PATTERN_PASSAGE_UPDATED_EVENT, bump);
-      window.removeEventListener("storage", bump);
+      window.removeEventListener(PATTERN_VIEWS_UPDATED_EVENT, bumpViews);
+      window.removeEventListener("storage", onStorage);
     };
   }, []);
 
@@ -72,6 +86,14 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
         patternTimelineEnd(b.evidence) - patternTimelineEnd(a.evidence),
     );
   }, [aggregate, patterns, readinessTick]);
+
+  const unreadNames = useMemo(() => {
+    const names = new Set<PatternName>();
+    for (const pattern of listPatterns) {
+      if (isReadyPatternUnread(pattern)) names.add(pattern.name);
+    }
+    return names;
+  }, [listPatterns, viewsTick]);
 
   const hasReadyPatterns = listPatterns.length > 0;
 
@@ -104,6 +126,14 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
       return null;
     });
   }, [listPatterns, initialPattern]);
+
+  // Opening a pattern clears its unread state for the current evidence set.
+  useEffect(() => {
+    if (!expanded) return;
+    const pattern = listPatterns.find((p) => p.name === expanded);
+    if (!pattern) return;
+    markPatternSeen(pattern.name, buildEvidenceKey(pattern.evidence));
+  }, [expanded, listPatterns]);
 
   // After expand: pin the persistent header near the top of the viewport.
   useEffect(() => {
@@ -184,6 +214,7 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
               pattern.display?.displayTitle?.trim() ||
               PATTERN_LABELS[pattern.name];
             const isOpen = expanded === pattern.name;
+            const isUnread = unreadNames.has(pattern.name);
             const entryCount =
               pattern.entryCount > 0
                 ? pattern.entryCount
@@ -204,6 +235,7 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
                 }}
                 className="pattern-accordion__item"
                 data-expanded={isOpen ? "true" : "false"}
+                data-unread={isUnread ? "true" : "false"}
               >
                 <button
                   type="button"
@@ -213,7 +245,13 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
                     isOpen ? `pattern-expanded-panel-${pattern.name}` : undefined
                   }
                   aria-label={
-                    [title, factLine].filter(Boolean).join(", ")
+                    [
+                      title,
+                      factLine,
+                      isUnread ? "updated" : null,
+                    ]
+                      .filter(Boolean)
+                      .join(", ")
                   }
                   id={`pattern-expanded-${pattern.name}`}
                   onClick={() =>
@@ -224,6 +262,12 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
                 >
                   <span className="pattern-accordion__row-main">
                     <span className="pattern-accordion__row-title">
+                      {isUnread ? (
+                        <span
+                          className="pattern-accordion__unread-dot"
+                          aria-hidden
+                        />
+                      ) : null}
                       {title}
                     </span>
                     {factLine ? (

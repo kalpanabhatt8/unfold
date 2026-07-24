@@ -182,7 +182,7 @@ async function generateRecognitionSlots(
 /**
  * Batch path used by discovery (and other non-recognition shapes):
  * one Claude call for all requested slots, then retry only the slots that
- * failed validation — keep any that already passed.
+ * failed validation - keep any that already passed.
  */
 async function generateBatchedSlots(
   apiKey: string,

@@ -135,7 +135,7 @@ const reconcileSurfaced = (surfaced: SurfacedPattern[]): PatternWithPassage[] =>
 
 /**
  * Enriches surfaced patterns with reconciled passages from cache.
- * Voice generation is owned by usePatternGeneration — this hook reads + reconciles only.
+ * Voice generation is owned by usePatternGeneration - this hook reads + reconciles only.
  */
 export function usePatternPassages(
   aggregate: PatternsAggregate | null,

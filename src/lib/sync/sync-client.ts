@@ -1,5 +1,5 @@
 /**
- * Client sync engine — localStorage stays the instant write-through cache,
+ * Client sync engine - localStorage stays the instant write-through cache,
  * the server is authoritative. Last-write-wins at whole-entry granularity
  * (client `updatedAt` clock); the pattern layer syncs as whole snapshots.
  * Deletes are sticky: tombstones always win over live content.
@@ -188,7 +188,7 @@ const applyServerPatterns = (snapshot: PatternsSnapshot) => {
       putAnalysis(analysis);
     }
     for (const state of snapshot.states) {
-      // Local state may be ahead (device kept planning offline) — prefer the
+      // Local state may be ahead (device kept planning offline) - prefer the
       // copy with the later plan activity.
       const local = getState(state.name);
       if (local && local.lastPlanAt >= state.lastPlanAt) continue;
@@ -223,7 +223,7 @@ const applyServerPatterns = (snapshot: PatternsSnapshot) => {
 
 const pullAndApplyEntries = async (): Promise<void> => {
   let since = getPullCursor();
-  // Page until the server says we're caught up — keeps each response small
+  // Page until the server says we're caught up - keeps each response small
   // when the account has many large board snapshots.
   for (let page = 0; page < 50; page++) {
     const response = await fetch(`/api/sync/entries?since=${since}`);
@@ -240,7 +240,7 @@ const pullAndApplyEntries = async (): Promise<void> => {
 
 const pullAndApplyPatterns = async (): Promise<void> => {
   let cursor: string | null = null;
-  // Page analyses until caught up — meta tables arrive on page 1 only.
+  // Page analyses until caught up - meta tables arrive on page 1 only.
   for (let page = 0; page < 50; page++) {
     const url = cursor
       ? `/api/sync/patterns?cursor=${encodeURIComponent(cursor)}`
@@ -291,7 +291,7 @@ const pushEntryTombstones = async (): Promise<void> => {
       if (result.accepted) continue;
 
       if (result.server?.deletedAt) {
-        // Server already has the delete — apply locally, drop the tombstone.
+        // Server already has the delete - apply locally, drop the tombstone.
         applyServerEntry(result.server);
         continue;
       }
@@ -314,7 +314,7 @@ const pushDirtyEntries = async (): Promise<void> => {
 
   const entries: WireEntry[] = [];
   for (const id of dirtyIds) {
-    // Deleted ids are owned by the tombstone path — never push live content.
+    // Deleted ids are owned by the tombstone path - never push live content.
     if (isEntryDeleted(id) || hasEntryTombstone(id)) continue;
     const entry = readEntryById(id);
     if (entry) entries.push(toWireEntry(entry));
@@ -340,7 +340,7 @@ const pushDirtyEntries = async (): Promise<void> => {
       }
     }
   } catch {
-    // Offline or server error — restore the queues for the next attempt.
+    // Offline or server error - restore the queues for the next attempt.
     restoreDirtyEntries(pushedIds);
   }
 };
@@ -366,13 +366,13 @@ const maybeImport = async (): Promise<void> => {
   if (isImported()) return;
 
   const status = await fetch("/api/import");
-  if (!status.ok) return; // signed out / server issue — retry next sync
+  if (!status.ok) return; // signed out / server issue - retry next sync
   const { hasServerData } = (await status.json()) as {
     hasServerData: boolean;
   };
 
   if (hasServerData) {
-    // Account already has cloud data — pulls will populate this device.
+    // Account already has cloud data - pulls will populate this device.
     setImported();
     return;
   }
@@ -385,7 +385,7 @@ const maybeImport = async (): Promise<void> => {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ entries: [toWireEntry(entry)] }),
     });
-    if (!response.ok) return; // abort — flag stays unset, retried next sync
+    if (!response.ok) return; // abort - flag stays unset, retried next sync
   }
 
   const response = await fetch("/api/import", {
@@ -436,7 +436,7 @@ export const fullSync = async (): Promise<void> => {
   });
 };
 
-/** Push-only pass — used on the dirty-event debounce between full syncs. */
+/** Push-only pass - used on the dirty-event debounce between full syncs. */
 export const pushSync = async (): Promise<void> => {
   if (typeof window === "undefined") return;
   await withSyncLock(async () => {
@@ -508,7 +508,7 @@ const markInitialSyncCompleted = (): void => {
 
 /**
  * Shared first-fullSync promise for this session. Safe to call from SyncProvider,
- * dashboard routing, and journal hydrate — concurrent callers await the same pass.
+ * dashboard routing, and journal hydrate - concurrent callers await the same pass.
  */
 export const ensureInitialSync = async (): Promise<void> => {
   if (typeof window === "undefined") return;

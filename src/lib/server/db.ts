@@ -1,5 +1,5 @@
 /**
- * Prisma client singleton — survives Next.js hot reloads and warm serverless
+ * Prisma client singleton - survives Next.js hot reloads and warm serverless
  * invocations. Server-only: never import from client components.
  *
  * Runtime uses Neon's pooled endpoint (`-pooler` host via DATABASE_URL).
@@ -25,7 +25,7 @@ const createPool = () => {
   });
   // Kick a connection open so the first user request pays less cold-start cost.
   void pool.query("SELECT 1").catch(() => {
-    /* ignore — first real query will surface connection errors */
+    /* ignore - first real query will surface connection errors */
   });
   return pool;
 };
@@ -46,7 +46,7 @@ const PRISMA_SCHEMA_REVISION = "feedback-categories-v1";
 
 /**
  * Recreate the singleton when a long-lived Next process still holds a client
- * generated before a new model (e.g. Feedback) existed — otherwise
+ * generated before a new model (e.g. Feedback) existed - otherwise
  * `db.feedback` stays undefined across HMR.
  */
 const getClient = (): PrismaClient => {

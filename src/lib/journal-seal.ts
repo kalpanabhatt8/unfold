@@ -1,5 +1,5 @@
 /**
- * Background seal pipeline — commits seal state immediately and finishes title
+ * Background seal pipeline - commits seal state immediately and finishes title
  * generation independently of whichever entry is open in the editor.
  *
  * Safe to navigate away the moment this returns: persistence + title/analysis
@@ -61,7 +61,7 @@ const persistBoardSnapshot = (
   }
 };
 
-/** In-flight guard — one active title job per entry. */
+/** In-flight guard - one active title job per entry. */
 const titleJobs = new Set<string>();
 
 const applySealTitleInBackground = (
@@ -101,7 +101,7 @@ const applySealTitleInBackground = (
 
   const text = extractJournalPlainText(snapshot);
   // Prefer a fresh fetch keyed to *this* seal snapshot. Prefetch is only reused
-  // when its signature still matches — otherwise a hover-prefetch from earlier
+  // when its signature still matches - otherwise a hover-prefetch from earlier
   // text could title an empty/wrong board.
   const promise = prefetchSealTitle(text) ?? fetchJournalTitle(text);
 
@@ -111,7 +111,7 @@ const applySealTitleInBackground = (
 };
 
 /**
- * Commit an explicit seal for `entryId`. Idempotent — returns the existing
+ * Commit an explicit seal for `entryId`. Idempotent - returns the existing
  * `sealedAt` when already sealed. Safe to call before navigating away.
  */
 export const commitEntrySeal = (
@@ -141,7 +141,7 @@ export const commitEntrySeal = (
   });
 
   // Title + pattern analysis are intentionally async and unbound from the
-  // open editor — navigating to a new entry mid-stamp must not wait on them.
+  // open editor - navigating to a new entry mid-stamp must not wait on them.
   applySealTitleInBackground(entryId, sealedSnapshot, existing?.title ?? "");
   window.setTimeout(() => {
     void notifyEntryCompleted(entryId, "seal");

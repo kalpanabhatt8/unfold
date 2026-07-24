@@ -1,5 +1,5 @@
 /**
- * Pattern artifacts repository — analyses (durable), pattern states
+ * Pattern artifacts repository - analyses (durable), pattern states
  * (deterministic memory), passages + displays (AI caches).
  *
  * These are client-authoritative upserts today: the browser still runs the
@@ -247,7 +247,7 @@ export const pushAnalyses = async (
     if (!Array.isArray(analysis.topics) || !Array.isArray(analysis.patterns)) {
       continue;
     }
-    // Analyses belong to an entry — skip if the entry hasn't synced yet
+    // Analyses belong to an entry - skip if the entry hasn't synced yet
     // (or belongs to someone else); the next patterns push will catch it.
     const entry = await db.journalEntry.findUnique({
       where: { id: analysis.entryId },

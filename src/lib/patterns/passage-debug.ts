@@ -1,8 +1,8 @@
 /**
- * Dev helpers — inspect the pattern passage pipeline in the browser console.
+ * Dev helpers - inspect the pattern passage pipeline in the browser console.
  *
- *   __unfoldPatternDebug()          — full dump: state, cache, beats, API probe
- *   __unfoldPatternDebug("avoidance") — single pattern
+ *   __unfoldPatternDebug()          - full dump: state, cache, beats, API probe
+ *   __unfoldPatternDebug("avoidance") - single pattern
  */
 
 import { buildSlotGenerationInput } from "@/lib/ai/pattern-slots/input";
@@ -109,7 +109,7 @@ async function probeSlotApi(name: PatternName): Promise<void> {
   }
 }
 
-/** Full pipeline dump — paste output when reporting issues. */
+/** Full pipeline dump - paste output when reporting issues. */
 export async function debugPatternPipeline(
   patternName?: PatternName,
 ): Promise<void> {

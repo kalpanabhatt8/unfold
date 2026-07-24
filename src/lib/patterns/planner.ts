@@ -1,5 +1,5 @@
 /**
- * Unfold — composition planner for living patterns.
+ * Unfold - composition planner for living patterns.
  *
  * The application owns structure, pacing, and ending type. Given evidence +
  * lifecycle + shape memory, pick a composition from a fixed catalog, bind
@@ -184,7 +184,7 @@ const SHAPES: ShapeDef[] = [
       lifecycle !== "emerging",
   },
   {
-    // Legacy — kept for cached passages; discovery is preferred.
+    // Legacy - kept for cached passages; discovery is preferred.
     id: "recognition",
     slotKinds: ["moments", "moments", "line", "close:line"],
     depthTier: "recognition",
@@ -203,7 +203,7 @@ const SHAPES: ShapeDef[] = [
       (lifecycle === "strengthening" || lifecycle === "strong"),
   },
   {
-    // Legacy — kept for cached passages; discovery is preferred.
+    // Legacy - kept for cached passages; discovery is preferred.
     id: "recognition_deep",
     slotKinds: ["moments", "moments", "line", "close:question"],
     depthTier: "recognition",
@@ -296,8 +296,8 @@ const splitMoments = (quotes: QuoteRef[], parts: number): QuoteRef[][] => {
 
 /**
  * Recognition split: a single strong opening moment, then the remaining
- * moments (chronological) on the next evidence card. Keeps the journal —
- * not the AI — carrying the reflection, and avoids front-loading all
+ * moments (chronological) on the next evidence card. Keeps the journal -
+ * not the AI - carrying the reflection, and avoids front-loading all
  * evidence into card one.
  */
 const splitMomentsRecognition = (quotes: QuoteRef[]): QuoteRef[][] => {
@@ -308,7 +308,7 @@ const splitMomentsRecognition = (quotes: QuoteRef[]): QuoteRef[][] => {
 
 const collidesWithNeighbor = (shape: ShapeDef, neighbors: NeighborShape[]): boolean =>
   neighbors.some((n) => {
-    // Each surfaced pattern earns its own guided discovery arc — never block
+    // Each surfaced pattern earns its own guided discovery arc - never block
     // discovery because a neighbor already used recognition depth / question.
     if (shape.id === "discovery") return false;
     return (
@@ -375,7 +375,7 @@ const relaxAndPick = (
 
   // Discovery first when eligible. Stage-0 filterCandidates used to win with
   // bare/echo/pair whenever discovery was rotated out (recentSignatures /
-  // lastEndingKind) — a 2-beat arc that hides Continue at evidence. With
+  // lastEndingKind) - a 2-beat arc that hides Continue at evidence. With
   // multiple surfaced patterns that lottery fired often, so tabbed Patterns
   // looked like it had "lost" the CTA.
   const stages: Array<() => ShapeDef[]> = [
@@ -556,7 +556,7 @@ export function createPlan(
 }
 
 /**
- * Deterministic discovery composition — used when upgrading a stale
+ * Deterministic discovery composition - used when upgrading a stale
  * evidence-only cache without running the full shape lottery.
  */
 export function createDiscoveryPlan(
@@ -594,7 +594,7 @@ export function createDiscoveryPlan(
   return { plan, state };
 }
 
-/** Full plan in one call — convenience wrapper. */
+/** Full plan in one call - convenience wrapper. */
 export function planPattern(ctx: PlanContext): PlanResult {
   const advanced = advancePatternState(ctx);
   const { plan, state } = createPlan(ctx, advanced);
@@ -606,7 +606,7 @@ export function planPattern(ctx: PlanContext): PlanResult {
   };
 }
 
-/** Plan all surfaced patterns — neighbor diversity enforced in order. */
+/** Plan all surfaced patterns - neighbor diversity enforced in order. */
 export function planAllPatterns(
   patterns: Array<{ name: PatternName; evidence: PatternEvidenceItem[] }>,
   globalActivityAt: number,

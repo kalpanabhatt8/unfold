@@ -1,4 +1,4 @@
-/** Haiku — low temperature for binary content-quality classification. */
+/** Haiku - low temperature for binary content-quality classification. */
 export const QUALITY_MODEL = "claude-haiku-4-5-20251001";
 export const QUALITY_MAX_TOKENS = 64;
 export const QUALITY_TEMPERATURE = 0;
@@ -17,7 +17,7 @@ export type ContentQualityResult = {
   confidence: number;
 };
 
-/** Same skip rule as `notifyEntryCompleted` — under-flag via confidence floor. */
+/** Same skip rule as `notifyEntryCompleted` - under-flag via confidence floor. */
 export function shouldSkipPatternExtractionForQuality(
   quality: ContentQualityResult,
 ): boolean {

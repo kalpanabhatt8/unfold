@@ -6,6 +6,7 @@ import { Waypoints } from "lucide-react";
 import { iconFixed } from "@/components/ui/button-system";
 
 type PatternsSidebarLinkProps = {
+  /** Unread ready patterns (new or updated since last open). */
   count: number;
   active?: boolean;
   onOpen: () => void;
@@ -16,6 +17,8 @@ export function PatternsSidebarLink({
   active = false,
   onOpen,
 }: PatternsSidebarLinkProps) {
+  const hasUnread = count > 0;
+
   return (
     <div
       className={clsx(
@@ -29,7 +32,11 @@ export function PatternsSidebarLink({
         href="/dashboard/patterns"
         onClick={onOpen}
         aria-current={active ? "page" : undefined}
-        aria-label={`Patterns, ${count} reflections`}
+        aria-label={
+          hasUnread
+            ? `Patterns, ${count} new or updated`
+            : "Patterns"
+        }
         className="flex items-center gap-2.5 rounded-[0.875rem] px-2.75 py-2.5"
       >
         <Waypoints
@@ -41,12 +48,14 @@ export function PatternsSidebarLink({
         <span className="min-w-0 flex-1 text-sm font-medium leading-snug text-sealed">
           Patterns
         </span>
-        <span
-          className="flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full bg-(--sidebar-tab-track) px-1.5 text-xs font-medium tabular-nums text-sealed"
-          aria-hidden
-        >
-          {count}
-        </span>
+        {hasUnread ? (
+          <span
+            className="flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full bg-(--journal-quote-highlight) px-1.5 text-xs font-medium tabular-nums text-(--accent)"
+            aria-hidden
+          >
+            {count}
+          </span>
+        ) : null}
       </Link>
     </div>
   );

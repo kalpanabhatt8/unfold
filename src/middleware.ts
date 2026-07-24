@@ -4,7 +4,7 @@ import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 import { AUTH_SIGN_IN_PATH } from '@/lib/auth-routes'
 
 // Only the landing page and auth screens are public. The dashboard, all data
-// sync routes, and all AI routes require a signed-in user — every DB row is
+// sync routes, and all AI routes require a signed-in user - every DB row is
 // scoped to the Clerk userId.
 const isPublicRoute = createRouteMatcher([
   '/',
@@ -23,7 +23,7 @@ export default clerkMiddleware(async (auth, req) => {
   const { userId } = await auth()
   if (userId) return
 
-  // Always send unauthenticated users to our app sign-in — never Clerk's
+  // Always send unauthenticated users to our app sign-in - never Clerk's
   // Account Portal (*.accounts.dev), which is the fallback when
   // NEXT_PUBLIC_CLERK_SIGN_IN_URL is missing at runtime (e.g. on Vercel).
   const signIn = new URL(AUTH_SIGN_IN_PATH, req.url)

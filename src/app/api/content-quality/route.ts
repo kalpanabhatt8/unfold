@@ -4,7 +4,7 @@ import { classifyContentQuality } from "@/lib/ai/content-quality/generate";
 import { requireUser } from "@/lib/server/auth";
 import { requireAiUser } from "@/lib/server/ai-auth";
 
-/** Dev warm-up — compiles the route without calling Claude. */
+/** Dev warm-up - compiles the route without calling Claude. */
 export async function GET() {
   try {
     await requireUser();
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
 
   try {
     const result = await classifyContentQuality(apiKey, text);
-    // Return only the gate fields — never echo entry text.
+    // Return only the gate fields - never echo entry text.
     return NextResponse.json<ContentQualityResult>({
       flagged: result.flagged,
       confidence: result.confidence,

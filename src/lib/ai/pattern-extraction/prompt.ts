@@ -15,11 +15,11 @@ import {
 
 /**
  * BEHAVIORAL CONSTRAINTS (pattern extraction):
- * - Closed vocabulary only — names from PATTERN_CATALOG / PATTERN_NAMES.
- * - Confidence floor, max patterns/topics/evidence — see vocabulary constants.
+ * - Closed vocabulary only - names from PATTERN_CATALOG / PATTERN_NAMES.
+ * - Confidence floor, max patterns/topics/evidence - see vocabulary constants.
  * - Pattern behavioral tests live in PATTERN_CATALOG (definition + disambiguation
  *   + examples). Do NOT hardcode per-pattern meaning here; edit the catalog.
- * - Pairwise TIE-BREAKERS are rendered from arbitration.ts (ARBITRATION_RULES) —
+ * - Pairwise TIE-BREAKERS are rendered from arbitration.ts (ARBITRATION_RULES) -
  *   the SAME table enforced post-hoc in validation.ts (reconcilePatterns). Edit
  *   the rule there, never re-word tie-breakers only in this prompt.
  * - Run `npm run check:pattern-vocab` after catalog or this-file changes.
@@ -73,7 +73,7 @@ function renderSoloExample(
   example: PatternExample,
   index: number,
 ): string {
-  const heading = `EXAMPLE ${index} (${name} — NOT overthinking)`;
+  const heading = `EXAMPLE ${index} (${name} - NOT overthinking)`;
   const wrongLine = example.wrong ? `Wrong: ${example.wrong}\nRight:\n` : "";
   const right = formatJsonRight({
     topics: example.topics,
@@ -114,9 +114,9 @@ function buildExamplesBlock(): string {
   return parts.join("\n\n");
 }
 
-/** Pattern extraction prompt — structured JSON only, no creative writing. */
+/** Pattern extraction prompt - structured JSON only, no creative writing. */
 export function buildExtractionPrompt(text: string): string {
-  return `You are Unfold's entry analyst. You read ONE private journal entry and identify the recurring MENTAL PATTERNS in how the person is thinking — not the topics, not the events.
+  return `You are Unfold's entry analyst. You read ONE private journal entry and identify the recurring MENTAL PATTERNS in how the person is thinking - not the topics, not the events.
 
 Return:
 - topics: 1–2 short things the entry is about.

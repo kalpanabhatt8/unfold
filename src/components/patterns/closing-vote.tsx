@@ -71,7 +71,7 @@ const voteBtnClass =
   "data-[active=true]:bg-[color-mix(in_srgb,var(--button-primary)_5%,white)] " +
   "data-[active=true]:text-[color-mix(in_srgb,var(--button-primary)_72%,transparent)]";
 
-/** Solid thumbs — single filled shapes (stem included). Lucide’s stroke+fill leaves a seam. */
+/** Solid thumbs - single filled shapes (stem included). Lucide’s stroke+fill leaves a seam. */
 function ThumbsUpIcon({ solid }: { solid: boolean }) {
   if (solid) {
     return (

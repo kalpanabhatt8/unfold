@@ -8,7 +8,7 @@ import { db } from "@/lib/server/db";
 
 export const runtime = "nodejs";
 
-/** Soft cap — allow long notes; reject only pathological payloads. */
+/** Soft cap - allow long notes; reject only pathological payloads. */
 const MAX_FEEDBACK_CHARS = 4_000;
 
 export async function POST(request: Request) {

@@ -1,5 +1,5 @@
 /**
- * Unfold — synthetic evidence fixtures for shape + lifecycle review.
+ * Unfold - synthetic evidence fixtures for shape + lifecycle review.
  *
  * Run: npx tsx scripts/review-pattern-shapes.ts
  * Or in the browser console after importing reviewAllFixtures.
@@ -54,7 +54,7 @@ export const SHAPE_FIXTURES: ShapeFixture[] = [
     ],
     globalActivityAt: now - 2 * DAY,
     expectShape: "bare_close",
-    notes: "Brand-new pattern — evidence only (quote ending, no AI voice)",
+    notes: "Brand-new pattern - evidence only (quote ending, no AI voice)",
   },
   {
     id: "echo-tomorrow",
@@ -79,7 +79,7 @@ export const SHAPE_FIXTURES: ShapeFixture[] = [
     ],
     globalActivityAt: now - 2 * DAY,
     expectShape: "pair",
-    notes: "Large gap — returning lifecycle",
+    notes: "Large gap - returning lifecycle",
   },
   {
     id: "pair-drift",
@@ -90,7 +90,7 @@ export const SHAPE_FIXTURES: ShapeFixture[] = [
       item("c", 5, ["Can't stop thinking about it."]),
     ],
     globalActivityAt: now - 2 * DAY,
-    notes: "14d+ gap, strengthening — pair or single",
+    notes: "14d+ gap, strengthening - pair or single",
   },
   {
     id: "recognition-strong",
@@ -99,11 +99,11 @@ export const SHAPE_FIXTURES: ShapeFixture[] = [
       item("a", 28, ["Reread the finished email five more times."]),
       item("b", 21, ["Re-tested the code I'd already signed off on."]),
       item("c", 10, ["Redid the slide that was already done."]),
-      item("d", 2, ["Still haven't shipped it — one more pass first."]),
+      item("d", 2, ["Still haven't shipped it - one more pass first."]),
     ],
     globalActivityAt: now - 2 * DAY,
     expectShape: "recognition",
-    notes: "Strengthening pattern — recheck/redo/never-ship, not vague 'good enough'",
+    notes: "Strengthening pattern - recheck/redo/never-ship, not vague 'good enough'",
   },
   {
     id: "recognition-rich",
@@ -118,7 +118,7 @@ export const SHAPE_FIXTURES: ShapeFixture[] = [
     ],
     globalActivityAt: now - 1 * DAY,
     expectShape: "recognition",
-    notes: "Evidence-rich pattern — should earn the deeper recognition arc",
+    notes: "Evidence-rich pattern - should earn the deeper recognition arc",
   },
   {
     id: "resting",
@@ -129,7 +129,7 @@ export const SHAPE_FIXTURES: ShapeFixture[] = [
       item("c", 50, ["Their progress makes mine look small."]),
     ],
     globalActivityAt: now - 40 * DAY,
-    notes: "No global activity — resting",
+    notes: "No global activity - resting",
   },
   {
     id: "weakening",

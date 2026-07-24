@@ -1,5 +1,5 @@
 /**
- * Journal entries repository — the source-of-truth table.
+ * Journal entries repository - the source-of-truth table.
  *
  * Conflict model: last-write-wins at whole-entry granularity, decided by the
  * client-clock `updatedAt` (a journal is effectively single-writer). The
@@ -48,7 +48,7 @@ const toWire = (row: EntryRow): WireEntry => ({
   qualityFlaggedAt: ms(row.qualityFlaggedAt),
   searchText: row.deletedAt ? "" : row.searchText,
   contentHash: row.contentHash,
-  // Tombstones never carry board JSON — keep the wire payload small.
+  // Tombstones never carry board JSON - keep the wire payload small.
   content: row.deletedAt
     ? null
     : ((row.content as WireEntry["content"]) ?? null),
@@ -100,7 +100,7 @@ const pushOne = async (
   });
 
   if (existing && existing.userId !== userId) {
-    // Entry ID collision across accounts — reject rather than leak/overwrite.
+    // Entry ID collision across accounts - reject rather than leak/overwrite.
     return { id: entry.id, accepted: false };
   }
 
@@ -189,7 +189,7 @@ export const assertEntryOwnedBy = async (
     select: { userId: true },
   });
   if (existing && existing.userId !== userId) {
-    // Same collision policy as pushOne — never leak/overwrite across accounts.
+    // Same collision policy as pushOne - never leak/overwrite across accounts.
     throw new Response("Forbidden", { status: 403 });
   }
 };
@@ -209,7 +209,7 @@ export const ensureEntryStub = async (
   });
 
   if (existing && existing.userId !== userId) {
-    // Same collision policy as pushOne — never leak/overwrite across accounts.
+    // Same collision policy as pushOne - never leak/overwrite across accounts.
     throw new Response("Forbidden", { status: 403 });
   }
   if (existing) return;
@@ -225,7 +225,7 @@ export const ensureEntryStub = async (
       },
     });
   } catch (error) {
-    // Concurrent create won the race — confirm we still own the row.
+    // Concurrent create won the race - confirm we still own the row.
     if (
       error instanceof Prisma.PrismaClientKnownRequestError &&
       error.code === "P2002"

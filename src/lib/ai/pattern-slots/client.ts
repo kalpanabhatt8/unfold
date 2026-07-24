@@ -90,7 +90,7 @@ async function fetchPatternSlotFillsOnce(
     const filled = applySlotFills(passage, body.fills ?? []);
     logVoiceFetchEnd(passage, filled);
 
-    // Persist every round — including partial fills — so HMR / remounts
+    // Persist every round - including partial fills - so HMR / remounts
     // can resume from cache instead of losing completed voice slots.
     putCachedPassage(filled);
 
@@ -145,7 +145,7 @@ export type PassageGenerationTarget = {
  */
 const MAX_GENERATION_ROUNDS = 2;
 
-/** Generate voice slots — retries when validation leaves slots unfilled. */
+/** Generate voice slots - retries when validation leaves slots unfilled. */
 export async function generatePassageSlots(
   targets: PassageGenerationTarget[],
 ): Promise<Map<PatternName, PatternPassage>> {
@@ -180,7 +180,7 @@ export async function generatePassageSlots(
   return results;
 }
 
-/** Generate voice for one pattern — reattaches if a batch is already in flight. */
+/** Generate voice for one pattern - reattaches if a batch is already in flight. */
 export async function generatePassageVoiceForPattern(
   target: PassageGenerationTarget,
 ): Promise<PatternPassage> {

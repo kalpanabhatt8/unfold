@@ -31,7 +31,7 @@ export function resolvePreferredName(
   return user.username?.trim() ?? "";
 }
 
-/** First letter for avatar fallback — always uppercase. */
+/** First letter for avatar fallback - always uppercase. */
 export function avatarInitial(source: string | null | undefined): string {
   const word = source?.trim().split(/\s+/)[0];
   const letter = word?.[0];

@@ -1,15 +1,15 @@
 /**
- * Unfold — pairwise pattern arbitration (post-hoc, deterministic).
+ * Unfold - pairwise pattern arbitration (post-hoc, deterministic).
  *
  * SINGLE SOURCE OF TRUTH for the confirmed colliding pairs. Each rule carries
  * BOTH the structural test (`loserKeepsWhen`) that runs in code AND the
- * `promptLine` rendered into the extraction prompt's TIE-BREAKERS block — so the
+ * `promptLine` rendered into the extraction prompt's TIE-BREAKERS block - so the
  * prompt's wording and the code's enforcement can never drift apart (the class
  * of regression that produced the self_doubt/self_criticism/overthinking
  * confusions and the Loop-stitching 681f321 revert).
  *
  * Runs AFTER schema/floor/evidence validation and AFTER the confidence sort,
- * BEFORE the MAX_PATTERNS slice. It re-ranks by POLICY, not by score — so do not
+ * BEFORE the MAX_PATTERNS slice. It re-ranks by POLICY, not by score - so do not
  * re-sort by confidence afterwards.
  *
  * Scope: only the four pairs the stored corpus proved were colliding. Broader
@@ -21,7 +21,7 @@ import type { PatternMatch } from "@/lib/patterns/types";
 import type { PatternName } from "@/lib/patterns/vocabulary";
 
 /**
- * An explicit escalation to a worse EXTERNAL / FUTURE outcome — the thing that
+ * An explicit escalation to a worse EXTERNAL / FUTURE outcome - the thing that
  * makes catastrophizing distinct from a bare negative appraisal. Deliberately
  * excludes trait-generalization ("I'm sloppy in general"), which is
  * self_criticism, not catastrophizing.
@@ -33,7 +33,7 @@ const hasEscalatedOutcome = (evidence: string): boolean =>
   ESCALATED_OUTCOME.test(evidence);
 
 /**
- * Finished work getting rechecked / redone / never shipped — the narrowed
+ * Finished work getting rechecked / redone / never shipped - the narrowed
  * perfectionism test. Distinct from "worrying how it lands", which is
  * fear_of_judgment. Coarse lexical proxy for the prompt-side rule.
  */
@@ -55,7 +55,7 @@ export type ArbitrationRule = {
   loserKeepsWhen: (loserEvidence: string) => boolean;
   /** demote `loser` below `winner`, or drop `loser` entirely. */
   onLose: "demote" | "drop";
-  /** Prose rendered into the extraction prompt — the same rule, model-facing. */
+  /** Prose rendered into the extraction prompt - the same rule, model-facing. */
   promptLine: string;
 };
 
@@ -68,7 +68,7 @@ export const ARBITRATION_RULES: ArbitrationRule[] = [
     loserKeepsWhen: () => false,
     onLose: "drop",
     promptLine:
-      "If the loop is about how a moment came across to others, tag fear_of_judgment ONLY — do NOT also add overthinking. Overthinking is the residual bucket, never a co-tag alongside a specific pattern.",
+      "If the loop is about how a moment came across to others, tag fear_of_judgment ONLY - do NOT also add overthinking. Overthinking is the residual bucket, never a co-tag alongside a specific pattern.",
   },
   {
     id: "catastrophizing_yields_to_self_doubt",
@@ -78,7 +78,7 @@ export const ARBITRATION_RULES: ArbitrationRule[] = [
     loserKeepsWhen: hasEscalatedOutcome,
     onLose: "demote",
     promptLine:
-      'Tag catastrophizing over self_doubt ONLY when the entry names an escalated worse outcome ("the whole thing fails", "they\'ll walk away"). A bare negative guess about your own ability — or deciding a quote/number is "too high" before any reply — is self_doubt.',
+      'Tag catastrophizing over self_doubt ONLY when the entry names an escalated worse outcome ("the whole thing fails", "they\'ll walk away"). A bare negative guess about your own ability - or deciding a quote/number is "too high" before any reply - is self_doubt.',
   },
   {
     id: "catastrophizing_yields_to_self_criticism",
@@ -88,7 +88,7 @@ export const ARBITRATION_RULES: ArbitrationRule[] = [
     loserKeepsWhen: hasEscalatedOutcome,
     onLose: "demote",
     promptLine:
-      'Tag catastrophizing over self_criticism ONLY when the entry escalates to a worse external/future outcome. A harsh self-label ("I\'m sloppy", "careless", "can\'t be trusted") — even generalized ("in general") — is self_criticism.',
+      'Tag catastrophizing over self_criticism ONLY when the entry escalates to a worse external/future outcome. A harsh self-label ("I\'m sloppy", "careless", "can\'t be trusted") - even generalized ("in general") - is self_criticism.',
   },
   {
     id: "perfectionism_yields_to_fear_of_judgment",
@@ -108,7 +108,7 @@ export type ArbitrationAction =
 
 /**
  * Apply the rule table to one entry's patterns. Returns the re-ranked list plus
- * the actions taken (for offline replay / debugging). Pure — no I/O.
+ * the actions taken (for offline replay / debugging). Pure - no I/O.
  */
 export function reconcilePatterns(input: PatternMatch[]): {
   patterns: PatternMatch[];
@@ -131,7 +131,7 @@ export function reconcilePatterns(input: PatternMatch[]): {
     return !rule.loserKeepsWhen(evidenceText(loser));
   };
 
-  // Drops first — they can remove a pattern the demote pass would otherwise see.
+  // Drops first - they can remove a pattern the demote pass would otherwise see.
   for (const rule of ARBITRATION_RULES) {
     if (rule.onLose !== "drop") continue;
     if (!fires(rule)) continue;
@@ -145,7 +145,7 @@ export function reconcilePatterns(input: PatternMatch[]): {
     });
   }
 
-  // Demotes — only reorder when the loser currently outranks the winner.
+  // Demotes - only reorder when the loser currently outranks the winner.
   for (const rule of ARBITRATION_RULES) {
     if (rule.onLose !== "demote") continue;
     if (!fires(rule)) continue;
@@ -168,7 +168,7 @@ export function reconcilePatterns(input: PatternMatch[]): {
   return { patterns: work, actions };
 }
 
-/** TIE-BREAKERS block for the extraction prompt — rendered from the same table. */
+/** TIE-BREAKERS block for the extraction prompt - rendered from the same table. */
 export function renderArbitrationPromptBlock(): string {
   return ARBITRATION_RULES.map((rule) => `- ${rule.promptLine}`).join("\n");
 }

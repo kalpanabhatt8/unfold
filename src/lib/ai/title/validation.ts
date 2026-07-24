@@ -4,7 +4,7 @@ import {
 } from "@/lib/ai/title/constants";
 import { cleanTitleText, parseTitleModelResponse } from "@/lib/ai/title/parse";
 
-/** Obvious self-help / AI vocabulary — hard reject only. */
+/** Obvious self-help / AI vocabulary - hard reject only. */
 const HARD_BANNED_SELF_HELP_PHRASES = [
   "moving forward",
   "self-discovery",
@@ -19,7 +19,7 @@ const HARD_BANNED_SELF_HELP_PHRASES = [
 ] as const;
 
 /**
- * Known generic page-name shapes — theme labels and coping strategies that
+ * Known generic page-name shapes - theme labels and coping strategies that
  * could belong to many entries. Ordinary words like "still" or "thinking"
  * are only flagged when they form these patterns.
  */
@@ -147,7 +147,7 @@ function repeatsOpeningSentence(title: string, sourceText: string): boolean {
   return openingPhrase.includes(titleNorm) && titleNorm.length >= 10;
 }
 
-/** Validate page-name quality — title feature only. */
+/** Validate page-name quality - title feature only. */
 export function validateTitle(
   input: string,
   sourceText?: string,

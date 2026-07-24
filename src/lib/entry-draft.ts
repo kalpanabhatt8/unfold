@@ -1,5 +1,5 @@
 /**
- * Draft lifecycle helpers — keep at most one empty unsealed entry.
+ * Draft lifecycle helpers - keep at most one empty unsealed entry.
  *
  * Board content lives at `unfold-board-{id}`; metadata at `unfold-drafts`.
  * Reads snapshots as raw JSON to avoid pulling in the canvas runtime.

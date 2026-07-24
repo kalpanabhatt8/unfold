@@ -13,7 +13,7 @@ export function cleanTitleText(raw: string): string {
     .trim();
 }
 
-/** Parse model output — first line only, no labels or quotes. */
+/** Parse model output - first line only, no labels or quotes. */
 export function parseTitleModelResponse(raw: string): string {
   const firstLine = raw.trim().split(/\r?\n/)[0]?.trim() ?? "";
   return cleanTitleText(firstLine);

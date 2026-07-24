@@ -1,4 +1,4 @@
-# Unfold — color tokens
+# Unfold - color tokens
 
 Source of truth: `src/app/global.css` (`:root`).
 
@@ -35,7 +35,7 @@ Source of truth: `src/app/global.css` (`:root`).
 
 ### Base gray ramp (unchanged)
 
-`--gray-25` … `--gray-900` — see `:root` in `global.css`.
+`--gray-25` … `--gray-900` - see `:root` in `global.css`.
 
 ---
 
@@ -93,7 +93,7 @@ Source of truth: `src/app/global.css` (`:root`).
 | **Pattern cards** | Raised white `#FFFFFF` via `--surface-raised` |
 | **CTA buttons** | Fill `#430F24` (darker than old mauve `#684050`); hover/active still darken via `color-mix` |
 | **Page / Patterns main** | Neutral `#FCFCFC` via `--surface-canvas` |
-| **Writing canvas** | `--canvas-bg` → raised white (was pink-white `#FEFCFD`) — slight warm→neutral shift by design |
+| **Writing canvas** | `--canvas-bg` → raised white (was pink-white `#FEFCFD`) - slight warm→neutral shift by design |
 
 Legacy variable **names** remain so components do not need renames.
 

@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * Canvas placeholder that mirrors CanvasBoard layout — same gradient, column
- * width, header grid, and journal-block spacing — while entry data loads.
+ * Canvas placeholder that mirrors CanvasBoard layout - same gradient, column
+ * width, header grid, and journal-block spacing - while entry data loads.
  */
 
 import { useViewportLayout } from "@/hooks/use-viewport-layout";

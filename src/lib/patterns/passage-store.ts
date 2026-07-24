@@ -1,5 +1,5 @@
 /**
- * Unfold — persistence for materialized pattern passages.
+ * Unfold - persistence for materialized pattern passages.
  *
  * One passage per pattern name. The cache key embedded in the passage must
  * match (evidenceKey, lifecycle, signature) for a cache hit.

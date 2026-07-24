@@ -1,12 +1,12 @@
 /**
- * Journal entry metadata — the sidebar's single source of truth.
+ * Journal entry metadata - the sidebar's single source of truth.
  *
  * Entry {
  *   id, title, createdAt, updatedAt, sealedAt, crisisFlagged,
  *   crisisFlaggedAt, qualityFlagged, qualityFlaggedAt, searchText
  * }
  *
- * `content` itself is NOT stored here — the canvas owns it entirely at
+ * `content` itself is NOT stored here - the canvas owns it entirely at
  * `unfold-board-{id}` (a `CanvasSnapshot`, untouched by this file). We only
  * cache a flattened plain-text copy (`searchText`) alongside the metadata so
  * the sidebar can search titles + content without re-reading every board
@@ -31,15 +31,15 @@ export type JournalEntry = {
   title: string;
   createdAt: number;
   updatedAt: number;
-  /** Canvas header stamp — frozen for the whole editing session. */
+  /** Canvas header stamp - frozen for the whole editing session. */
   lastEditedAt?: number;
   /** Unix ms when sealed; `null`/absent = still a draft. */
   sealedAt?: number | null;
-  /** Crisis-risk gate — boolean only; never store reasoning or snippets. */
+  /** Crisis-risk gate - boolean only; never store reasoning or snippets. */
   crisisFlagged?: boolean;
   /** Unix ms when crisis was flagged; absent/null when not flagged. */
   crisisFlaggedAt?: number | null;
-  /** Content-quality gate — boolean only; never store reasoning or snippets. */
+  /** Content-quality gate - boolean only; never store reasoning or snippets. */
   qualityFlagged?: boolean;
   /** Unix ms when quality was flagged; absent/null when not flagged. */
   qualityFlaggedAt?: number | null;
@@ -157,7 +157,7 @@ export const readEntryById = (id: string): JournalEntry | null => {
   return normalizeEntry({ ...entry, id });
 };
 
-/** All journal entries, newest `createdAt` first. No cap — the sidebar is the only nav surface. */
+/** All journal entries, newest `createdAt` first. No cap - the sidebar is the only nav surface. */
 export const readAllEntries = (): JournalEntry[] => {
   const drafts = readDraftsRaw();
   return Object.entries(drafts)
@@ -258,7 +258,7 @@ export const deleteEntry = (id: string) => {
 };
 
 /**
- * Apply a server-won copy locally WITHOUT re-marking it dirty — used by the
+ * Apply a server-won copy locally WITHOUT re-marking it dirty - used by the
  * sync engine so pull-applies don't ping-pong back to the server.
  */
 export const applyRemoteEntry = (entry: JournalEntry) => {

@@ -1,4 +1,4 @@
-/** Haiku — low temperature for consistent curiosity hooks. */
+/** Haiku - low temperature for consistent curiosity hooks. */
 export const DISPLAY_MODEL = "claude-haiku-4-5-20251001";
 export const DISPLAY_MAX_TOKENS = 120;
 export const DISPLAY_TEMPERATURE = 0.35;

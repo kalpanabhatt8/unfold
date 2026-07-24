@@ -35,7 +35,7 @@ const FIXTURES: Fixture[] = [
     quotes: [
       "I opened Slack before I even sat down.",
       "Closed the draft again. Opened email instead.",
-      "Same tab cycle — portfolio, then tutorials, then Slack.",
+      "Same tab cycle - portfolio, then tutorials, then Slack.",
       "Still hadn't touched the thing I said I'd start this morning.",
     ],
   },
@@ -47,7 +47,7 @@ const FIXTURES: Fixture[] = [
     quotes: [
       "Woke up and the first thought was that I'm behind again.",
       "Three bugs fixed and I still called myself stupid out loud.",
-      "Same verdict before coffee — nothing I do is enough.",
+      "Same verdict before coffee - nothing I do is enough.",
     ],
   },
 ];

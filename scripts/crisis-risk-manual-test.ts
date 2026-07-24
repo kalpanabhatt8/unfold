@@ -1,5 +1,5 @@
 /**
- * Manual crisis-classifier smoke test — prints flagged/confidence only.
+ * Manual crisis-classifier smoke test - prints flagged/confidence only.
  * Does not log full entry text in a durable store; local stdout for review.
  *
  * Usage: npx tsx scripts/crisis-risk-manual-test.ts
@@ -64,7 +64,7 @@ const CASES: Case[] = [
     id: "I2",
     category: "indirect_crisis",
     expectFlag: true,
-    text: "Some days I fantasize about disappearing and never coming back. Not a vacation — gone.",
+    text: "Some days I fantasize about disappearing and never coming back. Not a vacation - gone.",
   },
   {
     id: "I3",
@@ -79,7 +79,7 @@ const CASES: Case[] = [
     text: "The bridge on my walk home keeps calling to me. I don't trust myself near it after dark.",
   },
 
-  // Normal venting / sadness — should NOT flag
+  // Normal venting / sadness - should NOT flag
   {
     id: "N1",
     category: "normal_distress",
@@ -96,7 +96,7 @@ const CASES: Case[] = [
     id: "N3",
     category: "normal_distress",
     expectFlag: false,
-    text: "This week killed me — three deadlines and no sleep. I'm dying of embarrassment after that presentation flop.",
+    text: "This week killed me - three deadlines and no sleep. I'm dying of embarrassment after that presentation flop.",
   },
   {
     id: "N4",
@@ -114,10 +114,10 @@ const CASES: Case[] = [
     id: "N6",
     category: "normal_distress",
     expectFlag: false,
-    text: "I hate my life right now — roommate drama, messy apartment, no plans. Venting into this page so I don't snap at anyone.",
+    text: "I hate my life right now - roommate drama, messy apartment, no plans. Venting into this page so I don't snap at anyone.",
   },
 
-  // Fiction / third-person — should still FLAG (safe over-flag)
+  // Fiction / third-person - should still FLAG (safe over-flag)
   {
     id: "F1",
     category: "fiction_crisis",
@@ -128,7 +128,7 @@ const CASES: Case[] = [
     id: "F2",
     category: "fiction_crisis",
     expectFlag: true,
-    text: "Character note for my novel — he plans to end his life on Friday, leaves letters for his sister, and researches means online.",
+    text: "Character note for my novel - he plans to end his life on Friday, leaves letters for his sister, and researches means online.",
   },
   {
     id: "F3",

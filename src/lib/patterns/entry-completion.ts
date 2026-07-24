@@ -1,9 +1,9 @@
 /**
- * Unfold — the generic "entry completion" trigger.
+ * Unfold - the generic "entry completion" trigger.
  *
  * The analysis pipeline listens here and is agnostic to WHAT completed an
  * entry. V1 wires `"seal"` (explicit) and `"inactivity"` (implicit: 24h idle
- * + 50+ words — analysis-only, entry stays unsealed in the UI).
+ * + 50+ words - analysis-only, entry stays unsealed in the UI).
  *
  * Ordering: crisis check → content-quality check → pattern extraction.
  * Either gate skip extraction entirely when flagged.
@@ -92,7 +92,7 @@ export const isExplicitlySealed = (entry: JournalEntry): boolean =>
 
 /**
  * Unsealed draft that has sat untouched long enough with enough text to
- * analyze. Does not set `sealedAt` — the user still sees an open draft.
+ * analyze. Does not set `sealedAt` - the user still sees an open draft.
  */
 export const isImplicitlySealedForAnalysis = (entry: JournalEntry): boolean => {
   if (isExplicitlySealed(entry)) return false;
@@ -112,7 +112,7 @@ const completionSourceFor = (entry: JournalEntry): CompletionSource =>
 /** In-flight guard so a rapid double-fire never double-calls the model. */
 const inflight = new Set<string>();
 
-/** Backfill batch cap per invocation — keeps cost bounded. */
+/** Backfill batch cap per invocation - keeps cost bounded. */
 const RECONCILE_BATCH_LIMIT = 5;
 
 /** Analyze one completed entry (once). Silent on skip/failure. */
@@ -129,17 +129,17 @@ export async function notifyEntryCompleted(
   const text = readEntryText(entryId);
   if (!text.trim()) return;
 
-  // Durable gate — deny while a recent attempt has no fail outcome (in flight
+  // Durable gate - deny while a recent attempt has no fail outcome (in flight
   // or abandoned < ATTEMPT_STALE_MS). Survives reload / other tabs.
   if (!isAnalysisAttemptAllowed(entryId)) return;
 
-  // Claim same-tab lock before writing attempt / awaiting — #1 and #2 can race.
+  // Claim same-tab lock before writing attempt / awaiting - #1 and #2 can race.
   inflight.add(entryId);
-  // Sync write before any await — abandoned tabs unlock only via stale age.
+  // Sync write before any await - abandoned tabs unlock only via stale age.
   markAnalysisAttemptStarted(entryId);
 
   try {
-    // Crisis gate — separate classification step before any pattern extraction.
+    // Crisis gate - separate classification step before any pattern extraction.
     // Fail open: API failure/timeout → treat as unflagged, log for monitoring.
     const crisis = await fetchCrisisRisk(text);
     if (crisis === null) {
@@ -162,7 +162,7 @@ export async function notifyEntryCompleted(
         at,
         path: source,
       });
-      // Terminal skip — drop attempt so we don't stale-retry into the same flag.
+      // Terminal skip - drop attempt so we don't stale-retry into the same flag.
       clearAnalysisAttempt(entryId);
       return; // do not call fetchEntryAnalysis / putAnalysis
     } else {
@@ -174,7 +174,7 @@ export async function notifyEntryCompleted(
       });
     }
 
-    // Content-quality gate — after crisis, before pattern extraction.
+    // Content-quality gate - after crisis, before pattern extraction.
     // Fail open: API failure/timeout → treat as unflagged, log for monitoring.
     // Under-flag: only skip when flagged AND confidence ≥ floor.
     const quality = await fetchContentQuality(text);
@@ -213,7 +213,7 @@ export async function notifyEntryCompleted(
 
     const payload = await fetchEntryAnalysis(text);
     if (!payload) {
-      // Optional fast-path — reconciler may retry before stale timeout.
+      // Optional fast-path - reconciler may retry before stale timeout.
       markAnalysisAttemptFailed(entryId);
       return;
     }
@@ -229,7 +229,7 @@ export async function notifyEntryCompleted(
 }
 
 /**
- * Self-healing backfill: analyze completed entries missing analysis — explicitly
+ * Self-healing backfill: analyze completed entries missing analysis - explicitly
  * sealed, or implicitly sealed (24h idle + 50+ words). Rate-limited and
  * sequential to keep token cost predictable.
  *

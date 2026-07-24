@@ -2,7 +2,7 @@
 
 /**
  * Calm post-seal hand-off when an entry is crisis-flagged.
- * Generic copy only — no named services, numbers, or region-specific links.
+ * Generic copy only - no named services, numbers, or region-specific links.
  * No chatbot, dialogue, or "are you okay?" flow.
  */
 
@@ -27,7 +27,7 @@ export function CrisisResponse({ onBackToEntry }: CrisisResponseProps) {
             this alone.
           </h1>
           <p className="text-sm opacity-80" style={{ lineHeight: 1.55 }}>
-            Your writing is saved. Please reach out to someone — a person you
+            Your writing is saved. Please reach out to someone: a person you
             trust, or a local crisis helpline or mental health service near
             you.
           </p>

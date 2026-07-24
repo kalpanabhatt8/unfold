@@ -41,7 +41,7 @@ export function buildSignUpCompletionPayload(
   if (missing.includes("first_name")) payload.firstName = "Unfold";
   if (missing.includes("last_name")) payload.lastName = "Member";
 
-  // Passwordless UX — satisfy Clerk when password is still marked required.
+  // Passwordless UX - satisfy Clerk when password is still marked required.
   if (missing.includes("password")) {
     payload.password = generatePlaceholderPassword();
   }

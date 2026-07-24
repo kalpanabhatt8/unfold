@@ -1,5 +1,5 @@
 /**
- * Unfold — lifecycle classifier for living patterns.
+ * Unfold - lifecycle classifier for living patterns.
  *
  * Pure + deterministic. Given a surfaced pattern's evidence, the user's global
  * journaling activity, and the previous state, decide the pattern's stage of
@@ -11,7 +11,7 @@
  *      count-based and interpretable, never fragile slopes, and every stage
  *      change is damped by dwell-based hysteresis to avoid flicker.
  *   2. Honesty about absence. `resting` (no new evidence anywhere) is distinct
- *      from `weakening` (a genuine decline while journaling continues) — we
+ *      from `weakening` (a genuine decline while journaling continues) - we
  *      never imply the user changed without data, so `resting` is checked first.
  *
  * All thresholds live in `lifecycle-config.ts` for calibration without
@@ -31,7 +31,7 @@ import { SURFACE_MIN_ENTRIES } from "@/lib/patterns/vocabulary";
 
 const DAY_MS = 86_400_000;
 
-/** Date anchor for an evidence item — mirrors aggregate/time-hint. */
+/** Date anchor for an evidence item - mirrors aggregate/time-hint. */
 const anchorTs = (item: PatternEvidenceItem): number =>
   item.sealedAt ?? item.lastEditedAt ?? item.createdAt;
 
@@ -58,7 +58,7 @@ export type LifecycleSignals = {
 
 /**
  * Derive the raw temporal signals. `globalActivityAt` is the latest analyzed
- * entry anchor across ALL entries (not just this pattern) — the caller
+ * entry anchor across ALL entries (not just this pattern) - the caller
  * computes it; we defensively floor it at this pattern's own lastSeen.
  */
 export function deriveLifecycleSignals(
@@ -118,7 +118,7 @@ export function deriveLifecycleSignals(
 }
 
 /**
- * The decision ladder — first match wins. Order matters: `resting` precedes
+ * The decision ladder - first match wins. Order matters: `resting` precedes
  * `weakening` so absence never reads as decline; `returning` precedes
  * `emerging`/`strengthening` because a return also looks like new momentum.
  */
@@ -163,7 +163,7 @@ export function applyHysteresis(
   if (!prev) return raw;
   if (raw === prev.lifecycle) return prev.lifecycle;
 
-  // Graduate out of emerging immediately once depth supports voice shapes —
+  // Graduate out of emerging immediately once depth supports voice shapes -
   // don't hold evidence-only for the full dwell window.
   if (
     prev.lifecycle === "emerging" &&

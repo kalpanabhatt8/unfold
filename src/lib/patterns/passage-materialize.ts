@@ -1,5 +1,5 @@
 /**
- * Unfold — turn a composition plan into a materialized passage.
+ * Unfold - turn a composition plan into a materialized passage.
  *
  * Evidence slots are copied verbatim from the plan. Voice slots are scaffolded
  * with null text (or a bound quote for close:quote endings).

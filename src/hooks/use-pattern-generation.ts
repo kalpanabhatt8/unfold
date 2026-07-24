@@ -41,7 +41,7 @@ type RetryState = {
 };
 
 type GenerationOptions = {
-  /** Set when invoked from a retry timer — drives backoff on the next failure. */
+  /** Set when invoked from a retry timer - drives backoff on the next failure. */
   retryGeneration?: number;
 };
 
@@ -152,7 +152,7 @@ export function usePatternGeneration(): void {
 
     const refresh = () => {
       try {
-        // Survivors only — never suppressedPatterns or the pre-suppression bucket.
+        // Survivors only - never suppressedPatterns or the pre-suppression bucket.
         const { surfaced } = aggregateAnalyses();
 
         if (surfaced.length === 0) {

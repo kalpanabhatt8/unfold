@@ -32,7 +32,7 @@ const needsDisplay = (pattern: SurfacedPattern): boolean => {
 
 /**
  * Enriches surfaced patterns with landing-page display metadata.
- * Independent of PatternPassage — regenerates only when evidence changes.
+ * Independent of PatternPassage - regenerates only when evidence changes.
  */
 export function usePatternDisplay(
   aggregate: PatternsAggregate | null,

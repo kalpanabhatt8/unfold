@@ -198,7 +198,7 @@ export function SidebarAccountMenu() {
             >
               Send feedback
             </button>
-            {/* Buy me a coffee / Support us — re-enable later
+            {/* Buy me a coffee / Support us - re-enable later
             <a
               role="menuitem"
               href={SUPPORT_MAILTO}

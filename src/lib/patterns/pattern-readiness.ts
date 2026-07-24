@@ -1,5 +1,5 @@
 /**
- * Pattern readiness — when a surfaced survivor is safe to show in the UI.
+ * Pattern readiness - when a surfaced survivor is safe to show in the UI.
  *
  * Generation iterates `aggregate.surfaced` only (post overlap-suppression).
  * Never `suppressedPatterns` or the pre-suppression bucket.

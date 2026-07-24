@@ -2,7 +2,7 @@ import type { CanvasSnapshot } from "@/components/canvas/canvas-board";
 
 const stripBlockPrefix = (text: string, blockKind: string): string => {
   if (blockKind === "bullet" || blockKind === "checklist") {
-    return text.replace(/^[\s•\-–—*]+\s*/, "");
+    return text.replace(/^[\s•–*-]+\s*/, "");
   }
   return text;
 };

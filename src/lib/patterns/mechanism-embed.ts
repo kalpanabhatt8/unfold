@@ -2,7 +2,7 @@
  * Cheap local mechanism embeddings for overlap fold decisions.
  *
  * Aggregation runs synchronously on the client, so this uses hashed bag-of-words
- * vectors + cosine similarity — not a remote generation call. Swap
+ * vectors + cosine similarity - not a remote generation call. Swap
  * `embedMechanismText` later for a Voyage/OpenAI embedding API if needed;
  * fold logic only depends on cosine scores.
  *
@@ -104,7 +104,7 @@ export function cosineSimilarity(a: number[], b: number[]): number {
   for (let i = 0; i < a.length; i += 1) {
     dot += a[i]! * b[i]!;
   }
-  // Vectors are L2-normalized — clamp for float noise.
+  // Vectors are L2-normalized - clamp for float noise.
   if (dot > 1) return 1;
   if (dot < 0) return 0;
   return dot;

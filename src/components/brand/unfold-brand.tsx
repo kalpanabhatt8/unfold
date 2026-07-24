@@ -5,7 +5,7 @@ type UnfoldBrandProps = {
   className?: string;
 };
 
-/** Logo mark matching the landing header — not the dashboard sidebar title. */
+/** Logo mark matching the landing header - not the dashboard sidebar title. */
 export function UnfoldBrand({ href = "/", className }: UnfoldBrandProps) {
   return (
     <Link

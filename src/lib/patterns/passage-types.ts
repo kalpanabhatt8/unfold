@@ -1,5 +1,5 @@
 /**
- * Unfold — materialized pattern passage types.
+ * Unfold - materialized pattern passage types.
  *
  * A passage is the render-ready sequence of beats. Evidence slots are fully
  * bound; voice slots (`line`, `close`) start empty and are filled by Claude
@@ -43,7 +43,7 @@ export type PatternPassage = {
  * v3: shape beat replaced by mechanism generation (event chain, 2–4 sentences).
  * v4: evidence selection prioritizes inner experience over keyword confidence.
  * v5: cache-key delimiter no longer collides with `|` inside evidenceKey.
- * v6: voice bias contract — ban corrective/presumptive reflection framing.
+ * v6: voice bias contract - ban corrective/presumptive reflection framing.
  */
 export const PASSAGE_CACHE_VERSION = "v6";
 
@@ -72,7 +72,7 @@ export const passageEvidenceKeyFromCacheKey = (cacheKey: string): string => {
   if (cacheKey.includes(CACHE_KEY_SEP)) {
     return cacheKey.split(CACHE_KEY_SEP)[1] ?? "";
   }
-  // Legacy: version|evidenceKey|lifecycle|signature — evidenceKey/signature may contain "|".
+  // Legacy: version|evidenceKey|lifecycle|signature - evidenceKey/signature may contain "|".
   const withoutVersion = cacheKey.replace(/^v\d+\|/, "");
   const match = withoutVersion.match(LIFECYCLE_IN_KEY);
   if (match && match.index !== undefined) {

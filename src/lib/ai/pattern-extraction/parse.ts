@@ -1,4 +1,4 @@
-/** Extract the first JSON object from model output — extraction feature only. */
+/** Extract the first JSON object from model output - extraction feature only. */
 export function parseExtractionResponse(raw: string): unknown | null {
   const cleaned = raw
     .replace(/```json\s*/gi, "")

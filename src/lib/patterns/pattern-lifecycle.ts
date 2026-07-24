@@ -1,5 +1,5 @@
 /**
- * Cross-session voice generation lifecycle — tracks in-flight batches so
+ * Cross-session voice generation lifecycle - tracks in-flight batches so
  * reopening a pattern can reattach instead of replanning or starting over.
  */
 

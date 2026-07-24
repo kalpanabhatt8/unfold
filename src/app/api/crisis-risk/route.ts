@@ -4,7 +4,7 @@ import { classifyCrisisRisk } from "@/lib/ai/crisis-risk/generate";
 import { requireUser } from "@/lib/server/auth";
 import { requireAiUser } from "@/lib/server/ai-auth";
 
-/** Dev warm-up — compiles the route without calling Claude. */
+/** Dev warm-up - compiles the route without calling Claude. */
 export async function GET() {
   try {
     await requireUser();
@@ -46,7 +46,7 @@ export async function POST(request: Request) {
 
   try {
     const result = await classifyCrisisRisk(apiKey, text);
-    // Return only the gate fields — never echo entry text.
+    // Return only the gate fields - never echo entry text.
     return NextResponse.json<CrisisRiskResult>({
       flagged: result.flagged,
       confidence: result.confidence,

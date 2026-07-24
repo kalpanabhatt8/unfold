@@ -1,5 +1,5 @@
 /**
- * Shared Anthropic HTTP transport only — no prompts, validation, or fallbacks.
+ * Shared Anthropic HTTP transport only - no prompts, validation, or fallbacks.
  * Each AI feature owns its model params and orchestration.
  */
 

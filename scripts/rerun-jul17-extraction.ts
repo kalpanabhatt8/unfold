@@ -1,6 +1,6 @@
 /**
  * Re-run extraction on the Jul 17 test-batch fixtures (5 mistagged + 5 peers).
- * Clears nothing in the browser — this is an API-level fresh classification check.
+ * Clears nothing in the browser - this is an API-level fresh classification check.
  *
  *   npx tsx scripts/rerun-jul17-extraction.ts
  */
@@ -36,7 +36,7 @@ const BATCH: Array<{
     id: "dwwymoa2d",
     expectedPrimary: "catastrophizing",
     wasTagged: "overthinking",
-    text: `Client hasn't replied to the invoice email in 3 days. Thought maybe they're unhappy with the work — or just busy. Started planning how I'd redo the whole project for free if they asked.`,
+    text: `Client hasn't replied to the invoice email in 3 days. Thought maybe they're unhappy with the work - or just busy. Started planning how I'd redo the whole project for free if they asked.`,
   },
   {
     id: "x486yazq",
@@ -48,7 +48,7 @@ const BATCH: Array<{
     id: "tmzndn4",
     expectedPrimary: "fear_of_judgment",
     wasTagged: "overthinking",
-    text: `Posted the Unfold screenshot on Twitter. Immediately regretted the caption — thought it sounded try-hard. Refreshed three times in ten minutes. No replies yet so now thinking it looks bad.`,
+    text: `Posted the Unfold screenshot on Twitter. Immediately regretted the caption - thought it sounded try-hard. Refreshed three times in ten minutes. No replies yet so now thinking it looks bad.`,
   },
   {
     id: "mromxaz89kr8",
@@ -78,7 +78,7 @@ const BATCH: Array<{
     id: "mrka1j7aktygi",
     expectedPrimary: "avoidance",
     wasTagged: "?",
-    text: `Opened Figma to write about myself. Kept telling myself I'd make the portfolio instead of it — always easier than deciding what I want to say.`,
+    text: `Opened Figma to write about myself. Kept telling myself I'd make the portfolio instead of it - always easier than deciding what I want to say.`,
   },
 ];
 
@@ -119,7 +119,7 @@ async function main() {
   }
 
   const mistagged = results.filter((r) => r.wasTagged === "overthinking");
-  console.log("\n\n======== MISTAGGED FIVE — PRIMARY NOW ========");
+  console.log("\n\n======== MISTAGGED FIVE - PRIMARY NOW ========");
   for (const r of mistagged) {
     const primary = r.patterns[0]?.name ?? "(none)";
     const hasOverthinking = r.patterns.some((p) => p.name === "overthinking");
@@ -149,7 +149,7 @@ async function main() {
   for (const [name, ids] of [...byPattern.entries()].sort(
     (a, b) => b[1].length - a[1].length,
   )) {
-    console.log(`${name}: ${ids.length} — ${ids.join(", ")}`);
+    console.log(`${name}: ${ids.length} - ${ids.join(", ")}`);
   }
 }
 

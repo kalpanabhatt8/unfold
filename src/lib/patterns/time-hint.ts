@@ -1,5 +1,5 @@
 /**
- * Quiet timing helpers for patterns — day-part hints and compact timeline labels.
+ * Quiet timing helpers for patterns - day-part hints and compact timeline labels.
  */
 
 import type { PatternEvidenceItem } from "@/lib/patterns/types";
@@ -28,7 +28,7 @@ const startOfLocalDay = (ts: number): number => {
 };
 
 /**
- * Compact timeline label for a pattern tab — e.g. "12–14 Jul", "28 Jun–2 Jul",
+ * Compact timeline label for a pattern tab - e.g. "12–14 Jul", "28 Jun–2 Jul",
  * or "12 Jul" when all evidence falls on one day.
  */
 export function formatPatternTimeline(
@@ -73,7 +73,7 @@ export function formatPatternTimeline(
   return `${day(start)} ${mon(start)} ${start.getFullYear()}–${day(end)} ${mon(end)} ${end.getFullYear()}`;
 }
 
-/** Earliest evidence day — for sorting chronologically. */
+/** Earliest evidence day - for sorting chronologically. */
 export function patternTimelineStart(evidence: PatternEvidenceItem[]): number {
   if (evidence.length === 0) return 0;
   let minTs = Infinity;
@@ -84,7 +84,7 @@ export function patternTimelineStart(evidence: PatternEvidenceItem[]): number {
   return startOfLocalDay(minTs);
 }
 
-/** Latest evidence timestamp — most-recent patterns sort first. */
+/** Latest evidence timestamp - most-recent patterns sort first. */
 export function patternTimelineEnd(evidence: PatternEvidenceItem[]): number {
   if (evidence.length === 0) return 0;
   let maxTs = -Infinity;
@@ -98,7 +98,7 @@ export function patternTimelineEnd(evidence: PatternEvidenceItem[]): number {
 type DayPart = {
   id: string;
   label: string;
-  /** Hour ranges [start, end) — end may wrap past midnight. */
+  /** Hour ranges [start, end) - end may wrap past midnight. */
   ranges: Array<[number, number]>;
 };
 
@@ -121,12 +121,12 @@ const bucketForHour = (hour: number): DayPart | null =>
   DAY_PARTS.find((part) => part.ranges.some((range) => inRange(hour, range))) ??
   null;
 
-/** Human day-part for a timestamp, e.g. "late evening" — for journey rows. */
+/** Human day-part for a timestamp, e.g. "late evening" - for journey rows. */
 export function dayPartLabel(timestamp: number): string | null {
   return bucketForHour(new Date(timestamp).getHours())?.label ?? null;
 }
 
-/** e.g. "usually late evening" — null when timing is mixed or too few entries. */
+/** e.g. "usually late evening" - null when timing is mixed or too few entries. */
 export function deriveTimeHint(
   evidence: PatternEvidenceItem[],
 ): string | null {

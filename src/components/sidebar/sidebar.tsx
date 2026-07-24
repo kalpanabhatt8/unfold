@@ -204,7 +204,7 @@ export function Sidebar() {
   };
 
   const handleNewEntry = () => {
-    // Seal/title work for the previous entry continues in journal-seal.ts —
+    // Seal/title work for the previous entry continues in journal-seal.ts -
     // do not wait for the stamp animation. Create (or reuse) then navigate
     // immediately; refresh the list so the new row is selected on arrival.
     const { id } = resolveNewEntryTarget();

@@ -27,11 +27,11 @@ import {
   resolveStampNameFromUser,
 } from "@/lib/stamp-display-name";
 
-/** Text-only imprint box — width fits long names; height fits two lines at 2× font. */
+/** Text-only imprint box - width fits long names; height fits two lines at 2× font. */
 const STAMP_WIDTH = 180;
 const STAMP_HEIGHT = 80;
 const STAMP_TEXT_PADDING = 12;
-/** Baseline used for font scale — keeps 2× sizing vs the old 132px stamp. */
+/** Baseline used for font scale - keeps 2× sizing vs the old 132px stamp. */
 const STAMP_FONT_REFERENCE = 132;
 const STAMP_TILT_DEG = 26;
 const STAMP_PRESS_MS = 200;
@@ -80,7 +80,7 @@ function capitalizeWord(part: string): string {
   return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
 }
 
-/** Title-case each word for the stamp — "kalpana bhatt" → "Kalpana Bhatt". */
+/** Title-case each word for the stamp - "kalpana bhatt" → "Kalpana Bhatt". */
 function formatStampDisplayText(text: string): string {
   return text
     .trim()
@@ -236,7 +236,7 @@ export function StampFace({
     setShouldWrap(false);
   }, [displayName]);
 
-  /* Prefer one line — measure with nowrap; wrap only on real overflow. */
+  /* Prefer one line - measure with nowrap; wrap only on real overflow. */
   useLayoutEffect(() => {
     const el = textRef.current;
     if (!el) return;
@@ -319,11 +319,11 @@ export type JournalStampHandle = {
 };
 
 export interface JournalStampProps {
-  /** Called when the stamp press animation begins — fire seal side-effects early. */
+  /** Called when the stamp press animation begins - fire seal side-effects early. */
   onStampBegin?: () => void;
-  /** Called when the stamp face meets the page — start text preservation animation. */
+  /** Called when the stamp face meets the page - start text preservation animation. */
   onStampImpact?: () => void;
-  /** Hover/focus on stamp — prefetch title generation before click. */
+  /** Hover/focus on stamp - prefetch title generation before click. */
   onStampHover?: () => void;
   /**
    * Whether the entry is already sealed (rehydrated from localStorage).
@@ -338,10 +338,10 @@ export interface JournalStampProps {
  * Physical rubber-stamp interaction for sealing a journal entry.
  *
  * Animation sequence (~770 ms total):
- *   A. Press in place  200 ms  — uniform scale, corner pinned at 32 / 32 px
- *   B. Hold             150 ms  — brief pause at contact
- *   C. Ink fade         420 ms  — slow opacity fade, zero movement
- *   D. Done              — imprint never moves again
+ *   A. Press in place  200 ms  - uniform scale, corner pinned at 32 / 32 px
+ *   B. Hold             150 ms  - brief pause at contact
+ *   C. Ink fade         420 ms  - slow opacity fade, zero movement
+ *   D. Done              - imprint never moves again
  */
 export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
   function JournalStamp(
@@ -421,12 +421,12 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
   const [pressEngaged, setPressEngaged] = useState(false);
   const sealStartedRef = useRef(false);
 
-  /* Stable random values — chosen once per mount for ink realism */
+  /* Stable random values - chosen once per mount for ink realism */
   const [inkAlpha] = useState(() => 0.7 + Math.random() * 0.17); // 0.70…0.87
 
   const timerIds = useRef<ReturnType<typeof setTimeout>[]>([]);
 
-  /* Keep imprint visible whenever sealed — covers hydration and post-animation. */
+  /* Keep imprint visible whenever sealed - covers hydration and post-animation. */
   useEffect(() => {
     if (isSealed) {
       sealStartedRef.current = true;
@@ -440,7 +440,7 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
     return () => timerIds.current.forEach(clearTimeout);
   }, []);
 
-  /* Uniform in-place press — scale on the next frame after contact. */
+  /* Uniform in-place press - scale on the next frame after contact. */
   useEffect(() => {
     if (phase !== "pressing") {
       setPressEngaged(false);
@@ -490,7 +490,7 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
   const showRubberStamp = phase !== "idle" || isOnPaper;
   const showSealButton = !isSealed && phase === "idle";
 
-  /** One transform for every phase after contact — no translate, no axis squash. */
+  /** One transform for every phase after contact - no translate, no axis squash. */
   const stampFaceTransform =
     phase === "pressing" && !pressEngaged
       ? `${STAMP_TILT} scale(${STAMP_PRESS_SCALE})`
@@ -528,7 +528,7 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
         </div>
       )}
 
-      {/* ── Sign control — icon at rest; press animation leaves signature imprint ── */}
+      {/* ── Sign control - icon at rest; press animation leaves signature imprint ── */}
       {showSealButton && (
         <div className="pointer-events-auto" style={stampCornerAnchor}>
           <Tooltip
@@ -554,7 +554,7 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
               onClick={(e) => e.preventDefault()}
               onPointerEnter={canSeal ? onStampHover : undefined}
               onFocus={canSeal ? onStampHover : undefined}
-              aria-label={canSeal ? "Seal entry" : "Seal entry (disabled — empty)"}
+              aria-label={canSeal ? "Seal entry" : "Seal entry (disabled, empty)"}
               aria-disabled={!canSeal}
               tabIndex={canSeal ? 0 : -1}
               className={`group shrink-0 select-none outline-none ${btnIconInvisible(stampButtonSize, "soft")} ${

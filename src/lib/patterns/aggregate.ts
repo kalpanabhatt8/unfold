@@ -1,5 +1,5 @@
 /**
- * Unfold — cross-entry aggregation for the Patterns page.
+ * Unfold - cross-entry aggregation for the Patterns page.
  *
  * Pure + local (no LLM). Rolls stored per-entry analyses into surfaced
  * patterns: count DISTINCT entries per pattern, keep only those crossing
@@ -33,7 +33,7 @@ export function aggregateFromInputs(
 
   for (const analysis of analyses) {
     const entry = entriesById.get(analysis.entryId);
-    if (!entry) continue; // entry deleted — drop its analysis contribution
+    if (!entry) continue; // entry deleted - drop its analysis contribution
     if (entry.crisisFlagged === true) continue; // never count crisis-flagged entries
     if (entry.qualityFlagged === true) continue; // never count quality-flagged entries
 

@@ -5,11 +5,11 @@
  * Use `min(100%, …)` so on phone the column is full-bleed and `px-4` can
  * line up with chrome. On wide screens the px cap still centers via `mx-auto`.
  */
-/** Journal writing column — also used by Patterns on laptop/desktop. */
+/** Journal writing column - also used by Patterns on laptop/desktop. */
 export const CONTENT_COLUMN_MAX_WIDTH = "min(100%, 52.5rem)";
 
 /**
- * Patterns on phone/tablet only — full bleed up to this cap.
+ * Patterns on phone/tablet only - full bleed up to this cap.
  * Laptop+ (`!isOverlayNav`) uses `CONTENT_COLUMN_MAX_WIDTH` so switching
  * Entries → Patterns keeps the same reading column.
  */
@@ -20,7 +20,7 @@ export const patternsColumnMaxWidth = (isOverlayNav: boolean): string =>
   isOverlayNav ? PATTERNS_COLUMN_MAX_WIDTH : CONTENT_COLUMN_MAX_WIDTH;
 
 /**
- * Horizontal page padding — mirrors Tailwind `px-4 sm:px-5 lg:px-6`.
+ * Horizontal page padding - mirrors Tailwind `px-4 sm:px-5 lg:px-6`.
  */
 export const PAGE_PADDING_X_CLASS = "px-4 sm:px-5 lg:px-6";
 

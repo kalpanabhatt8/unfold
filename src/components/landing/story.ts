@@ -4,10 +4,10 @@
 
 export const BRAND = "UNFOLD";
 
-/** Hero line above the living canvas — fades as the frame rises. */
+/** Hero line above the living canvas - fades as the frame rises. */
 export const TAGLINE = "Discover patterns in your thoughts.";
 
-/** Living canvas screen 2 — pattern-quote cards (dummy dates / entry names). */
+/** Living canvas screen 2 - pattern-quote cards (dummy dates / entry names). */
 export const LIVE_SCREEN2_CARDS = [
   {
     quote: "One moment rarely tells the whole story.",
@@ -42,7 +42,7 @@ export const LIVE_SCREEN2_CARDS = [
 ] as const;
 
 export const WRITE_NATURALLY = {
-  /** Canvas title placeholder — not a real entry title. */
+  /** Canvas title placeholder - not a real entry title. */
   titlePlaceholder: "New book",
   /** Title applied when the entry is sealed. */
   sealedTitle: "How it works?",

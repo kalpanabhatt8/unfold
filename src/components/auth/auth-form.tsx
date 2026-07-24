@@ -361,7 +361,7 @@ export function AuthForm() {
     [signUp, activateSession, email],
   );
 
-  // Remount / bfcache only — normal verify completion runs in handleVerify.
+  // Remount / bfcache only - normal verify completion runs in handleVerify.
   React.useEffect(() => {
     if (!isLoaded || mode !== "sign-up-verify" || pending) return;
     if (signUp?.status === "complete" && signUp.createdSessionId) {
@@ -582,7 +582,7 @@ export function AuthForm() {
             const missingLabel = formatMissingSignUpFields(missing);
             setError(
               missingLabel
-                ? `Almost done — still need: ${missingLabel}. Check Clerk required fields (turn off username if enabled).`
+                ? `Almost done. Still need: ${missingLabel}. Check Clerk required fields (turn off username if enabled).`
                 : "Couldn't finish creating your account. Please try again.",
             );
             return;
@@ -603,7 +603,7 @@ export function AuthForm() {
             const missingLabel = formatMissingSignUpFields(missing);
             setError(
               missingLabel
-                ? `Email verified — still need: ${missingLabel}. In Clerk, turn off extra required fields like username.`
+                ? `Email verified. Still need: ${missingLabel}. In Clerk, turn off extra required fields like username.`
                 : "Email is verified, but we couldn't open your account. Use Continue with Google, then try again.",
             );
             return;
@@ -655,7 +655,7 @@ export function AuthForm() {
         const missingLabel = formatMissingSignUpFields(missing);
         setError(
           missingLabel
-            ? `Email verified — still need: ${missingLabel}. In Clerk, turn off extra required fields like username.`
+            ? `Email verified. Still need: ${missingLabel}. In Clerk, turn off extra required fields like username.`
             : "Email is verified, but we couldn't open your account. Use Continue with Google, then try again.",
         );
         return;
@@ -691,7 +691,7 @@ export function AuthForm() {
           const missingLabel = formatMissingSignUpFields(missing);
           setError(
             missingLabel
-              ? `Email verified — still need: ${missingLabel}. In Clerk, turn off extra required fields like username.`
+              ? `Email verified. Still need: ${missingLabel}. In Clerk, turn off extra required fields like username.`
               : "Email is verified, but we couldn't open your account. Use Continue with Google, then try again.",
           );
           return;

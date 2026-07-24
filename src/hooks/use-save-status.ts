@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Canvas header save label — only after the user edits the current entry.
+ * Canvas header save label - only after the user edits the current entry.
  *
  * Hidden until the first edit in this mount; then "saving" while the local
  * mirror is in flight, a brief "saved" when it completes, then hidden again.

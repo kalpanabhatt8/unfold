@@ -5,12 +5,12 @@ import { formatQuoteDatePill } from "@/lib/patterns/quote-meta";
 
 export type EvidenceSectionProps = {
   visible: QuoteRef[];
-  /** @deprecated Unused — top quotes are shown in full; kept for call-site compat. */
+  /** @deprecated Unused - top quotes are shown in full; kept for call-site compat. */
   overflow?: QuoteRef[];
   onOpenEntry: (entryId: string, quoteText?: string) => void;
 };
 
-/** Grid of journal quote cards — shared dusty-rose theme. */
+/** Grid of journal quote cards - shared dusty-rose theme. */
 export function EvidenceSection({
   visible,
   onOpenEntry,

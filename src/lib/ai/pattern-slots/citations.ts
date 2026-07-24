@@ -1,5 +1,5 @@
 /**
- * Quote indexes are internal grounding only — never visible prose.
+ * Quote indexes are internal grounding only - never visible prose.
  * Models sometimes leak "[1,2,3]" into mechanism sentences; strip them.
  */
 

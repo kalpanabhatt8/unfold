@@ -8,7 +8,7 @@ import { readAllEntries } from "@/lib/journal-entries";
 import { ensureInitialSync } from "@/lib/sync/sync-client";
 
 /**
- * `/dashboard` has no destination of its own — it opens the empty draft when
+ * `/dashboard` has no destination of its own - it opens the empty draft when
  * one exists (or creates a single new one), never inventing duplicate blanks.
  *
  * After sign-out/in local drafts are empty; wait for the first fullSync so we
@@ -32,7 +32,7 @@ export default function DashboardRootPage() {
           go(resolveEntryOpenTarget().id);
         }
       } catch {
-        /* treat as empty — wait for sync */
+        /* treat as empty - wait for sync */
       }
 
       await ensureInitialSync();

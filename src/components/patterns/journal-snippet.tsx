@@ -6,7 +6,7 @@ import { formatQuoteDatePill } from "@/lib/patterns/quote-meta";
 export type JournalSnippetProps = {
   quote: QuoteRef;
   onOpenEntry: (entryId: string, quoteText?: string) => void;
-  /** Single closing quote — roomier than a list row. */
+  /** Single closing quote - roomier than a list row. */
   featured?: boolean;
 };
 

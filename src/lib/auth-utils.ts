@@ -154,7 +154,7 @@ export function isAlreadyVerifiedError(err: unknown): boolean {
 /** Never show Clerk's raw "already verified" string in the UI. */
 export function friendlyAuthError(err: unknown): string {
   if (isAlreadyVerifiedError(err)) {
-    return "Your email is verified — finishing your account…";
+    return "Your email is verified - finishing your account…";
   }
   return clerkErrorMessage(err);
 }

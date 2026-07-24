@@ -1,6 +1,6 @@
 import { TITLE_INPUT_WORD_CAP } from "@/lib/ai/title/constants";
 
-/** Prepare entry text for the title model — full entry when possible. */
+/** Prepare entry text for the title model - full entry when possible. */
 export function prepareTitleInput(text: string): string {
   const trimmed = text.trim();
   if (!trimmed) return "";

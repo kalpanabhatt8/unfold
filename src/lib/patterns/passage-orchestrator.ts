@@ -1,5 +1,5 @@
 /**
- * Unfold — passage orchestration for living patterns.
+ * Unfold - passage orchestration for living patterns.
  *
  * Wires lifecycle classification, composition planning, slot materialization,
  * and passage caching. Regenerates only when evidence or lifecycle changes,
@@ -60,7 +60,7 @@ const voiceFillsFrom = (passage: PatternPassage): ParsedSlotFill[] => {
 };
 
 /**
- * Re-materialize but keep voice fills already in cache — only when the
+ * Re-materialize but keep voice fills already in cache - only when the
  * evidence set is unchanged. Same-evidence re-plans (shape/lifecycle tweaks)
  * may change cacheKey while slot indices stay aligned; carrying voice avoids
  * another multi-second generation pass. Different evidence must regenerate.
@@ -78,7 +78,7 @@ const materializePreservingVoice = (
   // Stale voice contract (e.g. corrective framing) must not be copied forward.
   if (!passageCacheVersionIsCurrent(existing.cacheKey)) return fresh;
 
-  // Evidence changed — never leak mechanism/reflection from a prior instance.
+  // Evidence changed - never leak mechanism/reflection from a prior instance.
   if (passageEvidenceKeyFromCacheKey(existing.cacheKey) !== evidenceKey) {
     return fresh;
   }
@@ -91,7 +91,7 @@ const materializePreservingVoice = (
   return applied;
 };
 
-/** Cached passages that no longer match planner policy — force one re-plan. */
+/** Cached passages that no longer match planner policy - force one re-plan. */
 const EVIDENCE_ONLY_SHAPES = new Set([
   "bare",
   "bare_close",
@@ -116,7 +116,7 @@ const countPassageQuotes = (passage: PatternPassage): number => {
   return n;
 };
 
-/** Quote count for upgrade/stale checks — bound passage quotes count too. */
+/** Quote count for upgrade/stale checks - bound passage quotes count too. */
 const effectiveQuoteCount = (
   signalQuoteCount: number,
   passage: PatternPassage | null,
@@ -130,7 +130,7 @@ const effectiveQuoteCount = (
  * the first "|"). NEVER match these as substrings: the current discovery
  * signature ("moments,line,line,close:question|…") CONTAINS
  * "moments,line,line", so a substring check flags every healthy discovery
- * passage as stale — forcing a replan on every open, poisoning the
+ * passage as stale - forcing a replan on every open, poisoning the
  * planner's signature memory, and oscillating the shape (and beat count)
  * between opens.
  */
@@ -149,7 +149,7 @@ const isReusableVoiceArc = (passage: PatternPassage): boolean =>
   passageStructureValid(passage) &&
   !passageVoiceEchoes(passage);
 
-/** Discovery for the same evidence — complete or still generating. */
+/** Discovery for the same evidence - complete or still generating. */
 const isContinuableDiscovery = (
   passage: PatternPassage,
   evidenceKey: string,
@@ -215,7 +215,7 @@ export type ReconcileContext = {
   globalActivityAt: number;
   neighbors: NeighborShape[];
   now: number;
-  /** In-memory state from a batch reconcile — avoids mid-batch localStorage drift. */
+  /** In-memory state from a batch reconcile - avoids mid-batch localStorage drift. */
   prevState?: PatternState | null;
   /** When false, caller persists state after the batch completes. */
   persist?: boolean;
@@ -268,7 +268,7 @@ export function reconcilePatternPassage(
     };
   };
 
-  // Voice generation in flight — never replan; keep reading from cache.
+  // Voice generation in flight - never replan; keep reading from cache.
   if (cached !== null && identityUnchanged && isVoiceGenerationActive(ctx.name)) {
     return returnCached(cached, passageNeedsGeneration(cached));
   }
@@ -283,7 +283,7 @@ export function reconcilePatternPassage(
     return returnCached(cached, false);
   }
 
-  // Same evidence: keep discovery in progress or complete — never downgrade.
+  // Same evidence: keep discovery in progress or complete - never downgrade.
   if (
     cached !== null &&
     identityUnchanged &&
@@ -327,7 +327,7 @@ export function reconcilePatternPassage(
 
   const planned = pickPlannedShape(planCtx, advanced);
 
-  // Match against the planner's current composition — not the cached passage's
+  // Match against the planner's current composition - not the cached passage's
   // own signature. Self-referential matching let stale evidence-only passages
   // reuse their cache key while the planner had moved on to discovery, producing
   // a 2-beat arc (Done at evidence) on first open and the full arc on reopen.
@@ -381,7 +381,7 @@ export function reconcilePatternPassage(
     advanced,
   );
 
-  // Stale echo/bare must upgrade to discovery when eligible — not re-lottery
+  // Stale echo/bare must upgrade to discovery when eligible - not re-lottery
   // into echo again because discovery is in recentSignatures.
   const cachedIsStaleEvidenceOnly =
     cached !== null &&
@@ -420,7 +420,7 @@ export function reconcilePatternPassage(
     ctx.now,
   );
 
-  // Never wipe a complete same-evidence voice passage with an empty replan —
+  // Never wipe a complete same-evidence voice passage with an empty replan -
   // that briefly shows "a moment…" on every reopen.
   if (
     cached !== null &&

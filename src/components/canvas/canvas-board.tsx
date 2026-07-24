@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * CanvasBoard — full-width journal writing surface.
+ * CanvasBoard - full-width journal writing surface.
  *
  *  ┌─────────────────────────────────────────────────────────────┐
  *  │  title (left)                last edited · saving? (right)    │
@@ -99,13 +99,13 @@ export type CanvasSnapshot = {
 /*  Visual constants                                                          */
 /* -------------------------------------------------------------------------- */
 
-/** Page + canvas — tokens in `global.css`. */
+/** Page + canvas - tokens in `global.css`. */
 export const CANVAS_BACKGROUND = "var(--canvas-bg-gradient)";
 
-/** Centered writing column width — shared with Patterns (`layout.ts`). */
+/** Centered writing column width - shared with Patterns (`layout.ts`). */
 const WRITING_COLUMN_MAX_WIDTH = CONTENT_COLUMN_MAX_WIDTH;
 
-/** Writing ink — shared by the editor surface. */
+/** Writing ink - shared by the editor surface. */
 const WRITING_INK = "var(--canvas-ink)";
 
 /** Save behaviour. Local mirror is fast (no data loss); milestone save fires
@@ -120,7 +120,7 @@ const QUOTE_HIGHLIGHT_FADE_MS = 5_000;
 const QUOTE_HIGHLIGHT_TOTAL_MS =
   QUOTE_HIGHLIGHT_HOLD_MS + QUOTE_HIGHLIGHT_FADE_MS;
 
-/** Stable compare for "did the user change the writing?" — ignores block ids. */
+/** Stable compare for "did the user change the writing?" - ignores block ids. */
 const fingerprintBlocks = (blocks: JournalTextBlock[]): string =>
   JSON.stringify(
     blocks.map((b) => ({
@@ -202,7 +202,7 @@ const sanitizeTextBlock = (raw: unknown): JournalTextBlock | null => {
 /**
  * Best-effort migration from any prior snapshot version (v1 positional,
  * v2 positional + multi-line lists, v3 sequential mixed blocks) into v4.
- * Image / multi-column data is dropped — journal is text-only.
+ * Image / multi-column data is dropped - journal is text-only.
  */
 function migrateLegacy(raw: Record<string, unknown>): CanvasSnapshot {
   const flatText: JournalTextBlock[] = [];
@@ -327,19 +327,19 @@ type CanvasBoardProps = {
    * Persists draft metadata. Empty titles may be auto-generated after sealing.
    */
   onSave?: (snapshot: CanvasSnapshot) => void;
-  /** Book title — editable in the canvas header. */
+  /** Book title - editable in the canvas header. */
   title?: string;
   /** Persists a trimmed title; empty string keeps the “New book” placeholder. */
   onTitleChange?: (title: string) => void;
   /**
-   * Header date/time for this session — frozen from open until close. Parents
+   * Header date/time for this session - frozen from open until close. Parents
    * pass the persisted `lastEditedAt` on return visits, or `Date.now()` on the
    * first open when no prior close timestamp exists.
    */
   sessionEditedAt: number;
-  /** Last time this draft was edited (persisted) — for stale-draft prompts. */
+  /** Last time this draft was edited (persisted) - for stale-draft prompts. */
   lastEditedAt?: number;
-  /** Book cover background (CSS) — used for a subtle 6% page tint. */
+  /** Book cover background (CSS) - used for a subtle 6% page tint. */
   coverBackground?: string;
 };
 
@@ -355,9 +355,9 @@ export type CanvasBoardHandle = {
   /**
    * Highlight a Patterns quote in the writing column, scroll it into view,
    * then fade/clear after a few seconds or on user scroll.
-   * - `pending` — editor/content not ready yet (caller may retry)
-   * - `done` — highlight applied (or attempted and found)
-   * - `miss` — ready but quote not in the doc (stop retrying)
+   * - `pending` - editor/content not ready yet (caller may retry)
+   * - `done` - highlight applied (or attempted and found)
+   * - `miss` - ready but quote not in the doc (stop retrying)
    */
   highlightQuote: (quote: string) => "pending" | "done" | "miss";
 };
@@ -379,7 +379,7 @@ function CanvasBoardInner(
   const [journalBlocks, setJournalBlocks] = useState<JournalTextBlock[]>(() =>
     createWritingSlots()
   );
-  // Live writing buffer — updated only by TipTap onUpdate / hydrate.
+  // Live writing buffer - updated only by TipTap onUpdate / hydrate.
   // Do NOT sync from React state on every render: a re-render with stale
   // journalBlocks (e.g. saving label) would wipe fresher TipTap edits and
   // seal / mirror an empty board while the editor still shows text.
@@ -400,9 +400,9 @@ function CanvasBoardInner(
   const localMirrorTimerRef = useRef<number | null>(null);
   const quoteHighlightClearTimerRef = useRef<number | null>(null);
   const quoteHighlightDismissRef = useRef<(() => void) | null>(null);
-  /** Snapshot `updatedAt` — frozen while editing; bumped only on close. */
+  /** Snapshot `updatedAt` - frozen while editing; bumped only on close. */
   const snapshotEditedAtRef = useRef<number>(sessionEditedAt);
-  /** Header stamp — frozen for this mount; never follows wall clock. */
+  /** Header stamp - frozen for this mount; never follows wall clock. */
   const [headerDisplayedAt] = useState(() => sessionEditedAt);
 
 
@@ -411,7 +411,7 @@ function CanvasBoardInner(
   const scrollComfortBottom = viewport.scrollComfortBottomPx;
 
   const outerRef = useRef<HTMLDivElement | null>(null);
-  /** Scrollport for the writing column only — page / left rail stay fixed. */
+  /** Scrollport for the writing column only - page / left rail stay fixed. */
   const writingScrollRef = useRef<HTMLDivElement | null>(null);
   const hydratedRef = useRef(false);
   const [isContentReady, setIsContentReady] = useState(false);
@@ -440,7 +440,7 @@ function CanvasBoardInner(
         const parsed = JSON.parse(raw) as unknown;
         const norm = normalizeSnapshot(parsed);
         if (norm) {
-          // Sealed board missing body but metadata still has searchText — recover.
+          // Sealed board missing body but metadata still has searchText - recover.
           if (!snapshotHasBodyText(norm)) {
             const entryId = entryIdFromBoardStorageKey(storageKey);
             const meta = readEntryById(entryId);
@@ -471,7 +471,7 @@ function CanvasBoardInner(
         }
       }
 
-      // Board key missing entirely — try recovering a sealed entry from searchText.
+      // Board key missing entirely - try recovering a sealed entry from searchText.
       {
         const entryId = entryIdFromBoardStorageKey(storageKey);
         const meta = readEntryById(entryId);
@@ -516,7 +516,7 @@ function CanvasBoardInner(
 
   /* ----------------------- Snapshot mirroring + save ---------------------- */
 
-  /** Live journal text from TipTap (preferred) or the writing ref — not React state. */
+  /** Live journal text from TipTap (preferred) or the writing ref - not React state. */
   const buildLiveSnapshot = useCallback((): CanvasSnapshot => {
     const editor = journalEditorRef.current;
     const liveBlocks = editor ? editor.getBlocks() : journalBlocksRef.current;
@@ -543,8 +543,8 @@ function CanvasBoardInner(
   }, [clearSavingLabel]);
 
   // Fast local mirror so a tab close never loses keystrokes. This is *not*
-  // the "milestone" save (AI title regen) — that fires from a coarser timer
-  // below. Only runs after user edits — never on hydrate, entry switch, or
+  // the "milestone" save (AI title regen) - that fires from a coarser timer
+  // below. Only runs after user edits - never on hydrate, entry switch, or
   // sync. Once sealed, persistence is owned by the seal pipeline.
   const scheduleLocalMirror = useCallback(() => {
     if (sealedAt !== null) return;
@@ -557,7 +557,7 @@ function CanvasBoardInner(
       localMirrorTimerRef.current = null;
       try {
         const meta = readEntryById(entryIdFromBoardStorageKey(storageKey));
-        // Entry was deleted — do not rewrite board storage or resurrect metadata.
+        // Entry was deleted - do not rewrite board storage or resurrect metadata.
         if (!meta) {
           clearSavingLabel();
           return;
@@ -596,7 +596,7 @@ function CanvasBoardInner(
     const entryId = entryIdFromBoardStorageKey(storageKey);
     const meta = readEntryById(entryId);
     if (!meta) return;
-    // Seal owns persistence once committed — never overwrite a sealed board.
+    // Seal owns persistence once committed - never overwrite a sealed board.
     if (typeof meta.sealedAt === "number") return;
     const snap = buildLiveSnapshot();
     try {
@@ -610,7 +610,7 @@ function CanvasBoardInner(
 
   const isDirtyRef = useRef(false);
   const milestoneTimerRef = useRef<number | null>(null);
-  /** Content at editor ready — save status only when live text diverges. */
+  /** Content at editor ready - save status only when live text diverges. */
   const contentBaselineRef = useRef<string | null>(null);
 
   const liveJournalBlocks = useCallback((): JournalTextBlock[] => {
@@ -895,7 +895,7 @@ function CanvasBoardInner(
             behavior: "smooth",
           });
 
-          // Dismiss only on intentional user input — not on the smooth
+          // Dismiss only on intentional user input - not on the smooth
           // scroll we just started (that was wiping the tint mid-animation).
           const onUserNavigate = () => {
             clearQuoteHighlightChrome();
@@ -1061,7 +1061,7 @@ function CanvasBoardInner(
         caretColor: WRITING_INK,
       }}
     >
-      {/* Stamp — physical rubber-stamp interaction; manages its own visibility */}
+      {/* Stamp - physical rubber-stamp interaction; manages its own visibility */}
       <JournalStamp
         ref={stampRef}
         isSealed={!!sealedAt}
@@ -1070,7 +1070,7 @@ function CanvasBoardInner(
         onStampHover={maybePrefetchSealTitle}
       />
 
-      {/* —————————— Full-width centered writing area —————————— */}
+      {/* ---------- Full-width centered writing area ---------- */}
       <div
         className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden"
         onPointerDown={onWritingPointerDown}
@@ -1140,7 +1140,7 @@ function CanvasBoardInner(
         </div>
       </div>
 
-      {/* —————————— Text contextual format bar —————————— */}
+      {/* ---------- Text contextual format bar ---------- */}
       {showTextCtx && textCtxPos && activeBlockId && (
         <div
           data-ctx
@@ -1208,10 +1208,10 @@ CanvasBoard.displayName = "CanvasBoard";
 export default CanvasBoard;
 
 /* -------------------------------------------------------------------------- */
-/*  Canvas header — last-edited date + heading                                   */
+/*  Canvas header - last-edited date + heading                                   */
 /* -------------------------------------------------------------------------- */
 
-/** Draft header — e.g. "28 June 2026, 22:58". */
+/** Draft header - e.g. "28 June 2026, 22:58". */
 function formatLastEditedStamp(ts: number): { date: string; time: string } {
   const d = new Date(ts);
   const day = d.getDate();
@@ -1228,7 +1228,7 @@ function formatLastEditedStamp(ts: number): { date: string; time: string } {
   };
 }
 
-/** Sealed header — e.g. "🪷 Sealed · 26 Jun 2026". */
+/** Sealed header - e.g. "🪷 Sealed · 26 Jun 2026". */
 function formatSignedStamp(ts: number): string {
   const d = new Date(ts);
   const day = d.getDate();
@@ -1241,7 +1241,7 @@ type CanvasHeaderProps = {
   title?: string;
   /** Session-frozen stamp from the parent (last close, or now on first open). */
   editedAt: number;
-  /** Unix ms when the entry was sealed — shown instead of editedAt once stamped. */
+  /** Unix ms when the entry was sealed - shown instead of editedAt once stamped. */
   sealedAt?: number | null;
   saveStatus?: "saving" | "saved" | null;
   onTitleChange?: (title: string) => void;

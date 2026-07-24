@@ -90,7 +90,7 @@ const JournalEntryPage = () => {
   }, [entryId]);
 
   // Hydrate this entry's metadata on open. Unknown ids (after sync) redirect to
-  // the single empty draft — never upsert a ghost entry at the URL id.
+  // the single empty draft - never upsert a ghost entry at the URL id.
   useEffect(() => {
     let cancelled = false;
 
@@ -191,7 +191,7 @@ const JournalEntryPage = () => {
     [entryId],
   );
 
-  // High-frequency mirror save — cache searchable text + sealed state without
+  // High-frequency mirror save - cache searchable text + sealed state without
   // bumping `updatedAt` in a way that would reorder the sidebar mid-keystroke.
   const handleSnapshotChange = useCallback(
     (snapshot: CanvasSnapshot) => {
@@ -208,7 +208,7 @@ const JournalEntryPage = () => {
     [entryId, maybeNotifyCompletion],
   );
 
-  // Milestone save — fires ~7s after typing stops; this is the point we treat
+  // Milestone save - fires ~7s after typing stops; this is the point we treat
   // the entry as "last edited" for the header stamp.
   const handleMilestoneSave = useCallback(
     (snapshot: CanvasSnapshot) => {
@@ -238,7 +238,7 @@ const JournalEntryPage = () => {
   const showCrisisResponse =
     entry?.crisisFlagged === true && !crisisDismissed;
 
-  // "+" in the sidebar opens a brand-new entry with `?new=1` — focus the
+  // "+" in the sidebar opens a brand-new entry with `?new=1` - focus the
   // editor once the canvas has actually mounted, then drop the query flag.
   useEffect(() => {
     if (!shouldAutoFocus || sessionEditedAt === null || showCrisisResponse) {

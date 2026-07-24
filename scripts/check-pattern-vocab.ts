@@ -1,5 +1,5 @@
 /**
- * Consistency check for PATTERN_CATALOG — hard structural fails + soft review checklist.
+ * Consistency check for PATTERN_CATALOG - hard structural fails + soft review checklist.
  *
  *   npm run check:pattern-vocab
  *   npm run check:pattern-vocab -- --strict   # soft checklist items also fail the process
@@ -195,7 +195,7 @@ for (const name of PATTERN_NAMES) {
   // Heuristic warn: very low lexical overlap can mean drift (not always wrong).
   if (overlap < 0.15 && name !== "overthinking") {
     warn(
-      `low definition↔disambiguation word overlap (${overlap.toFixed(2)}) — review for drift`,
+      `low definition↔disambiguation word overlap (${overlap.toFixed(2)}) - review for drift`,
       name,
     );
   }
@@ -255,7 +255,7 @@ if (warns.length) {
 }
 
 if (fails.length === 0 && warns.length === 0) {
-  console.log("OK — catalog structural checks passed; review checklist above.");
+  console.log("OK - catalog structural checks passed; review checklist above.");
 }
 
 if (fails.length > 0) process.exit(1);

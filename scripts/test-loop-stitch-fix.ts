@@ -1,5 +1,5 @@
 /**
- * Live Loop generation test — comparison pattern (incident-stitch regression).
+ * Live Loop generation test - comparison pattern (incident-stitch regression).
  *
  * Run: npx tsx --tsconfig tsconfig.json scripts/test-loop-stitch-fix.ts
  */
@@ -54,7 +54,7 @@ async function main() {
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    console.error("\nMissing ANTHROPIC_API_KEY — skipping live generation.");
+    console.error("\nMissing ANTHROPIC_API_KEY - skipping live generation.");
     process.exit(1);
   }
 
@@ -66,7 +66,7 @@ async function main() {
   const mechanism = result.fills.find((f) => f.index === 1)?.text ?? null;
 
   console.log("\nGenerated Loop:");
-  console.log(mechanism ?? "(none — generation failed)");
+  console.log(mechanism ?? "(none - generation failed)");
 
   if (result.rejected.length) {
     console.log("\nRejected during generation:");

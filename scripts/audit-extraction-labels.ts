@@ -18,13 +18,13 @@ for (const line of readFileSync(".env.local", "utf8").split("\n")) {
 
 type Intended = "self_doubt" | "self_criticism" | "perfectionism";
 
-/** Provisional — confirm before treating matrix as ground truth. */
+/** Provisional - confirm before treating matrix as ground truth. */
 const LABELS: Record<string, Intended> = {
   "entry-mrxh7kzob6ig": "self_doubt", // They Chose Wrong
   "entry-mrxh9gwl8i6r": "self_doubt", // Polite or Real
   "entry-mrxh9ox0w8rd": "self_doubt", // Decided Before Evidence
   "entry-mrxh9vyp06cf": "self_doubt", // Doubt Showed Up Anyway
-  "entry-mrxha21p5wfm": "perfectionism", // Can't Just Say Thank You — ambiguous; was only soft perfectionism hit
+  "entry-mrxha21p5wfm": "perfectionism", // Can't Just Say Thank You - ambiguous; was only soft perfectionism hit
   "entry-mrxha8u5oajk": "self_criticism", // Again
   "entry-mrxhag3863t6": "self_criticism", // Fumbled One Answer
   "entry-mrxhamavinft": "self_criticism", // Forgot the Email

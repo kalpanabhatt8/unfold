@@ -1,4 +1,4 @@
-/** Haiku — low temperature for structured classification. */
+/** Haiku - low temperature for structured classification. */
 export const EXTRACTION_MODEL = "claude-haiku-4-5-20251001";
 export const EXTRACTION_MAX_TOKENS = 500;
 export const EXTRACTION_TEMPERATURE = 0.2;

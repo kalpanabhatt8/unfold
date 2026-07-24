@@ -1,4 +1,4 @@
-// Unfold — production schema.
+// Unfold - production schema.
 //
 // Design notes (see plan "Unfold Production Database Architecture"):
 // - `users.id` IS the Clerk user ID; Clerk owns identity, this row anchors FKs
@@ -51,25 +51,25 @@ model JournalEntry {
   sealedAt     DateTime? @map("sealed_at") @db.Timestamptz(3) // null = draft
   deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(3) // soft-delete tombstone
 
-  /// Crisis-risk gate — boolean + timestamp only (no reasoning, snippets, or confidence).
+  /// Crisis-risk gate - boolean + timestamp only (no reasoning, snippets, or confidence).
   crisisFlagged   Boolean   @default(false) @map("crisis_flagged")
   crisisFlaggedAt DateTime? @map("crisis_flagged_at") @db.Timestamptz(3)
 
-  /// Content-quality gate — skip pattern extraction when entry lacks
+  /// Content-quality gate - skip pattern extraction when entry lacks
   /// self-referential reflective substance. Boolean + timestamp only.
   qualityFlagged   Boolean   @default(false) @map("quality_flagged")
   qualityFlaggedAt DateTime? @map("quality_flagged_at") @db.Timestamptz(3)
 
   /// Flattened plain text for sidebar search (derivable, stored for cheap list search).
   searchText  String @default("") @map("search_text")
-  /// Hash of the flattened content — re-analysis trigger when it drifts from
+  /// Hash of the flattened content - re-analysis trigger when it drifts from
   /// entry_analyses.source_content_hash.
   contentHash String @default("") @map("content_hash")
 
   /// The full CanvasSnapshot (images as attachment references, never base64).
   content Json?
 
-  /// Server clock, maintained on every write — the pull-sync cursor.
+  /// Server clock, maintained on every write - the pull-sync cursor.
   serverUpdatedAt DateTime @updatedAt @map("server_updated_at") @db.Timestamptz(3)
 
   user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -82,7 +82,7 @@ model JournalEntry {
   @@map("journal_entries")
 }
 
-/// One AI extraction per entry — expensive, durable, foundation of the
+/// One AI extraction per entry - expensive, durable, foundation of the
 /// pattern system. Regenerated only when content_hash drifts or on deliberate
 /// prompt-version bumps.
 model EntryAnalysis {
@@ -105,7 +105,7 @@ model EntryAnalysis {
   @@map("entry_analyses")
 }
 
-/// Deterministic planner memory — small but NOT regenerable (hysteresis,
+/// Deterministic planner memory - small but NOT regenerable (hysteresis,
 /// signature memory, plan epoch encode history a recompute can't rebuild).
 /// Never deleted when a pattern disappears; that history detects returns.
 model PatternState {
@@ -126,7 +126,7 @@ model PatternState {
   @@map("pattern_states")
 }
 
-/// AI cache — one materialized passage per pattern, safe to truncate.
+/// AI cache - one materialized passage per pattern, safe to truncate.
 model PatternPassage {
   userId      String @map("user_id")
   patternName String @map("pattern_name")
@@ -146,7 +146,7 @@ model PatternPassage {
   @@map("pattern_passages")
 }
 
-/// AI cache — landing card copy, keyed by evidence fingerprint. Upsert prunes
+/// AI cache - landing card copy, keyed by evidence fingerprint. Upsert prunes
 /// stale evidence keys so at most one row per (user, pattern) survives.
 model PatternDisplay {
   userId      String @map("user_id")
@@ -166,7 +166,7 @@ model PatternDisplay {
   @@map("pattern_displays")
 }
 
-/// Thumbs feedback on a pattern closing beat — one vote per (user, pattern).
+/// Thumbs feedback on a pattern closing beat - one vote per (user, pattern).
 model PatternVote {
   userId      String   @map("user_id")
   patternName String   @map("pattern_name")
@@ -206,7 +206,7 @@ model Attachment {
   @@map("attachments")
 }
 
-/// Freeform product feedback from the account menu — capture only, no triage UI.
+/// Freeform product feedback from the account menu - capture only, no triage UI.
 model Feedback {
   id         String   @id @default(cuid()) @map("feedback_id")
   userId     String   @map("user_id")

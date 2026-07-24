@@ -1,4 +1,4 @@
-/** Extract the first JSON object from model output — crisis-risk feature only. */
+/** Extract the first JSON object from model output - crisis-risk feature only. */
 export function parseCrisisRiskResponse(raw: string): unknown | null {
   const cleaned = raw
     .replace(/```json\s*/gi, "")

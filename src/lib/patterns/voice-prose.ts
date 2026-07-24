@@ -6,7 +6,7 @@
 /** Replace typographic dashes with a comma (and tidy spacing). */
 export function stripTypographicDashes(text: string): string {
   return text
-    .replace(/\s*[–—]\s*/g, ", ")
+    .replace(/\s*[–-]\s*/g, ", ")
     .replace(/\s+,/g, ",")
     .replace(/,\s*,+/g, ",")
     .replace(/\s{2,}/g, " ")

@@ -1,5 +1,5 @@
 /**
- * Montage detector — rejects mechanism loops that stitch separate entry
+ * Montage detector - rejects mechanism loops that stitch separate entry
  * incidents into an implied timeline instead of naming the generic shape.
  */
 
@@ -66,7 +66,7 @@ export const hasRepeatedTelegraphicOpeners = (text: string): boolean => {
 
 /**
  * True when consecutive sentences each map strongly to a *different* evidence
- * quote — a montage of separate entry incidents, not one generic loop shape.
+ * quote - a montage of separate entry incidents, not one generic loop shape.
  */
 export const mapsQuotesInSequence = (
   text: string,

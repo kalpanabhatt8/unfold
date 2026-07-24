@@ -1,7 +1,7 @@
 /**
  * Cache for landing-page pattern display metadata (title + optional summary).
  *
- * Keyed by pattern name + evidence fingerprint — refreshes when the evidence
+ * Keyed by pattern name + evidence fingerprint - refreshes when the evidence
  * set changes, independent of passage composition or voice fills.
  */
 

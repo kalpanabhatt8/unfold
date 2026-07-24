@@ -18,7 +18,7 @@ const assert = (label: string, condition: boolean, detail?: string) => {
     console.log(`  ✓ ${label}`);
   } else {
     failed += 1;
-    console.error(`  ✗ ${label}${detail ? ` — ${detail}` : ""}`);
+    console.error(`  ✗ ${label}${detail ? ` - ${detail}` : ""}`);
   }
 };
 
@@ -87,11 +87,11 @@ console.log("retry message wiring");
 console.log("process framing exempts absolute language");
 {
   assert(
-    "Can't stop before it starts — process exempt",
+    "Can't stop before it starts - process exempt",
     !isVerdictTitle("Can't Stop Before It Starts"),
   );
   assert(
-    "Never settles after praise — process exempt",
+    "Never settles after praise - process exempt",
     !isVerdictTitle("Never Settles After Praise"),
   );
 }

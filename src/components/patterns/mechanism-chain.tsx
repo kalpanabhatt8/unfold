@@ -13,7 +13,7 @@ export type MechanismChainProps = {
 };
 
 /**
- * Mechanism as a vertical chain of events — each sentence is one step,
+ * Mechanism as a vertical chain of events - each sentence is one step,
  * connected by muted arrows so the user watches the loop unfold.
  */
 export function MechanismChain({ text, animate = false }: MechanismChainProps) {

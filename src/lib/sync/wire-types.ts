@@ -18,10 +18,10 @@ export type WireEntry = {
   lastEditedAt?: number | null;
   sealedAt?: number | null;
   deletedAt?: number | null;
-  /** Crisis-risk gate — boolean + timestamp only. */
+  /** Crisis-risk gate - boolean + timestamp only. */
   crisisFlagged?: boolean;
   crisisFlaggedAt?: number | null;
-  /** Content-quality gate — boolean + timestamp only. */
+  /** Content-quality gate - boolean + timestamp only. */
   qualityFlagged?: boolean;
   qualityFlaggedAt?: number | null;
   searchText: string;
@@ -59,18 +59,18 @@ export type EntriesPullResponse = {
   /** Server clock cursor to pass as `since` on the next pull. */
   cursor: number;
   /**
-   * When true, more rows exist after `cursor` — call again with since=cursor.
+   * When true, more rows exist after `cursor` - call again with since=cursor.
    * Older clients that ignore this still advance the cursor and catch up on
    * the next fullSync interval.
    */
   hasMore?: boolean;
 };
 
-/** POST /api/sync/entries — per-entry LWW result. */
+/** POST /api/sync/entries - per-entry LWW result. */
 export type EntryPushResult = {
   id: string;
   accepted: boolean;
-  /** Populated when the server copy won LWW — client should apply it. */
+  /** Populated when the server copy won LWW - client should apply it. */
   server?: WireEntry;
 };
 
@@ -79,13 +79,13 @@ export type PatternsSnapshot = {
   states: WirePatternState[];
   passages: WirePassage[];
   displays: WireDisplay[];
-  /** Optional for older clients / servers — treat missing as []. */
+  /** Optional for older clients / servers - treat missing as []. */
   votes?: WirePatternVote[];
 };
 
-/** GET /api/sync/patterns response — analyses are paged; meta tables on page 1. */
+/** GET /api/sync/patterns response - analyses are paged; meta tables on page 1. */
 export type PatternsPullResponse = PatternsSnapshot & {
-  /** Last analysis entryId on this page — pass as `cursor` on the next pull. */
+  /** Last analysis entryId on this page - pass as `cursor` on the next pull. */
   cursor?: string | null;
   /**
    * When true, more analyses exist after `cursor`. Older clients that ignore

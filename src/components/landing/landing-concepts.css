@@ -1,4 +1,4 @@
-/* Concept landing pages — scoped under .lp-* to avoid colliding with app UI. */
+/* Concept landing pages - scoped under .lp-* to avoid colliding with app UI. */
 
 .lp-root {
   --lp-ink: var(--sidebar-ink);
@@ -7,7 +7,7 @@
   --lp-rose: var(--discovery-canvas-bg);
   --lp-line: color-mix(in srgb, var(--sidebar-ink-soft) 28%, transparent);
   --lp-ease: cubic-bezier(0.22, 1, 0.36, 1);
-  /* Largest living-canvas frame width — chrome matches this */
+  /* Largest living-canvas frame width - chrome matches this */
   --lp-canvas-max-w: var(--landing-frame-max, min(75rem, 95vw));
   --lp-page-pad-x: clamp(1rem, 4vw, 1.5rem);
   color: var(--lp-ink);
@@ -86,14 +86,14 @@
 }
 
 /* ═══════════════════════════════════════════
-   Variation 1 — Living Canvas (framed → centered)
+   Variation 1 - Living Canvas (framed → centered)
    ═══════════════════════════════════════════ */
 .lp-live {
   position: relative;
   background: #fdfcfc;
 }
 
-/* Page scrollbar — thin thumb, no track rectangle */
+/* Page scrollbar - thin thumb, no track rectangle */
 html:has(.lp-live),
 body:has(.lp-live) {
   scrollbar-width: thin;
@@ -176,7 +176,7 @@ html:has(.lp-live)::-webkit-scrollbar-button {
 }
 
 .lp-live__scroll {
-  /* Scroll runway for the story — stage is fixed, so this is only height */
+  /* Scroll runway for the story - stage is fixed, so this is only height */
   height: 520vh;
   pointer-events: none;
 }
@@ -196,7 +196,7 @@ html:has(.lp-live)::-webkit-scrollbar-button {
   pointer-events: auto;
 }
 
-/* Clean page wash — pink comes from the bloom only */
+/* Clean page wash - pink comes from the bloom only */
 .lp-live__glow {
   position: absolute;
   inset: 0;
@@ -204,7 +204,7 @@ html:has(.lp-live)::-webkit-scrollbar-button {
   background: #fdfcfc;
 }
 
-/* Hero tagline — anchored just above the live canvas card;
+/* Hero tagline - anchored just above the live canvas card;
    width matches the header / canvas frame */
 .lp-live__tagline {
   position: absolute;
@@ -246,7 +246,7 @@ html:has(.lp-live)::-webkit-scrollbar-button {
   transform-origin: center center;
 }
 
-/* White product card — card-sized only */
+/* White product card - card-sized only */
 .lp-live__frame-stack {
   z-index: 2;
   width: var(--lp-canvas-max-w);
@@ -333,7 +333,7 @@ html:has(.lp-live)::-webkit-scrollbar-button {
   object-fit: cover;
   object-position: center 40%;
   opacity: 1;
-  /* Blur is baked into the SVG — avoid CSS filter (Safari under-renders large blurs). */
+  /* Blur is baked into the SVG - avoid CSS filter (Safari under-renders large blurs). */
   filter: none;
   pointer-events: none;
   user-select: none;
@@ -382,7 +382,7 @@ html:has(.lp-live)::-webkit-scrollbar-button {
   overflow: hidden;
 }
 
-/* Tall wash behind Patterns — same idea as the real dashboard sidebar. */
+/* Tall wash behind Patterns - same idea as the real dashboard sidebar. */
 .lp-live__sidebar-wash {
   pointer-events: none;
   position: absolute;
@@ -421,7 +421,7 @@ html:has(.lp-live)::-webkit-scrollbar-button {
   font-weight: 600;
   line-height: 1.25;
   letter-spacing: -0.01em;
-  /* Landing mock only — real sidebar uses text-primary */
+  /* Landing mock only - real sidebar uses text-primary */
   color: var(--accent);
 }
 
@@ -542,7 +542,7 @@ html:has(.lp-live)::-webkit-scrollbar-button {
   display: none;
 }
 
-/* Soft fade at bottom of entries — replaces the old hard divider. */
+/* Soft fade at bottom of entries - replaces the old hard divider. */
 .lp-live__sidebar-fade {
   pointer-events: none;
   position: absolute;
@@ -740,7 +740,7 @@ html:has(.lp-live)::-webkit-scrollbar-button {
   min-height: 100%;
   display: flex;
   flex-direction: column;
-  /* Product canvas pagePaddingY — 48 / 64 / 88 */
+  /* Product canvas pagePaddingY - 48 / 64 / 88 */
   padding-top: 3rem;
   padding-bottom: 2.5rem;
   box-sizing: border-box;
@@ -754,7 +754,7 @@ html:has(.lp-live)::-webkit-scrollbar-button {
 
 @media (min-width: 64rem) {
   .lp-live__column {
-    padding-top: 5.5rem; /* 5.5rem — matches useViewportLayout */
+    padding-top: 5.5rem; /* 5.5rem - matches useViewportLayout */
   }
 }
 
@@ -807,7 +807,7 @@ html:has(.lp-live)::-webkit-scrollbar-button {
 }
 
 .lp-live__layer--write .journal-tiptap p.journal-block.lp-live__write-idle {
-  /* Same canvas ink — idle written state, not placeholder */
+  /* Same canvas ink - idle written state, not placeholder */
   color: #2c2825 !important;
   font-size: 0.9375rem; /* slightly under canvas --text-md (1rem) */
   line-height: 1.85;
@@ -847,7 +847,7 @@ html:has(.lp-live)::-webkit-scrollbar-button {
 }
 
 /*
- * Stamp imprint — Bonheur Royale, canvas-pane corner (not text column).
+ * Stamp imprint - Bonheur Royale, canvas-pane corner (not text column).
  * Tilt expands the AABB, so bottom/right use product-like inset (~3.625rem).
  */
 .lp-live__signature {
@@ -1034,7 +1034,7 @@ html:has(.lp-live)::-webkit-scrollbar-button {
 
 .lp-live__pattern-title {
   margin: 0;
-  /* Size from .header-md — same as canvas title */
+  /* Size from .header-md - same as canvas title */
   font-family: var(--font-heading);
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -1054,7 +1054,7 @@ html:has(.lp-live)::-webkit-scrollbar-button {
   gap: 1.75rem;
 }
 
-/* Closing question — match journal entry title scale */
+/* Closing question - match journal entry title scale */
 .lp-live__pattern-question {
   margin: 0;
   font-family: var(--font-heading);

@@ -1,10 +1,10 @@
 /**
- * Unfold — persistence for per-entry analyses.
+ * Unfold - persistence for per-entry analyses.
  *
  * Kept in its own localStorage namespace (`unfold-entry-analyses`), separate
  * from `unfold-drafts` (the sidebar's hot path). One map keyed by entryId so the
  * Patterns page can load everything in a single read. This module is the only
- * place that touches the store — swap it for a server-backed repository later
+ * place that touches the store - swap it for a server-backed repository later
  * without changing callers.
  */
 
@@ -41,7 +41,7 @@ const readAll = (): Record<string, EntryAnalysis> => {
     const parsed = JSON.parse(raw);
     if (!isRecord(parsed)) return {};
     const map = parsed as Record<string, EntryAnalysis>;
-    // Quietly persist the migration once (no event — this is not a data change
+    // Quietly persist the migration once (no event - this is not a data change
     // from the reader's perspective, and it happens on the first read).
     if (stripLegacyEmotion(map)) {
       try {

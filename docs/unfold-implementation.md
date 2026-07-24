@@ -1,6 +1,6 @@
-# Unfold — what’s implemented (product & logic)
+# Unfold - what’s implemented (product & logic)
 
-This document describes **what exists in the product today** and **how the logic works** — flows, rules, and decisions — not code structure.
+This document describes **what exists in the product today** and **how the logic works** - flows, rules, and decisions - not code structure.
 
 **Unfold** is a private journaling product: you write freely, seal entries, and the app helps you notice recurring *mental patterns* in how you think. It does not diagnose, coach, or give therapy-style advice. Observational voice only.
 
@@ -49,7 +49,7 @@ Repo package name and product brand are **Unfold**.
 1. Always try **sign-in** first.
 2. If that fails in a way that could mean “no account” *or* “wrong password”, try **create account** (avoids leaking whether an email exists).
 3. OTP verification when needed (6-digit code, resend cooldown).
-4. If Clerk still needs profile fields, the app **silently fills** them (legal accepted, generated username, placeholder name) and sends you to the dashboard — no username form.
+4. If Clerk still needs profile fields, the app **silently fills** them (legal accepted, generated username, placeholder name) and sends you to the dashboard - no username form.
 
 **Google**
 
@@ -75,8 +75,8 @@ Everything else (dashboard, APIs) needs a signed-in session.
 
 Two pieces of local data:
 
-- **Metadata** — id, title, timestamps, sealed/deleted flags, searchable plain text.
-- **Board content** — the full canvas snapshot (writing blocks, images, seal state).
+- **Metadata** - id, title, timestamps, sealed/deleted flags, searchable plain text.
+- **Board content** - the full canvas snapshot (writing blocks, images, seal state).
 
 Editing is **local-first**: changes hit the browser immediately. When signed in, sync mirrors that to the server.
 
@@ -84,7 +84,7 @@ Editing is **local-first**: changes hit the browser immediately. When signed in,
 
 - No seal date → fully editable title and body.
 - Autosave mirrors content quickly; after a longer idle, a “milestone” save updates the session stamp in the header.
-- **At most one empty unsealed draft** — “New entry” reopens that empty one instead of spawning duplicates.
+- **At most one empty unsealed draft** - “New entry” reopens that empty one instead of spawning duplicates.
 - Creating an entry: sidebar **+**, or landing on `/dashboard` (redirects to newest or a new id).
 
 ### Seal
@@ -151,7 +151,7 @@ empty / new → DRAFT ⇄ edit & autosave
 
 ### Quote deep-link from Patterns
 
-Opening a quote from a pattern can highlight that passage in the entry, scroll it into view, then fade after a hold — or clear if you scroll yourself.
+Opening a quote from a pattern can highlight that passage in the entry, scroll it into view, then fade after a hold - or clear if you scroll yourself.
 
 ### Word counts (gates, not a badge)
 
@@ -206,7 +206,7 @@ Sync runs on sign-in/mount, about every **5 minutes**, on tab focus if due, and 
 | Pattern display | Cached curiosity title / summary |
 | Pattern vote | Thumbs on closing beat |
 
-**Not stored as source of truth:** which patterns surface, time hints, co-patterns, discovery arc UI structure — those are computed.
+**Not stored as source of truth:** which patterns surface, time hints, co-patterns, discovery arc UI structure - those are computed.
 
 ---
 
@@ -231,7 +231,7 @@ Sync runs on sign-in/mount, about every **5 minutes**, on tab focus if due, and 
 
 ## 7. Patterns system
 
-Patterns are about **how** someone is thinking in an entry — not topics, events, or advice.
+Patterns are about **how** someone is thinking in an entry - not topics, events, or advice.
 
 ### Controlled vocabulary (V1)
 
@@ -240,8 +240,8 @@ Exactly **10** mental patterns. The model may not invent others.
 | Name | Meaning |
 |------|---------|
 | Comparison | Measuring self against others |
-| Self-doubt | Questioning ability / competence — uncertainty (“can I?”) |
-| Overthinking | Looping without resolution — **only when no more specific pattern fits** |
+| Self-doubt | Questioning ability / competence - uncertainty (“can I?”) |
+| Overthinking | Looping without resolution - **only when no more specific pattern fits** |
 | Perfectionism | Finished work still gets rechecked, redone, or never shipped |
 | Avoidance | Putting off or escaping what matters |
 | Catastrophizing | Escalating to worst case |
@@ -266,7 +266,7 @@ Deferred (not in V1): need for control, guilt.
 |---------|-----------------|--------------------|
 | Explicit seal | Sealed, read-only | Analyze once |
 | Idle ≥24h + ≥50 words | Still a draft in UI | Analyze once |
-| Patterns page load | — | Backfill up to 5 missing analyses |
+| Patterns page load | - | Backfill up to 5 missing analyses |
 
 **V1 rule:** one analysis per entry id, ever. Content hash is stored for future stale detection, but edits do **not** re-run analysis yet. Failures store nothing so reconcile can retry.
 
@@ -274,13 +274,13 @@ Deferred (not in V1): need for control, guilt.
 
 - Topics (what it’s about).
 - Patterns with confidence + verbatim quotes from the text.
-- Stance: observe only — empty patterns array is valid.
+- Stance: observe only - empty patterns array is valid.
 - Long entries are head+tail sampled so recent writing is favored.
 - Quotes must appear verbatim in the source or the match is rejected.
 
 ### How patterns surface
 
-Pure rollup — **no LLM**:
+Pure rollup - **no LLM**:
 
 1. Each analysis votes its pattern names (one vote per entry per name).
 2. Attach evidence: title, dates, quotes, confidence.
@@ -289,8 +289,8 @@ Pure rollup — **no LLM**:
 
 Also computed (available on the aggregate; list UI mainly shows title + timeline + count):
 
-- **Time hint** — e.g. “usually late evening” when enough evidence shares a day-part.
-- **Co-patterns** — other patterns that often show up in the same entries.
+- **Time hint** - e.g. “usually late evening” when enough evidence shares a day-part.
+- **Co-patterns** - other patterns that often show up in the same entries.
 
 ### Lifecycle (living patterns)
 
@@ -302,12 +302,12 @@ Each surfaced pattern has a **stage of life**. Classification is deterministic a
 | Strengthening | Recent activity building |
 | Strong | Steady presence |
 | Weakening | Decline while journaling continues |
-| Resting | No journaling activity for a while — **absence**, not “you improved” |
+| Resting | No journaling activity for a while - **absence**, not “you improved” |
 | Returning | Quiet gap, then fresh evidence after prior history |
 
 **Honesty rule:** resting is checked before weakening so silence never reads as progress.
 
-**Memory:** pattern state is kept even if a pattern temporarily disappears — that history enables “returning.”
+**Memory:** pattern state is kept even if a pattern temporarily disappears - that history enables “returning.”
 
 Thresholds are tunable (recent window, return gap, min dwell before stage change, etc.).
 
@@ -351,9 +351,9 @@ Separate from passages. Purpose: make the writer **want to open** the pattern be
 
 **Detail (discovery canvas)**
 
-1. **Evidence** — quote cards; tap opens the journal focused on that quote.
-2. **Mechanism** — AI event chain as stepped sentences (how they kept arriving here).
-3. **Reflection** — one observational question (or a featured quote for some endings).
+1. **Evidence** - quote cards; tap opens the journal focused on that quote.
+2. **Mechanism** - AI event chain as stepped sentences (how they kept arriving here).
+3. **Reflection** - one observational question (or a featured quote for some endings).
 
 Interaction: open on evidence → “Show the pattern” / “Continue” through beats → **Done** on the last. Previous beats stay on the page and recede. CTA waits until voice fills are ready.
 
@@ -361,7 +361,7 @@ Interaction: open on evidence → “Show the pattern” / “Continue” throug
 
 - Quiet thumbs (“Was this helpful?”).
 - Stored with which evidence entries were involved.
-- Persistence/sync only — no product logic beyond capture.
+- Persistence/sync only - no product logic beyond capture.
 
 ### Not shipped / deferred
 
@@ -376,11 +376,11 @@ Shared narrative voice: observational, no diagnosis/coaching. Shared CTA: Get st
 
 | Route | Experience |
 |-------|------------|
-| `/` | **Living canvas** — scroll-driven fake workspace: tagline → write demo → quote chips → pattern reveal → CTA |
-| `/homepage2` | **Reading journey** — two sample entries → highlight bridge → pattern → CTA |
-| `/homepage3` | **Infinite workspace** — pan-able desk of moments → pattern → CTA |
+| `/` | **Living canvas** - scroll-driven fake workspace: tagline → write demo → quote chips → pattern reveal → CTA |
+| `/homepage2` | **Reading journey** - two sample entries → highlight bridge → pattern → CTA |
+| `/homepage3` | **Infinite workspace** - pan-able desk of moments → pattern → CTA |
 
-Prototype interactions on `/` (open fake entries, search, patterns) are local UI only — not real account data.
+Prototype interactions on `/` (open fake entries, search, patterns) are local UI only - not real account data.
 
 ---
 
@@ -397,8 +397,8 @@ Prototype interactions on `/` (open fake entries, search, patterns) are local UI
 
 ## 10. Dev & tooling
 
-- `/dev/editor` — TipTap sandbox.
-- `/dev/stamp` — seal stamp layout playground.
+- `/dev/editor` - TipTap sandbox.
+- `/dev/stamp` - seal stamp layout playground.
 - Scripts for reviewing pattern shapes, regenerating voice fills, re-running extractions fixtures.
 - AI routes expose lightweight GET warm-ups that don’t call the model.
 

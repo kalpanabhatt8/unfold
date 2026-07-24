@@ -20,7 +20,7 @@ const assert = (label: string, condition: boolean, detail?: string) => {
     console.log(`  ✓ ${label}`);
   } else {
     failed += 1;
-    console.error(`  ✗ ${label}${detail ? ` — ${detail}` : ""}`);
+    console.error(`  ✗ ${label}${detail ? ` - ${detail}` : ""}`);
   }
 };
 

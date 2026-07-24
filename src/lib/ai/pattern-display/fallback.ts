@@ -6,7 +6,7 @@ import {
 import type { PatternDisplay } from "@/lib/patterns/types";
 
 /**
- * Tension-first fallbacks when hook generation fails — never psychology labels.
+ * Tension-first fallbacks when hook generation fails - never psychology labels.
  * Derived from PATTERN_CATALOG so the hook lives beside the pattern it belongs
  * to (single source); `check:pattern-vocab` guards each hook against echoing the
  * definition or label.

@@ -65,7 +65,7 @@ function CanvasSkeleton() {
 }
 
 /**
- * Guided discovery — one evolving canvas, behavioral headline first.
+ * Guided discovery - one evolving canvas, behavioral headline first.
  */
 export function PatternDetailView({
   patternName,
