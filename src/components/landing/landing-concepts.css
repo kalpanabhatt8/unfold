@@ -1101,16 +1101,18 @@ html:has(.lp-live)::-webkit-scrollbar-button {
 .lp-live__end-note {
   display: flex;
   align-items: baseline;
-  justify-content: flex-start;
+  justify-content: space-between;
   gap: 1.25rem;
-  /* Match .lp-live__pattern-inner for the left note */
-  width: min(80%, 43.75rem);
+  width: 100%;
   margin: 0;
   pointer-events: none;
+  flex-wrap: wrap;
 }
 
 .lp-live__end-note-text {
   margin: 0;
+  flex: 1 1 auto;
+  min-width: min(100%, 11rem);
   font-family: var(--font-heading);
   font-size: 0.8125rem;
   font-weight: 400;
@@ -1118,12 +1120,11 @@ html:has(.lp-live)::-webkit-scrollbar-button {
   line-height: 1.4;
   letter-spacing: -0.01em;
   color: var(--lp-ink-soft);
+  text-wrap: balance;
 }
 
 .lp-live__end-note-link {
-  position: absolute;
-  right: 2rem;
-  bottom: 1.35rem;
+  position: static;
   flex-shrink: 0;
   pointer-events: auto;
   font-family: var(--font-body);
@@ -1153,10 +1154,6 @@ span.lp-live__end-note-link {
 @media (min-width: 64rem) {
   .lp-live__end-note-wrap {
     padding-bottom: 1.75rem;
-  }
-
-  .lp-live__end-note-link {
-    bottom: 1.75rem;
   }
 }
 
@@ -1441,7 +1438,10 @@ span.lp-live__end-note-link {
   }
 
   .lp-live__tagline {
-    font-size: clamp(1.15rem, 5.1vw, 2.6rem);
+    font-size: clamp(1.65rem, 8.2vw, 2.5rem);
+    line-height: 1.08;
+    white-space: normal;
+    text-wrap: balance;
     padding-inline: var(--lp-page-pad-x);
     box-sizing: border-box;
   }
@@ -1449,5 +1449,17 @@ span.lp-live__end-note-link {
   .lp-chrome__cta {
     min-height: var(--touch-target-min, 2.75rem);
     padding-inline: 0.95rem;
+  }
+
+  .lp-live__end-note {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+    text-align: left;
+  }
+
+  .lp-live__end-note-text {
+    min-width: 0;
+    text-align: left;
   }
 }
