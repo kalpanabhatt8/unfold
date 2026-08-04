@@ -68,6 +68,39 @@ export default function TermsPage() {
         professional or emergency care.
       </p>
 
+      <h2>AI Processing Acknowledgement</h2>
+      <p>
+        Unfold uses artificial intelligence to provide features such as pattern
+        detection, reflections, summaries, and safety screening.
+      </p>
+      <p>
+        By using AI-powered features, you understand and agree that selected
+        portions of your writing may be processed by third-party AI providers to
+        generate these features.
+      </p>
+      <p>
+        AI-generated results are created automatically and may contain mistakes,
+        misunderstandings, or incomplete interpretations. Unfold does not
+        guarantee that AI-generated patterns, reflections, or insights will
+        always be accurate.
+      </p>
+      <p>
+        These features are designed for personal reflection and journaling. They
+        are not intended to provide medical, psychological, therapeutic, or
+        diagnostic advice.
+      </p>
+
+      <h2>Human Access to Your Journal</h2>
+      <p>
+        Your journal entries are not reviewed by humans as part of normal Unfold
+        operation.
+      </p>
+      <p>
+        We only access user content when necessary to provide support,
+        investigate technical issues, respond to legal requirements, or protect
+        the safety and security of Unfold and its users.
+      </p>
+
       <h2>5. Acceptable use</h2>
       <p>
         You agree not to misuse Unfold: no unauthorized access to other accounts

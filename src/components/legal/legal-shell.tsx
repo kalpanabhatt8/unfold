@@ -41,7 +41,7 @@ export function LegalShell({ title, active, children }: LegalShellProps) {
         <div className="legal-doc__scroll">
           <h1 className="auth-title">{title}</h1>
           <p className="auth-subtitle legal-doc__updated">
-            Last updated: August 2, 2026
+            Last updated: August 4, 2026
           </p>
 
           <div className="legal-doc__body">{children}</div>

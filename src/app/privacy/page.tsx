@@ -19,10 +19,29 @@ export default function PrivacyPage() {
       <p>
         This document was prepared with AI assistance and has not yet been
         reviewed by a lawyer. Given that Unfold includes automated
-        crisis-detection features, we strongly recommend a legal review of this
+        crisis-detection features, we         strongly recommend a legal review of this
         document before relying on it, particularly regarding minor-protection
         law, cross-border data transfer, and jurisdiction-specific mental health
         app regulations.
+      </p>
+
+      <h2>Your Journal Is Private</h2>
+      <p>
+        Your journal entries are personal. Unfold is designed to help you
+        reflect on your own writing, not to use your thoughts for advertising or
+        unrelated purposes.
+      </p>
+      <p>
+        We do not sell your journal entries, personal reflections, or private
+        writing to third parties. Your writing is only processed when needed to
+        provide Unfold features, such as saving your entries, syncing your data,
+        generating patterns, creating insights, and maintaining the safety
+        features of the product.
+      </p>
+      <p>
+        We limit access to your journal data and only share information with
+        service providers that help us operate Unfold, as described in this
+        Privacy Policy.
       </p>
 
       <h2>1. Who we are</h2>
@@ -147,6 +166,30 @@ export default function PrivacyPage() {
         that check.
       </p>
 
+      <h2>How AI Providers Handle Your Writing</h2>
+      <p>
+        Some Unfold features use artificial intelligence to generate titles,
+        summaries, patterns, and reflections from your writing.
+      </p>
+      <p>When you use these features:</p>
+      <ul>
+        <li>We send only the information needed for that specific feature.</li>
+        <li>
+          We do not send your entire journal history in a single request unless
+          required for a specific feature.
+        </li>
+        <li>
+          AI providers process your writing only to provide the requested
+          functionality.
+        </li>
+      </ul>
+      <p>
+        AI-generated insights are created automatically and may not always
+        perfectly represent your thoughts or experiences. They are intended as
+        tools for reflection, not as definitive interpretations of your
+        emotions, personality, or mental health.
+      </p>
+
       <h2>5. Who we share information with</h2>
       <p>
         We use service providers (“processors”) only to run Unfold. They receive
@@ -231,12 +274,39 @@ export default function PrivacyPage() {
         </li>
       </ul>
 
-      <h2>10. Security</h2>
+      <h2>Security Measures</h2>
       <p>
-        We use signed-in sessions, account scoping in our database, and
-        industry-standard providers for auth and storage. No method of
-        transmission or storage is 100% secure; please use a strong unique
-        password.
+        We use trusted infrastructure providers and security practices designed
+        to protect your information.
+      </p>
+      <p>These include:</p>
+      <ul>
+        <li>Secure authentication through Clerk.</li>
+        <li>
+          Account-based access controls to ensure users can only access their
+          own data.
+        </li>
+        <li>
+          Encrypted connections when your data is transmitted between your
+          device and our services.
+        </li>
+        <li>
+          Restricted access to systems that store or process user information.
+        </li>
+      </ul>
+      <p>
+        No online service can guarantee complete security. We encourage you to
+        use a strong, unique password and avoid sharing access to your account.
+      </p>
+
+      <h2>Incident Response</h2>
+      <p>
+        We take the security of your personal information seriously.
+      </p>
+      <p>
+        If we become aware of a security incident that affects user data, we
+        will investigate the issue, take steps to reduce any potential impact,
+        and provide notifications when required by applicable laws.
       </p>
 
       <h2>11. A note on sensitive content</h2>
