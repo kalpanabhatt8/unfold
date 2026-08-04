@@ -262,12 +262,6 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
                 >
                   <span className="pattern-accordion__row-main">
                     <span className="pattern-accordion__row-title">
-                      {isUnread ? (
-                        <span
-                          className="pattern-accordion__unread-dot"
-                          aria-hidden
-                        />
-                      ) : null}
                       {title}
                     </span>
                     {factLine ? (

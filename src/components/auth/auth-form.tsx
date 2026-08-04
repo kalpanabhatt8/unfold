@@ -27,7 +27,6 @@ import {
   isAlreadyVerifiedError,
   isFieldError,
   isValidEmail,
-  LEGAL_REQUIRED_MESSAGE,
   markVerifyInterrupted,
   OTP_LENGTH,
   persistVerifySession,
@@ -73,6 +72,22 @@ function isVerifyMode(mode: AuthMode): boolean {
   return mode === "sign-in-verify" || mode === "sign-up-verify";
 }
 
+function AuthConsentLine() {
+  return (
+    <p className="auth-consent">
+      By continuing, you confirm you are 18 or older and agree to our{" "}
+      <Link href="/terms-and-conditions" target="_blank" rel="noreferrer">
+        Terms
+      </Link>{" "}
+      and{" "}
+      <Link href="/privacy" target="_blank" rel="noreferrer">
+        Privacy Policy
+      </Link>
+      .
+    </p>
+  );
+}
+
 export function AuthForm() {
   const router = useRouter();
   const pathname = usePathname();
@@ -92,7 +107,6 @@ export function AuthForm() {
   const [error, setError] = React.useState<string | null>(null);
   const [pending, setPending] = React.useState(false);
   const [resendCooldown, setResendCooldown] = React.useState(0);
-  const [acceptedLegal, setAcceptedLegal] = React.useState(false);
   const otpRefs = React.useRef<(HTMLInputElement | null)[]>([]);
   const finalizingSignUpRef = React.useRef(false);
 
@@ -235,14 +249,6 @@ export function AuthForm() {
     setError(VERIFY_INTERRUPTED_MESSAGE);
     void resetAuthAttempts(signIn, signUp);
   }, [isLoaded, mode, signIn, signUp, resetOtp]);
-
-  const requireLegal = () => {
-    if (!acceptedLegal) {
-      setError(LEGAL_REQUIRED_MESSAGE);
-      return false;
-    }
-    return true;
-  };
 
   React.useEffect(() => {
     if (resendCooldown <= 0) return;
@@ -504,7 +510,6 @@ export function AuthForm() {
       setError(EMAIL_INVALID_MESSAGE);
       return;
     }
-    if (!requireLegal()) return;
 
     setError(null);
     setPending(true);
@@ -925,38 +930,8 @@ export function AuthForm() {
                 ) : null}
               </div>
 
-              <label className="auth-check auth-legal">
-                <input
-                  type="checkbox"
-                  checked={acceptedLegal}
-                  onChange={(e) => setAcceptedLegal(e.target.checked)}
-                  disabled={pending}
-                />
-                <span className="pt-0.5">
-                  I have read and agree to the{" "}
-                  <Link
-                    href="/terms-and-conditions"
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Terms and Conditions
-                  </Link>{" "}
-                  and{" "}
-                  <Link href="/privacy" target="_blank" rel="noreferrer">
-                    Privacy Policy
-                  </Link>
-                </span>
-              </label>
-
               {error && !isFieldError(error) ? (
-                <p
-                  className={
-                    error === LEGAL_REQUIRED_MESSAGE
-                      ? "auth-error auth-error--banner"
-                      : "auth-error"
-                  }
-                  role="alert"
-                >
+                <p className="auth-error" role="alert">
                   {error}
                 </p>
               ) : null}
@@ -1048,6 +1023,8 @@ export function AuthForm() {
           </>
         ) : null}
       </div>
+
+      {mode === "sign-up" ? <AuthConsentLine /> : null}
     </div>
   );
 }

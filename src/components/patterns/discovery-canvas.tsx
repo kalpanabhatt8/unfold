@@ -167,8 +167,9 @@ export function DiscoveryCanvas({
     allowAutoScrollRef.current = false;
   }, [revealKey]);
 
-  // After Continue: park the new beat near the top of the page scroll.
-  // Previous beats stay in the document above - no nested scrollport.
+  // After Continue: park the new beat at the top of the nearest scrollport.
+  // Prefer .discovery-scroll (accordion / landing panel) so page chrome never
+  // jumps; fall back to scrollIntoView only when there is no scroller.
   useEffect(() => {
     if (!allowAutoScrollRef.current) return;
 
@@ -188,6 +189,20 @@ export function DiscoveryCanvas({
         }
         return;
       }
+
+      const scroller = layer.closest(".discovery-scroll");
+      if (scroller instanceof HTMLElement) {
+        const parentRect = scroller.getBoundingClientRect();
+        const layerRect = layer.getBoundingClientRect();
+        const nextTop =
+          scroller.scrollTop + (layerRect.top - parentRect.top) - 12;
+        scroller.scrollTo({
+          top: Math.max(0, nextTop),
+          behavior: reduceMotion ? "auto" : "smooth",
+        });
+        return;
+      }
+
       layer.scrollIntoView({
         behavior: reduceMotion ? "auto" : "smooth",
         block: "start",

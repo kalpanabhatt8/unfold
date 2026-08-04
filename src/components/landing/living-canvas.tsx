@@ -4,13 +4,15 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { ChevronsLeft, Plus, Search, Signature, Waypoints, X } from "lucide-react";
 import { UnfoldBrand } from "@/components/brand/unfold-brand";
-import { LandingEndCta } from "./landing-chrome";
+import { LandingEndCta, LandingEndNote } from "./landing-chrome";
+// import { ExamplePatternCard } from "./example-pattern-card"; // parked: See an example
 import { MechanismChain } from "@/components/patterns/mechanism-chain";
 import { Tooltip } from "@/components/ui/tooltip";
 import {
   CTA,
   LIVE_SCREEN2_CARDS,
   PATTERN,
+  // SEE_EXAMPLE, // parked: See an example
   TAGLINE,
   WRITE_NATURALLY,
 } from "./story";
@@ -156,7 +158,7 @@ function easeOutCubic(t: number) {
   return 1 - Math.pow(1 - t, 3);
 }
 
-type ViewOverride = "auto" | "journal" | "pattern" | "write";
+type ViewOverride = "auto" | "journal" | "pattern" | "write"; // | "example" parked
 
 export function LivingCanvas() {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -170,7 +172,9 @@ export function LivingCanvas() {
   const [visitedAt] = useState(() => Date.now());
   const [writeSealed, setWriteSealed] = useState(false);
   const [writeSealedAt, setWriteSealedAt] = useState<number | null>(null);
+  // const [exampleKey, setExampleKey] = useState(0); // parked: See an example
   const overrideAtProgress = useRef(0);
+  // const exampleScrollLock = useRef<number | null>(null); // parked: See an example
   const visitStamp = formatVisitStamp(visitedAt);
 
   useEffect(() => {
@@ -226,6 +230,7 @@ export function LivingCanvas() {
   let journalOpacity = 0;
   let chipsOpacity = story >= 0.22 && story < 0.62 ? 1 : 0;
   let patternOpacity = story >= 0.56 ? patternIn : 0;
+  // let exampleOpacity = 0; // parked: See an example
   let showReflect = reflectIn;
   let showCta = ctaIn;
   let patternsActive = patternOpacity > 0.12;
@@ -257,6 +262,19 @@ export function LivingCanvas() {
     showReflect = 0;
     showCta = 0;
   }
+  /* parked: See an example / in-canvas pattern preview
+  } else if (viewOverride === "example") {
+    writeOpacity = 0;
+    journalOpacity = 0;
+    chipsOpacity = 0;
+    patternOpacity = 0;
+    exampleOpacity = 1;
+    showReflect = 0;
+    showCta = 0;
+    patternsActive = true;
+    showingWrite = false;
+  }
+  */
 
   const frameY = lerp(28, 0, rise);
   const frameScale = lerp(0.94, 1, rise);
@@ -299,6 +317,11 @@ export function LivingCanvas() {
     overrideAtProgress.current = progress;
     setSearchOpen(false);
   };
+
+  /* parked: See an example / in-canvas pattern preview
+  const openExample = () => { ... };
+  const leaveExample = () => { ... };
+  */
 
   return (
     <div
@@ -575,7 +598,10 @@ export function LivingCanvas() {
                     <p className="lp-live__signature" aria-hidden>
                       {SIGNATURE_NAME}
                     </p>
-                  ) : (
+                  ) : showingWrite ? (
+                    /* Unmount when write layer is hidden - stamp wrap uses
+                       pointer-events:auto, which would still catch hovers
+                       (and portal "Seal entry") over later story layers. */
                     <div className="lp-live__stamp-btn-wrap">
                       <Tooltip content="Seal entry" align="end" bubbleClassName="tooltip-bubble-stamp">
                         <button
@@ -597,7 +623,7 @@ export function LivingCanvas() {
                         </button>
                       </Tooltip>
                     </div>
-                  )}
+                  ) : null}
                 </section>
 
                 <section
@@ -703,7 +729,7 @@ export function LivingCanvas() {
                   aria-hidden={patternOpacity < 0.05}
                 >
                   <div className="lp-live__column lp-live__pattern-inner">
-                    <h2 className="lp-live__pattern-title header-md">
+                    <h2 className="lp-live__pattern-title">
                       {PATTERN.title}
                     </h2>
                     <div
@@ -740,7 +766,7 @@ export function LivingCanvas() {
                       }}
                     >
                       <p
-                        className="lp-live__pattern-question header-md"
+                        className="lp-live__pattern-question"
                         style={{
                           opacity:
                             viewOverride === "pattern" ? 1 : showReflect,
@@ -757,7 +783,24 @@ export function LivingCanvas() {
                       </div>
                     </div>
                   </div>
+
+                  <div
+                    className="lp-live__end-note-wrap"
+                    style={{
+                      opacity: viewOverride === "pattern" ? 1 : showCta,
+                    }}
+                    aria-hidden={
+                      viewOverride === "pattern" ? false : showCta < 0.05
+                    }
+                  >
+                    <LandingEndNote />
+                  </div>
                 </section>
+
+                {/* parked: See an example → + in-canvas example pattern card
+                <section className="lp-live__layer lp-live__layer--example">...</section>
+                <button className="lp-live__see-example">See an example →</button>
+                */}
               </main>
             </div>
             </div>

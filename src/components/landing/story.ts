@@ -47,22 +47,22 @@ export const WRITE_NATURALLY = {
   /** Title applied when the entry is sealed. */
   sealedTitle: "How it works?",
   paragraphs: [
-    "You already know how you feel.",
-    "What's harder to notice\nis how your thoughts repeat over time.",
-    "Unfold doesn't just tag your emotions.\nIt helps you notice the patterns behind it.",
-    "Built for people who overthink.\nUnderstand your patterns, not just your thoughts.",
+    "You write down what's on your mind.\nJust like a diary.",
+    "Over time, Unfold starts noticing things you might not \na worry that keeps showing up, a moment you keep coming back to.",
+    "It doesn't tell you what to do about it.\nIt just shows you what was already there, in your own words.",
+    "Built for overthinkers and people who want to see their own patterns.",
   ],
 };
 
 export const PATTERN = {
   title: "See Together.",
-  evidenceLabel: "Connecting the moments",
+  evidenceLabel: "",
   loops: [
     "The moments were already there.",
     "Scattered quietly across your days.",
     "Until they started to tell a story.",
   ],
-  closingQuestion: "Start your first entry.",
+  closingQuestion: "",
 };
 
 export const CTA = {
@@ -76,3 +76,74 @@ export const CTA = {
     primaryHref: "/sign-up",
   },
 };
+
+/** Soft closer under the living-canvas CTA - left note, right social. */
+export const LANDING_FOOTER = {
+  note: "Unfold is in its early days. more to come :)",
+  x: {
+    label: "@unfoldpattern",
+    /** Paste the account URL when ready. */
+    href: "https://x.com/unfoldpattern",
+  },
+};
+
+/** Secondary link in the canvas - opens the in-canvas example pattern.
+ * Parked with the See an example / pattern preview feature.
+export const SEE_EXAMPLE = {
+  label: "See an example →",
+  backLabel: "← Back",
+};
+
+export const EXAMPLE_PATTERN = {
+  caption:
+    "Once a few entries share something in common, Unfold shows you the shape of it. Here's an example.",
+  title: "Their Comfort First?",
+  factLine: "23 Jul · Spotted in 5 moments",
+  moments: [
+    {
+      entryTitle: "Third Week In a Row",
+      date: "23 Jul",
+      quote: "just not saying anything about it",
+    },
+    {
+      entryTitle: "Couldn't Say No",
+      date: "23 Jul",
+      quote:
+        'saying "I can\'t right now" felt disproportionately harder than just doing the favor',
+    },
+    {
+      entryTitle: "Said Yes at Midnight",
+      date: "23 Jul",
+      quote:
+        "I said it wasn't a problem, even though it meant working past midnight",
+    },
+    {
+      entryTitle: "The Same Thing Again",
+      date: "23 Jul",
+      quote:
+        "Agreed to be added to a group project at the last minute because someone dropped out",
+    },
+    {
+      entryTitle: "Exhausted Listening",
+      date: "23 Jul",
+      quote:
+        "I listened for over an hour again, even though I was pretty drained already",
+    },
+    {
+      entryTitle: "Kept Nodding",
+      date: "23 Jul",
+      quote:
+        "I didn't say I was tired. I just kept nodding along on the call.",
+    },
+  ],
+  loops: [
+    "Someone asked for help or time.",
+    "Saying no felt harder than just doing it.",
+    "So the yes came out instead.",
+    "Then the next ask arrived, and the same weight showed up again.",
+  ],
+  closingQuestion:
+    "When the ask lands, what happens in the space before the yes comes out?",
+} as const;
+*/
+

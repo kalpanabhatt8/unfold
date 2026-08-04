@@ -15,12 +15,19 @@ export default function TermsPage() {
         patterns in your own writing. By creating an account or using Unfold,
         you agree to these Terms.
       </p>
+      <p>
+        This document was prepared with AI assistance and has not yet been
+        reviewed by a lawyer. Given that Unfold includes automated
+        crisis-detection features and serves users across multiple countries, we
+        strongly recommend a legal review before relying on this document,
+        particularly Sections 9 and 10.
+      </p>
 
       <h2>1. Who can use Unfold</h2>
       <p>
-        You must be at least 13 years old. If you are under the age required to
-        consent to online services in your country, you may only use Unfold with
-        a parent or guardian’s involvement as required by local law.
+        You must be at least 18 years old to use Unfold. By creating an account,
+        you represent and confirm that you meet this requirement. Unfold is not
+        directed to, and must not be used by, anyone under 18.
       </p>
 
       <h2>2. Your account</h2>
@@ -52,6 +59,14 @@ export default function TermsPage() {
         to our AI provider to generate titles, topics, patterns, and summaries,
         as described in the Privacy Policy.
       </p>
+      <p>
+        Before pattern analysis runs, entries are also automatically screened for
+        crisis or self-harm indicators and for whether they contain enough
+        substantive content to analyze. This screening is automated, is not
+        reviewed by a person in real time, is not guaranteed to catch every
+        instance of crisis-related content, and is not a substitute for
+        professional or emergency care.
+      </p>
 
       <h2>5. Acceptable use</h2>
       <p>
@@ -72,24 +87,49 @@ export default function TermsPage() {
       <p>
         You may stop using Unfold at any time. To request account deletion,
         email us (see Contact). We may suspend or end access if you violate
-        these Terms or if we must for security or legal reasons.
+        these Terms, if we believe you do not meet the age requirement, or if we
+        must for security or legal reasons.
       </p>
 
       <h2>8. Disclaimers</h2>
       <p>
         Unfold is a journaling tool, not medical, therapeutic, or diagnostic
         advice. Pattern labels and insights are optional reflections on your own
-        text, not clinical assessments. The service is provided “as is” to the
-        fullest extent allowed by law.
+        text, not clinical assessments. Automated crisis screening is a
+        supplementary safety feature, not a monitoring service, a crisis hotline,
+        or a substitute for professional or emergency help, and it is not
+        guaranteed to detect every instance of crisis content. If you are in
+        crisis, please contact a local emergency service or crisis line directly.
+        The service is provided “as is” to the fullest extent allowed by law,
+        without warranties of any kind.
       </p>
 
-      <h2>9. Changes to these Terms</h2>
+      <h2>9. Limitation of liability</h2>
+      <p>
+        To the fullest extent permitted by law, Unfold and its operators are not
+        liable for indirect, incidental, or consequential damages arising from
+        your use of the service, including reliance on automated screening
+        features. Nothing in these Terms limits liability where such limitation
+        is not permitted by applicable law.
+      </p>
+
+      <h2>10. Governing law</h2>
+      <p>
+        These Terms are governed by the laws of India, without regard to conflict
+        of law principles. Unfold is available to users worldwide; however, any
+        dispute arising from these Terms or your use of Unfold will be subject to
+        the exclusive jurisdiction of the courts located in India, unless
+        applicable local law in your country grants you rights that cannot be
+        waived by this clause.
+      </p>
+
+      <h2>11. Changes to these Terms</h2>
       <p>
         We may update these Terms. We will revise the “Last updated” date above.
         Continued use after changes means you accept the updated Terms.
       </p>
 
-      <h2>10. Contact</h2>
+      <h2>12. Contact</h2>
       <p>
         Questions about these Terms:{" "}
         <a href="mailto:hello.unfoldapp@gmail.com">hello.unfoldapp@gmail.com</a>

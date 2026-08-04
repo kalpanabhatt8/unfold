@@ -879,6 +879,12 @@ html:has(.lp-live)::-webkit-scrollbar-button {
   pointer-events: auto;
 }
 
+/* Defense: never let a faded write layer's stamp steal pointer hits. */
+.lp-live__layer--write[aria-hidden="true"] .lp-live__stamp-btn-wrap {
+  pointer-events: none;
+  visibility: hidden;
+}
+
 .lp-live__stamp-btn {
   border-radius: 12px;
 }
@@ -1034,33 +1040,36 @@ html:has(.lp-live)::-webkit-scrollbar-button {
 
 .lp-live__pattern-title {
   margin: 0;
-  /* Size from .header-md - same as canvas title */
   font-family: var(--font-heading);
   font-weight: 600;
+  font-size: var(--text-lg);
+  line-height: var(--text-lg--line-height);
   letter-spacing: -0.01em;
   color: var(--accent);
 }
 
 .lp-live__loops {
-  margin: 2rem 0 0;
+  margin: 1.75rem 0 0;
   max-width: 34rem;
 }
 
 .lp-live__pattern-foot {
-  margin-top: 4rem;
+  margin-top: 1.75rem;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 1.75rem;
 }
 
-/* Closing question - match journal entry title scale */
+/* Closing question - same body treatment as pattern title / loops */
 .lp-live__pattern-question {
   margin: 0;
-  font-family: var(--font-heading);
-  font-weight: 600;
+  font-family: var(--font-body);
+  font-weight: 400;
+  font-size: var(--text-md);
+  line-height: 1.55;
   letter-spacing: -0.01em;
-  color: var(--accent);
+  color: var(--sidebar-ink);
   text-wrap: balance;
   white-space: normal;
 }
@@ -1075,6 +1084,291 @@ html:has(.lp-live)::-webkit-scrollbar-button {
   display: none;
 }
 
+/* Soft closer - note left (content column), X 8px from canvas right */
+.lp-live__end-note-wrap {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 3;
+  pointer-events: none;
+  padding: 0 clamp(1.25rem, 2.5vw, 1.75rem) 1.35rem;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+}
+
+.lp-live__end-note {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: 1.25rem;
+  /* Match .lp-live__pattern-inner for the left note */
+  width: min(80%, 43.75rem);
+  margin: 0;
+  pointer-events: none;
+}
+
+.lp-live__end-note-text {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 0.8125rem;
+  font-weight: 400;
+  font-style: normal;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+  color: var(--lp-ink-soft);
+}
+
+.lp-live__end-note-link {
+  position: absolute;
+  right: 2rem;
+  bottom: 1.35rem;
+  flex-shrink: 0;
+  pointer-events: auto;
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  color: var(--lp-ink-soft);
+  text-decoration: none;
+  transition: color 160ms ease;
+}
+
+a.lp-live__end-note-link:hover {
+  color: var(--canvas-title-ink);
+}
+
+a.lp-live__end-note-link:focus-visible {
+  outline: 0.125rem solid color-mix(in srgb, var(--button-primary) 40%, transparent);
+  outline-offset: 0.2rem;
+  border-radius: 0.25rem;
+}
+
+span.lp-live__end-note-link {
+  pointer-events: none;
+}
+
+@media (min-width: 64rem) {
+  .lp-live__end-note-wrap {
+    padding-bottom: 1.75rem;
+  }
+
+  .lp-live__end-note-link {
+    bottom: 1.75rem;
+  }
+}
+
+/* PARKED: See an example + in-canvas pattern preview
+/★ Optional secondary link - seal-stamp corner, not beside Get started ★/
+.lp-live__see-example {
+  position: absolute;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  z-index: 6;
+  margin: 0;
+  padding: 0.25rem 0;
+  max-width: min(12rem, 42%);
+  color: var(--lp-ink-soft);
+  font-family: var(--font-body);
+  font-size: 0.8125rem;
+  font-weight: 400;
+  line-height: 1.35;
+  letter-spacing: 0.005em;
+  text-align: right;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--lp-ink-soft) 45%, transparent);
+  text-underline-offset: 0.18em;
+  text-decoration-thickness: 0.0625rem;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: color 160ms ease, text-decoration-color 160ms ease;
+}
+
+.lp-live__see-example:hover {
+  color: var(--canvas-title-ink);
+  text-decoration-color: color-mix(
+    in srgb,
+    var(--canvas-title-ink) 55%,
+    transparent
+  );
+}
+
+.lp-live__see-example:focus-visible {
+  outline: 0.125rem solid color-mix(in srgb, var(--button-primary) 40%, transparent);
+  outline-offset: 0.2rem;
+  border-radius: 0.25rem;
+}
+
+@media (min-width: 64rem) {
+  .lp-live__see-example {
+    right: 2.5rem;
+    bottom: 2.5rem;
+  }
+}
+
+/★ In-canvas example pattern - product accordion + discovery scroll ★/
+.lp-live__layer--example {
+  z-index: 4;
+  padding: 0;
+  overflow: hidden;
+  background: var(--canvas-bg-gradient);
+  pointer-events: none;
+}
+
+.lp-live__layer--example[data-active="true"] {
+  pointer-events: auto;
+}
+
+.lp-live__example-pad {
+  box-sizing: border-box;
+  height: 100%;
+  /★ Match Patterns page: padded column, accordion not full-bleed of canvas ★/
+  padding: 2.5rem clamp(1rem, 2.5vw, 1.75rem) 3.25rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 0;
+}
+
+.lp-live__example-accordion {
+  flex: 0 1 auto;
+  width: 100%;
+  /★ Width: Patterns reading column vs page.
+     Height: product panel is ~min(70dvh, 100dvh-12rem); scale to the
+     demo frame (~86svh) so the card doesn't fill the whole canvas. ★/
+  max-width: min(100%, 36rem);
+  max-height: min(100%, 32rem);
+  height: auto;
+  min-height: 0;
+  padding-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.lp-live__example-accordion .pattern-accordion__item {
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: 100%;
+}
+
+.lp-live__example-accordion .pattern-accordion__item[data-expanded="true"] {
+  display: flex;
+  flex-direction: column;
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: 100%;
+}
+
+.lp-live__example-accordion .pattern-accordion__panel {
+  flex: 0 1 auto;
+  min-height: 0;
+  /★ Product: min(70dvh, calc(100dvh - 12rem)) — proportionally smaller in-frame ★/
+  max-height: min(22rem, 42svh);
+  height: auto;
+}
+
+.lp-live__example-accordion .pattern-accordion__panel-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0.65rem 0.65rem 0.75rem;
+}
+
+@media (min-width: 40rem) {
+  .lp-live__example-accordion .pattern-accordion__panel-scroll {
+    padding: 0.85rem 0 0.85rem 1rem;
+  }
+}
+
+.lp-live__example-accordion .discovery-canvas,
+.lp-live__example-accordion .discovery-scroll {
+  min-height: 0;
+}
+
+.lp-live__example-accordion .discovery-canvas {
+  flex: 1 1 auto;
+  max-height: 100%;
+  overflow: hidden;
+}
+
+.lp-live__example-accordion .discovery-scroll {
+  flex: 1 1 auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.lp-live__example-accordion .pattern-accordion__row {
+  padding: 0.7rem 0.75rem;
+}
+
+.lp-live__example-accordion .pattern-accordion__row-title {
+  font-size: 0.875rem;
+}
+
+.lp-live__example-accordion .pattern-accordion__row-fact {
+  font-size: 0.6875rem;
+}
+
+.lp-live__example-accordion .evidence-section {
+  gap: 0.65rem;
+}
+
+.lp-live__example-accordion .evidence-card {
+  min-height: 0;
+  gap: 0.45rem;
+  padding: 0.7rem 0.75rem 0.8rem;
+  border-radius: 0.75rem;
+}
+
+.lp-live__example-accordion .evidence-card__top {
+  font-size: 0.625rem;
+}
+
+.lp-live__example-accordion .evidence-card__quote-text {
+  font-size: 0.8125rem;
+  line-height: 1.35;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+}
+
+.lp-live__example-accordion .discovery-mechanism-step {
+  font-size: 0.875rem;
+  line-height: 1.45;
+}
+
+.lp-live__example-accordion .discovery-question {
+  --q-size-reading: 0.9375rem;
+  --q-size-display: 1.5rem;
+  --q-display-boost: calc((1 - var(--q-scale)) * 0.5625rem);
+  --q-vw-boost: 0.5vw;
+  max-width: 22rem;
+}
+
+.lp-live__example-accordion .discovery-layer + .discovery-layer {
+  margin-top: 2rem;
+}
+
+.lp-live__example-accordion .discovery-footer {
+  position: relative;
+  z-index: 1;
+  padding-top: 0.75rem;
+  padding-bottom: 0.25rem;
+}
+
+.lp-live__example-accordion .discovery-footer button {
+  font-size: 0.8125rem;
+}
+*/
+
+
 @media (max-width: 56.25rem) {
   .lp-root {
     --lp-canvas-max-w: min(96vw, 75rem);
@@ -1086,6 +1380,13 @@ html:has(.lp-live)::-webkit-scrollbar-button {
       calc(96vw * var(--frame-scale, 0.94))
     );
   }
+
+  /* parked
+  .lp-live__see-example {
+    max-width: min(10.5rem, 46%);
+    font-size: 0.75rem;
+  }
+  */
 
   .lp-live__frame-stack {
     height: min(82svh, 51.25rem);

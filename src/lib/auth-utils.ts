@@ -4,9 +4,6 @@ export const OTP_LENGTH = 6;
 
 export const EMAIL_INVALID_MESSAGE = "Please enter a valid email address.";
 
-export const LEGAL_REQUIRED_MESSAGE =
-  "Please agree to the Terms and Conditions and Privacy Policy to continue.";
-
 export const VERIFY_INTERRUPTED_MESSAGE =
   "Verification was interrupted. Please sign in or start again.";
 

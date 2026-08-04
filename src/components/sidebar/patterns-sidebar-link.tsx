@@ -50,7 +50,7 @@ export function PatternsSidebarLink({
         </span>
         {hasUnread ? (
           <span
-            className="flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full bg-(--journal-quote-highlight) px-1.5 text-xs font-medium tabular-nums text-(--accent)"
+            className="flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full bg-(--surface-chrome-active) px-1.5 text-xs font-medium tabular-nums text-(--accent)"
             aria-hidden
           >
             {count}
