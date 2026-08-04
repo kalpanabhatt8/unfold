@@ -5,7 +5,7 @@
 export const BRAND = "UNFOLD";
 
 /** Hero line above the living canvas - fades as the frame rises. */
-export const TAGLINE = "Discover patterns in your thoughts.";
+export const TAGLINE = "Discover patterns in your writing.";
 
 /** Living canvas screen 2 - pattern-quote cards (dummy dates / entry names). */
 export const LIVE_SCREEN2_CARDS = [
