@@ -12,10 +12,16 @@
 import { useLayoutEffect, useState } from "react";
 import { ENTRIES_UPDATED_EVENT, readAllEntries } from "@/lib/journal-entries";
 import { INITIAL_SYNC_DONE_EVENT } from "@/lib/sync/local-flags";
-import { isInitialSyncCompleted } from "@/lib/sync/sync-client";
+import {
+  hasReconciledEntries,
+  isInitialSyncCompleted,
+} from "@/lib/sync/sync-client";
 
 function computeReady(): boolean {
   if (typeof window === "undefined") return false;
+  // Entries reconcile before the patterns pull + pushes finish - clear the
+  // skeleton then rather than waiting for the whole pass.
+  if (hasReconciledEntries()) return true;
   if (isInitialSyncCompleted()) return true;
   try {
     return readAllEntries().length > 0;

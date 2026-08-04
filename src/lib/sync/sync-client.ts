@@ -391,12 +391,24 @@ const maybeImport = async (): Promise<void> => {
     if (!response.ok) return; // abort - flag stays unset, retried next sync
   }
 
-  const response = await fetch("/api/import", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ patterns: collectPatternsSnapshot() }),
-  });
-  if (!response.ok) return;
+  // A brand-new account has nothing to migrate - skip the patterns POST so
+  // sign-up doesn't pay a round trip just to upload an empty snapshot.
+  const patterns = collectPatternsSnapshot();
+  const hasPatternData =
+    patterns.analyses.length > 0 ||
+    patterns.states.length > 0 ||
+    patterns.passages.length > 0 ||
+    patterns.displays.length > 0 ||
+    (patterns.votes?.length ?? 0) > 0;
+
+  if (hasPatternData) {
+    const response = await fetch("/api/import", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ patterns }),
+    });
+    if (!response.ok) return;
+  }
 
   setImported();
 };
@@ -436,12 +448,21 @@ export const fullSync = async (): Promise<void> => {
   // Never touch local storage before we know whose data it is - a wipe landing
   // mid-pass would erase the entries and cursor this pass just applied.
   await waitForSyncScope();
+  // Captured before the lock so a pass superseded by a re-scope can't report
+  // its entries as reconciled against the new gate.
+  const generation = initialSyncGeneration;
   await withSyncLock(async () => {
     try {
       await maybeImport();
       // Push deletes before pull so a live server copy cannot reappear locally.
       await pushEntryTombstones();
-      entriesPulled = (await pullAndApplyEntries()) || entriesPulled;
+      const pulled = await pullAndApplyEntries();
+      entriesPulled = pulled || entriesPulled;
+      // Entries are reconciled: unblock routing + clear skeletons now, before
+      // the patterns pull and pushes below - none of which routing needs.
+      if (pulled && generation === initialSyncGeneration) {
+        markEntriesReconciled();
+      }
       await pullAndApplyPatterns();
       await pushDirtyEntries();
       await pushPatternsIfDirty();
@@ -510,7 +531,39 @@ let initialSyncPromise: Promise<void> | null = null;
 /** Bumped on every re-scope so a superseded pass cannot report readiness. */
 let initialSyncGeneration = 0;
 
+// Entries-ready gate. Resolves as soon as one pass reconciles entries with the
+// server (or a pass settles without a successful pull). Routing waits on this
+// rather than the whole pass, so opening the first entry no longer blocks on
+// the patterns pull + pushes that trail the entries pull inside `fullSync`.
+let entriesReconciled = false;
+let entriesReadyPromise: Promise<void> | null = null;
+let entriesReadyResolve: (() => void) | null = null;
+
+const entriesReadyGate = (): Promise<void> => {
+  if (!entriesReadyPromise) {
+    entriesReadyPromise = new Promise<void>((resolve) => {
+      entriesReadyResolve = resolve;
+    });
+  }
+  return entriesReadyPromise;
+};
+
+/** Unblock routing + clear skeletons; fired once per gate generation. */
+const markEntriesReconciled = (): void => {
+  if (entriesReconciled) return;
+  entriesReconciled = true;
+  entriesReadyGate();
+  entriesReadyResolve?.();
+  entriesReadyResolve = null;
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(INITIAL_SYNC_DONE_EVENT));
+  }
+};
+
 export const isInitialSyncCompleted = (): boolean => initialSyncCompleted;
+
+/** True once entries have been reconciled this session (routing may proceed). */
+export const hasReconciledEntries = (): boolean => entriesReconciled;
 
 /** Cleared when local caches are wiped for a new signed-in user. */
 export const resetInitialSyncGate = (): void => {
@@ -519,33 +572,40 @@ export const resetInitialSyncGate = (): void => {
   initialSyncPromise = null;
   // The wipe discarded whatever the previous pull reconciled.
   entriesPulled = false;
+  entriesReconciled = false;
+  entriesReadyPromise = null;
+  entriesReadyResolve = null;
 };
 
 const markInitialSyncCompleted = (): void => {
   initialSyncCompleted = true;
-  if (typeof window === "undefined") return;
-  window.dispatchEvent(new Event(INITIAL_SYNC_DONE_EVENT));
+  // Fallback: if the entries pull never succeeded, still unblock routing once
+  // the pass settles so a transient failure can't strand the skeleton.
+  markEntriesReconciled();
 };
 
 /**
- * Shared first-fullSync promise for this session. Safe to call from SyncProvider,
- * dashboard routing, and journal hydrate - concurrent callers await the same pass.
+ * Kick the first full pass and resolve as soon as entries are reconciled -
+ * routing does not need the trailing patterns pull + pushes. Safe to call from
+ * SyncProvider, dashboard routing, and journal hydrate; concurrent callers
+ * share the same pass.
  *
- * If a re-scope supersedes the pass we were awaiting, await the replacement too:
- * returning off an orphaned pass would let callers read a store that was just
- * wiped and had no chance to refill.
+ * If a re-scope supersedes the pass we were awaiting, await the replacement
+ * too: returning off an orphaned pass would let callers read a store that was
+ * just wiped and had no chance to refill.
  */
 export const ensureInitialSync = async (): Promise<void> => {
   if (typeof window === "undefined") return;
 
-  while (!initialSyncCompleted) {
+  while (!entriesReconciled) {
     const generation = initialSyncGeneration;
+    const ready = entriesReadyGate();
     if (!initialSyncPromise) {
       initialSyncPromise = fullSync().finally(() => {
         if (generation === initialSyncGeneration) markInitialSyncCompleted();
       });
     }
-    await initialSyncPromise;
+    await ready;
     if (generation === initialSyncGeneration) return;
   }
 };

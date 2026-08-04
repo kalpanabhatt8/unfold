@@ -25,6 +25,12 @@ export default function DashboardRootPage() {
   useEffect(() => {
     let cancelled = false;
 
+    // Warm the journal route (TipTap + canvas, ~140kB) while the first sync
+    // runs, so the redirect into it overlaps the network wait instead of paying
+    // a cold bundle load afterward. The id is irrelevant - only the shared
+    // route chunk is being prefetched.
+    router.prefetch("/dashboard/journal/warm");
+
     const go = (id: string) => {
       if (cancelled) return;
       router.replace(`/dashboard/journal/${id}`);
