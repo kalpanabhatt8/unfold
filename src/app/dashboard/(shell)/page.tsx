@@ -5,7 +5,11 @@ import { useRouter } from "next/navigation";
 import { JournalCanvasSkeleton } from "@/components/canvas/journal-canvas-skeleton";
 import { resolveEntryOpenTarget } from "@/lib/entry-draft";
 import { readAllEntries } from "@/lib/journal-entries";
-import { ensureInitialSync } from "@/lib/sync/sync-client";
+import {
+  ensureInitialSync,
+  fullSync,
+  hasPulledEntries,
+} from "@/lib/sync/sync-client";
 
 /**
  * `/dashboard` has no destination of its own - it opens the empty draft when
@@ -37,6 +41,15 @@ export default function DashboardRootPage() {
 
       await ensureInitialSync();
       if (cancelled) return;
+
+      // A pull that never landed leaves the store looking empty, and creating a
+      // draft off that would duplicate the server's existing blank. Retry once,
+      // then open regardless so a persistent outage can't strand the skeleton.
+      if (!hasPulledEntries()) {
+        await fullSync();
+        if (cancelled) return;
+      }
+
       go(resolveEntryOpenTarget().id);
     };
 

@@ -4,6 +4,10 @@
  * Mounts the sync engine for the dashboard. Clears local caches when the
  * signed-in user changes, then full sync on load (and when the tab regains
  * focus after a while); debounced push whenever local stores flag dirty data.
+ *
+ * `userId` comes from the server so the cache scope is settled on the first
+ * commit. The sync engine blocks on that scope, and layout effects run before
+ * any page's passive effect, so a wipe can never land inside a sync pass.
  */
 
 import { useEffect, useLayoutEffect } from "react";
@@ -16,21 +20,28 @@ import {
   pushSync,
   resetInitialSyncGate,
 } from "@/lib/sync/sync-client";
+import { markSyncScopeReady } from "@/lib/sync/sync-scope";
 
 const PUSH_DEBOUNCE_MS = 4_000;
 const FULL_SYNC_INTERVAL_MS = 5 * 60_000;
 
-export function SyncProvider() {
-  const { isSignedIn, user } = useUser();
+export function SyncProvider({ userId }: { userId: string | null }) {
+  const { user } = useUser();
+  // Server id first; the Clerk hook is only a fallback for an in-session
+  // account change, since it resolves long after the first sync would start.
+  const scopeUserId = userId ?? user?.id ?? null;
 
+  // Re-scope, then open the gate. Sync waits on the gate, so no pass can have
+  // its freshly pulled entries or its cursor wiped out from under it.
   useLayoutEffect(() => {
-    if (!isSignedIn || !user?.id) return;
-    const wiped = ensureAuthUserScope(user.id);
-    if (wiped) resetInitialSyncGate();
-  }, [isSignedIn, user?.id]);
+    if (scopeUserId && ensureAuthUserScope(scopeUserId)) {
+      resetInitialSyncGate();
+    }
+    markSyncScopeReady();
+  }, [scopeUserId]);
 
   useEffect(() => {
-    if (!isSignedIn || !user?.id) return;
+    if (!scopeUserId) return;
 
     void ensureInitialSync();
 
@@ -65,7 +76,7 @@ export function SyncProvider() {
       window.removeEventListener(SYNC_DIRTY_EVENT, schedulePush);
       document.removeEventListener("visibilitychange", handleVisible);
     };
-  }, [isSignedIn, user?.id]);
+  }, [scopeUserId]);
 
   return null;
 }

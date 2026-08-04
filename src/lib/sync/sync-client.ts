@@ -59,6 +59,7 @@ import {
   type EntryTombstone,
   type SyncStatusDetail,
 } from "@/lib/sync/local-flags";
+import { waitForSyncScope } from "@/lib/sync/sync-scope";
 import type {
   EntriesPullResponse,
   EntryPushResult,
@@ -221,21 +222,23 @@ const applyServerPatterns = (snapshot: PatternsSnapshot) => {
 
 // ── Network steps ───────────────────────────────────────────────────────────
 
-const pullAndApplyEntries = async (): Promise<void> => {
+/** Returns false when the server could not be reached / rejected the pull. */
+const pullAndApplyEntries = async (): Promise<boolean> => {
   let since = getPullCursor();
   // Page until the server says we're caught up - keeps each response small
   // when the account has many large board snapshots.
   for (let page = 0; page < 50; page++) {
     const response = await fetch(`/api/sync/entries?since=${since}`);
-    if (!response.ok) return;
+    if (!response.ok) return false;
     const payload = (await response.json()) as EntriesPullResponse;
     for (const entry of payload.entries) {
       applyServerEntry(entry);
     }
     setPullCursor(payload.cursor);
-    if (!payload.hasMore) return;
+    if (!payload.hasMore) return true;
     since = payload.cursor;
   }
+  return true;
 };
 
 const pullAndApplyPatterns = async (): Promise<void> => {
@@ -419,14 +422,26 @@ const withSyncLock = async (fn: () => Promise<void>): Promise<void> => {
   }
 };
 
+/**
+ * True once a pull has reconciled local entries with the server in this
+ * session. Until then an empty store means "not loaded yet", not "no entries",
+ * so callers must not mint a draft off it.
+ */
+let entriesPulled = false;
+
+export const hasPulledEntries = (): boolean => entriesPulled;
+
 export const fullSync = async (): Promise<void> => {
   if (typeof window === "undefined") return;
+  // Never touch local storage before we know whose data it is - a wipe landing
+  // mid-pass would erase the entries and cursor this pass just applied.
+  await waitForSyncScope();
   await withSyncLock(async () => {
     try {
       await maybeImport();
       // Push deletes before pull so a live server copy cannot reappear locally.
       await pushEntryTombstones();
-      await pullAndApplyEntries();
+      entriesPulled = (await pullAndApplyEntries()) || entriesPulled;
       await pullAndApplyPatterns();
       await pushDirtyEntries();
       await pushPatternsIfDirty();
@@ -439,6 +454,7 @@ export const fullSync = async (): Promise<void> => {
 /** Push-only pass - used on the dirty-event debounce between full syncs. */
 export const pushSync = async (): Promise<void> => {
   if (typeof window === "undefined") return;
+  await waitForSyncScope();
   await withSyncLock(async () => {
     try {
       await pushDirtyEntries();
@@ -491,13 +507,18 @@ export const flushPendingSync = async (): Promise<boolean> => {
 
 let initialSyncCompleted = false;
 let initialSyncPromise: Promise<void> | null = null;
+/** Bumped on every re-scope so a superseded pass cannot report readiness. */
+let initialSyncGeneration = 0;
 
 export const isInitialSyncCompleted = (): boolean => initialSyncCompleted;
 
 /** Cleared when local caches are wiped for a new signed-in user. */
 export const resetInitialSyncGate = (): void => {
+  initialSyncGeneration += 1;
   initialSyncCompleted = false;
   initialSyncPromise = null;
+  // The wipe discarded whatever the previous pull reconciled.
+  entriesPulled = false;
 };
 
 const markInitialSyncCompleted = (): void => {
@@ -509,14 +530,22 @@ const markInitialSyncCompleted = (): void => {
 /**
  * Shared first-fullSync promise for this session. Safe to call from SyncProvider,
  * dashboard routing, and journal hydrate - concurrent callers await the same pass.
+ *
+ * If a re-scope supersedes the pass we were awaiting, await the replacement too:
+ * returning off an orphaned pass would let callers read a store that was just
+ * wiped and had no chance to refill.
  */
 export const ensureInitialSync = async (): Promise<void> => {
   if (typeof window === "undefined") return;
-  if (initialSyncCompleted) return;
-  if (!initialSyncPromise) {
-    initialSyncPromise = fullSync().finally(() => {
-      markInitialSyncCompleted();
-    });
+
+  while (!initialSyncCompleted) {
+    const generation = initialSyncGeneration;
+    if (!initialSyncPromise) {
+      initialSyncPromise = fullSync().finally(() => {
+        if (generation === initialSyncGeneration) markInitialSyncCompleted();
+      });
+    }
+    await initialSyncPromise;
+    if (generation === initialSyncGeneration) return;
   }
-  await initialSyncPromise;
 };
