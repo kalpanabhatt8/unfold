@@ -49,6 +49,12 @@ export default function RootLayout({
       signUpUrl="/sign-up"
       afterSignInUrl="/dashboard"
       afterSignUpUrl="/dashboard"
+      appearance={{
+        captcha: {
+          theme: "light",
+          size: "normal",
+        },
+      }}
     >
       <html
         lang="en"

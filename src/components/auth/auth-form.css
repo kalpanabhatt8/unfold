@@ -484,6 +484,15 @@
 
 #clerk-captcha {
   margin-top: 0.75rem;
+  display: flex;
+  justify-content: center;
+  /* Reserve Turnstile "normal" footprint before mount - an empty/narrow
+     host makes Cloudflare fall back to the stacked compact widget. */
+  width: 300px;
+  min-width: 300px;
+  max-width: 100%;
+  min-height: 65px;
+  margin-inline: auto;
 }
 
 /* Legal pages share auth-shell / auth-card - card UI, slightly below top, no page scroll */

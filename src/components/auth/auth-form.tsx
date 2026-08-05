@@ -865,7 +865,11 @@ export function AuthForm() {
               </Link>
             </p>
 
-            <div id="clerk-captcha" />
+            <div
+              id="clerk-captcha"
+              data-cl-theme="light"
+              data-cl-size="normal"
+            />
           </>
         ) : null}
 
@@ -945,7 +949,11 @@ export function AuthForm() {
               </Link>
             </p>
 
-            <div id="clerk-captcha" />
+            <div
+              id="clerk-captcha"
+              data-cl-theme="light"
+              data-cl-size="normal"
+            />
           </>
         ) : null}
 

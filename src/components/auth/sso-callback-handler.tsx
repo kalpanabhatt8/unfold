@@ -11,7 +11,6 @@ import {
 } from "@/lib/auth-routes";
 import { isOAuthAbort } from "@/lib/auth-finalize";
 import { AppLoader } from "@/components/ui/app-loader";
-import "./sso-callback.css";
 
 /** If Clerk never navigates away (captcha hang, etc.), bail out. */
 const SSO_STUCK_MS = 20_000;
@@ -54,22 +53,18 @@ function SSOCallbackInner() {
   }, [authLoaded, isSignedIn, router, signUp?.status, signUpLoaded]);
 
   return (
-    <div className="sso-callback">
+    <>
       <AuthenticateWithRedirectCallback
         signInUrl={AUTH_SIGN_IN_PATH}
         signUpUrl={AUTH_SIGN_UP_PATH}
         continueSignUpUrl={AUTH_CONTINUE_PATH}
       />
-      {/* Above the fixed loader and centered - Clerk bot protection needs this
-          node reachable; interactive Turnstile must not sit in the corner. */}
-      <div
-        id="clerk-captcha"
-        className="sso-callback__captcha"
-        data-cl-theme="light"
-        data-cl-size="compact"
-      />
-      <AppLoader />
-    </div>
+      <AppLoader>
+        {/* Required by Clerk bot protection - sits under the spinner so invisible
+            checks stay in the background and interactive ones don't take over. */}
+        <div id="clerk-captcha" data-cl-theme="light" data-cl-size="normal" />
+      </AppLoader>
+    </>
   );
 }
 
