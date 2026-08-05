@@ -1,0 +1,6 @@
+/* SSO callback - captcha must sit above the fixed AppLoader overlay. */
+
+.sso-callback__captcha {
+  position: relative;
+  z-index: 60;
+}

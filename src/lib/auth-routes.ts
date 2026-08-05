@@ -7,7 +7,7 @@ export const AUTH_SSO_CALLBACK_PATH = "/sign-in/sso-callback";
 export const AUTH_CONTINUE_PATH = "/sign-in/continue";
 export const AUTH_AFTER_SIGN_IN_PATH = "/dashboard";
 
-/** Legacy combined auth URL - redirects to sign-in. */
+/** Legacy combined auth URL - redirects to sign-up. */
 export const AUTH_LEGACY_GET_STARTED_PATH = "/get-started";
 
 /** Build an absolute app URL for OAuth redirects (required so Clerk returns to this app, not accounts.dev). */

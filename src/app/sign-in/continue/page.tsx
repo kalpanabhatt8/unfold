@@ -2,8 +2,11 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { useSignUp } from "@clerk/nextjs";
-import { AUTH_SIGN_IN_PATH } from "@/lib/auth-routes";
+import { useAuth, useSignUp } from "@clerk/nextjs";
+import {
+  AUTH_AFTER_SIGN_IN_PATH,
+  AUTH_SIGN_IN_PATH,
+} from "@/lib/auth-routes";
 import { completeOAuthSignUp } from "@/lib/auth-finalize";
 import { AppLoader } from "@/components/ui/app-loader";
 
@@ -13,8 +16,15 @@ import { AppLoader } from "@/components/ui/app-loader";
  */
 export default function ContinueSignUpPage() {
   const router = useRouter();
+  const { isLoaded: authLoaded, isSignedIn } = useAuth();
   const { isLoaded, signUp, setActive } = useSignUp();
   const finishing = React.useRef(false);
+
+  React.useEffect(() => {
+    if (authLoaded && isSignedIn) {
+      window.location.assign(AUTH_AFTER_SIGN_IN_PATH);
+    }
+  }, [authLoaded, isSignedIn]);
 
   React.useEffect(() => {
     if (!isLoaded || finishing.current) return;
@@ -26,9 +36,14 @@ export default function ContinueSignUpPage() {
 
     if (signUp.status === "complete" && signUp.createdSessionId) {
       finishing.current = true;
-      void setActive({ session: signUp.createdSessionId }).then(() => {
-        window.location.assign("/dashboard");
-      });
+      void setActive({ session: signUp.createdSessionId })
+        .then(() => {
+          window.location.assign(AUTH_AFTER_SIGN_IN_PATH);
+        })
+        .catch(() => {
+          finishing.current = false;
+          router.replace(AUTH_SIGN_IN_PATH);
+        });
       return;
     }
 
