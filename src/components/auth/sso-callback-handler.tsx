@@ -60,8 +60,14 @@ function SSOCallbackInner() {
         signUpUrl={AUTH_SIGN_UP_PATH}
         continueSignUpUrl={AUTH_CONTINUE_PATH}
       />
-      {/* Above the fixed loader - Clerk bot protection needs this node reachable. */}
-      <div id="clerk-captcha" className="sso-callback__captcha" />
+      {/* Above the fixed loader and centered - Clerk bot protection needs this
+          node reachable; interactive Turnstile must not sit in the corner. */}
+      <div
+        id="clerk-captcha"
+        className="sso-callback__captcha"
+        data-cl-theme="light"
+        data-cl-size="compact"
+      />
       <AppLoader />
     </div>
   );
