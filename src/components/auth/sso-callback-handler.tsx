@@ -9,6 +9,7 @@ import {
   AUTH_SIGN_UP_PATH,
 } from "@/lib/auth-routes";
 import { isOAuthAbort } from "@/lib/auth-finalize";
+import { AppLoader } from "@/components/ui/app-loader";
 
 function SSOCallbackInner() {
   const router = useRouter();
@@ -27,7 +28,7 @@ function SSOCallbackInner() {
         signUpUrl={AUTH_SIGN_UP_PATH}
         continueSignUpUrl={AUTH_CONTINUE_PATH}
       />
-      <p className="auth-redirecting">Opening Unfold…</p>
+      <AppLoader />
       <div id="clerk-captcha" />
     </>
   );
@@ -35,7 +36,7 @@ function SSOCallbackInner() {
 
 export function SSOCallbackHandler() {
   return (
-    <React.Suspense fallback={<p className="auth-redirecting">Opening Unfold…</p>}>
+    <React.Suspense fallback={<AppLoader />}>
       <SSOCallbackInner />
     </React.Suspense>
   );

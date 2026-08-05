@@ -40,6 +40,7 @@ import {
   resetAuthAttempts,
 } from "@/lib/auth-finalize";
 import { btnSecondary } from "@/components/ui/button-system";
+import { AppLoader } from "@/components/ui/app-loader";
 import "@/components/auth/auth-form.css";
 
 type AuthMode = "sign-in" | "sign-up" | "sign-in-verify" | "sign-up-verify";
@@ -782,11 +783,7 @@ export function AuthForm() {
   };
 
   if (authLoaded && isSignedIn && !isVerifyMode(mode)) {
-    return (
-      <div className="auth-shell">
-        <p className="auth-redirecting">Opening Unfold…</p>
-      </div>
-    );
+    return <AppLoader />;
   }
 
   const showVerify = isVerifyMode(mode);

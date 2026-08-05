@@ -601,13 +601,13 @@ export function LivingCanvas() {
                   ) : showingWrite ? (
                     /* Unmount when write layer is hidden - stamp wrap uses
                        pointer-events:auto, which would still catch hovers
-                       (and portal "Seal entry") over later story layers. */
+                       (and portal "Add your signature") over later story layers. */
                     <div className="lp-live__stamp-btn-wrap">
-                      <Tooltip content="Seal entry" align="end" bubbleClassName="tooltip-bubble-stamp">
+                      <Tooltip content="Add your signature" align="end" bubbleClassName="tooltip-bubble-stamp">
                         <button
                           type="button"
                           className={`lp-live__stamp-btn group shrink-0 cursor-pointer select-none outline-none ${btnIconInvisible("md", "xl")}`}
-                          aria-label="Seal entry"
+                          aria-label="Add your signature"
                           onClick={() => {
                             const now = Date.now();
                             setWriteSealedAt(now);

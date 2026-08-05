@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useSignUp } from "@clerk/nextjs";
 import { AUTH_SIGN_IN_PATH } from "@/lib/auth-routes";
 import { completeOAuthSignUp } from "@/lib/auth-finalize";
-import "@/components/auth/auth-form.css";
+import { AppLoader } from "@/components/ui/app-loader";
 
 /**
  * Silent finish for OAuth when Clerk still needs legalAccepted / username.
@@ -46,9 +46,5 @@ export default function ContinueSignUpPage() {
     });
   }, [isLoaded, signUp, setActive, router]);
 
-  return (
-    <div className="auth-shell">
-      <p className="auth-redirecting">Opening Unfold…</p>
-    </div>
-  );
+  return <AppLoader />;
 }

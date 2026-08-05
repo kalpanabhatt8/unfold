@@ -1,0 +1,55 @@
+/* Minimal full-screen loader - matches auth/dashboard paper wash. */
+
+.app-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(
+      120% 80% at 50% -10%,
+      color-mix(in srgb, var(--sidebar-tab-track) 55%, transparent),
+      transparent 55%
+    ),
+    var(--discovery-canvas-bg, var(--app-bg));
+}
+
+.app-loader__spinner {
+  box-sizing: border-box;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 50%;
+  border: 1.5px solid
+    color-mix(in srgb, var(--sidebar-ink-soft, var(--sidebar-ink)) 28%, transparent);
+  border-top-color: color-mix(
+    in srgb,
+    var(--sidebar-ink) 72%,
+    transparent
+  );
+  animation: app-loader-spin 0.75s linear infinite;
+}
+
+@keyframes app-loader-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-loader__spinner {
+    animation-duration: 1.4s;
+  }
+}
+
+.app-loader__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

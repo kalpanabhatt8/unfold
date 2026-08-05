@@ -533,7 +533,7 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
         <div className="pointer-events-auto" style={stampCornerAnchor}>
           <Tooltip
             content={
-              canSeal ? "Seal entry" : "Write something before sealing"
+              canSeal ? "Add your signature" : "Write something before sealing"
             }
             align="end"
             bubbleClassName="tooltip-bubble-stamp"
@@ -554,7 +554,11 @@ export const JournalStamp = forwardRef<JournalStampHandle, JournalStampProps>(
               onClick={(e) => e.preventDefault()}
               onPointerEnter={canSeal ? onStampHover : undefined}
               onFocus={canSeal ? onStampHover : undefined}
-              aria-label={canSeal ? "Seal entry" : "Seal entry (disabled, empty)"}
+              aria-label={
+                canSeal
+                  ? "Add your signature"
+                  : "Add your signature (disabled, empty)"
+              }
               aria-disabled={!canSeal}
               tabIndex={canSeal ? 0 : -1}
               className={`group shrink-0 select-none outline-none ${btnIconInvisible(stampButtonSize, "soft")} ${
