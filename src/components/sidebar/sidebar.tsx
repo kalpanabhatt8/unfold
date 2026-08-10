@@ -34,6 +34,7 @@ import { useSurfacedPatterns } from "@/hooks/use-surfaced-patterns";
 import { usePatternGeneration } from "@/hooks/use-pattern-generation";
 import { PatternsSidebarLink } from "@/components/sidebar/patterns-sidebar-link";
 import { SidebarAccountMenu } from "@/components/sidebar/sidebar-account-menu";
+import { JournalInsightsPanel } from "@/components/journal-insights/journal-insights-panel";
 import { OVERLAY_NAV_QUERY } from "@/lib/breakpoints";
 import { OPEN_NAV_EVENT } from "@/lib/layout";
 import { resolvePreferredName } from "@/lib/user-display";
@@ -241,8 +242,11 @@ export function Sidebar() {
       return;
     }
 
+    // Patterns swaps the sidebar body to Insights — keep the rail open.
     if (isPatternsActive) {
       closeSearch();
+      setCollapsed(false);
+      persistCollapsed(false);
       return;
     }
 
@@ -262,10 +266,8 @@ export function Sidebar() {
     closeOverlayNav();
   };
 
-  const desktopSidebarClosed = collapsed || isPatternsActive;
-  // Fixed hamburger stays on journal only. Patterns uses an in-flow control
-  // so accordion titles never slide under a floating menu.
-  const canShowMenuToggle = collapsed && !isPatternsActive;
+  const desktopSidebarClosed = collapsed;
+  const canShowMenuToggle = collapsed;
   const [menuToggleVisible, setMenuToggleVisible] = useState(false);
   const prevCanShowMenuToggleRef = useRef<boolean | null>(null);
 
@@ -322,102 +324,104 @@ export function Sidebar() {
 
   const sidebarContent = (
     <div className="relative flex h-full min-h-0 flex-col gap-3 px-2 pb-4">
-      {hasSurfacedPatterns ? (
+      {hasSurfacedPatterns && !isPatternsActive ? (
         <div
           aria-hidden
           className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-32 bg-linear-to-b from-transparent via-(--sidebar-bg)/40 to-(--sidebar-bg)"
         />
       ) : null}
 
-      <div className="relative z-20 flex shrink-0 items-center justify-between gap-2 pb-3 pt-5 pl-2">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <SidebarAccountMenu />
-          <p
-            className="header-sm min-w-0 flex-1 truncate leading-tight tracking-tight"
-          >
-            {displayName ? `${displayName}\u2019s ` : ""}Unfold
+      {isPatternsActive ? (
+        <div className="relative z-20 flex shrink-0 items-center justify-between gap-2 px-2 pb-3 pt-5">
+          <p className="header-sm min-w-0 flex-1 truncate leading-tight tracking-tight">
+            Insights
           </p>
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            aria-label="Close menu"
+            className={`shrink-0 ${btnIconChrome(SIDEBAR_TOGGLE_SIZE)}`}
+          >
+            <ChevronsLeft
+              size={iconPx(SIDEBAR_TOGGLE_SIZE)}
+              strokeWidth={iconStroke(SIDEBAR_TOGGLE_SIZE)}
+              aria-hidden
+              className={iconFixed}
+            />
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={toggleCollapsed}
-          aria-label="Close menu"
-          className={`shrink-0 ${btnIconChrome(SIDEBAR_TOGGLE_SIZE)}`}
-        >
-          <ChevronsLeft
-            size={iconPx(SIDEBAR_TOGGLE_SIZE)}
-            strokeWidth={iconStroke(SIDEBAR_TOGGLE_SIZE)}
-            aria-hidden
-            className={iconFixed}
-          />
-        </button>
-      </div>
+      ) : (
+        <div className="relative z-20 flex shrink-0 items-center justify-between gap-2 pb-3 pt-5 pl-2">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <SidebarAccountMenu />
+            <p className="header-sm min-w-0 flex-1 truncate leading-tight tracking-tight">
+              {displayName ? `${displayName}\u2019s ` : ""}Unfold
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={toggleCollapsed}
+            aria-label="Close menu"
+            className={`shrink-0 ${btnIconChrome(SIDEBAR_TOGGLE_SIZE)}`}
+          >
+            <ChevronsLeft
+              size={iconPx(SIDEBAR_TOGGLE_SIZE)}
+              strokeWidth={iconStroke(SIDEBAR_TOGGLE_SIZE)}
+              aria-hidden
+              className={iconFixed}
+            />
+          </button>
+        </div>
+      )}
 
-      <section
-        className="relative z-10 flex min-h-0 flex-1 flex-col gap-2 overflow-hidden"
-        aria-label="Entries"
-      >
-        <div className="flex h-9 shrink-0 items-center px-2">
-          {searchOpen ? (
-            <div className="flex h-full w-full items-center gap-2 rounded-md bg-(--sidebar-active-bg) px-3">
-              <Search
-                size={14}
-                strokeWidth={1.75}
-                className="shrink-0 text-(--sidebar-icon)"
-                aria-hidden
-              />
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Escape") closeSearch();
-                }}
-                placeholder="Search"
-                aria-label="Search entries"
-                className="w-full min-w-0 bg-transparent text-sm text-(--sidebar-ink) outline-none placeholder:text-(--sidebar-ink-soft)"
-              />
-              <button
-                type="button"
-                onClick={closeSearch}
-                aria-label="Close search"
-                className={`shrink-0 ${btnIconChrome(SIDEBAR_ACTION_SIZE)}`}
-              >
-                <X
-                  size={iconPx(SIDEBAR_ACTION_SIZE)}
-                  strokeWidth={iconStroke(SIDEBAR_ACTION_SIZE)}
-                  aria-hidden
-                  className={iconFixed}
-                />
-              </button>
+      {isPatternsActive ? (
+        <section
+          className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden"
+          aria-label="Insights"
+        >
+          <div className="relative min-h-0 flex-1">
+            <div className="sidebar-entries-scroll min-h-0 h-full overflow-y-auto overscroll-y-contain px-2 pt-3">
+              <JournalInsightsPanel />
             </div>
-          ) : (
-            <>
-              <span className="min-w-0 flex-1 truncate text-xs font-medium tracking-[0.01em] text-tertiary ">
-                Recent entries
-              </span>
-              <div className="flex shrink-0 items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => setSearchOpen(true)}
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-(--sidebar-bg)/85 backdrop-blur-[0.1875rem] [mask-image:linear-gradient(to_bottom,transparent,black_55%)] [-webkit-mask-image:linear-gradient(to_bottom,transparent,black_55%)]"
+            />
+          </div>
+        </section>
+      ) : (
+        <section
+          className="relative z-10 flex min-h-0 flex-1 flex-col gap-2 overflow-hidden"
+          aria-label="Entries"
+        >
+          <div className="flex h-9 shrink-0 items-center px-2">
+            {searchOpen ? (
+              <div className="flex h-full w-full items-center gap-2 rounded-md bg-(--sidebar-active-bg) px-3">
+                <Search
+                  size={14}
+                  strokeWidth={1.75}
+                  className="shrink-0 text-(--sidebar-icon)"
+                  aria-hidden
+                />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") closeSearch();
+                  }}
+                  placeholder="Search"
                   aria-label="Search entries"
-                  className={`shrink-0 ${btnIconChrome(SIDEBAR_ACTION_SIZE)}`}
-                >
-                  <Search
-                    size={iconPx(SIDEBAR_ACTION_SIZE)}
-                    strokeWidth={iconStroke(SIDEBAR_ACTION_SIZE)}
-                    aria-hidden
-                    className={iconFixed}
-                  />
-                </button>
+                  className="w-full min-w-0 bg-transparent text-sm text-(--sidebar-ink) outline-none placeholder:text-(--sidebar-ink-soft)"
+                />
                 <button
                   type="button"
-                  onClick={handleNewEntry}
-                  aria-label="New entry"
+                  onClick={closeSearch}
+                  aria-label="Close search"
                   className={`shrink-0 ${btnIconChrome(SIDEBAR_ACTION_SIZE)}`}
                 >
-                  <Plus
+                  <X
                     size={iconPx(SIDEBAR_ACTION_SIZE)}
                     strokeWidth={iconStroke(SIDEBAR_ACTION_SIZE)}
                     aria-hidden
@@ -425,129 +429,163 @@ export function Sidebar() {
                   />
                 </button>
               </div>
-            </>
-          )}
-        </div>
-
-        <div className="relative min-h-0 flex-1">
-          <nav
-            className="sidebar-entries-scroll min-h-0 h-full overflow-y-auto overscroll-y-contain"
-            aria-label="Entries"
-          >
-          {showEntriesSkeleton ? (
-            <SidebarEntriesSkeleton />
-          ) : filteredEntries.length === 0 ? (
-            <p className="px-2 py-6 text-center text-sm text-(--sidebar-ink-soft)">
-              {entries.length === 0 ? "No entries yet" : "No matches"}
-            </p>
-          ) : (
-            <ul className="flex flex-col gap-1 px-2 pb-4">
-              {filteredEntries.map((entry) => {
-                const isActive = entry.id === activeEntryId;
-                const isSealed = typeof entry.sealedAt === "number";
-                const displayTitle = resolveEntryTitle(entry.title);
-                const isPlaceholder = displayTitle === UNTITLED_ENTRY;
-                const preview = entryPreview(entry);
-                const relativeTime = formatRelativeTime(entry.createdAt);
-
-                return (
-                  <li
-                    key={entry.id}
-                    className={clsx(
-                      "group relative rounded-md transition-colors duration-150",
-                      isActive
-                        ? "bg-(--sidebar-active-bg)"
-                        : "hover:bg-(--sidebar-hover-bg)",
-                    )}
+            ) : (
+              <>
+                <span className="min-w-0 flex-1 truncate text-xs font-medium tracking-[0.01em] text-tertiary ">
+                  Recent entries
+                </span>
+                <div className="flex shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setSearchOpen(true)}
+                    aria-label="Search entries"
+                    className={`shrink-0 ${btnIconChrome(SIDEBAR_ACTION_SIZE)}`}
                   >
-                    <Link
-                      href={`/dashboard/journal/${entry.id}`}
-                      onClick={closeOverlayNav}
-                      aria-label={`Open ${displayTitle}`}
-                      className="absolute inset-0 z-0 rounded-lg"
+                    <Search
+                      size={iconPx(SIDEBAR_ACTION_SIZE)}
+                      strokeWidth={iconStroke(SIDEBAR_ACTION_SIZE)}
+                      aria-hidden
+                      className={iconFixed}
                     />
-                    <div
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleNewEntry}
+                    aria-label="New entry"
+                    className={`shrink-0 ${btnIconChrome(SIDEBAR_ACTION_SIZE)}`}
+                  >
+                    <Plus
+                      size={iconPx(SIDEBAR_ACTION_SIZE)}
+                      strokeWidth={iconStroke(SIDEBAR_ACTION_SIZE)}
+                      aria-hidden
+                      className={iconFixed}
+                    />
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="relative min-h-0 flex-1">
+            <nav
+              className="sidebar-entries-scroll min-h-0 h-full overflow-y-auto overscroll-y-contain"
+              aria-label="Entries"
+            >
+            {showEntriesSkeleton ? (
+              <SidebarEntriesSkeleton />
+            ) : filteredEntries.length === 0 ? (
+              <p className="px-2 py-6 text-center text-sm text-(--sidebar-ink-soft)">
+                {entries.length === 0 ? "No entries yet" : "No matches"}
+              </p>
+            ) : (
+              <ul className="flex flex-col gap-1 px-2 pb-4">
+                {filteredEntries.map((entry) => {
+                  const isActive = entry.id === activeEntryId;
+                  const isSealed = typeof entry.sealedAt === "number";
+                  const displayTitle = resolveEntryTitle(entry.title);
+                  const isPlaceholder = displayTitle === UNTITLED_ENTRY;
+                  const preview = entryPreview(entry);
+                  const relativeTime = formatRelativeTime(entry.createdAt);
+
+                  return (
+                    <li
+                      key={entry.id}
                       className={clsx(
-                        "pointer-events-none relative flex flex-col gap-0.5 px-2.75 py-2.5",
-                        isSealed && "opacity-78",
+                        "group relative rounded-md transition-colors duration-150",
+                        isActive
+                          ? "bg-(--sidebar-active-bg)"
+                          : "hover:bg-(--sidebar-hover-bg)",
                       )}
                     >
-                      <span className="flex items-start justify-between gap-3">
-                        <span
-                          className={clsx(
-                            "block min-w-0 flex-1 truncate text-sm leading-snug",
-                            isSealed
-                              ? "font-medium text-sealed"
-                              : clsx(
-                                  isPlaceholder ? "font-medium" : "font-semibold",
-                                  "text-primary opacity-80",
-                                ),
-                          )}
-                        >
-                          {displayTitle}
-                        </span>
-                        <span
-                          className={clsx(
-                            "flex shrink-0 items-center gap-1.5 pt-0.5 text-xs",
-                            isSealed ? "text-sealed" : "text-secondary opacity-90",
-                          )}
-                        >
-                          <span className="tabular-nums leading-none">
-                            {relativeTime}
-                          </span>
-                          <button
-                            type="button"
-                            aria-label="Delete entry"
-                            onMouseDown={(event) => {
-                              event.preventDefault();
-                              event.stopPropagation();
-                            }}
-                            onClick={(event) => {
-                              event.preventDefault();
-                              event.stopPropagation();
-                              handleDeleteEntry(entry.id);
-                            }}
-                            className="pointer-events-auto hidden h-3 w-3 shrink-0 items-center justify-center border-0 bg-transparent p-0 text-(--sidebar-icon) transition-[color] duration-150 hover:text-(--sidebar-ink) focus-visible:inline-flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20 group-hover:inline-flex"
-                          >
-                            <Trash2
-                              size={12}
-                              strokeWidth={1.75}
-                              aria-hidden
-                              className={iconFixed}
-                            />
-                          </button>
-                        </span>
-                      </span>
-                      <span
+                      <Link
+                        href={`/dashboard/journal/${entry.id}`}
+                        onClick={closeOverlayNav}
+                        aria-label={`Open ${displayTitle}`}
+                        className="absolute inset-0 z-0 rounded-lg"
+                      />
+                      <div
                         className={clsx(
-                          "min-w-0 max-w-[88%] truncate text-sm font-normal leading-snug",
-                          isSealed
-                            ? "text-sealed"
-                            : "text-secondary opacity-90",
+                          "pointer-events-none relative flex flex-col gap-0.5 px-2.75 py-2.5",
+                          isSealed && "opacity-78",
                         )}
                       >
-                        {preview || "No additional text"}
-                      </span>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-          </nav>
+                        <span className="flex items-start justify-between gap-3">
+                          <span
+                            className={clsx(
+                              "block min-w-0 flex-1 truncate text-sm leading-snug",
+                              isSealed
+                                ? "font-medium text-sealed"
+                                : clsx(
+                                    isPlaceholder ? "font-medium" : "font-semibold",
+                                    "text-primary opacity-80",
+                                  ),
+                            )}
+                          >
+                            {displayTitle}
+                          </span>
+                          <span
+                            className={clsx(
+                              "flex shrink-0 items-center gap-1.5 pt-0.5 text-xs",
+                              isSealed ? "text-sealed" : "text-secondary opacity-90",
+                            )}
+                          >
+                            <span className="tabular-nums leading-none">
+                              {relativeTime}
+                            </span>
+                            <button
+                              type="button"
+                              aria-label="Delete entry"
+                              onMouseDown={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                              }}
+                              onClick={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                handleDeleteEntry(entry.id);
+                              }}
+                              className="pointer-events-auto hidden h-3 w-3 shrink-0 items-center justify-center border-0 bg-transparent p-0 text-(--sidebar-icon) transition-[color] duration-150 hover:text-(--sidebar-ink) focus-visible:inline-flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20 group-hover:inline-flex"
+                            >
+                              <Trash2
+                                size={12}
+                                strokeWidth={1.75}
+                                aria-hidden
+                                className={iconFixed}
+                              />
+                            </button>
+                          </span>
+                        </span>
+                        <span
+                          className={clsx(
+                            "min-w-0 max-w-[88%] truncate text-sm font-normal leading-snug",
+                            isSealed
+                              ? "text-sealed"
+                              : "text-secondary opacity-90",
+                          )}
+                        >
+                          {preview || "No additional text"}
+                        </span>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            </nav>
 
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-(--sidebar-bg)/85 backdrop-blur-[0.1875rem] [mask-image:linear-gradient(to_bottom,transparent,black_55%)] [-webkit-mask-image:linear-gradient(to_bottom,transparent,black_55%)]"
-          />
-        </div>
-      </section>
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-(--sidebar-bg)/85 backdrop-blur-[0.1875rem] [mask-image:linear-gradient(to_bottom,transparent,black_55%)] [-webkit-mask-image:linear-gradient(to_bottom,transparent,black_55%)]"
+            />
+          </div>
+        </section>
+      )}
 
-      {hasSurfacedPatterns ? (
+      {hasSurfacedPatterns && !isPatternsActive ? (
         <div className="relative z-10">
           <PatternsSidebarLink
             count={surfacedPatternCount}
-            active={isPatternsActive}
+            active={false}
             onOpen={handlePatternsNav}
           />
         </div>
@@ -555,12 +593,22 @@ export function Sidebar() {
     </div>
   );
 
+  // Desktop: floating rounded surfaces. Overlay: full-height drawer (unchanged).
   const sidebarPanel = (
     <aside
       className={clsx(
-        "flex h-full min-h-0 flex-col overflow-hidden border-r border-(--sidebar-border) bg-(--sidebar-bg)",
-        SIDEBAR_WIDTH_CLASS,
-        isOverlayNav && "shadow-[0.25rem_0_1.5rem_rgba(0,0,0,0.08)]",
+        "flex h-full min-h-0 flex-col overflow-hidden bg-(--sidebar-bg)",
+        isOverlayNav
+          ? clsx(
+              SIDEBAR_WIDTH_CLASS,
+              "border-r border-(--sidebar-border) shadow-[0.25rem_0_1.5rem_rgba(0,0,0,0.08)]",
+            )
+          : clsx(
+              "w-full",
+              isPatternsActive
+                ? "rounded-[1.25rem] border border-(--sidebar-border)/80 shadow-[0_0.125rem_0.75rem_rgba(20,19,20,0.04)]"
+                : "rounded-[0.875rem] border border-(--sidebar-border)/55 shadow-[0_0.0625rem_0.375rem_rgba(20,19,20,0.03)]",
+            ),
       )}
       aria-hidden={isOverlayNav && collapsed ? true : undefined}
       inert={isOverlayNav && collapsed ? true : undefined}
@@ -588,17 +636,27 @@ export function Sidebar() {
     </div>
   );
 
+  // Same outside inset for Entries and Insights; distinction is radius/elevation only.
+  const desktopGutterClass = "p-3";
+  const desktopRailWidthClass = "w-[calc(var(--sidebar-width)+1.5rem)]";
+
   const desktopSidebar = (
     <>
       <div
         className={clsx(
           "relative h-full shrink-0 overflow-hidden",
           SIDEBAR_WIDTH_TRANSITION,
-          desktopSidebarClosed ? "w-0" : SIDEBAR_WIDTH_CLASS,
+          desktopSidebarClosed ? "w-0" : desktopRailWidthClass,
         )}
         aria-hidden={desktopSidebarClosed}
       >
-        <div className={clsx("absolute inset-y-0 left-0", SIDEBAR_WIDTH_CLASS)}>
+        <div
+          className={clsx(
+            "absolute inset-0 box-border",
+            desktopRailWidthClass,
+            desktopGutterClass,
+          )}
+        >
           {sidebarPanel}
         </div>
       </div>

@@ -30,7 +30,7 @@ import { usePatternDisplay } from "@/hooks/use-pattern-display";
 import { usePatternPassages } from "@/hooks/use-pattern-passages";
 import { usePatternsAggregate } from "@/hooks/use-patterns-aggregate";
 import { useViewportLayout } from "@/hooks/use-viewport-layout";
-import { patternsColumnMaxWidth } from "@/lib/layout";
+import { patternsColumnMaxWidth, openAppNav } from "@/lib/layout";
 import "@/lib/patterns/passage-debug";
 import { stashJournalQuoteFocus } from "@/lib/journal-quote-focus";
 import {
@@ -44,6 +44,9 @@ import {
   logCtaWaiting,
   logStageAtIndex,
 } from "@/lib/patterns/pattern-timing";
+import { buildEvidenceKey } from "@/lib/patterns/evidence-signals";
+import { markPatternSeen } from "@/lib/patterns/pattern-view-store";
+import { Menu } from "lucide-react";
 
 export type PatternDetailViewProps = {
   patternName: PatternName;
@@ -203,6 +206,12 @@ export function PatternDetailView({
     }
   }, [aggregate, patternName, router, embedded]);
 
+  // Opening a pattern clears its unread state for the current evidence set.
+  useEffect(() => {
+    if (!pattern) return;
+    markPatternSeen(pattern.name, buildEvidenceKey(pattern.evidence));
+  }, [pattern]);
+
   // Warm journal routes for visible quotes so click → entry isn't a cold load.
   useEffect(() => {
     if (!arc) return;
@@ -275,14 +284,31 @@ export function PatternDetailView({
   }
 
   return (
-    <main className="flex min-h-0 flex-1 flex-col overflow-hidden bg-(--discovery-canvas-bg)">
+    <main className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-(--discovery-canvas-bg)">
       <div
-        className="mx-auto flex min-h-0 w-full min-w-0 flex-1 flex-col items-center px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-5 lg:px-6"
+        className="mx-auto flex min-h-0 w-full min-w-0 flex-1 flex-col px-4 pb-[max(2.5rem,env(safe-area-inset-bottom))] sm:px-5 lg:px-6"
         style={{
-          paddingTop: `${viewport.pagePaddingYPx / 16}rem`,
+          paddingTop: viewport.isOverlayNav
+            ? `max(${viewport.patternsPagePaddingYPx / 16}rem, env(safe-area-inset-top))`
+            : `${viewport.patternsPagePaddingYPx / 16}rem`,
           maxWidth: patternsColumnMaxWidth(viewport.isOverlayNav),
         }}
       >
+        {viewport.isOverlayNav ? (
+          <button
+            type="button"
+            onClick={openAppNav}
+            aria-label="Open menu"
+            className="mb-3 flex h-11 w-11 shrink-0 items-center justify-center text-(--sidebar-ink) transition-colors duration-150 hover:text-(--sidebar-active-ink) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20"
+          >
+            <Menu
+              size={18}
+              strokeWidth={1.85}
+              aria-hidden
+              className="shrink-0"
+            />
+          </button>
+        ) : null}
         {canvas}
       </div>
     </main>

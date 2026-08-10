@@ -1,7 +1,7 @@
 "use client";
 
 import type { QuoteRef } from "@/lib/patterns/evidence-signals";
-import { formatQuoteDatePill } from "@/lib/patterns/quote-meta";
+import { formatMomentLabel } from "@/lib/patterns/quote-meta";
 
 export type JournalSnippetProps = {
   quote: QuoteRef;
@@ -19,8 +19,6 @@ export function JournalSnippet({
   onOpenEntry,
   featured = false,
 }: JournalSnippetProps) {
-  const entryLabel = quote.entryTitle.trim() || "journal";
-
   return (
     <div
       role="link"
@@ -35,12 +33,8 @@ export function JournalSnippet({
       className={`evidence-card ${featured ? "evidence-card--featured" : "evidence-card--solo"}`}
     >
       <p className="evidence-card__top">
-        <span className="evidence-card__label">{entryLabel}</span>
-        <span className="evidence-card__sep" aria-hidden>
-          ·
-        </span>
         <span className="evidence-card__date">
-          {formatQuoteDatePill(quote.anchorTs)}
+          {formatMomentLabel(quote.anchorTs, quote.text)}
         </span>
       </p>
       <p

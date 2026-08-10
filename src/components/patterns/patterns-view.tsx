@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronDown, ChevronUp, Menu } from "lucide-react";
+import { ChevronRight, Menu } from "lucide-react";
 import { PATTERN_LABELS } from "@/lib/patterns/vocabulary";
 import type { PatternName } from "@/lib/patterns/vocabulary";
-import { PatternDetailView } from "@/components/patterns/pattern-detail-view";
 import { usePatternDisplay } from "@/hooks/use-pattern-display";
 import { usePatternsAggregate } from "@/hooks/use-patterns-aggregate";
 import { useViewportLayout } from "@/hooks/use-viewport-layout";
@@ -13,22 +13,14 @@ import {
   formatPatternTimeline,
   patternTimelineEnd,
 } from "@/lib/patterns/time-hint";
-// import { formatRelatedPatternsLine } from "@/lib/patterns/overlap-policy";
-import { buildEvidenceKey } from "@/lib/patterns/evidence-signals";
 import { isPatternFullyReady } from "@/lib/patterns/pattern-readiness";
 import { PATTERN_DISPLAY_UPDATED_EVENT } from "@/lib/patterns/pattern-display-store";
 import {
   isReadyPatternUnread,
-  markPatternSeen,
   PATTERN_VIEWS_UPDATED_EVENT,
 } from "@/lib/patterns/pattern-view-store";
 import { PATTERN_PASSAGE_UPDATED_EVENT } from "@/lib/patterns/passage-store";
-import {
-  btnIconChrome,
-  iconFixed,
-  iconPx,
-  iconStroke,
-} from "@/components/ui/button-system";
+import { iconFixed } from "@/components/ui/button-system";
 import {
   openAppNav,
   PAGE_PADDING_X_CLASS,
@@ -39,22 +31,14 @@ import "@/lib/patterns/passage-debug";
 const formatEntryCount = (count: number): string =>
   count === 1 ? "Spotted in 1 moment" : `Spotted in ${count} moments`;
 
-export type PatternsViewProps = {
-  /** Prefill expansion (e.g. legacy `/patterns/[name]` deep link). */
-  initialPattern?: PatternName;
-};
-
 /**
- * Patterns - collapsible list. Rows show title + date/entry meta; tapping
- * expands the detail view (quotes only inside the panel, not the header).
- * Only one pattern open at a time. The same header toggles collapse on click.
+ * Patterns index - navigable list into dedicated pattern detail pages.
  */
-export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
+export function PatternsView() {
   const router = useRouter();
   const viewport = useViewportLayout();
   const aggregate = usePatternsAggregate();
   const patterns = usePatternDisplay(aggregate);
-  const itemRefs = useRef<Map<PatternName, HTMLLIElement>>(new Map());
   const [readinessTick, setReadinessTick] = useState(0);
   const [viewsTick, setViewsTick] = useState(0);
 
@@ -104,64 +88,6 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
     }
   }, [aggregate, hasReadyPatterns, router]);
 
-  /** null = all collapsed. */
-  const [expanded, setExpanded] = useState<PatternName | null>(
-    initialPattern ?? null,
-  );
-
-  // Drop expansion if that pattern leaves the list; honor deep-link once ready.
-  useEffect(() => {
-    if (listPatterns.length === 0) {
-      setExpanded(null);
-      return;
-    }
-    setExpanded((prev) => {
-      if (prev && listPatterns.some((p) => p.name === prev)) return prev;
-      if (
-        initialPattern &&
-        listPatterns.some((p) => p.name === initialPattern)
-      ) {
-        return initialPattern;
-      }
-      return null;
-    });
-  }, [listPatterns, initialPattern]);
-
-  // Opening a pattern clears its unread state for the current evidence set.
-  useEffect(() => {
-    if (!expanded) return;
-    const pattern = listPatterns.find((p) => p.name === expanded);
-    if (!pattern) return;
-    markPatternSeen(pattern.name, buildEvidenceKey(pattern.evidence));
-  }, [expanded, listPatterns]);
-
-  // After expand: pin the persistent header near the top of the viewport.
-  useEffect(() => {
-    if (!expanded) return;
-    const el = itemRefs.current.get(expanded);
-    if (!el) return;
-    const reduceMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
-    const run = () => {
-      const heading = el.querySelector<HTMLElement>(
-        ".pattern-accordion__row",
-      );
-      (heading ?? el).scrollIntoView({
-        behavior: reduceMotion ? "auto" : "smooth",
-        block: "start",
-      });
-    };
-    let raf2 = 0;
-    const raf1 = window.requestAnimationFrame(() => {
-      raf2 = window.requestAnimationFrame(run);
-    });
-    return () => {
-      window.cancelAnimationFrame(raf1);
-      window.cancelAnimationFrame(raf2);
-    };
-  }, [expanded]);
-
   if (aggregate === null || !hasReadyPatterns) {
     return null;
   }
@@ -198,11 +124,7 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
               />
             </button>
           ) : null}
-          <h1
-            className="header-md tracking-tight"
-          >
-            Patterns
-          </h1>
+          <h1 className="header-md tracking-tight">Patterns</h1>
           <p className="mt-1 text-xs leading-relaxed text-(--sidebar-ink-soft) sm:text-sm">
             A few thoughts have been returning lately.
           </p>
@@ -213,7 +135,6 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
             const title =
               pattern.display?.displayTitle?.trim() ||
               PATTERN_LABELS[pattern.name];
-            const isOpen = expanded === pattern.name;
             const isUnread = unreadNames.has(pattern.name);
             const entryCount =
               pattern.entryCount > 0
@@ -222,42 +143,21 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
             const entryLabel = formatEntryCount(entryCount);
             const timeline = formatPatternTimeline(pattern.evidence);
             const factLine = [timeline, entryLabel].filter(Boolean).join(" · ");
-            // const relatedLine = formatRelatedPatternsLine(
-            //   pattern.relatedPatterns ?? [],
-            // );
+            const href = `/dashboard/patterns/${encodeURIComponent(pattern.name)}`;
 
             return (
               <li
                 key={pattern.name}
-                ref={(node) => {
-                  if (node) itemRefs.current.set(pattern.name, node);
-                  else itemRefs.current.delete(pattern.name);
-                }}
-                className="pattern-accordion__item"
-                data-expanded={isOpen ? "true" : "false"}
+                className="pattern-accordion__item group"
                 data-unread={isUnread ? "true" : "false"}
               >
-                <button
-                  type="button"
+                <Link
+                  href={href}
                   className="pattern-accordion__row"
-                  aria-expanded={isOpen}
-                  aria-controls={
-                    isOpen ? `pattern-expanded-panel-${pattern.name}` : undefined
-                  }
                   aria-label={
-                    [
-                      title,
-                      factLine,
-                      isUnread ? "updated" : null,
-                    ]
+                    [title, factLine, isUnread ? "updated" : null]
                       .filter(Boolean)
                       .join(", ")
-                  }
-                  id={`pattern-expanded-${pattern.name}`}
-                  onClick={() =>
-                    setExpanded((prev) =>
-                      prev === pattern.name ? null : pattern.name,
-                    )
                   }
                 >
                   <span className="pattern-accordion__row-main">
@@ -269,49 +169,18 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
                         {factLine}
                       </span>
                     ) : null}
-                    {/* {relatedLine ? (
-                      <span className="pattern-accordion__row-related">
-                        {relatedLine}
-                      </span>
-                    ) : null} */}
                   </span>
                   <span
-                    className={`pattern-accordion__row-chevron shrink-0 ${btnIconChrome("xs")}`}
+                    className="flex h-7 w-7 shrink-0 items-center justify-center text-(--sidebar-ink-soft) opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
                     aria-hidden
                   >
-                    {isOpen ? (
-                      <ChevronUp
-                        size={iconPx("xs")}
-                        strokeWidth={iconStroke("xs")}
-                        className={iconFixed}
-                      />
-                    ) : (
-                      <ChevronDown
-                        size={iconPx("xs")}
-                        strokeWidth={iconStroke("xs")}
-                        className={iconFixed}
-                      />
-                    )}
+                    <ChevronRight
+                      size={16}
+                      strokeWidth={1.75}
+                      className={iconFixed}
+                    />
                   </span>
-                </button>
-
-                {isOpen ? (
-                  <div
-                    id={`pattern-expanded-panel-${pattern.name}`}
-                    className="pattern-accordion__panel"
-                    role="region"
-                    aria-labelledby={`pattern-expanded-${pattern.name}`}
-                  >
-                    <div className="pattern-accordion__panel-scroll">
-                      <PatternDetailView
-                        key={pattern.name}
-                        patternName={pattern.name}
-                        embedded
-                        compactHeadline
-                      />
-                    </div>
-                  </div>
-                ) : null}
+                </Link>
               </li>
             );
           })}

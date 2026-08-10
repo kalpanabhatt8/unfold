@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { PatternsView } from "@/components/patterns/patterns-view";
 import { isPatternName } from "@/lib/patterns/vocabulary";
 
@@ -7,6 +8,9 @@ type PageProps = {
 
 export default async function PatternsPage({ searchParams }: PageProps) {
   const { p } = await searchParams;
-  const initialPattern = p && isPatternName(p) ? p : undefined;
-  return <PatternsView initialPattern={initialPattern} />;
+  // Legacy `?p=` deep links open the dedicated detail route.
+  if (p && isPatternName(p)) {
+    redirect(`/dashboard/patterns/${encodeURIComponent(p)}`);
+  }
+  return <PatternsView />;
 }
