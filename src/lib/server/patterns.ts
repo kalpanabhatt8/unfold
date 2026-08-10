@@ -14,7 +14,7 @@ import { PROMPT_VERSIONS } from "@/lib/ai/versions";
 import { EXTRACTION_MODEL } from "@/lib/ai/pattern-extraction/constants";
 import { SLOT_MODEL } from "@/lib/ai/pattern-slots/constants";
 import { DISPLAY_MODEL } from "@/lib/ai/pattern-display/constants";
-import { isPatternName } from "@/lib/patterns/vocabulary";
+import { isPatternName } from "@/lib/patterns/vocabulary-public";
 import type {
   PatternsPullResponse,
   PatternsSnapshot,
@@ -277,12 +277,35 @@ export const pushAnalyses = async (
           ? analysis.promptVersion
           : PROMPT_VERSIONS.extraction,
     };
-    await db.entryAnalysis.upsert({
-      where: { entryId: analysis.entryId },
-      create: { entryId: analysis.entryId, userId, ...data },
-      update: data,
+    // Enforce userId on the write path (not only the pre-check) so a race on
+    // entryId cannot overwrite another account's analysis row.
+    const updated = await db.entryAnalysis.updateMany({
+      where: { entryId: analysis.entryId, userId },
+      data,
     });
-    written += 1;
+    if (updated.count > 0) {
+      written += 1;
+      continue;
+    }
+    try {
+      await db.entryAnalysis.create({
+        data: { entryId: analysis.entryId, userId, ...data },
+      });
+      written += 1;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        const retried = await db.entryAnalysis.updateMany({
+          where: { entryId: analysis.entryId, userId },
+          data,
+        });
+        if (retried.count > 0) written += 1;
+        continue;
+      }
+      throw error;
+    }
   }
   return written;
 };

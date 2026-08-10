@@ -156,13 +156,34 @@ const pushOne = async (
       : ((entry.content ?? Prisma.JsonNull) as Prisma.InputJsonValue),
   };
 
-  await db.journalEntry.upsert({
-    where: { id: entry.id },
-    create: { id: entry.id, userId, ...data },
-    update: data,
-  });
+  // Ownership must be enforced on the write itself — not only the pre-check —
+  // so a concurrent create cannot leave another user's row open to overwrite.
+  if (existing) {
+    const updated = await db.journalEntry.updateMany({
+      where: { id: entry.id, userId },
+      data,
+    });
+    if (updated.count === 0) {
+      return { id: entry.id, accepted: false };
+    }
+    return { id: entry.id, accepted: true };
+  }
 
-  return { id: entry.id, accepted: true };
+  try {
+    await db.journalEntry.create({
+      data: { id: entry.id, userId, ...data },
+    });
+    return { id: entry.id, accepted: true };
+  } catch (error) {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2002"
+    ) {
+      // Another account (or request) won the create race — never overwrite.
+      return { id: entry.id, accepted: false };
+    }
+    throw error;
+  }
 };
 
 export const pushEntries = async (
