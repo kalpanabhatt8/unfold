@@ -5,7 +5,6 @@ import { useClerk, useUser } from "@clerk/nextjs";
 import { AccountProfileModal } from "@/components/sidebar/account-profile-modal";
 import { SendFeedbackModal } from "@/components/sidebar/send-feedback-modal";
 import { clearLocalUnfoldData } from "@/lib/clear-local-data";
-import { hasPendingSync } from "@/lib/sync/local-flags";
 import { flushPendingSync } from "@/lib/sync/sync-client";
 import { resolvePreferredName, avatarInitial } from "@/lib/user-display";
 
@@ -20,8 +19,18 @@ const menuItemStyle = {
   lineHeight: "var(--text-sm--line-height)",
 } as const;
 
+/** Inline spinner - same visual language as `AppLoader`, sized for the menu. */
+function SignOutSpinner({ className = "" }: { className?: string }) {
+  return (
+    <span
+      aria-hidden
+      className={`inline-block shrink-0 rounded-full border-[1.5px] border-(--sidebar-ink-soft)/30 border-t-(--sidebar-ink)/70 animate-spin ${className}`}
+    />
+  );
+}
+
 /** Max wait before offering keep-waiting vs force sign-out. */
-const SIGN_OUT_FLUSH_TIMEOUT_MS = 18_000;
+const SIGN_OUT_FLUSH_TIMEOUT_MS = 5_000;
 
 type SignOutPhase = "idle" | "saving" | "error" | "timeout";
 type FlushResult = "ok" | "fail" | "timeout";
@@ -123,9 +132,9 @@ export function SidebarAccountMenu() {
 
     setSignOutError(null);
     setSignOutBusy(true);
-    if (hasPendingSync()) {
-      setSignOutPhase("saving");
-    }
+    setMenuOpen(true);
+    // Always show Saving - flush may wait on the sync lock even with an empty queue.
+    setSignOutPhase("saving");
 
     const result = await runFlushForSignOut();
     handleFlushResult(result);
@@ -136,6 +145,7 @@ export function SidebarAccountMenu() {
 
     setSignOutError(null);
     setSignOutBusy(true);
+    setMenuOpen(true);
     setSignOutPhase("saving");
 
     const result = await runFlushForSignOut();
@@ -146,20 +156,32 @@ export function SidebarAccountMenu() {
     finishSignOut();
   };
 
+  const isSaving = signOutPhase === "saving" || signOutBusy;
+
   return (
     <>
       <div ref={rootRef} className="relative shrink-0">
         <button
           type="button"
-          aria-label="Account menu"
+          aria-label={isSaving ? "Signing out, saving changes" : "Account menu"}
           aria-haspopup="menu"
           aria-expanded={menuOpen}
           aria-controls={menuOpen ? menuId : undefined}
-          onClick={() => setMenuOpen((prev) => !prev)}
+          aria-busy={isSaving || undefined}
+          onClick={() => {
+            // Keep the loader visible - don't let the menu dismiss mid-flush.
+            if (isSaving) {
+              setMenuOpen(true);
+              return;
+            }
+            setMenuOpen((prev) => !prev);
+          }}
           className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-[5px] bg-(--canvas-title-ink) text-[0.8125rem] font-medium leading-none text-white transition-opacity duration-150 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20 active:opacity-80"
           style={{ fontFamily: "var(--font-body)", fontSize: "0.8125rem" }}
         >
-          {showPhoto && user ? (
+          {isSaving ? (
+            <SignOutSpinner className="h-3.5 w-3.5 border-white/35 border-t-white" />
+          ) : showPhoto && user ? (
             <img
               src={user.imageUrl}
               alt=""
@@ -184,7 +206,8 @@ export function SidebarAccountMenu() {
               type="button"
               role="menuitem"
               onClick={openAccount}
-              className={menuItemClassName}
+              disabled={isSaving}
+              className={`${menuItemClassName}${isSaving ? " opacity-50" : ""}`}
               style={menuItemStyle}
             >
               My Account
@@ -193,7 +216,8 @@ export function SidebarAccountMenu() {
               type="button"
               role="menuitem"
               onClick={openFeedback}
-              className={menuItemClassName}
+              disabled={isSaving}
+              className={`${menuItemClassName}${isSaving ? " opacity-50" : ""}`}
               style={menuItemStyle}
             >
               Send feedback
@@ -237,6 +261,17 @@ export function SidebarAccountMenu() {
                   Sign out anyway
                 </button>
               </>
+            ) : signOutPhase === "saving" ? (
+              <div
+                role="status"
+                aria-live="polite"
+                aria-busy="true"
+                className="flex w-full items-center gap-2 px-3 py-2 text-sm font-medium leading-snug text-primary opacity-80"
+                style={menuItemStyle}
+              >
+                <SignOutSpinner className="h-3.5 w-3.5" />
+                Saving…
+              </div>
             ) : (
               <>
                 <button
@@ -244,21 +279,31 @@ export function SidebarAccountMenu() {
                   role="menuitem"
                   onClick={() => void signOut()}
                   disabled={signOutBusy}
-                  aria-busy={signOutPhase === "saving"}
                   className={`${menuItemClassName}${signOutBusy ? " opacity-50" : ""}`}
                   style={menuItemStyle}
                 >
-                  {signOutPhase === "saving" ? "Saving..." : "Sign out"}
+                  Sign out
                 </button>
                 {signOutPhase === "error" && signOutError ? (
-                  <p
-                    role="alert"
-                    aria-live="polite"
-                    className="px-3 py-2 text-(--sidebar-ink-soft) text-xs leading-snug"
-                    style={menuItemStyle}
-                  >
-                    {signOutError}
-                  </p>
+                  <>
+                    <p
+                      role="alert"
+                      aria-live="polite"
+                      className="px-3 py-2 text-(--sidebar-ink-soft) text-xs leading-snug"
+                      style={menuItemStyle}
+                    >
+                      {signOutError}
+                    </p>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={forceSignOut}
+                      className={menuItemClassName}
+                      style={menuItemStyle}
+                    >
+                      Sign out anyway
+                    </button>
+                  </>
                 ) : null}
               </>
             )}

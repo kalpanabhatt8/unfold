@@ -222,15 +222,42 @@ const applyServerPatterns = (snapshot: PatternsSnapshot) => {
 
 // ── Network steps ───────────────────────────────────────────────────────────
 
+/**
+ * Fetch + JSON parse that treats network drops and HTML error/auth pages as
+ * soft failures (null) instead of throwing TypeError / SyntaxError into sync.
+ */
+const fetchJson = async <T>(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<{ ok: true; data: T } | { ok: false; status: number }> => {
+  try {
+    const response = await fetch(input, init);
+    if (!response.ok) return { ok: false, status: response.status };
+
+    const contentType = response.headers.get("content-type") ?? "";
+    if (!contentType.includes("application/json")) {
+      // HTML sign-in / Next error pages look like 200 until you parse them.
+      await response.text().catch(() => undefined);
+      return { ok: false, status: response.status };
+    }
+
+    return { ok: true, data: (await response.json()) as T };
+  } catch {
+    return { ok: false, status: 0 };
+  }
+};
+
 /** Returns false when the server could not be reached / rejected the pull. */
 const pullAndApplyEntries = async (): Promise<boolean> => {
   let since = getPullCursor();
   // Page until the server says we're caught up - keeps each response small
   // when the account has many large board snapshots.
   for (let page = 0; page < 50; page++) {
-    const response = await fetch(`/api/sync/entries?since=${since}`);
-    if (!response.ok) return false;
-    const payload = (await response.json()) as EntriesPullResponse;
+    const result = await fetchJson<EntriesPullResponse>(
+      `/api/sync/entries?since=${since}`,
+    );
+    if (!result.ok) return false;
+    const payload = result.data;
     for (const entry of payload.entries) {
       applyServerEntry(entry);
     }
@@ -248,9 +275,9 @@ const pullAndApplyPatterns = async (): Promise<void> => {
     const url = cursor
       ? `/api/sync/patterns?cursor=${encodeURIComponent(cursor)}`
       : "/api/sync/patterns";
-    const response = await fetch(url);
-    if (!response.ok) return;
-    const payload = (await response.json()) as PatternsPullResponse;
+    const result = await fetchJson<PatternsPullResponse>(url);
+    if (!result.ok) return;
+    const payload = result.data;
     applyServerPatterns(payload);
     if (!payload.hasMore) return;
     cursor = payload.cursor ?? null;
@@ -274,38 +301,37 @@ const pushEntryTombstones = async (): Promise<void> => {
   const tombstones = takeEntryTombstones();
   if (tombstones.length === 0) return;
 
-  try {
-    const response = await fetch("/api/sync/entries", {
+  const result = await fetchJson<{ results: EntryPushResult[] }>(
+    "/api/sync/entries",
+    {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         entries: tombstones.map(toTombstoneWire),
       }),
-    });
-    if (!response.ok) throw new Error(`push failed: ${response.status}`);
-
-    const { results } = (await response.json()) as {
-      results: EntryPushResult[];
-    };
-    const rejected: EntryTombstone[] = [];
-    for (const result of results) {
-      const tombstone = tombstones.find((t) => t.id === result.id);
-      if (!tombstone) continue;
-      if (result.accepted) continue;
-
-      if (result.server?.deletedAt) {
-        // Server already has the delete - apply locally, drop the tombstone.
-        applyServerEntry(result.server);
-        continue;
-      }
-
-      // Keep retrying; never apply a live server copy over a local delete.
-      rejected.push(tombstone);
-    }
-    restoreEntryTombstones(rejected);
-  } catch {
+    },
+  );
+  if (!result.ok) {
     restoreEntryTombstones(tombstones);
+    return;
   }
+
+  const rejected: EntryTombstone[] = [];
+  for (const pushResult of result.data.results) {
+    const tombstone = tombstones.find((t) => t.id === pushResult.id);
+    if (!tombstone) continue;
+    if (pushResult.accepted) continue;
+
+    if (pushResult.server?.deletedAt) {
+      // Server already has the delete - apply locally, drop the tombstone.
+      applyServerEntry(pushResult.server);
+      continue;
+    }
+
+    // Keep retrying; never apply a live server copy over a local delete.
+    rejected.push(tombstone);
+  }
+  restoreEntryTombstones(rejected);
 };
 
 const pushDirtyEntries = async (): Promise<void> => {
@@ -326,41 +352,36 @@ const pushDirtyEntries = async (): Promise<void> => {
 
   const pushedIds = entries.map((entry) => entry.id);
 
-  try {
-    const response = await fetch("/api/sync/entries", {
+  const result = await fetchJson<{ results: EntryPushResult[] }>(
+    "/api/sync/entries",
+    {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ entries }),
-    });
-    if (!response.ok) throw new Error(`push failed: ${response.status}`);
-
-    const { results } = (await response.json()) as {
-      results: EntryPushResult[];
-    };
-    for (const result of results) {
-      if (!result.accepted && result.server) {
-        applyServerEntry(result.server);
-      }
-    }
-  } catch {
+    },
+  );
+  if (!result.ok) {
     // Offline or server error - restore the queues for the next attempt.
     restoreDirtyEntries(pushedIds);
+    return;
+  }
+
+  for (const pushResult of result.data.results) {
+    if (!pushResult.accepted && pushResult.server) {
+      applyServerEntry(pushResult.server);
+    }
   }
 };
 
 const pushPatternsIfDirty = async (): Promise<void> => {
   if (!isPatternsDirty()) return;
   clearPatternsDirty();
-  try {
-    const response = await fetch("/api/sync/patterns", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(collectPatternsSnapshot()),
-    });
-    if (!response.ok) throw new Error(`push failed: ${response.status}`);
-  } catch {
-    markPatternsDirty();
-  }
+  const result = await fetchJson<unknown>("/api/sync/patterns", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(collectPatternsSnapshot()),
+  });
+  if (!result.ok) markPatternsDirty();
 };
 
 // ── One-time import of pre-cloud local data ─────────────────────────────────
@@ -368,11 +389,9 @@ const pushPatternsIfDirty = async (): Promise<void> => {
 const maybeImport = async (): Promise<void> => {
   if (isImported()) return;
 
-  const status = await fetch("/api/import");
+  const status = await fetchJson<{ hasServerData: boolean }>("/api/import");
   if (!status.ok) return; // signed out / server issue - retry next sync
-  const { hasServerData } = (await status.json()) as {
-    hasServerData: boolean;
-  };
+  const { hasServerData } = status.data;
 
   if (hasServerData) {
     // Account already has cloud data - pulls will populate this device.
@@ -383,7 +402,7 @@ const maybeImport = async (): Promise<void> => {
   const entries = readAllEntries();
   // One entry per request: embedded base64 images can make payloads large.
   for (const entry of entries) {
-    const response = await fetch("/api/import", {
+    const response = await fetchJson("/api/import", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ entries: [toWireEntry(entry)] }),
@@ -402,7 +421,7 @@ const maybeImport = async (): Promise<void> => {
     (patterns.votes?.length ?? 0) > 0;
 
   if (hasPatternData) {
-    const response = await fetch("/api/import", {
+    const response = await fetchJson("/api/import", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ patterns }),

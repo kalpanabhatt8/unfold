@@ -17,11 +17,20 @@ const isPublicRoute = createRouteMatcher([
   '/dev(.*)',
 ])
 
+const isApiRoute = createRouteMatcher(['/api(.*)', '/trpc(.*)'])
+
 export default clerkMiddleware(async (auth, req) => {
   if (isPublicRoute(req)) return
 
   const { userId } = await auth()
   if (userId) return
+
+  // Fetch clients must get JSON 401s - never an HTML sign-in redirect.
+  // Following a redirect makes response.ok true and response.json() throw
+  // `Unexpected token '<'` on `<!DOCTYPE html>`.
+  if (isApiRoute(req)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
   // Always send unauthenticated users to our app sign-in - never Clerk's
   // Account Portal (*.accounts.dev), which is the fallback when

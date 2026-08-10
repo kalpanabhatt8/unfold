@@ -25,7 +25,13 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const userId = await requireUser();
-    const body = (await request.json()) as Partial<PatternsSnapshot>;
+    let body: Partial<PatternsSnapshot>;
+    try {
+      body = (await request.json()) as Partial<PatternsSnapshot>;
+    } catch {
+      // Empty/truncated bodies show up under flaky clients / oversized payloads.
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+    }
     const written = await pushPatterns(userId, body);
     return NextResponse.json({ written });
   } catch (error) {
