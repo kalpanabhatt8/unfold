@@ -5,7 +5,10 @@
  * Used by overlap-policy tests (Fix 3) and reusable for Fix 5 fixture sets.
  */
 
+import { extractionProvenance } from "../../src/lib/patterns/analysis-freshness";
 import type { EntryAnalysis } from "../../src/lib/patterns/types";
+
+const FIXTURE_TEXT = "overlap fixture journal body";
 import type { JournalEntry } from "../../src/lib/journal-entries";
 import type { PatternName } from "../../src/lib/patterns/vocabulary";
 
@@ -89,6 +92,7 @@ export function buildSelfDoubtCriticismFixture(): SelfDoubtCriticismFixture {
     createdAt: BASE + index * DAY,
     updatedAt: BASE + index * DAY,
     sealedAt: BASE + index * DAY,
+    searchText: FIXTURE_TEXT,
   }));
 
   const analyses: EntryAnalysis[] = entrySpecs.map((spec) => ({
@@ -99,6 +103,7 @@ export function buildSelfDoubtCriticismFixture(): SelfDoubtCriticismFixture {
       confidence: 0.86,
       evidence: [spec.quotes[name] ?? `quote for ${name}`],
     })),
+    ...extractionProvenance(FIXTURE_TEXT),
   }));
 
   return {

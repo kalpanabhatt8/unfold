@@ -23,6 +23,10 @@ export type EntryAnalysis = {
   /** Fingerprint of the text this analysis was generated from - when the
    * entry's current hash drifts, the analysis is stale and may re-run. */
   sourceContentHash?: string;
+  /** PROMPT_VERSIONS.extraction at generation time - mismatch ⇒ stale. */
+  promptVersion?: string;
+  /** Extraction model id at generation time. */
+  modelId?: string;
 } & AnalysisPayload;
 
 /** What fired the completion trigger. Wiring-only; not persisted. */

@@ -40,6 +40,8 @@ type RawAnalysisRow = {
   topics: string[];
   patterns: WireAnalysis["patterns"];
   sourceContentHash: string | null;
+  promptVersion: string | null;
+  modelId: string | null;
 };
 
 type RawStateRow = {
@@ -82,6 +84,8 @@ const toAnalyses = (rows: RawAnalysisRow[] | null): WireAnalysis[] =>
     topics: Array.isArray(row.topics) ? row.topics : [],
     patterns: row.patterns,
     sourceContentHash: row.sourceContentHash ?? undefined,
+    promptVersion: row.promptVersion ?? undefined,
+    modelId: row.modelId ?? undefined,
   }));
 
 const toStates = (rows: RawStateRow[] | null): WirePatternState[] =>
@@ -153,7 +157,9 @@ export const pullPatterns = async (
         SELECT entry_id AS "entryId",
                topics,
                patterns,
-               source_content_hash AS "sourceContentHash"
+               source_content_hash AS "sourceContentHash",
+               prompt_version AS "promptVersion",
+               model_id AS "modelId"
         FROM entry_analyses
         WHERE user_id = ${userId} AND entry_id > ${cursor}
         ORDER BY entry_id ASC
@@ -176,7 +182,9 @@ export const pullPatterns = async (
           SELECT entry_id AS "entryId",
                  topics,
                  patterns,
-                 source_content_hash AS "sourceContentHash"
+                 source_content_hash AS "sourceContentHash",
+                 prompt_version AS "promptVersion",
+                 model_id AS "modelId"
           FROM entry_analyses
           WHERE user_id = ${userId}
           ORDER BY entry_id ASC
@@ -259,8 +267,15 @@ export const pushAnalyses = async (
       topics: analysis.topics.filter((t) => typeof t === "string"),
       patterns: analysis.patterns as unknown as Prisma.InputJsonValue,
       sourceContentHash: analysis.sourceContentHash ?? null,
-      modelId: EXTRACTION_MODEL,
-      promptVersion: PROMPT_VERSIONS.extraction,
+      // Prefer client-stamped provenance from the run that produced this row.
+      modelId:
+        typeof analysis.modelId === "string" && analysis.modelId
+          ? analysis.modelId
+          : EXTRACTION_MODEL,
+      promptVersion:
+        typeof analysis.promptVersion === "string" && analysis.promptVersion
+          ? analysis.promptVersion
+          : PROMPT_VERSIONS.extraction,
     };
     await db.entryAnalysis.upsert({
       where: { entryId: analysis.entryId },

@@ -2,16 +2,24 @@
  * Unfold - cross-entry aggregation for the Patterns page.
  *
  * Pure + local (no LLM). Rolls stored per-entry analyses into surfaced
- * patterns: count DISTINCT entries per pattern, keep only those crossing
- * SURFACE_MIN_ENTRIES, attach date-anchored evidence. One entry = one vote.
+ * patterns. Entry-level tags may be broad; surfacing applies a conservative
+ * recurrence gate (see recurrence.ts) before a pattern becomes user-visible.
+ * One distinct entry = at most one vote per pattern.
  */
 
 import { readAllEntries, type JournalEntry } from "@/lib/journal-entries";
 import { resolveBookDisplayTitle } from "@/lib/book-title";
+import { isAnalysisCurrent } from "@/lib/patterns/analysis-freshness";
 import { listAnalyses } from "@/lib/patterns/analysis-store";
 import { applyOverlapSuppression } from "@/lib/patterns/overlap-policy";
+import {
+  decidePatternRecurrence,
+  logRecurrenceDecision,
+  type RecurrenceDecision,
+  type RecurrenceVote,
+} from "@/lib/patterns/recurrence";
 import { deriveTimeHint } from "@/lib/patterns/time-hint";
-import { SURFACE_MIN_ENTRIES, type PatternName } from "@/lib/patterns/vocabulary";
+import type { PatternName } from "@/lib/patterns/vocabulary";
 import type {
   EntryAnalysis,
   PatternEvidenceItem,
@@ -19,17 +27,26 @@ import type {
   SurfacedPattern,
 } from "@/lib/patterns/types";
 
+export type AggregateFromInputsResult = PatternsAggregate & {
+  /** Per-pattern recurrence decisions (debug / tests). */
+  recurrence: RecurrenceDecision[];
+  /** Analyses skipped because promptVersion/hash is not current. */
+  staleExcluded: number;
+};
+
 /** Build surfaced patterns from analyses + entries (test/replay helper). */
 export function aggregateFromInputs(
   analyses: EntryAnalysis[],
   entries: JournalEntry[],
-  options?: { applyOverlapSuppression?: boolean },
-): PatternsAggregate {
+  options?: { applyOverlapSuppression?: boolean; logRecurrence?: boolean },
+): AggregateFromInputsResult {
   const entriesById = new Map<string, JournalEntry>(
     entries.map((entry) => [entry.id, entry]),
   );
 
-  const byPattern = new Map<PatternName, PatternEvidenceItem[]>();
+  const byPattern = new Map<PatternName, RecurrenceVote[]>();
+  let staleExcluded = 0;
+  let freshAnalyzed = 0;
 
   for (const analysis of analyses) {
     const entry = entriesById.get(analysis.entryId);
@@ -37,9 +54,30 @@ export function aggregateFromInputs(
     if (entry.crisisFlagged === true) continue; // never count crisis-flagged entries
     if (entry.qualityFlagged === true) continue; // never count quality-flagged entries
 
+    const entryText = entry.searchText ?? "";
+    if (!isAnalysisCurrent(analysis, entryText)) {
+      staleExcluded += 1;
+      if (
+        options?.logRecurrence ??
+        (typeof process !== "undefined" &&
+          process.env.NODE_ENV === "development")
+      ) {
+        console.info(
+          `[pattern-aggregate] exclude_stale entry=${analysis.entryId} promptVersion=${analysis.promptVersion ?? "(missing)"}`,
+        );
+      }
+      continue;
+    }
+    freshAnalyzed += 1;
+
     // Dedupe patterns within an entry (should already be unique) so each
     // entry contributes at most one vote per pattern.
     const seen = new Set<PatternName>();
+    const maxConfidence = analysis.patterns.reduce(
+      (max, pattern) => Math.max(max, pattern.confidence),
+      0,
+    );
+
     for (const pattern of analysis.patterns) {
       if (seen.has(pattern.name)) continue;
       seen.add(pattern.name);
@@ -54,20 +92,30 @@ export function aggregateFromInputs(
         confidence: pattern.confidence,
       };
 
+      const vote: RecurrenceVote = {
+        item,
+        isPrimary: pattern.confidence >= maxConfidence,
+      };
+
       const bucket = byPattern.get(pattern.name);
-      if (bucket) bucket.push(item);
-      else byPattern.set(pattern.name, [item]);
+      if (bucket) bucket.push(vote);
+      else byPattern.set(pattern.name, [vote]);
     }
   }
 
   const surfaced: SurfacedPattern[] = [];
-  for (const [name, evidence] of byPattern) {
-    if (evidence.length < SURFACE_MIN_ENTRIES) continue;
-    evidence.sort(
-      (a, b) =>
-        (b.sealedAt ?? b.lastEditedAt ?? b.createdAt) -
-        (a.sealedAt ?? a.lastEditedAt ?? a.createdAt),
-    );
+  const recurrence: RecurrenceDecision[] = [];
+  const shouldLog =
+    options?.logRecurrence ??
+    (typeof process !== "undefined" &&
+      process.env.NODE_ENV === "development");
+
+  for (const [name, votes] of byPattern) {
+    const { decision, evidence } = decidePatternRecurrence(name, votes);
+    recurrence.push(decision);
+    if (shouldLog) logRecurrenceDecision(decision);
+    if (!decision.surfaced) continue;
+
     surfaced.push({
       name,
       entryCount: evidence.length,
@@ -82,15 +130,22 @@ export function aggregateFromInputs(
   }
 
   surfaced.sort((a, b) => b.entryCount - a.entryCount);
+  recurrence.sort((a, b) => a.name.localeCompare(b.name));
 
   const applySuppression = options?.applyOverlapSuppression !== false;
 
   return {
-    analyzedEntryCount: analyses.length,
+    analyzedEntryCount: freshAnalyzed,
     surfaced: applySuppression ? applyOverlapSuppression(surfaced) : surfaced,
+    recurrence,
+    staleExcluded,
   };
 }
 
 export function aggregateAnalyses(): PatternsAggregate {
-  return aggregateFromInputs(listAnalyses(), readAllEntries());
+  const { analyzedEntryCount, surfaced } = aggregateFromInputs(
+    listAnalyses(),
+    readAllEntries(),
+  );
+  return { analyzedEntryCount, surfaced };
 }
