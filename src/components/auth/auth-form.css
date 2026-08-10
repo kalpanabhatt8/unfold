@@ -495,22 +495,32 @@
   margin-inline: auto;
 }
 
-/* Legal pages share auth-shell / auth-card - card UI, slightly below top, no page scroll */
+/* Legal pages share auth-shell / auth-card - card UI, viewport-scaled gaps, no page scroll */
 .auth-shell:has(.auth-card.legal-doc) {
-  justify-content: flex-start;
+  --legal-gap-y: clamp(1rem, 5vh, 3.5rem);
+  --legal-gap-x: clamp(1rem, 4vw, 1.5rem);
+  justify-content: center;
+  align-items: center;
   overflow: hidden;
+  min-height: 100svh;
   max-height: 100svh;
-  padding: max(10vh, calc(env(safe-area-inset-top) + 1.25rem)) 1.25rem
-    max(1.25rem, env(safe-area-inset-bottom));
+  padding: max(var(--legal-gap-y), env(safe-area-inset-top))
+    max(var(--legal-gap-x), env(safe-area-inset-right))
+    max(var(--legal-gap-y), env(safe-area-inset-bottom))
+    max(var(--legal-gap-x), env(safe-area-inset-left));
 }
 
 .auth-card.legal-doc {
   display: flex;
   flex-direction: column;
+  /* Width: fill shell (%), capped in rem for large screens */
   width: 100%;
   max-width: 40rem;
-  /* Fit remaining viewport under top/bottom padding so only the doc scrolls */
-  max-height: min(44rem, calc(100svh - 6vh - 2.5rem - env(safe-area-inset-top) - env(safe-area-inset-bottom)));
+  /* Height: track viewport; leave room for the vh gaps around the card */
+  max-height: min(
+    44rem,
+    calc(100svh - (2 * var(--legal-gap-y)) - env(safe-area-inset-top) - env(safe-area-inset-bottom))
+  );
   margin-inline: auto;
   overflow: hidden;
   text-align: left;
