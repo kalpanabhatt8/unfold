@@ -39,6 +39,7 @@ import {
   isAnalysisCurrent,
 } from "@/lib/patterns/analysis-freshness";
 import { getAnalysis, putAnalysis } from "@/lib/patterns/analysis-store";
+import { canUsePatternPipelineDebugClient } from "@/lib/patterns/pattern-pipeline-debug-access";
 import { putPipelineDebug } from "@/lib/patterns/pattern-pipeline-debug-store";
 import { countWords, readEntryText } from "@/lib/patterns/entry-text";
 import type { CompletionSource } from "@/lib/patterns/types";
@@ -220,7 +221,7 @@ export async function notifyEntryCompleted(
 
     // TEMPORARY — capture raw LLM + validation/arbitration in localStorage for
     // /dashboard/pattern-debug. Product analysis payload is unchanged.
-    const captureDebug = process.env.NODE_ENV === "development";
+    const captureDebug = canUsePatternPipelineDebugClient();
     const detailed = await fetchEntryAnalysisDetailed(text, {
       debug: captureDebug,
     });

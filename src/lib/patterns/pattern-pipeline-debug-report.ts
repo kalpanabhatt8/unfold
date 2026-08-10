@@ -19,7 +19,7 @@ import { getCachedPassage } from "@/lib/patterns/passage-store";
 import { getCachedDisplay } from "@/lib/patterns/pattern-display-store";
 import { buildEvidenceKey } from "@/lib/patterns/evidence-signals";
 import type { RecurrenceDecision } from "@/lib/patterns/recurrence";
-import type { PatternName } from "@/lib/patterns/vocabulary";
+import type { PatternName } from "@/lib/patterns/vocabulary-public";
 
 const unavailable = (reason: string) =>
   ({ available: false as const, reason });
@@ -159,7 +159,7 @@ export function buildEntryPipelineDebugReport(
       id: entry.id,
       title: entry.title || "(untitled)",
       text,
-      sealedAt: entry.sealedAt,
+      sealedAt: entry.sealedAt ?? undefined,
       qualityFlagged: entry.qualityFlagged,
       crisisFlagged: entry.crisisFlagged,
     },

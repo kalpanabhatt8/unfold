@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { extractPatterns } from "@/lib/ai/pattern-extraction/generate";
 import { fallbackExtraction } from "@/lib/ai/pattern-extraction/fallback";
+import { canUsePatternPipelineDebug } from "@/lib/patterns/pattern-pipeline-debug-access";
 import type { EntryAnalysisResult } from "@/lib/patterns/types";
 import { requireUser } from "@/lib/server/auth";
 import { requireAiUser } from "@/lib/server/ai-auth";
@@ -17,8 +18,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  let userId: string;
   try {
-    await requireAiUser();
+    userId = await requireAiUser();
   } catch (error) {
     if (error instanceof Response) return error;
     throw error;
@@ -30,7 +32,8 @@ export async function POST(request: Request) {
     const body = (await request.json()) as { text?: unknown; debug?: unknown };
     text = typeof body.text === "string" ? body.text.trim() : "";
     // TEMPORARY — debug tool only; product clients omit this flag.
-    wantDebug = body.debug === true;
+    // Even if the client asks, production / non-allowlisted users never get `_debug`.
+    wantDebug = body.debug === true && canUsePatternPipelineDebug(userId);
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
