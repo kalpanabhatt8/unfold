@@ -1,3 +1,5 @@
+import "server-only";
+
 import { callAnthropicMessages } from "@/lib/ai/claude";
 import {
   TITLE_MAX_TOKENS,
@@ -24,7 +26,7 @@ async function attemptTitle(
   });
 
   if (!result.ok) {
-    console.error("[title] upstream error", result.status, result.error);
+    console.error("[title] upstream error", result.status);
     return { title: null };
   }
 

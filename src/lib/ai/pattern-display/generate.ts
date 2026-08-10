@@ -1,3 +1,5 @@
+import "server-only";
+
 import { callAnthropicMessages } from "@/lib/ai/claude";
 import {
   DISPLAY_MAX_TOKENS,
@@ -32,7 +34,7 @@ async function attemptDisplay(
   });
 
   if (!result.ok) {
-    console.error("[pattern-display] upstream error", result.status, result.error);
+    console.error("[pattern-display] upstream error", result.status);
     return { display: null };
   }
 

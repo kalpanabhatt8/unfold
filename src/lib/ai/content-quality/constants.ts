@@ -7,6 +7,13 @@ export const QUALITY_TEMPERATURE = 0;
 export const QUALITY_CLIENT_TIMEOUT_MS = 12_000;
 
 /**
+ * Long entries: head + tail sampling (same budget as crisis / extraction).
+ */
+export const QUALITY_INPUT_WORD_CAP = 1200;
+export const QUALITY_HEAD_WORDS = 300;
+export const QUALITY_TAIL_WORDS = 900;
+
+/**
  * Only skip pattern extraction when flagged AND confidence meets this floor.
  * Encodes under-flagging in code: uncertain flags below the floor are ignored.
  */

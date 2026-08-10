@@ -1,3 +1,5 @@
+import "server-only";
+
 import { callAnthropicMessages } from "@/lib/ai/claude";
 import {
   QUALITY_MAX_TOKENS,
@@ -5,6 +7,7 @@ import {
   QUALITY_TEMPERATURE,
   type ContentQualityResult,
 } from "@/lib/ai/content-quality/constants";
+import { prepareContentQualityInput } from "@/lib/ai/content-quality/input";
 import {
   parseContentQualityResponse,
   validateContentQuality,
@@ -15,9 +18,10 @@ export async function classifyContentQuality(
   apiKey: string,
   entryText: string,
 ): Promise<ContentQualityResult> {
+  const prepared = prepareContentQualityInput(entryText);
   const result = await callAnthropicMessages(apiKey, {
     model: QUALITY_MODEL,
-    prompt: buildContentQualityPrompt(entryText),
+    prompt: buildContentQualityPrompt(prepared),
     maxTokens: QUALITY_MAX_TOKENS,
     temperature: QUALITY_TEMPERATURE,
   });

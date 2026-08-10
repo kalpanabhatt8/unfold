@@ -1,3 +1,5 @@
+import "server-only";
+
 import { callAnthropicMessages } from "@/lib/ai/claude";
 import {
   EXTRACTION_MAX_TOKENS,
@@ -34,7 +36,7 @@ export async function extractPatterns(
   });
 
   if (!result.ok) {
-    console.error("[pattern-extraction] upstream error", result.status, result.error);
+    console.error("[pattern-extraction] upstream error", result.status);
     return fallbackExtraction("upstream_error");
   }
 
@@ -55,7 +57,8 @@ export async function extractPatterns(
   if (!payload) {
     console.warn(
       "[pattern-extraction] invalid output",
-      result.text.slice(0, 300),
+      // Never log raw LLM / journal content — status only.
+      { model: EXTRACTION_MODEL, responseChars: result.text.length },
     );
     return { ...fallbackExtraction("invalid_output"), _debug };
   }

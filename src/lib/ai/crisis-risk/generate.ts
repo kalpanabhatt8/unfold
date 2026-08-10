@@ -1,3 +1,5 @@
+import "server-only";
+
 import { callAnthropicMessages } from "@/lib/ai/claude";
 import {
   CRISIS_MAX_TOKENS,
@@ -5,6 +7,7 @@ import {
   CRISIS_TEMPERATURE,
   type CrisisRiskResult,
 } from "@/lib/ai/crisis-risk/constants";
+import { prepareCrisisRiskInput } from "@/lib/ai/crisis-risk/input";
 import {
   parseCrisisRiskResponse,
   validateCrisisRisk,
@@ -15,9 +18,10 @@ export async function classifyCrisisRisk(
   apiKey: string,
   entryText: string,
 ): Promise<CrisisRiskResult> {
+  const prepared = prepareCrisisRiskInput(entryText);
   const result = await callAnthropicMessages(apiKey, {
     model: CRISIS_MODEL,
-    prompt: buildCrisisRiskPrompt(entryText),
+    prompt: buildCrisisRiskPrompt(prepared),
     maxTokens: CRISIS_MAX_TOKENS,
     temperature: CRISIS_TEMPERATURE,
   });

@@ -1,3 +1,5 @@
+import "server-only";
+
 import { callAnthropicMessages } from "@/lib/ai/claude";
 import {
   SLOT_MAX_TOKENS,
@@ -57,7 +59,7 @@ async function attemptSlots(
   }
 
   if (!result.ok) {
-    console.error("[pattern-slots] upstream error", result.status, result.error);
+    console.error("[pattern-slots] upstream error", result.status);
     return { fills: [], rejected: [] };
   }
 
