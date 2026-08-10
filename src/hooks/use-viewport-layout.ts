@@ -50,12 +50,15 @@ function computeViewportLayout(width: number): ViewportLayout {
   };
 }
 
+/** SSR / first-paint width - must match on server and client to avoid hydration drift. */
+const SSR_VIEWPORT_WIDTH = 1280;
+
 /** Responsive spacing for canvas corners and page padding - desktop values unchanged at lg+. */
 export function useViewportLayout(): ViewportLayout {
+  // Always seed with the SSR width. Reading `window` in the initializer
+  // mismatches mobile/tablet first paint (e.g. 5.5rem vs 5.25rem padding).
   const [layout, setLayout] = useState<ViewportLayout>(() =>
-    computeViewportLayout(
-      typeof window !== "undefined" ? window.innerWidth : 1280,
-    ),
+    computeViewportLayout(SSR_VIEWPORT_WIDTH),
   );
 
   useEffect(() => {

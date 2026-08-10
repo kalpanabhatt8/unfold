@@ -40,9 +40,10 @@ function stage(p: number, start: number, end: number) {
 function formatVisitStamp(ts: number): { date: string; time: string } {
   const d = new Date(ts);
   const day = d.getDate();
-  const month = d.toLocaleDateString(undefined, { month: "long" });
+  // Fixed locale so SSR/client never diverge on month/time formatting.
+  const month = d.toLocaleDateString("en-GB", { month: "long" });
   const year = d.getFullYear();
-  const time = d.toLocaleTimeString(undefined, {
+  const time = d.toLocaleTimeString("en-GB", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
@@ -54,7 +55,7 @@ function formatVisitStamp(ts: number): { date: string; time: string } {
 function formatSealedStamp(ts: number): string {
   const d = new Date(ts);
   const day = d.getDate();
-  const month = d.toLocaleDateString(undefined, { month: "short" });
+  const month = d.toLocaleDateString("en-GB", { month: "short" });
   const year = d.getFullYear();
   return `🪷 Sealed · ${day} ${month} ${year}`;
 }
@@ -169,13 +170,18 @@ export function LivingCanvas() {
   const [viewOverride, setViewOverride] = useState<ViewOverride>("auto");
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [visitedAt] = useState(() => Date.now());
+  // Set after mount — Date.now() in useState causes SSR/client minute mismatches.
+  const [visitedAt, setVisitedAt] = useState<number | null>(null);
   const [writeSealed, setWriteSealed] = useState(false);
   const [writeSealedAt, setWriteSealedAt] = useState<number | null>(null);
   // const [exampleKey, setExampleKey] = useState(0); // parked: See an example
   const overrideAtProgress = useRef(0);
   // const exampleScrollLock = useRef<number | null>(null); // parked: See an example
-  const visitStamp = formatVisitStamp(visitedAt);
+  const visitStamp = visitedAt ? formatVisitStamp(visitedAt) : null;
+
+  useEffect(() => {
+    setVisitedAt(Date.now());
+  }, []);
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -572,7 +578,9 @@ export function LivingCanvas() {
                       <time className="lp-live__journal-meta">
                         {writeSealed && writeSealedAt
                           ? formatSealedStamp(writeSealedAt)
-                          : `${visitStamp.date}, ${visitStamp.time}`}
+                          : visitStamp
+                            ? `${visitStamp.date}, ${visitStamp.time}`
+                            : "\u00A0"}
                       </time>
                     </header>
                     <div className="lp-live__journal-body journal-tiptap">
