@@ -5,7 +5,8 @@
  * ad-hoc staleness checks.
  */
 export const PROMPT_VERSIONS = {
-  extraction: "v1",
+  /** Bump whenever extraction prompt, catalog, shared examples, or validation that affects stored patterns changes. */
+  extraction: "v4",
   slots: "v1",
   display: "v1",
   title: "v1",

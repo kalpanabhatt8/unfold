@@ -130,6 +130,70 @@ export function normalizeEvidenceQuote(
 }
 
 /**
+ * Normalize one LLM evidence item under strict verbatim grounding.
+ *
+ * Prefer a single contiguous substring match. If the model incorrectly merged
+ * multiple non-contiguous sentences into one string (so the whole string is
+ * not present in the entry), split on sentence boundaries and keep only the
+ * pieces that each independently match as verbatim substrings.
+ *
+ * Does not accept paraphrases or fabricated text — only source substrings.
+ */
+export function normalizeEvidenceQuotes(
+  quote: string,
+  sourceText: string,
+  maxChars: number = EXTRACTION_MAX_EVIDENCE_CHARS,
+): string[] {
+  const contiguous = normalizeEvidenceQuote(quote, sourceText, maxChars);
+  if (contiguous) return [contiguous];
+
+  const trimmed = quote.trim();
+  if (!trimmed) return [];
+
+  const spans = splitSentences(trimmed);
+  if (spans.length <= 1) return [];
+
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const span of spans) {
+    const piece = trimmed.slice(span.start, span.end).trim();
+    if (!piece) continue;
+    const normalized = normalizeEvidenceQuote(piece, sourceText, maxChars);
+    if (!normalized) continue;
+    const key = normalized.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(normalized);
+  }
+  return out;
+}
+
+/**
+ * Flatten + normalize an evidence array the same way product validation does.
+ */
+export function collectNormalizedEvidence(
+  evidence: unknown,
+  sourceText: string,
+  maxItems: number = MAX_EVIDENCE_PER_PATTERN,
+): string[] {
+  if (!Array.isArray(evidence)) return [];
+
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const item of evidence) {
+    if (typeof item !== "string") continue;
+    for (const normalized of normalizeEvidenceQuotes(item, sourceText)) {
+      const key = normalized.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(normalized);
+      if (out.length >= maxItems) return out;
+    }
+  }
+  return out;
+}
+
+/**
  * Validate and normalize extraction output - schema + verbatim evidence only.
  * Returns null when structurally unusable (caller retries later).
  */
@@ -161,13 +225,7 @@ export function validateExtraction(
         : 0;
     if (confidence < PATTERN_CONFIDENCE_FLOOR) continue;
 
-    const evidence = Array.isArray(item.evidence)
-      ? item.evidence
-          .filter((q): q is string => typeof q === "string")
-          .map((q) => normalizeEvidenceQuote(q, sourceText))
-          .filter((q): q is string => q !== null)
-          .slice(0, MAX_EVIDENCE_PER_PATTERN)
-      : [];
+    const evidence = collectNormalizedEvidence(item.evidence, sourceText);
 
     if (evidence.length === 0) continue;
 

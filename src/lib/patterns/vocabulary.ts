@@ -109,9 +109,9 @@ export const PATTERN_CATALOG: Record<PatternName, PatternSpec> = {
     label: "Comparison",
     fallbackHook: "Already Behind?",
     definition:
-      "measuring themselves against others' progress, status, or ability.",
+      "explicitly placing their own standing relative to another person or peer group - making visible where they are (or feel they are) against someone else's progress, status, ability, or outcome.",
     disambiguation:
-      "comparison ranks self against others - not fear_of_judgment (worry about being evaluated).",
+      "comparison requires the writing to make the writer's own position relative to others explicit - not fear_of_judgment (worry about being evaluated). Another person's milestone, lingering attention, admiration, inspiration, or checking their profile is NOT enough. An implied contrast that only says other people handle things more easily - used to criticize your own difficulty, discipline, or competence - is NOT comparison unless the writer also states their own standing relative to those people.",
     examples: [
       {
         entry: `Saw two people from college post about their promotions today. Felt weird about it. Remembered I'm building my own thing so it's not really comparable but still checked their LinkedIn anyway.`,
@@ -121,7 +121,8 @@ export const PATTERN_CATALOG: Record<PatternName, PatternSpec> = {
         evidence: [
           "not really comparable but still checked their LinkedIn anyway",
         ],
-        rationale: "measuring against others' progress / status.",
+        rationale:
+          "explicit self-relative measuring against others' progress/status (checked LinkedIn despite saying it wasn't comparable).",
       },
     ],
   },
@@ -199,9 +200,9 @@ export const PATTERN_CATALOG: Record<PatternName, PatternSpec> = {
     label: "Avoidance",
     fallbackHook: "Left Until Tomorrow.",
     definition:
-      "putting off, escaping, or distracting from something that matters.",
+      "putting off, escaping, or stalling on a specific task or action the person intends to do - not starting, not continuing, or substituting busywork for that task.",
     disambiguation:
-      "avoidance = putting off, escaping, or distracting from the thing that matters (including stalling by rereading / busywork).",
+      "avoidance = retreating from a concrete task they mean to do (including stalling by rereading / busywork, or not taking a corrective action like calling back to decline because they imagine judgment). Repeated checking or monitoring to get reassurance about how something already landed - a message, a reaction, an outcome - is NOT avoidance; that belongs with fear_of_judgment or catastrophizing.",
     examples: [
       {
         entry: `Sat down to fix the bug. Reread the same file three times instead of changing anything. Still not started.`,
@@ -211,7 +212,8 @@ export const PATTERN_CATALOG: Record<PatternName, PatternSpec> = {
         evidence: [
           "Reread the same file three times instead of changing anything",
         ],
-        rationale: "stalling on the real task via reread / busywork.",
+        rationale:
+          "stalling on starting/continuing a concrete task via reread / busywork - not reassurance-checking.",
       },
     ],
   },
@@ -361,6 +363,90 @@ export const EXTRACTION_SHARED_EXAMPLES: SharedExtractionExample[] = [
     entry: `Walked by the river after dinner. The air was cool and it smelled like rain. Felt good to just move for a while.`,
     topics: ["evening walk"],
   },
+  {
+    kind: "none",
+    heading:
+      "EXAMPLE 3 (no patterns - peer milestone + lingering attention is NOT comparison)",
+    entry: `My classmate's startup got funded today. I kept thinking about it on the way home. Not sure why.`,
+    topics: ["a classmate's startup"],
+  },
+  {
+    kind: "none",
+    heading:
+      "EXAMPLE 4 (no patterns - inspiration after someone else's success is NOT comparison)",
+    entry: `My classmate's startup got funded today. It made me want to work harder on my own idea.`,
+    topics: ["a classmate's startup", "own idea"],
+  },
+  {
+    kind: "none",
+    heading:
+      "EXAMPLE 5 (no patterns - admiration of someone else's work is NOT comparison)",
+    entry: `My classmate's startup got funded today. Honestly, I'm just impressed by how much she's built.`,
+    topics: ["a classmate's startup"],
+  },
+  {
+    kind: "none",
+    heading:
+      "EXAMPLE 6 (no patterns - explicit rejection of comparing is NOT comparison)",
+    entry: `It made me think about my own year for a while, but I wasn't really comparing myself to her.`,
+    topics: ["reflection on the year"],
+  },
+  {
+    kind: "multi",
+    heading:
+      "EXAMPLE 7 (self_criticism only - 'other people do it easier' without stating your own standing is NOT comparison)",
+    entry: `I missed the deadline today. Other people manage to get their work done without making everything so difficult. I should have been more disciplined.`,
+    topics: ["a missed deadline"],
+    patterns: [
+      {
+        name: "self_criticism",
+        confidence: 0.9,
+        evidence: ["I should have been more disciplined"],
+      },
+    ],
+  },
+  {
+    kind: "multi",
+    heading:
+      "EXAMPLE 8 (fear_of_judgment + catastrophizing - repeated phone-checking for reassurance is NOT avoidance)",
+    entry: `I sent a message yesterday and they still haven't replied. I keep checking my phone anyway. Maybe I said too much. Maybe they were annoyed with me. I keep telling myself not to check, and then two minutes later I'm looking at the screen again.`,
+    topics: ["a message", "waiting for a reply"],
+    patterns: [
+      {
+        name: "catastrophizing",
+        confidence: 0.88,
+        evidence: ["Maybe they were annoyed with me"],
+      },
+      {
+        name: "fear_of_judgment",
+        confidence: 0.86,
+        evidence: ["Maybe I said too much"],
+      },
+    ],
+  },
+  {
+    kind: "multi",
+    heading:
+      "EXAMPLE 9 (people_pleasing + avoidance - not calling back to decline because of imagined judgment IS avoidance; that is not the same as phone-checking for reassurance)",
+    entry: `My cousin asked me to help this weekend and I immediately said yes. Afterward I considered calling back and saying I couldn't do it, but then I imagined them thinking I was selfish. So I kept the commitment and rearranged my Saturday.`,
+    topics: ["a weekend ask", "saying yes"],
+    patterns: [
+      {
+        name: "people_pleasing",
+        confidence: 0.94,
+        evidence: [
+          "My cousin asked me to help this weekend and I immediately said yes",
+        ],
+      },
+      {
+        name: "avoidance",
+        confidence: 0.86,
+        evidence: [
+          "I considered calling back and saying I couldn't do it, but then I imagined them thinking I was selfish",
+        ],
+      },
+    ],
+  },
 ];
 
 /** Human-facing labels (derived). */
@@ -384,3 +470,13 @@ export const MAX_EVIDENCE_PER_PATTERN = 2;
 
 /** A pattern must appear in at least this many distinct entries to surface. */
 export const SURFACE_MIN_ENTRIES = 3;
+
+/**
+ * Cross-entry recurrence gates (Phase 3 aggregation only).
+ * Entry-level extraction may keep weaker tags; these votes do not count
+ * toward surfacing a recurring pattern.
+ */
+/** Min confidence for an entry tag to count as a recurrence vote. */
+export const SURFACE_VOTE_MIN_CONFIDENCE = 0.75;
+/** Min entries where the pattern was a primary (top-confidence) reading. */
+export const SURFACE_MIN_PRIMARY_ENTRIES = 2;

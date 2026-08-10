@@ -133,5 +133,185 @@ console.log("sentence splitter basics");
   );
 }
 
+console.log("Entry 5 regression: merged non-contiguous evidence must not drop pattern");
+{
+  // Exact Entry 5 body (newline-separated sentences) + exact raw LLM evidence
+  // that previously failed with no_verbatim_evidence.
+  const source = [
+    "The recruiter hasn't replied to my email yet.",
+    "It's only been one day, but my brain has already decided something went wrong.",
+    "Maybe they hated the portfolio.",
+    "Maybe they found someone better.",
+    "Maybe I completely misunderstood the interview.",
+    "If this opportunity disappears, I'll probably be stuck doing work I don't like for another year.",
+    "Then I'll fall behind everyone else and won't be able to get the kind of job I actually want.",
+    "I know this is an enormous chain of assumptions from one unanswered email.",
+    "Still, once I start imagining how badly it could go, it's difficult to stop.",
+  ].join("\n");
+
+  const raw = {
+    topics: ["job opportunity", "recruiter response"],
+    patterns: [
+      {
+        name: "catastrophizing",
+        confidence: 0.95,
+        evidence: [
+          "Maybe they hated the portfolio. Maybe they found someone better.",
+          "If this opportunity disappears, I'll probably be stuck doing work I don't like for another year. Then I'll fall behind everyone else",
+        ],
+      },
+      {
+        name: "comparison",
+        confidence: 0.78,
+        evidence: [
+          "Then I'll fall behind everyone else and won't be able to get the kind of job I actually want",
+        ],
+      },
+    ],
+  };
+
+  const payload = validateExtraction(raw, source);
+  const names = payload?.patterns.map((p) => p.name) ?? [];
+
+  assert("validateExtraction returns a payload", payload !== null);
+  assert(
+    "catastrophizing is NOT discarded",
+    names.includes("catastrophizing"),
+    `patterns=${JSON.stringify(names)}`,
+  );
+  assert(
+    "comparison still accepted",
+    names.includes("comparison"),
+    `patterns=${JSON.stringify(names)}`,
+  );
+
+  const cat = payload?.patterns.find((p) => p.name === "catastrophizing");
+  assert(
+    "catastrophizing keeps confidence 0.95",
+    cat?.confidence === 0.95,
+    `got ${cat?.confidence}`,
+  );
+  assert(
+    "catastrophizing has grounded evidence",
+    (cat?.evidence.length ?? 0) >= 1,
+    `evidence=${JSON.stringify(cat?.evidence)}`,
+  );
+  assert(
+    "every catastrophizing quote is a contiguous source substring (case-insensitive)",
+    (cat?.evidence ?? []).every((q) =>
+      source.toLowerCase().includes(q.toLowerCase()),
+    ),
+    `evidence=${JSON.stringify(cat?.evidence)}`,
+  );
+}
+
+console.log("contiguous valid evidence still accepted");
+{
+  const source =
+    "Maybe they hated the portfolio.\nMaybe they found someone better.";
+  const payload = validateExtraction(
+    {
+      topics: [],
+      patterns: [
+        {
+          name: "catastrophizing",
+          confidence: 0.9,
+          evidence: ["Maybe they hated the portfolio."],
+        },
+      ],
+    },
+    source,
+  );
+  assert(
+    "single contiguous sentence accepted",
+    payload?.patterns[0]?.name === "catastrophizing" &&
+      (payload?.patterns[0]?.evidence.length ?? 0) === 1,
+  );
+}
+
+console.log("fabricated evidence rejected");
+{
+  const source =
+    "Maybe they hated the portfolio.\nMaybe they found someone better.";
+  const payload = validateExtraction(
+    {
+      topics: [],
+      patterns: [
+        {
+          name: "catastrophizing",
+          confidence: 0.95,
+          evidence: [
+            "The universe will collapse and everyone will know I failed forever.",
+          ],
+        },
+      ],
+    },
+    source,
+  );
+  assert(
+    "fully fabricated evidence drops the pattern",
+    (payload?.patterns.length ?? 0) === 0,
+    `patterns=${JSON.stringify(payload?.patterns)}`,
+  );
+}
+
+console.log("paraphrased evidence rejected");
+{
+  const source =
+    "Maybe they hated the portfolio.\nMaybe they found someone better.";
+  const payload = validateExtraction(
+    {
+      topics: [],
+      patterns: [
+        {
+          name: "catastrophizing",
+          confidence: 0.95,
+          evidence: [
+            "Perhaps they disliked my portfolio and chose a stronger candidate.",
+          ],
+        },
+      ],
+    },
+    source,
+  );
+  assert(
+    "paraphrase (not present verbatim) drops the pattern",
+    (payload?.patterns.length ?? 0) === 0,
+    `patterns=${JSON.stringify(payload?.patterns)}`,
+  );
+}
+
+console.log("mixed merged evidence keeps only verbatim pieces");
+{
+  const source =
+    "Maybe they hated the portfolio.\nMaybe they found someone better.";
+  const payload = validateExtraction(
+    {
+      topics: [],
+      patterns: [
+        {
+          name: "catastrophizing",
+          confidence: 0.9,
+          evidence: [
+            "Maybe they hated the portfolio. Aliens will erase my career forever.",
+          ],
+        },
+      ],
+    },
+    source,
+  );
+  const evidence = payload?.patterns[0]?.evidence ?? [];
+  assert("pattern survives via the real piece", evidence.length >= 1);
+  assert(
+    "fabricated half is not kept",
+    evidence.every((q) => !/aliens/i.test(q)),
+    `evidence=${JSON.stringify(evidence)}`,
+  );
+  assert(
+    "kept quote is grounded",
+    evidence.every((q) => source.toLowerCase().includes(q.toLowerCase())),
+  );
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed > 0 ? 1 : 0);
