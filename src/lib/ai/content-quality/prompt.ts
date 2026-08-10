@@ -3,6 +3,8 @@
  * Bias: when uncertain, err toward flagged=false (under-flag). Incorrectly skipping
  * a real reflective entry is worse than letting a borderline entry through.
  */
+import "server-only";
+
 export function buildContentQualityPrompt(entryText: string): string {
   return `You are a content-quality classifier for a private journaling app. Your ONLY job is to decide whether ONE journal entry has enough genuine, self-referential reflective substance to be worth sending to a later pattern-analysis step.
 

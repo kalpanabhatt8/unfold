@@ -13,6 +13,8 @@
  *   vary across patterns - never default to a fixed 3-beat / "When…" template.
  */
 
+import "server-only";
+
 import type { SlotGenerationInput } from "@/lib/ai/pattern-slots/input";
 import {
   SLOT_MAX_LINE_WORDS,

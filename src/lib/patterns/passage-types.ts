@@ -9,7 +9,7 @@
 import type { QuoteRef } from "@/lib/patterns/evidence-signals";
 import type { EndingKind, Lifecycle } from "@/lib/patterns/pattern-state";
 import type { DepthTier } from "@/lib/patterns/planner";
-import type { PatternName } from "@/lib/patterns/vocabulary";
+import type { PatternName } from "@/lib/patterns/vocabulary-public";
 
 export type PassageSlot =
   | { kind: "moments"; quotes: QuoteRef[] }

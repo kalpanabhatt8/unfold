@@ -29,7 +29,7 @@ import {
   type PatternState,
 } from "@/lib/patterns/pattern-state";
 import type { PatternEvidenceItem } from "@/lib/patterns/types";
-import type { PatternName } from "@/lib/patterns/vocabulary";
+import type { PatternName } from "@/lib/patterns/vocabulary-public";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 

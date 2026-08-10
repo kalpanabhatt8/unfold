@@ -6,13 +6,16 @@
  * validateExtraction's product behavior.
  */
 
+import "server-only";
+
 import { EXTRACTION_MODEL } from "@/lib/ai/pattern-extraction/constants";
+import type {
+  ExtractionDebugTrace,
+  PatternDecisionDebug,
+} from "@/lib/ai/pattern-extraction/debug-types";
 import { collectNormalizedEvidence } from "@/lib/ai/pattern-extraction/validation";
-import {
-  reconcilePatterns,
-  type ArbitrationAction,
-} from "@/lib/patterns/arbitration";
-import type { AnalysisPayload, PatternMatch } from "@/lib/patterns/types";
+import { reconcilePatterns } from "@/lib/patterns/arbitration";
+import type { PatternMatch } from "@/lib/patterns/types";
 import {
   isPatternName,
   MAX_PATTERNS_PER_ENTRY,
@@ -20,45 +23,13 @@ import {
   PATTERN_CONFIDENCE_FLOOR,
 } from "@/lib/patterns/vocabulary";
 
+export type {
+  ExtractionDebugTrace,
+  PatternDecisionDebug,
+} from "@/lib/ai/pattern-extraction/debug-types";
+
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === "object" && v !== null;
-
-export type PatternDecisionDebug = {
-  name: unknown;
-  confidence: unknown;
-  evidence: unknown;
-  validation: {
-    accepted: boolean;
-    rejectionReason: string | null;
-    normalizedEvidence?: string[];
-  };
-};
-
-export type ExtractionDebugTrace = {
-  model: string;
-  rawLLM: {
-    available: true;
-    response: string;
-  };
-  parsedExtraction: {
-    available: boolean;
-    topics?: unknown;
-    patterns?: unknown;
-    parseError?: string;
-  };
-  validation: {
-    accepted: PatternMatch[];
-    rejected: PatternDecisionDebug[];
-    reasons: string[];
-  };
-  arbitration: {
-    before: PatternMatch[];
-    after: PatternMatch[];
-    changes: ArbitrationAction[];
-  };
-  /** Same shape validateExtraction would return (pre-persist). */
-  validatedPayload: AnalysisPayload | null;
-};
 
 /**
  * Walk parsed extraction the same way validateExtraction does, but keep

@@ -19,7 +19,7 @@ import {
   type RecurrenceVote,
 } from "@/lib/patterns/recurrence";
 import { deriveTimeHint } from "@/lib/patterns/time-hint";
-import type { PatternName } from "@/lib/patterns/vocabulary";
+import type { PatternName } from "@/lib/patterns/vocabulary-public";
 import type {
   EntryAnalysis,
   PatternEvidenceItem,

@@ -1,3 +1,5 @@
+import "server-only";
+
 import { EXTRACTION_MAX_EVIDENCE_CHARS } from "@/lib/ai/pattern-extraction/constants";
 import { reconcilePatterns } from "@/lib/patterns/arbitration";
 import {

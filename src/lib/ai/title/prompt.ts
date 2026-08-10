@@ -1,3 +1,5 @@
+import "server-only";
+
 import {
   MAX_TITLE_CHARS,
   MAX_TITLE_WORDS,

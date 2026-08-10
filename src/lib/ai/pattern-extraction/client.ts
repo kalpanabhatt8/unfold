@@ -1,5 +1,5 @@
 import { EXTRACTION_CLIENT_TIMEOUT_MS } from "@/lib/ai/pattern-extraction/constants";
-import type { ExtractionDebugTrace } from "@/lib/ai/pattern-extraction/debug-trace";
+import type { ExtractionDebugTrace } from "@/lib/ai/pattern-extraction/debug-types";
 import type { AnalysisPayload, EntryAnalysisResult } from "@/lib/patterns/types";
 
 export type EntryAnalysisFetchResult = {

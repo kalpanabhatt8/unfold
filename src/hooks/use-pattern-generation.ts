@@ -23,7 +23,7 @@ import {
 } from "@/lib/patterns/passage-store";
 import { reconcileAllPassages } from "@/lib/patterns/passage-orchestrator";
 import { passageNeedsGeneration } from "@/lib/patterns/passage-types";
-import type { PatternName } from "@/lib/patterns/vocabulary";
+import type { PatternName } from "@/lib/patterns/vocabulary-public";
 
 /**
  * Outer shell backoff after a failed voice attempt.

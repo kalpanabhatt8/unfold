@@ -13,7 +13,7 @@ import {
 } from "@/lib/patterns/passage-types";
 import type { PatternPassage } from "@/lib/patterns/passage-types";
 import type { PatternsAggregate, SurfacedPattern } from "@/lib/patterns/types";
-import type { PatternName } from "@/lib/patterns/vocabulary";
+import type { PatternName } from "@/lib/patterns/vocabulary-public";
 
 export type PatternWithPassage = SurfacedPattern & {
   passage: PatternPassage | null;

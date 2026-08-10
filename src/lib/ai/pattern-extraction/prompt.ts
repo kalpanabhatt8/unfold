@@ -1,3 +1,5 @@
+import "server-only";
+
 import { renderArbitrationPromptBlock } from "@/lib/patterns/arbitration";
 import {
   EXTRACTION_SHARED_EXAMPLES,

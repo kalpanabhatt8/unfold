@@ -22,7 +22,7 @@ import {
   PATTERN_LABELS,
   PATTERN_NAMES,
   type PatternName,
-} from "@/lib/patterns/vocabulary";
+} from "@/lib/patterns/vocabulary-public";
 
 /** Default entry-overlap gate - tune in dev via window.__UNFOLD_OVERLAP_THRESHOLD__. */
 export const OVERLAP_SUPPRESSION_THRESHOLD = 0.5;

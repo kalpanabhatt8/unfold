@@ -17,8 +17,13 @@
  * self_doubt) is intentionally deferred until data justifies it.
  */
 
+import "server-only";
+
+import type { ArbitrationAction } from "@/lib/patterns/arbitration-types";
 import type { PatternMatch } from "@/lib/patterns/types";
-import type { PatternName } from "@/lib/patterns/vocabulary";
+import type { PatternName } from "@/lib/patterns/vocabulary-public";
+
+export type { ArbitrationAction } from "@/lib/patterns/arbitration-types";
 
 /**
  * An explicit escalation to a worse EXTERNAL / FUTURE outcome - the thing that
@@ -101,10 +106,6 @@ export const ARBITRATION_RULES: ArbitrationRule[] = [
       "Tag perfectionism over fear_of_judgment ONLY when the driver is FINISHED work getting rechecked, redone, or never shipped for its own quality. If the rechecking is driven by how it will land with others, that's fear_of_judgment.",
   },
 ];
-
-export type ArbitrationAction =
-  | { ruleId: string; kind: "drop"; dropped: PatternName; winner: PatternName }
-  | { ruleId: string; kind: "demote"; loser: PatternName; winner: PatternName };
 
 /**
  * Apply the rule table to one entry's patterns. Returns the re-ranked list plus

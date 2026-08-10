@@ -25,8 +25,7 @@ export {
 
 export { fallbackTitle as fallbackSealTitle };
 export { hasMeaningfulContentForTitle } from "@/lib/ai/title/fallback";
-export { generateTitle as generateJournalTitle } from "@/lib/ai/title/generate";
-
+// Never re-export generate.ts — it pulls the title prompt into the client bundle.
 function resolveTitleFromApi(
   rawModelOutput: string | null | undefined,
   sourceText: string,

@@ -15,7 +15,7 @@ import {
 } from "@/lib/patterns/planner";
 import type { EndingKind } from "@/lib/patterns/pattern-state";
 import type { PatternEvidenceItem } from "@/lib/patterns/types";
-import type { PatternName } from "@/lib/patterns/vocabulary";
+import type { PatternName } from "@/lib/patterns/vocabulary-public";
 
 const DAY = 86_400_000;
 const now = Date.now();

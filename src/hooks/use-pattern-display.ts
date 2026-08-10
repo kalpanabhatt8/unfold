@@ -5,7 +5,7 @@ import { fetchPatternDisplay } from "@/lib/ai/pattern-display/client";
 import { buildEvidenceKey } from "@/lib/patterns/evidence-signals";
 import { getCachedDisplay } from "@/lib/patterns/pattern-display-store";
 import type { PatternsAggregate, SurfacedPattern } from "@/lib/patterns/types";
-import type { PatternName } from "@/lib/patterns/vocabulary";
+import type { PatternName } from "@/lib/patterns/vocabulary-public";
 
 export type PatternWithDisplay = SurfacedPattern;
 

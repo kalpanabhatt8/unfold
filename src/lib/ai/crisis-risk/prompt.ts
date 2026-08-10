@@ -3,6 +3,8 @@
  * Bias: when uncertain, err toward flagged=true. Fiction/third-person crisis
  * language still flags (over-flagging is the safe direction here).
  */
+import "server-only";
+
 export function buildCrisisRiskPrompt(entryText: string): string {
   return `You are a safety classifier for a private journaling app. Your ONLY job is to detect indicators of suicidal ideation, self-harm, or acute crisis language in ONE journal entry.
 

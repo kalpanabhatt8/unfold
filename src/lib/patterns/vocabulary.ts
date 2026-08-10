@@ -1,38 +1,46 @@
 /**
  * Unfold - controlled vocabulary for semantic entry analysis (V1).
  *
- * Single source of truth shared by the Claude prompt (server route) and the
- * client aggregation/UI. These are MENTAL PATTERNS - the *how* of thinking -
- * kept deliberately small (10) for classification consistency. Topics (the
- * *what*) are a separate dimension.
+ * Server-side catalog: definitions, disambiguation, and worked examples for
+ * extraction prompts. Client-safe names/labels/hooks live in
+ * vocabulary-public.ts — import that module from client components so the
+ * full catalog never ships in the browser bundle.
  *
- * Each pattern is one object: definition + disambiguation + worked example(s)
- * co-located. Extraction prompt.ts only renders this catalog - do not encode
- * pattern behavioral tests in the prompt file.
+ * Do not value-import this file from client code. Use vocabulary-public.ts.
+ * (No `server-only` marker — scripts/check-pattern-vocab must import it.)
  *
  * Run `npm run check:pattern-vocab` after edits.
  */
 
-/** The 10 V1 mental patterns. `need_for_control` + `guilt` are deferred to V2. */
-export const PATTERN_NAMES = [
-  "comparison",
-  "self_doubt",
-  "overthinking",
-  "perfectionism",
-  "avoidance",
-  "catastrophizing",
-  "people_pleasing",
-  "fear_of_judgment",
-  "self_criticism",
-  "all_or_nothing",
-] as const;
+import {
+  MAX_EVIDENCE_PER_PATTERN,
+  MAX_PATTERNS_PER_ENTRY,
+  MAX_TOPICS_PER_ENTRY,
+  PATTERN_CONFIDENCE_FLOOR,
+  PATTERN_FALLBACK_HOOKS,
+  PATTERN_LABELS,
+  PATTERN_NAMES,
+  SURFACE_MIN_ENTRIES,
+  SURFACE_MIN_PRIMARY_ENTRIES,
+  SURFACE_VOTE_MIN_CONFIDENCE,
+  isPatternName,
+  type PatternName,
+} from "@/lib/patterns/vocabulary-public";
 
-export type PatternName = (typeof PATTERN_NAMES)[number];
-
-const PATTERN_NAME_SET: ReadonlySet<string> = new Set(PATTERN_NAMES);
-
-export const isPatternName = (value: unknown): value is PatternName =>
-  typeof value === "string" && PATTERN_NAME_SET.has(value);
+export {
+  MAX_EVIDENCE_PER_PATTERN,
+  MAX_PATTERNS_PER_ENTRY,
+  MAX_TOPICS_PER_ENTRY,
+  PATTERN_CONFIDENCE_FLOOR,
+  PATTERN_FALLBACK_HOOKS,
+  PATTERN_LABELS,
+  PATTERN_NAMES,
+  SURFACE_MIN_ENTRIES,
+  SURFACE_MIN_PRIMARY_ENTRIES,
+  SURFACE_VOTE_MIN_CONFIDENCE,
+  isPatternName,
+  type PatternName,
+};
 
 /** Worked example for the extraction prompt (evidence must appear in entry). */
 export type PatternExample = {
@@ -106,8 +114,8 @@ export const EXTRACTION_SOLO_EXAMPLE_ORDER: PatternName[] = [
 export const PATTERN_CATALOG: Record<PatternName, PatternSpec> = {
   comparison: {
     name: "comparison",
-    label: "Comparison",
-    fallbackHook: "Already Behind?",
+    label: PATTERN_LABELS.comparison,
+    fallbackHook: PATTERN_FALLBACK_HOOKS.comparison,
     definition:
       "explicitly placing their own standing relative to another person or peer group - making visible where they are (or feel they are) against someone else's progress, status, ability, or outcome.",
     disambiguation:
@@ -129,8 +137,8 @@ export const PATTERN_CATALOG: Record<PatternName, PatternSpec> = {
 
   self_doubt: {
     name: "self_doubt",
-    label: "Self-doubt",
-    fallbackHook: "Not Ready Yet?",
+    label: PATTERN_LABELS.self_doubt,
+    fallbackHook: PATTERN_FALLBACK_HOOKS.self_doubt,
     // Content fix: narrowed - ability/competence only; "worth" belongs with self_criticism.
     definition:
       "questioning their own ability or competence - uncertainty (\"can I?\").",
@@ -152,8 +160,8 @@ export const PATTERN_CATALOG: Record<PatternName, PatternSpec> = {
 
   overthinking: {
     name: "overthinking",
-    label: "Overthinking",
-    fallbackHook: "Still Not Settled.",
+    label: PATTERN_LABELS.overthinking,
+    fallbackHook: PATTERN_FALLBACK_HOOKS.overthinking,
     definition:
       "looping on the same thought or decision without resolution, or replaying the past - only when a more specific pattern (catastrophizing, perfectionism, comparison, fear_of_judgment, avoidance, etc.) does not fit.",
     disambiguation:
@@ -174,8 +182,8 @@ export const PATTERN_CATALOG: Record<PatternName, PatternSpec> = {
 
   perfectionism: {
     name: "perfectionism",
-    label: "Perfectionism",
-    fallbackHook: "Almost Finished.",
+    label: PATTERN_LABELS.perfectionism,
+    fallbackHook: PATTERN_FALLBACK_HOOKS.perfectionism,
     definition:
       "holding standards so high that finished work still gets rechecked, redone, or never shipped.",
     disambiguation:
@@ -197,8 +205,8 @@ export const PATTERN_CATALOG: Record<PatternName, PatternSpec> = {
 
   avoidance: {
     name: "avoidance",
-    label: "Avoidance",
-    fallbackHook: "Left Until Tomorrow.",
+    label: PATTERN_LABELS.avoidance,
+    fallbackHook: PATTERN_FALLBACK_HOOKS.avoidance,
     definition:
       "putting off, escaping, or stalling on a specific task or action the person intends to do - not starting, not continuing, or substituting busywork for that task.",
     disambiguation:
@@ -220,8 +228,8 @@ export const PATTERN_CATALOG: Record<PatternName, PatternSpec> = {
 
   catastrophizing: {
     name: "catastrophizing",
-    label: "Catastrophizing",
-    fallbackHook: "What If Worst?",
+    label: PATTERN_LABELS.catastrophizing,
+    fallbackHook: PATTERN_FALLBACK_HOOKS.catastrophizing,
     definition: "jumping to or escalating toward the worst-case outcome.",
     disambiguation:
       'catastrophizing escalates to a worst-case outcome ("they\'re unhappy", "it\'ll blow up").',
@@ -243,8 +251,8 @@ export const PATTERN_CATALOG: Record<PatternName, PatternSpec> = {
 
   people_pleasing: {
     name: "people_pleasing",
-    label: "People-pleasing",
-    fallbackHook: "Their Comfort First?",
+    label: PATTERN_LABELS.people_pleasing,
+    fallbackHook: PATTERN_FALLBACK_HOOKS.people_pleasing,
     definition:
       "prioritizing others' approval or comfort over their own needs.",
     disambiguation:
@@ -268,8 +276,8 @@ export const PATTERN_CATALOG: Record<PatternName, PatternSpec> = {
 
   fear_of_judgment: {
     name: "fear_of_judgment",
-    label: "Fear of judgment",
-    fallbackHook: "Who's Watching?",
+    label: PATTERN_LABELS.fear_of_judgment,
+    fallbackHook: PATTERN_FALLBACK_HOOKS.fear_of_judgment,
     definition: "worrying about how others perceive or evaluate them.",
     disambiguation:
       "fear_of_judgment worries about being evaluated - not comparison (ranking self against others).",
@@ -289,8 +297,8 @@ export const PATTERN_CATALOG: Record<PatternName, PatternSpec> = {
 
   self_criticism: {
     name: "self_criticism",
-    label: "Self-criticism",
-    fallbackHook: "My Fault Again?",
+    label: PATTERN_LABELS.self_criticism,
+    fallbackHook: PATTERN_FALLBACK_HOOKS.self_criticism,
     definition: "harsh self-talk or blaming themselves.",
     disambiguation:
       'self_criticism = harsh judgment ("I\'m terrible") - not self_doubt uncertainty ("can I?").',
@@ -307,8 +315,8 @@ export const PATTERN_CATALOG: Record<PatternName, PatternSpec> = {
 
   all_or_nothing: {
     name: "all_or_nothing",
-    label: "All-or-nothing",
-    fallbackHook: "No Middle Ground?",
+    label: PATTERN_LABELS.all_or_nothing,
+    fallbackHook: PATTERN_FALLBACK_HOOKS.all_or_nothing,
     definition: "black-and-white thinking with no middle ground.",
     disambiguation:
       "all_or_nothing = one miss or trait zeros the rest (no middle ground). Can co-occur with self_criticism; all_or_nothing is the totalizing math, self_criticism is the harsh identity label.",
@@ -449,34 +457,8 @@ export const EXTRACTION_SHARED_EXAMPLES: SharedExtractionExample[] = [
   },
 ];
 
-/** Human-facing labels (derived). */
-export const PATTERN_LABELS: Record<PatternName, string> = Object.fromEntries(
-  PATTERN_NAMES.map((name) => [name, PATTERN_CATALOG[name].label]),
-) as Record<PatternName, string>;
-
-/** Definitions injected into prompts / APIs (derived). */
+/** Definitions injected into prompts / APIs (derived from server catalog only). */
 export const PATTERN_DEFINITIONS: Record<PatternName, string> =
   Object.fromEntries(
     PATTERN_NAMES.map((name) => [name, PATTERN_CATALOG[name].definition]),
   ) as Record<PatternName, string>;
-
-/** Minimum confidence for a pattern to be emitted/kept. */
-export const PATTERN_CONFIDENCE_FLOOR = 0.5;
-
-/** Max patterns / topics / evidence quotes per entry. */
-export const MAX_PATTERNS_PER_ENTRY = 3;
-export const MAX_TOPICS_PER_ENTRY = 2;
-export const MAX_EVIDENCE_PER_PATTERN = 2;
-
-/** A pattern must appear in at least this many distinct entries to surface. */
-export const SURFACE_MIN_ENTRIES = 3;
-
-/**
- * Cross-entry recurrence gates (Phase 3 aggregation only).
- * Entry-level extraction may keep weaker tags; these votes do not count
- * toward surfacing a recurring pattern.
- */
-/** Min confidence for an entry tag to count as a recurrence vote. */
-export const SURFACE_VOTE_MIN_CONFIDENCE = 0.75;
-/** Min entries where the pattern was a primary (top-confidence) reading. */
-export const SURFACE_MIN_PRIMARY_ENTRIES = 2;

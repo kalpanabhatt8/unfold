@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { PatternsView } from "@/components/patterns/patterns-view";
-import { isPatternName } from "@/lib/patterns/vocabulary";
+import { isPatternName } from "@/lib/patterns/vocabulary-public";
 
 type PageProps = {
   searchParams: Promise<{ p?: string }>;

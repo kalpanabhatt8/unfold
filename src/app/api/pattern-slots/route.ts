@@ -105,7 +105,7 @@ export async function POST(request: Request) {
     });
     return NextResponse.json({
       fills: result.fills,
-      rejected: result.rejected,
+      // Rejected candidates stay server-side — do not leak validator reasons.
     });
   } catch (error) {
     console.error("[pattern-slots] route error", error);

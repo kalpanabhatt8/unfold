@@ -1,3 +1,5 @@
+import "server-only";
+
 import type { DisplayInput } from "@/lib/ai/pattern-display/input";
 import {
   DISPLAY_SUMMARY_MAX_CHARS,

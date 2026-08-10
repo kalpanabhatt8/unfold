@@ -5,7 +5,7 @@ import {
   putCachedDisplay,
 } from "@/lib/patterns/pattern-display-store";
 import type { PatternDisplay } from "@/lib/patterns/types";
-import type { PatternName } from "@/lib/patterns/vocabulary";
+import type { PatternName } from "@/lib/patterns/vocabulary-public";
 
 export type PatternDisplayInput = {
   name: PatternName;

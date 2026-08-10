@@ -4,7 +4,7 @@
  */
 
 import { listAnalyses } from "@/lib/patterns/analysis-store";
-import { PATTERN_LABELS, type PatternName } from "@/lib/patterns/vocabulary";
+import { PATTERN_LABELS, type PatternName } from "@/lib/patterns/vocabulary-public";
 
 const MIN_CO_RATIO = 0.5;
 const MIN_CO_COUNT = 2;

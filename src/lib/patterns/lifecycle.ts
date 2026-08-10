@@ -27,7 +27,7 @@ import {
 } from "@/lib/patterns/lifecycle-config";
 import type { PatternEvidenceItem } from "@/lib/patterns/types";
 import type { Lifecycle, PatternState } from "@/lib/patterns/pattern-state";
-import { SURFACE_MIN_ENTRIES } from "@/lib/patterns/vocabulary";
+import { SURFACE_MIN_ENTRIES } from "@/lib/patterns/vocabulary-public";
 
 const DAY_MS = 86_400_000;
 

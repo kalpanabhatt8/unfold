@@ -4,7 +4,7 @@
  */
 
 import type { PatternPassage } from "@/lib/patterns/passage-types";
-import type { PatternName } from "@/lib/patterns/vocabulary";
+import type { PatternName } from "@/lib/patterns/vocabulary-public";
 
 const voiceGenByPattern = new Map<PatternName, Promise<PatternPassage>>();
 

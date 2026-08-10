@@ -9,7 +9,7 @@
 import { buildEvidenceKey } from "@/lib/patterns/evidence-signals";
 import { isPatternFullyReady } from "@/lib/patterns/pattern-readiness";
 import type { SurfacedPattern } from "@/lib/patterns/types";
-import { isPatternName, type PatternName } from "@/lib/patterns/vocabulary";
+import { isPatternName, type PatternName } from "@/lib/patterns/vocabulary-public";
 
 export const PATTERN_VIEWS_STORAGE_KEY = "unfold-pattern-views";
 export const PATTERN_VIEWS_UPDATED_EVENT = "unfold-pattern-views-updated";

@@ -18,7 +18,7 @@ import {
   passageNeedsGeneration,
 } from "@/lib/patterns/passage-types";
 import type { PatternsAggregate, SurfacedPattern } from "@/lib/patterns/types";
-import type { PatternName } from "@/lib/patterns/vocabulary";
+import type { PatternName } from "@/lib/patterns/vocabulary-public";
 
 export type SurfacedPatternTarget = Pick<
   SurfacedPattern,

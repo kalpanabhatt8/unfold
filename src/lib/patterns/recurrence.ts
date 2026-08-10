@@ -15,7 +15,7 @@ import {
   SURFACE_MIN_PRIMARY_ENTRIES,
   SURFACE_VOTE_MIN_CONFIDENCE,
   type PatternName,
-} from "@/lib/patterns/vocabulary";
+} from "@/lib/patterns/vocabulary-public";
 
 /** One entry's contribution while deciding whether a pattern may surface. */
 export type RecurrenceVote = {

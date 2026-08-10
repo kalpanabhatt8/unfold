@@ -6,7 +6,7 @@
  */
 
 import type { PatternDisplay } from "@/lib/patterns/types";
-import type { PatternName } from "@/lib/patterns/vocabulary";
+import type { PatternName } from "@/lib/patterns/vocabulary-public";
 import { markPatternsDirty } from "@/lib/sync/local-flags";
 
 export const PATTERN_DISPLAY_STORAGE_KEY = "unfold-pattern-display";

@@ -3,8 +3,8 @@
  * Synced via PatternsSnapshot like displays / states.
  */
 
-import type { PatternName } from "@/lib/patterns/vocabulary";
-import { isPatternName } from "@/lib/patterns/vocabulary";
+import type { PatternName } from "@/lib/patterns/vocabulary-public";
+import { isPatternName } from "@/lib/patterns/vocabulary-public";
 import { markPatternsDirty } from "@/lib/sync/local-flags";
 
 export const PATTERN_VOTES_STORAGE_KEY = "unfold-pattern-votes";

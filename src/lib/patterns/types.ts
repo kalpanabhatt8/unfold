@@ -2,7 +2,7 @@
  * Unfold - entry analysis + aggregation types (V1, minimal).
  */
 
-import type { PatternName } from "@/lib/patterns/vocabulary";
+import type { PatternName } from "@/lib/patterns/vocabulary-public";
 
 /** A single detected pattern within one entry. */
 export type PatternMatch = {

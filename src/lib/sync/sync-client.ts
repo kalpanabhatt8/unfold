@@ -36,7 +36,7 @@ import {
   listVotes,
   putVoteQuiet,
 } from "@/lib/patterns/pattern-vote-store";
-import { isPatternName } from "@/lib/patterns/vocabulary";
+import { isPatternName } from "@/lib/patterns/vocabulary-public";
 import {
   clearPatternsDirty,
   FLUSH_LOCAL_WRITES_EVENT,
@@ -272,12 +272,12 @@ const pullAndApplyPatterns = async (): Promise<void> => {
   let cursor: string | null = null;
   // Page analyses until caught up - meta tables arrive on page 1 only.
   for (let page = 0; page < 50; page++) {
-    const url = cursor
+    const url: string = cursor
       ? `/api/sync/patterns?cursor=${encodeURIComponent(cursor)}`
       : "/api/sync/patterns";
     const result = await fetchJson<PatternsPullResponse>(url);
     if (!result.ok) return;
-    const payload = result.data;
+    const payload: PatternsPullResponse = result.data;
     applyServerPatterns(payload);
     if (!payload.hasMore) return;
     cursor = payload.cursor ?? null;

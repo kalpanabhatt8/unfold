@@ -18,7 +18,7 @@
  * server-backed repository later without changing callers.
  */
 
-import { isPatternName, type PatternName } from "@/lib/patterns/vocabulary";
+import { isPatternName, type PatternName } from "@/lib/patterns/vocabulary-public";
 import { markPatternsDirty } from "@/lib/sync/local-flags";
 
 export const PATTERN_STATE_STORAGE_KEY = "unfold-pattern-state";

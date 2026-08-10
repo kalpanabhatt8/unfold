@@ -3,6 +3,8 @@
  * Each AI feature owns its model params and orchestration.
  */
 
+import "server-only";
+
 export type ClaudeCallResult =
   | { ok: true; text: string }
   | { ok: false; status: number; error: string };
