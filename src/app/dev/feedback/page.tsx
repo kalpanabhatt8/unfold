@@ -1,6 +1,6 @@
 /**
  * Dev inbox - product feedback + pattern closing votes.
- * Open at /dev/feedback (local development only).
+ * Open at /dev/feedback. Gated by app/dev/layout (auth + allowlist + hard prod deny).
  */
 
 import { clerkClient } from "@clerk/nextjs/server";
@@ -9,7 +9,7 @@ import {
   isPatternClosingFeedback,
   parsePatternClosingFeedback,
 } from "@/lib/feedback-pattern-closing";
-import { PATTERN_LABELS, type PatternName } from "@/lib/patterns/vocabulary";
+import { PATTERN_LABELS, type PatternName } from "@/lib/patterns/vocabulary-public";
 import { resolvePreferredName } from "@/lib/user-display";
 import { FeedbackDevView } from "./feedback-dev-view";
 import type { FeedbackInboxItem } from "./feedback-inbox";
@@ -52,22 +52,7 @@ const resolveUserProfiles = async (
 };
 
 export default async function FeedbackDevPage() {
-  if (process.env.NODE_ENV !== "development") {
-    return (
-      <main
-        className="min-h-svh w-full px-6 py-12"
-        style={{
-          backgroundColor: "var(--surface-canvas)",
-          fontFamily: "var(--font-body)",
-        }}
-      >
-        <p className="text-sm text-(--sidebar-ink-soft)">
-          Feedback inbox is only available in local development.
-        </p>
-      </main>
-    );
-  }
-
+  // Access: middleware (signed in) + app/dev/layout (allowlist + hard prod deny).
   const [feedback, votes] = await Promise.all([
     db.feedback.findMany({
       orderBy: { createdAt: "desc" },

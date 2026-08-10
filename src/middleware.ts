@@ -14,7 +14,7 @@ const isPublicRoute = createRouteMatcher([
   '/terms(.*)',
   '/terms-and-conditions(.*)',
   '/privacy(.*)',
-  '/dev(.*)',
+  // /dev/* requires auth + internal-debug allowlist (see app/dev/layout.tsx)
 ])
 
 const isApiRoute = createRouteMatcher(['/api(.*)', '/trpc(.*)'])
