@@ -8,9 +8,9 @@
  * Ordering: crisis check → content-quality check → pattern extraction.
  * Either gate skip extraction entirely when flagged.
  *
- * V1 idempotency = existence: one analysis per entryId, ever. (When a
- * pre-final trigger is introduced later, add a content hash here so edited
- * drafts re-analyze.)
+ * Idempotency = current provenance: skip when an analysis already exists for
+ * this entry with matching content hash AND current extraction promptVersion.
+ * Content edits or prompt/catalog bumps re-analyze.
  *
  * Attempt durability: `analysis-attempt-store` records startedAt before any
  * await. Retries require outcome "fail" (fast path) or startedAt older than
@@ -20,8 +20,7 @@
 import { fetchCrisisRisk } from "@/lib/ai/crisis-risk/client";
 import { fetchContentQuality } from "@/lib/ai/content-quality/client";
 import { shouldSkipPatternExtractionForQuality } from "@/lib/ai/content-quality/constants";
-import { fetchEntryAnalysis } from "@/lib/ai/pattern-extraction/client";
-import { contentHash } from "@/lib/content-hash";
+import { fetchEntryAnalysisDetailed } from "@/lib/ai/pattern-extraction/client";
 import {
   readEntryById,
   readAllEntries,
@@ -35,7 +34,12 @@ import {
   markAnalysisAttemptOk,
   markAnalysisAttemptStarted,
 } from "@/lib/patterns/analysis-attempt-store";
-import { hasAnalysis, putAnalysis } from "@/lib/patterns/analysis-store";
+import {
+  extractionProvenance,
+  isAnalysisCurrent,
+} from "@/lib/patterns/analysis-freshness";
+import { getAnalysis, putAnalysis } from "@/lib/patterns/analysis-store";
+import { putPipelineDebug } from "@/lib/patterns/pattern-pipeline-debug-store";
 import { countWords, readEntryText } from "@/lib/patterns/entry-text";
 import type { CompletionSource } from "@/lib/patterns/types";
 
@@ -120,7 +124,7 @@ export async function notifyEntryCompleted(
   entryId: string,
   source: CompletionSource,
 ): Promise<void> {
-  if (!entryId || hasAnalysis(entryId) || inflight.has(entryId)) return;
+  if (!entryId || inflight.has(entryId)) return;
 
   const entry = readEntryById(entryId);
   if (entry?.crisisFlagged === true) return;
@@ -128,6 +132,9 @@ export async function notifyEntryCompleted(
 
   const text = readEntryText(entryId);
   if (!text.trim()) return;
+
+  const existing = getAnalysis(entryId);
+  if (existing && isAnalysisCurrent(existing, text)) return;
 
   // Durable gate - deny while a recent attempt has no fail outcome (in flight
   // or abandoned < ATTEMPT_STALE_MS). Survives reload / other tabs.
@@ -211,14 +218,35 @@ export async function notifyEntryCompleted(
       });
     }
 
-    const payload = await fetchEntryAnalysis(text);
+    // TEMPORARY — capture raw LLM + validation/arbitration in localStorage for
+    // /dashboard/pattern-debug. Product analysis payload is unchanged.
+    const captureDebug = process.env.NODE_ENV === "development";
+    const detailed = await fetchEntryAnalysisDetailed(text, {
+      debug: captureDebug,
+    });
+    const payload = detailed.analysis;
+    if (captureDebug && detailed.debug) {
+      putPipelineDebug({
+        entryId,
+        capturedAt: Date.now(),
+        source: "live_extraction",
+        extraction: detailed.debug,
+        requestFinalAnalysis: payload
+          ? {
+              topics: payload.topics,
+              patterns: payload.patterns,
+            }
+          : null,
+        failureReason: detailed.failureReason,
+      });
+    }
     if (!payload) {
       // Optional fast-path - reconciler may retry before stale timeout.
       markAnalysisAttemptFailed(entryId);
       return;
     }
 
-    putAnalysis({ entryId, sourceContentHash: contentHash(text), ...payload });
+    putAnalysis({ entryId, ...extractionProvenance(text), ...payload });
     markAnalysisAttemptOk(entryId);
   } catch (error) {
     console.error("Entry completion analysis failed", error);
@@ -229,18 +257,25 @@ export async function notifyEntryCompleted(
 }
 
 /**
- * Self-healing backfill: analyze completed entries missing analysis - explicitly
- * sealed, or implicitly sealed (24h idle + 50+ words). Rate-limited and
- * sequential to keep token cost predictable.
+ * Self-healing backfill: analyze completed entries that are missing analysis
+ * or whose analysis is stale (promptVersion / content hash). Explicitly sealed,
+ * or implicitly sealed (24h idle + 50+ words). Rate-limited and sequential.
  *
  * Skips crisis- and quality-flagged entries so they never enter pattern extraction.
  */
 export async function reconcileAnalyses(): Promise<void> {
+  const needsExtraction = (entry: JournalEntry): boolean => {
+    const text = readEntryText(entry.id);
+    if (!text.trim()) return false;
+    const existing = getAnalysis(entry.id);
+    return !existing || !isAnalysisCurrent(existing, text);
+  };
+
   const pending = readAllEntries()
     .filter((entry) => entry.crisisFlagged !== true)
     .filter((entry) => entry.qualityFlagged !== true)
     .filter((entry) => isAnalysisEligible(entry))
-    .filter((entry) => !hasAnalysis(entry.id))
+    .filter(needsExtraction)
     .filter((entry) => isAnalysisAttemptAllowed(entry.id))
     .sort((a, b) => {
       const aExplicit = isExplicitlySealed(a) ? 0 : 1;

@@ -25,9 +25,12 @@ export async function POST(request: Request) {
   }
 
   let text = "";
+  let wantDebug = false;
   try {
-    const body = (await request.json()) as { text?: unknown };
+    const body = (await request.json()) as { text?: unknown; debug?: unknown };
     text = typeof body.text === "string" ? body.text.trim() : "";
+    // TEMPORARY — debug tool only; product clients omit this flag.
+    wantDebug = body.debug === true;
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
@@ -45,7 +48,13 @@ export async function POST(request: Request) {
 
   try {
     const result = await extractPatterns(apiKey, text);
-    return NextResponse.json<EntryAnalysisResult>(result);
+    if (wantDebug) {
+      return NextResponse.json(result);
+    }
+    // Product path: strip temporary `_debug` so behavior matches pre-tool.
+    const { _debug: _ignored, ...product } = result;
+    void _ignored;
+    return NextResponse.json<EntryAnalysisResult>(product);
   } catch (error) {
     console.error("[pattern-extraction] route error", error);
     return NextResponse.json<EntryAnalysisResult>(

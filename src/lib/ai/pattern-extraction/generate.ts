@@ -4,6 +4,10 @@ import {
   EXTRACTION_MODEL,
   EXTRACTION_TEMPERATURE,
 } from "@/lib/ai/pattern-extraction/constants";
+import {
+  buildExtractionDebugTrace,
+  type ExtractionDebugTrace,
+} from "@/lib/ai/pattern-extraction/debug-trace";
 import { fallbackExtraction } from "@/lib/ai/pattern-extraction/fallback";
 import { prepareExtractionInput } from "@/lib/ai/pattern-extraction/input";
 import { parseExtractionResponse } from "@/lib/ai/pattern-extraction/parse";
@@ -11,10 +15,15 @@ import { buildExtractionPrompt } from "@/lib/ai/pattern-extraction/prompt";
 import { validateExtraction } from "@/lib/ai/pattern-extraction/validation";
 import type { EntryAnalysisResult } from "@/lib/patterns/types";
 
+/** TEMPORARY — product path ignores `_debug`; debug page / client store use it. */
+export type ExtractPatternsResult = EntryAnalysisResult & {
+  _debug?: ExtractionDebugTrace;
+};
+
 export async function extractPatterns(
   apiKey: string,
   text: string,
-): Promise<EntryAnalysisResult> {
+): Promise<ExtractPatternsResult> {
   const prepared = prepareExtractionInput(text);
 
   const result = await callAnthropicMessages(apiKey, {
@@ -34,6 +43,13 @@ export async function extractPatterns(
   }
 
   const parsed = parseExtractionResponse(result.text);
+  const _debug = buildExtractionDebugTrace({
+    rawResponse: result.text,
+    parsed,
+    sourceText: prepared,
+    model: EXTRACTION_MODEL,
+  });
+
   const payload = validateExtraction(parsed, prepared);
 
   if (!payload) {
@@ -41,8 +57,8 @@ export async function extractPatterns(
       "[pattern-extraction] invalid output",
       result.text.slice(0, 300),
     );
-    return fallbackExtraction("invalid_output");
+    return { ...fallbackExtraction("invalid_output"), _debug };
   }
 
-  return { analysis: payload };
+  return { analysis: payload, _debug };
 }
