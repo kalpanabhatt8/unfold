@@ -289,6 +289,134 @@ console.log("incident stitch rejected");
     acceptGeneric.ok && acceptGeneric.fills.length === 1,
     JSON.stringify(acceptGeneric.rejected),
   );
+
+  const traitLoop =
+    "You compare yourself to other people's progress. The measuring never quite stops.";
+  const rejectTrait = validateSlotFills(
+    [{ index: 0, text: traitLoop }],
+    [
+      {
+        index: 0,
+        kind: "line",
+        endingKind: "line",
+        role: "mechanism",
+        precedingQuotes: comparisonQuotes,
+      },
+    ],
+    comparisonQuotes,
+    PATTERN_DEFINITIONS.comparison,
+    "Comparison",
+  );
+  assert(
+    "declarative trait loop rejected",
+    rejectTrait.rejected.some(
+      (r) => r.reason === "trait_voice" || r.reason === "you_opener",
+    ),
+    JSON.stringify(rejectTrait.rejected),
+  );
+}
+
+console.log("reflection question grounding");
+{
+  const quotes = [
+    "Everyone my age is already leading teams and I'm still here.",
+    "I keep wondering why I'm so far behind.",
+  ];
+  const mech =
+    "When another person's progress shows up in the writing, attention turns toward where you are. The next thought is already about the gap.";
+  const slots = [
+    {
+      index: 0,
+      kind: "line" as const,
+      endingKind: "line" as const,
+      role: "mechanism" as const,
+      precedingQuotes: quotes,
+    },
+    {
+      index: 1,
+      kind: "close" as const,
+      endingKind: "question" as const,
+      role: "reflection" as const,
+      precedingQuotes: quotes,
+    },
+  ];
+
+  const badLabel = validateSlotFills(
+    [
+      { index: 0, text: mech },
+      {
+        index: 1,
+        text: "How does the comparison shift when you see their success?",
+      },
+    ],
+    slots,
+    quotes,
+    PATTERN_DEFINITIONS.comparison,
+    "Comparison",
+    [{ index: 0, role: "mechanism", text: mech }],
+  );
+  assert(
+    "pattern-label question rejected",
+    badLabel.rejected.some((r) => r.reason === "label_echo"),
+    JSON.stringify(badLabel.rejected),
+  );
+
+  const badUngrounded = validateSlotFills(
+    [
+      {
+        index: 1,
+        text: "Where does the pull to check show up most sharply?",
+      },
+    ],
+    [slots[1]!],
+    quotes,
+    PATTERN_DEFINITIONS.comparison,
+    "Comparison",
+    [{ index: 0, role: "mechanism", text: mech }],
+  );
+  assert(
+    "ungrounded question rejected",
+    badUngrounded.rejected.some((r) => r.reason === "not_grounded"),
+    JSON.stringify(badUngrounded.rejected),
+  );
+
+  const badEcho = validateSlotFills(
+    [
+      {
+        index: 1,
+        text: "When progress shows up in the writing, what comes next?",
+      },
+    ],
+    [slots[1]!],
+    quotes,
+    PATTERN_DEFINITIONS.comparison,
+    "Comparison",
+    [{ index: 0, role: "mechanism", text: mech }],
+  );
+  assert(
+    "mechanism-echo question rejected",
+    badEcho.rejected.some((r) => r.reason === "slot_echo"),
+    JSON.stringify(badEcho.rejected),
+  );
+
+  const goodQ = validateSlotFills(
+    [
+      {
+        index: 1,
+        text: "You wondered why you're still here. What was that bringing up?",
+      },
+    ],
+    [slots[1]!],
+    quotes,
+    PATTERN_DEFINITIONS.comparison,
+    "Comparison",
+    [{ index: 0, role: "mechanism", text: mech }],
+  );
+  assert(
+    "evidence-grounded question accepted",
+    goodQ.ok && goodQ.fills.length === 1,
+    JSON.stringify(goodQ.rejected),
+  );
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

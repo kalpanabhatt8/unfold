@@ -30,6 +30,10 @@ const TEMPLATE_MARKERS =
 const INSIGHT_MARKERS =
   /\b(this pattern|recurring pattern|what this means|what this shows)\b/i;
 
+/** Declarative trait / invented inner mechanism about the person. */
+const TRAIT_MARKERS =
+  /\b(you always|you tend to|your mind|you are someone who|you compare yourself|measuring rod)\b/i;
+
 export type SlotRejection = { index: number; text: string; reason: string };
 
 export type SlotValidationResult = {
@@ -65,6 +69,31 @@ const isGrounded = (text: string, quotes: string[]): boolean => {
         w.includes(c) ||
         (w.length >= 4 && c.length >= 4 && c.slice(0, 4) === w.slice(0, 4)),
     ),
+  );
+};
+
+/**
+ * Stricter grounding for reflection: require an exact content-word match with
+ * the evidence (length ≥ 4). The loose mechanism isGrounded allows "where"≈"here"
+ * style false positives that let ungrounded pattern-shape questions through.
+ */
+const QUESTION_GROUND_STOPWORDS = new Set([
+  "about", "after", "again", "being", "could", "does", "doing", "from",
+  "have", "into", "just", "like", "more", "most", "much", "only", "other",
+  "over", "same", "should", "show", "shows", "some", "that", "their", "then",
+  "there", "these", "they", "this", "those", "through", "very", "what",
+  "when", "where", "which", "while", "with", "would", "your", "youre",
+]);
+
+const isQuestionGrounded = (text: string, quotes: string[]): boolean => {
+  const corpus = new Set(
+    tokens(quotes.join(" ")).filter(
+      (w) => w.length >= 4 && !QUESTION_GROUND_STOPWORDS.has(w),
+    ),
+  );
+  if (corpus.size === 0) return true;
+  return tokens(text).some(
+    (w) => w.length >= 4 && !QUESTION_GROUND_STOPWORDS.has(w) && corpus.has(w),
   );
 };
 
@@ -107,7 +136,12 @@ const paraphrasesQuotes = (text: string, quotes: string[]): boolean => {
   return false;
 };
 
-const validateQuestion = (text: string): string | null => {
+const validateQuestion = (
+  text: string,
+  quotes: string[],
+  label: string,
+  otherVoice: string[],
+): string | null => {
   if (!text.endsWith("?")) return "not_question";
   if (text.length > SLOT_MAX_QUESTION_CHARS) return "too_long";
   if (hasCitationBrackets(text)) return "citation_leak";
@@ -115,6 +149,9 @@ const validateQuestion = (text: string): string | null => {
   if (ADVICE_MARKERS.test(text) || THERAPY_MARKERS.test(text)) {
     return "advice_voice";
   }
+  if (echoesLabel(text, label)) return "label_echo";
+  if (repeatsVoiceLine(text, otherVoice)) return "slot_echo";
+  if (!isQuestionGrounded(text, quotes)) return "not_grounded";
   return null;
 };
 
@@ -155,6 +192,7 @@ const validateLine = (
   if (spec.role === "mechanism") {
     if (text.endsWith("?")) return "not_statement";
     if (/^you\b/i.test(text)) return "you_opener";
+    if (TRAIT_MARKERS.test(text)) return "trait_voice";
     if (INTERPRETIVE_MARKERS.test(text)) return "interpretive_voice";
     if (soundsLikeSummary(text)) return "summary_voice";
     if (stitchesIncidents(text, allQuotes)) return "incident_stitch";
@@ -208,10 +246,12 @@ const validateOne = (
   if (!text) return "empty";
 
   if (spec.endingKind === "question" || spec.role === "reflection") {
-    const q = validateQuestion(text);
-    if (q) return q;
-    if (repeatsVoiceLine(text, otherVoice)) return "slot_echo";
-    return null;
+    return validateQuestion(
+      text,
+      [...allQuotes, ...spec.precedingQuotes],
+      label,
+      otherVoice,
+    );
   }
 
   return validateLine(text, allQuotes, spec, definition, label, otherVoice);
