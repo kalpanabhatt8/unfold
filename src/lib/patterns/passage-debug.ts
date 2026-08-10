@@ -3,9 +3,19 @@
  *
  *   __unfoldPatternDebug()          - full dump: state, cache, beats, API probe
  *   __unfoldPatternDebug("avoidance") - single pattern
+ *
+ * Silent in production (see isDebugLoggingEnabled). Loaded only from local
+ * development via dynamic import.
  */
 
 import { buildSlotGenerationInput } from "@/lib/ai/pattern-slots/input";
+import {
+  debugGroup,
+  debugGroupEnd,
+  debugLog,
+  debugWarn,
+  isDebugLoggingEnabled,
+} from "@/lib/debug-log";
 import { aggregateAnalyses } from "@/lib/patterns/aggregate";
 import {
   passageEvidenceRatio,
@@ -18,25 +28,22 @@ import { getCachedPassage } from "@/lib/patterns/passage-store";
 import { passageNeedsGeneration } from "@/lib/patterns/passage-types";
 import { getState } from "@/lib/patterns/pattern-state";
 import {
-  PATTERN_DEFINITIONS,
   PATTERN_LABELS,
   PATTERN_NAMES,
   type PatternName,
-} from "@/lib/patterns/vocabulary";
+} from "@/lib/patterns/vocabulary-public";
 
 const logPassage = (name: PatternName) => {
+  if (!isDebugLoggingEnabled()) return null;
   const passage = getCachedPassage(name);
   const state = getState(name);
   if (!passage && !state) return null;
 
   const beats = passage ? passageToBeats(passage.slots, passage.shapeId) : [];
   const ratio = passage ? passageEvidenceRatio(passage) : null;
+  // Definition is resolved server-side on the slots API — never pull catalog.
   const input = passage
-    ? buildSlotGenerationInput(
-        passage,
-        PATTERN_LABELS[passage.name],
-        PATTERN_DEFINITIONS[passage.name],
-      )
+    ? buildSlotGenerationInput(passage, PATTERN_LABELS[passage.name], "")
     : null;
 
   const summary = {
@@ -56,37 +63,39 @@ const logPassage = (name: PatternName) => {
     voiceSlots: input?.voiceSlots ?? [],
   };
 
-  console.log(name, summary);
-  if (passage) console.log(`  PatternPassage (${name})`, passage);
+  debugLog(name, summary);
+  if (passage) debugLog(`  PatternPassage (${name})`, passage);
   return { passage, state, beats, input, summary };
 };
 
 export function debugPassageQuality(): void {
   if (typeof window === "undefined") return;
-  console.group("Pattern passage quality");
+  if (!isDebugLoggingEnabled()) return;
+  debugGroup("Pattern passage quality");
   for (const name of PATTERN_NAMES) logPassage(name);
-  console.groupEnd();
+  debugGroupEnd();
 }
 
 async function probeSlotApi(name: PatternName): Promise<void> {
+  if (!isDebugLoggingEnabled()) return;
   const passage = getCachedPassage(name);
   if (!passage) {
-    console.warn("[probe] no cached passage for", name);
+    debugWarn("[probe] no cached passage for", name);
     return;
   }
 
   const input = buildSlotGenerationInput(
     passage,
     PATTERN_LABELS[name],
-    PATTERN_DEFINITIONS[name],
+    "",
   );
 
   if (!input) {
-    console.log("[probe] no voice slots needed for", name, passage.shapeId);
+    debugLog("[probe] no voice slots needed for", name, passage.shapeId);
     return;
   }
 
-  console.log("[probe] POST /api/pattern-slots", {
+  debugLog("[probe] POST /api/pattern-slots", {
     patternName: input.patternName,
     quoteCount: input.quotes.length,
     voiceSlots: input.voiceSlots,
@@ -103,9 +112,9 @@ async function probeSlotApi(name: PatternName): Promise<void> {
       }),
     });
     const body = await res.json();
-    console.log("[probe] response", { status: res.status, ok: res.ok, body });
+    debugLog("[probe] response", { status: res.status, ok: res.ok, body });
   } catch (error) {
-    console.error("[probe] fetch failed", error);
+    debugWarn("[probe] fetch failed", error);
   }
 }
 
@@ -114,11 +123,12 @@ export async function debugPatternPipeline(
   patternName?: PatternName,
 ): Promise<void> {
   if (typeof window === "undefined") return;
+  if (!isDebugLoggingEnabled()) return;
 
-  console.group("unfold pattern pipeline");
+  debugGroup("unfold pattern pipeline");
 
   const aggregate = aggregateAnalyses();
-  console.log("aggregate.surfaced", aggregate.surfaced.map((p) => p.name));
+  debugLog("aggregate.surfaced", aggregate.surfaced.map((p) => p.name));
 
   const reconciled = reconcileAllPassages(
     aggregate.surfaced.map((p) => ({ name: p.name, evidence: p.evidence })),
@@ -126,30 +136,30 @@ export async function debugPatternPipeline(
 
   for (const [name, result] of reconciled) {
     if (patternName && name !== patternName) continue;
-    console.log(`reconcile:${name}`, {
+    debugLog(`reconcile:${name}`, {
       shapeId: result.passage.shapeId,
       regenerated: result.regenerated,
       needsGeneration: result.needsGeneration,
       lifecycle: result.passage.lifecycle,
       slotKinds: result.passage.slots.map((s) => s.kind),
     });
-    console.log(`  reconciled passage`, result.passage);
-    console.log(`  beats`, passageToBeats(result.passage.slots, result.passage.shapeId));
+    debugLog(`  reconciled passage`, result.passage);
+    debugLog(`  beats`, passageToBeats(result.passage.slots, result.passage.shapeId));
   }
 
-  console.group("cached passages");
+  debugGroup("cached passages");
   const names = patternName ? [patternName] : PATTERN_NAMES;
   for (const name of names) logPassage(name);
-  console.groupEnd();
+  debugGroupEnd();
 
   if (patternName) {
     await probeSlotApi(patternName);
   }
 
-  console.groupEnd();
+  debugGroupEnd();
 }
 
-if (typeof window !== "undefined") {
+if (typeof window !== "undefined" && isDebugLoggingEnabled()) {
   const w = window as Window & {
     __unfoldPatternDebug?: typeof debugPatternPipeline;
     __keepsPatternDebug?: typeof debugPatternPipeline;

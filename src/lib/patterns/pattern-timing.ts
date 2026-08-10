@@ -21,6 +21,10 @@ let session: Session | null = null;
 
 export const isPatternTimingEnabled = (): boolean => {
   if (typeof window === "undefined") return false;
+  // Hard deny production - never enable via window flags there.
+  if (process.env.NODE_ENV === "production") return false;
+  if (process.env.VERCEL_ENV === "production") return false;
+  if (process.env.NEXT_PUBLIC_VERCEL_ENV === "production") return false;
   if (process.env.NODE_ENV === "development") return true;
   return Boolean(
     (
@@ -255,9 +259,9 @@ export const logStageAtIndex = (
   const elapsed = now - session.lastStageAt;
 
   if (session.lastStage && session.lastStage !== label) {
-    log("Stage", `${session.lastStage} → ${label}`, elapsed);
+    log("Stage", `${session.lastStage} -> ${label}`, elapsed);
   } else if (!session.lastStage) {
-    log("Stage", `Open → ${label}`, now - session.openedAt);
+    log("Stage", `Open -> ${label}`, now - session.openedAt);
   }
 
   session.lastStage = label;

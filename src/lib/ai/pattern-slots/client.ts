@@ -4,26 +4,21 @@ import {
   passageNeedsGeneration,
   type PatternPassage,
 } from "@/lib/patterns/passage-types";
-import {
-  logVoiceFetchEnd,
-  logVoiceFetchStart,
-} from "@/lib/patterns/pattern-timing";
-import {
-  PATTERN_DEFINITIONS,
-  PATTERN_LABELS,
-  type PatternName,
-} from "@/lib/patterns/vocabulary";
+import { logVoiceFetchEnd, logVoiceFetchStart } from "@/lib/patterns/pattern-timing";
+import { PATTERN_LABELS, type PatternName } from "@/lib/patterns/vocabulary-public";
 import { SLOT_CLIENT_TIMEOUT_MS } from "@/lib/ai/pattern-slots/constants";
 import { buildSlotGenerationInput } from "@/lib/ai/pattern-slots/input";
 import { trackVoiceGeneration } from "@/lib/patterns/pattern-lifecycle";
+import { debugLog, debugWarn } from "@/lib/debug-log";
 
 const inflight = new Map<string, Promise<PatternPassage>>();
 
 const flightKey = (passage: PatternPassage): string => {
+  // Definition is resolved server-side; client only needs structure for the key.
   const input = buildSlotGenerationInput(
     passage,
     PATTERN_LABELS[passage.name],
-    PATTERN_DEFINITIONS[passage.name],
+    "",
   );
   const pending =
     input?.voiceSlots.map((s) => s.index).join(",") ?? "complete";
@@ -36,7 +31,7 @@ async function fetchPatternSlotFillsOnce(
   const input = buildSlotGenerationInput(
     passage,
     PATTERN_LABELS[passage.name],
-    PATTERN_DEFINITIONS[passage.name],
+    "",
   );
 
   if (!input) return passage;
@@ -64,7 +59,7 @@ async function fetchPatternSlotFillsOnce(
 
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
-      console.warn(
+      debugWarn(
         "[pattern-slots] API error",
         res.status,
         errText.slice(0, 200),
@@ -80,7 +75,7 @@ async function fetchPatternSlotFillsOnce(
     };
 
     if ((body.rejected ?? []).length > 0) {
-      console.warn(
+      debugWarn(
         "[pattern-slots] rejected",
         passage.name,
         body.rejected,
@@ -95,13 +90,13 @@ async function fetchPatternSlotFillsOnce(
     putCachedPassage(filled);
 
     if ((body.fills ?? []).length === 0) {
-      console.warn(
+      debugWarn(
         "[pattern-slots] no fills returned for",
         passage.name,
         passage.shapeId,
       );
     } else if (passageNeedsGeneration(filled)) {
-      console.log(
+      debugLog(
         "[pattern-slots] partial fills for",
         passage.name,
         body.fills,
@@ -110,7 +105,7 @@ async function fetchPatternSlotFillsOnce(
 
     return filled;
   } catch (error) {
-    console.warn("[pattern-slots] generation failed", error);
+    debugWarn("[pattern-slots] generation failed", error);
     const empty = applySlotFills(passage, []);
     logVoiceFetchEnd(passage, empty);
     return empty;
@@ -161,7 +156,7 @@ export async function generatePassageSlots(
     if (pending.length === 0) break;
 
     if (round > 0) {
-      console.log(
+      debugLog(
         "[pattern-slots] retry round",
         round + 1,
         "for",

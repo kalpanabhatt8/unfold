@@ -22,17 +22,23 @@ import {
 import { passageStructureValid } from "@/lib/patterns/passage-fill";
 import { passageToBeats } from "@/lib/patterns/passage-beats";
 import { passageNeedsGeneration } from "@/lib/patterns/passage-types";
-import type { PatternName } from "@/lib/patterns/vocabulary";
+import type { PatternName } from "@/lib/patterns/vocabulary-public";
 import type { PatternPassage } from "@/lib/patterns/passage-types";
-import { PATTERN_LABELS } from "@/lib/patterns/vocabulary";
+import { PATTERN_LABELS } from "@/lib/patterns/vocabulary-public";
 import { DiscoveryCanvas } from "@/components/patterns/discovery-canvas";
 import { usePatternDisplay } from "@/hooks/use-pattern-display";
 import { usePatternPassages } from "@/hooks/use-pattern-passages";
 import { usePatternsAggregate } from "@/hooks/use-patterns-aggregate";
 import { useViewportLayout } from "@/hooks/use-viewport-layout";
 import { patternsColumnMaxWidth, openAppNav } from "@/lib/layout";
-import "@/lib/patterns/passage-debug";
 import { stashJournalQuoteFocus } from "@/lib/journal-quote-focus";
+import {
+  debugGroup,
+  debugGroupEnd,
+  debugLog,
+  debugTable,
+  isDebugLoggingEnabled,
+} from "@/lib/debug-log";
 import {
   getVote,
   putVote,
@@ -174,17 +180,18 @@ export function PatternDetailView({
 
   useEffect(() => {
     if (!activePassage) return;
+    if (!isDebugLoggingEnabled()) return;
     const beatPlan = passageToBeats(activePassage.slots, activePassage.shapeId);
-    console.group(`[patterns] ${patternName}`);
-    console.log("PatternPassage", activePassage);
-    console.log("slots", activePassage.slots.map((s, i) => ({ i, ...s })));
-    console.log("beats (legacy)", beatPlan);
-    console.log("discovery arc", arc);
-    console.log("arc phases", arc?.phases);
+    debugGroup(`[patterns] ${patternName}`);
+    debugLog("PatternPassage", activePassage);
+    debugLog("slots", activePassage.slots.map((s, i) => ({ i, ...s })));
+    debugLog("beats (legacy)", beatPlan);
+    debugLog("discovery arc", arc);
+    debugLog("arc phases", arc?.phases);
     const { trace, route } = explainArc(activePassage.slots, activePassage.shapeId);
-    console.log("arc route", route);
-    console.table(trace);
-    console.log({
+    debugLog("arc route", route);
+    debugTable(trace);
+    debugLog({
       shapeId: activePassage.shapeId,
       lifecycle: activePassage.lifecycle,
       needsGeneration: passageNeedsGeneration(activePassage),
@@ -196,7 +203,7 @@ export function PatternDetailView({
         return [];
       }),
     });
-    console.groupEnd();
+    debugGroupEnd();
   }, [activePassage, patternName, arc]);
 
   useEffect(() => {

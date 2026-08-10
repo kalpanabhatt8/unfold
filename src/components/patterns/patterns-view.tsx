@@ -4,8 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronRight, Menu } from "lucide-react";
-import { PATTERN_LABELS } from "@/lib/patterns/vocabulary";
-import type { PatternName } from "@/lib/patterns/vocabulary";
+import { PATTERN_LABELS } from "@/lib/patterns/vocabulary-public";
+import type { PatternName } from "@/lib/patterns/vocabulary-public";
 import { usePatternDisplay } from "@/hooks/use-pattern-display";
 import { usePatternsAggregate } from "@/hooks/use-patterns-aggregate";
 import { useViewportLayout } from "@/hooks/use-viewport-layout";
@@ -26,7 +26,6 @@ import {
   PAGE_PADDING_X_CLASS,
   patternsColumnMaxWidth,
 } from "@/lib/layout";
-import "@/lib/patterns/passage-debug";
 
 const formatEntryCount = (count: number): string =>
   count === 1 ? "Spotted in 1 moment" : `Spotted in ${count} moments`;
