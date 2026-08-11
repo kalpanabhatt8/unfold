@@ -20,10 +20,19 @@ const isPublicRoute = createRouteMatcher([
 const isApiRoute = createRouteMatcher(['/api(.*)', '/trpc(.*)'])
 
 export default clerkMiddleware(async (auth, req) => {
-  if (isPublicRoute(req)) return
+  // Expose the request pathname to Server Components so client shells
+  // (e.g. Sidebar) can SSR the correct branch and avoid hydration mismatches.
+  const requestHeaders = new Headers(req.headers)
+  requestHeaders.set('x-unfold-pathname', req.nextUrl.pathname)
+  const next = () =>
+    NextResponse.next({
+      request: { headers: requestHeaders },
+    })
+
+  if (isPublicRoute(req)) return next()
 
   const { userId } = await auth()
-  if (userId) return
+  if (userId) return next()
 
   // Fetch clients must get JSON 401s - never an HTML sign-in redirect.
   // Following a redirect makes response.ok true and response.json() throw

@@ -91,7 +91,16 @@ function entryPreview(entry: JournalEntry): string {
   return text;
 }
 
-export function Sidebar() {
+type SidebarProps = {
+  /**
+   * SSR seed from the request pathname (via middleware header). Keeps the
+   * Insights vs Entries branch identical on server HTML and the first client
+   * paint; `usePathname` then takes over after mount / on client navigations.
+   */
+  initialPatternsActive?: boolean;
+};
+
+export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useParams<{ id?: string }>();
@@ -107,6 +116,7 @@ export function Sidebar() {
   const [searchOpen, setSearchOpen] = useState(false);
   const isOverlayNav = useMediaQuery(OVERLAY_NAV_QUERY);
   const [collapsed, setCollapsed] = useState(false);
+  const [isPatternsActive, setIsPatternsActive] = useState(initialPatternsActive);
   const initialSyncReady = useInitialSyncReady();
   const showEntriesSkeleton =
     !SIDEBAR_UI_DUMMY && !initialSyncReady && entries.length === 0;
@@ -133,6 +143,12 @@ export function Sidebar() {
     ? DUMMY_PATTERN_UNREAD_COUNT
     : livePatterns.count;
   usePatternGeneration();
+
+  // Sync after mount / client navigations. Initial state comes from the
+  // server prop so hydration does not depend on usePathname() matching SSR.
+  useEffect(() => {
+    setIsPatternsActive(pathname?.startsWith("/dashboard/patterns") ?? false);
+  }, [pathname]);
 
   useLayoutEffect(() => {
     if (SIDEBAR_UI_DUMMY) {
@@ -176,7 +192,6 @@ export function Sidebar() {
     });
   }, [entries, query]);
 
-  const isPatternsActive = pathname?.startsWith("/dashboard/patterns") ?? false;
   const isEntriesActive =
     !isPatternsActive &&
     (pathname === "/dashboard" ||
