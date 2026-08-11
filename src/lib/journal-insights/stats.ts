@@ -53,31 +53,44 @@ export type JournalSummary = {
   entryCount: number;
   wordCount: number;
   dayCount: number;
+  /** Entries with activity in the current local calendar month. */
+  currentMonthEntryCount: number;
   /** Only set when enough spread exists to be meaningful. */
   mostActiveWeekday: string | null;
 };
 
+/** Skip blank drafts so empty pages never inflate insight totals. */
+export function entryHasJournalText(entry: JournalEntry): boolean {
+  return (entry.searchText ?? "").trim().length > 0;
+}
+
 export function computeJournalSummary(entries: JournalEntry[]): JournalSummary {
-  if (entries.length === 0) {
+  const countable = entries.filter(entryHasJournalText);
+
+  if (countable.length === 0) {
     return {
       entryCount: 0,
       wordCount: 0,
       dayCount: 0,
+      currentMonthEntryCount: 0,
       mostActiveWeekday: null,
     };
   }
 
+  const monthStart = startOfLocalMonth(Date.now());
   let wordCount = 0;
+  let currentMonthEntryCount = 0;
   const days = new Set<number>();
   const weekdayCounts = new Array<number>(7).fill(0);
 
-  for (const entry of entries) {
+  for (const entry of countable) {
     const ts = entryActivityTimestamp(entry);
     if (!Number.isFinite(ts) || ts <= 0) continue;
 
     wordCount += countWords(entry.searchText ?? "");
     days.add(startOfLocalDay(ts));
     weekdayCounts[new Date(ts).getDay()] += 1;
+    if (ts >= monthStart) currentMonthEntryCount += 1;
   }
 
   let bestDay = 0;
@@ -87,16 +100,17 @@ export function computeJournalSummary(entries: JournalEntry[]): JournalSummary {
 
   // Hide “most active” until there is real day spread.
   const mostActiveWeekday =
-    entries.length >= 2 &&
+    countable.length >= 2 &&
     days.size >= 2 &&
     weekdayCounts[bestDay] >= 2
       ? WEEKDAY_LABELS[bestDay]
       : null;
 
   return {
-    entryCount: entries.length,
+    entryCount: countable.length,
     wordCount,
     dayCount: days.size,
+    currentMonthEntryCount,
     mostActiveWeekday,
   };
 }
@@ -104,13 +118,19 @@ export function computeJournalSummary(entries: JournalEntry[]): JournalSummary {
 /** Appear in at least this many distinct analyzed entries. */
 export const TOPIC_MIN_ENTRY_COUNT = 2;
 /** Cap the list so the rail stays quiet. */
-export const TOPIC_MAX_SHOWN = 6;
+export const TOPIC_MAX_SHOWN = 3;
+
+export type PeriodUnit = "month" | "week";
 
 export type TopicFrequency = {
   topic: string;
   entryCount: number;
   /** Entry ids that carry this topic (for future navigation). */
   entryIds: string[];
+  /** Current vs previous period entry-count delta, when comparable. */
+  periodDelta: number | null;
+  /** Period used for `periodDelta` (month preferred; week fallback). */
+  periodUnit: PeriodUnit | null;
 };
 
 /**
@@ -141,16 +161,55 @@ export function isDisplayableTopic(topic: string): boolean {
   return true;
 }
 
+function topicPeriodDeltas(
+  entries: JournalEntry[],
+  analyses: EntryAnalysis[],
+): { unit: PeriodUnit; deltas: Map<string, number> } | null {
+  const monthBuckets = buildPeriodBuckets(entries, analyses, "month");
+  const unit: PeriodUnit | null =
+    monthBuckets.length >= 2
+      ? "month"
+      : buildPeriodBuckets(entries, analyses, "week").length >= 2
+        ? "week"
+        : null;
+  if (!unit) return null;
+
+  const buckets = buildPeriodBuckets(entries, analyses, unit);
+  const [current, previous] = buckets;
+  const deltas = new Map<string, number>();
+
+  for (const topic of new Set([
+    ...current.topicCounts.keys(),
+    ...previous.topicCounts.keys(),
+  ])) {
+    const delta =
+      (current.topicCounts.get(topic) ?? 0) -
+      (previous.topicCounts.get(topic) ?? 0);
+    if (delta !== 0) deltas.set(topic, delta);
+  }
+
+  return { unit, deltas };
+}
+
 /**
  * Aggregate raw analysis.topics across entries.
  * Counts distinct entries per topic (not topic mentions within one entry).
  */
 export function aggregateDisplayTopics(
+  entries: JournalEntry[],
   analyses: EntryAnalysis[],
 ): TopicFrequency[] {
+  const countableIds = new Set(
+    entries.filter(entryHasJournalText).map((entry) => entry.id),
+  );
+  const periodComparison = topicPeriodDeltas(
+    entries.filter(entryHasJournalText),
+    analyses,
+  );
   const entryIdsByTopic = new Map<string, Set<string>>();
 
   for (const analysis of analyses) {
+    if (!countableIds.has(analysis.entryId)) continue;
     if (!Array.isArray(analysis.topics)) continue;
     const seenInEntry = new Set<string>();
 
@@ -171,11 +230,19 @@ export function aggregateDisplayTopics(
   }
 
   return [...entryIdsByTopic.entries()]
-    .map(([topic, ids]) => ({
-      topic,
-      entryCount: ids.size,
-      entryIds: [...ids],
-    }))
+    .map(([topic, ids]) => {
+      const periodDelta = periodComparison?.deltas.get(topic) ?? null;
+      return {
+        topic,
+        entryCount: ids.size,
+        entryIds: [...ids],
+        periodDelta,
+        periodUnit:
+          periodDelta !== null && periodComparison
+            ? periodComparison.unit
+            : null,
+      };
+    })
     .filter((row) => row.entryCount >= TOPIC_MIN_ENTRY_COUNT)
     .sort((a, b) => {
       if (b.entryCount !== a.entryCount) return b.entryCount - a.entryCount;
@@ -193,12 +260,33 @@ export function formatTopicLabel(topic: string): string {
   return topic.charAt(0).toUpperCase() + topic.slice(1);
 }
 
+export function formatTopicPeriodDelta(delta: number): string {
+  if (delta > 0) return `↑${formatCount(delta)}`;
+  if (delta < 0) return `↓${formatCount(Math.abs(delta))}`;
+  return "";
+}
+
+/** Plain-language tip for the compact ↑/↓ marker. */
+export function formatTopicPeriodDeltaExplanation(
+  delta: number,
+  unit: PeriodUnit,
+  topicLabel: string,
+): string {
+  const amount = formatCount(Math.abs(delta));
+  const comparison = unit === "month" ? "last month" : "last week";
+  if (delta > 0) {
+    return `${amount} more ${topicLabel} entries than ${comparison}`;
+  }
+  if (delta < 0) {
+    return `${amount} fewer ${topicLabel} entries than ${comparison}`;
+  }
+  return `Same number of ${topicLabel} entries as ${comparison}`;
+}
+
 // --- Something changed ----------------------------------------------------
 
 /** Each comparable period needs at least this many entries. */
 export const CHANGE_MIN_ENTRIES_PER_PERIOD = 3;
-
-export type PeriodUnit = "month" | "week";
 
 export type PeriodStats = {
   start: number;
@@ -277,6 +365,7 @@ function buildPeriodBuckets(
   const byStart = new Map<number, PeriodBucket>();
 
   for (const entry of entries) {
+    if (!entryHasJournalText(entry)) continue;
     const ts = entryActivityTimestamp(entry);
     if (!Number.isFinite(ts) || ts <= 0) continue;
     const start = periodStartFor(ts, unit);

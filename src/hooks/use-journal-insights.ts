@@ -16,19 +16,12 @@ import type { EntryAnalysis } from "@/lib/patterns/types";
 import {
   aggregateDisplayTopics,
   computeJournalSummary,
-  computeSomethingChanged,
   type JournalSummary,
-  type PeriodChange,
   type TopicFrequency,
 } from "@/lib/journal-insights/stats";
-import {
-  getDummyJournalInsights,
-  SIDEBAR_UI_DUMMY,
-} from "@/lib/sidebar-dummy-data";
 
 export type JournalInsights = {
   summary: JournalSummary;
-  change: PeriodChange | null;
   topics: TopicFrequency[];
 };
 
@@ -37,9 +30,9 @@ const emptyInsights = (): JournalInsights => ({
     entryCount: 0,
     wordCount: 0,
     dayCount: 0,
+    currentMonthEntryCount: 0,
     mostActiveWeekday: null,
   },
-  change: null,
   topics: [],
 });
 
@@ -49,23 +42,15 @@ function buildInsights(
 ): JournalInsights {
   return {
     summary: computeJournalSummary(entries),
-    change: computeSomethingChanged(entries, analyses),
-    topics: aggregateDisplayTopics(analyses),
+    topics: aggregateDisplayTopics(entries, analyses),
   };
 }
 
 /** Live journal-insight stats from local entries + analyses (no pattern aggregate). */
 export function useJournalInsights(): JournalInsights {
-  const [insights, setInsights] = useState<JournalInsights>(() =>
-    SIDEBAR_UI_DUMMY ? getDummyJournalInsights() : emptyInsights(),
-  );
+  const [insights, setInsights] = useState<JournalInsights>(emptyInsights);
 
   useEffect(() => {
-    if (SIDEBAR_UI_DUMMY) {
-      setInsights(getDummyJournalInsights());
-      return;
-    }
-
     const refresh = () => {
       try {
         setInsights(buildInsights(readAllEntries(), listAnalyses()));
