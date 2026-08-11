@@ -1,16 +1,15 @@
-import { PatternDetailView } from "@/components/patterns/pattern-detail-view";
+import { notFound, redirect } from "next/navigation";
 import { isPatternName } from "@/lib/patterns/vocabulary-public";
-import { notFound } from "next/navigation";
 
 type PageProps = {
   params: Promise<{ pattern: string }>;
 };
 
 /**
- * Pattern detail - a dedicated Insights workspace for one pattern.
+ * Legacy detail URLs open the Patterns list with that card expanded.
  */
 export default async function PatternDetailPage({ params }: PageProps) {
   const { pattern } = await params;
   if (!isPatternName(pattern)) notFound();
-  return <PatternDetailView patternName={pattern} />;
+  redirect(`/dashboard/patterns?p=${encodeURIComponent(pattern)}`);
 }
