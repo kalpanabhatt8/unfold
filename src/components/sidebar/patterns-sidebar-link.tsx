@@ -24,8 +24,8 @@ export function PatternsSidebarLink({
       className={clsx(
         "group relative rounded-[0.875rem] transition-colors duration-150",
         active
-          ? "bg-(--sidebar-active-bg)"
-          : "hover:bg-(--sidebar-hover-bg)",
+          ? "bg-(--sidebar-entry-pressed-bg)"
+          : "hover:bg-(--sidebar-entry-hover-bg)",
       )}
     >
       <Link

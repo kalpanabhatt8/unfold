@@ -126,10 +126,11 @@
   /* 2. SURFACE-CANVAS - main content / page, fully neutral */
   --surface-canvas: #fcfcfc;
 
-  /* 3. SURFACE-CHROME - sidebar (warm pink), 3 steps only */
+  /* 3. SURFACE-CHROME - sidebar (warm pink), 3 steps only.
+   * Hover/active stepped darker within pink (not cool lavender). */
   --surface-chrome: #faf8f9;
-  --surface-chrome-hover: #f6f3f5;
-  --surface-chrome-active: #f0eaed;
+  --surface-chrome-hover: #f0e6eb;
+  --surface-chrome-active: #e7dde2;
 
   /* 4. SURFACE-RAISED - cards, accordion, writing paper */
   --surface-raised: #ffffff;
@@ -165,6 +166,17 @@
   --sidebar-bg: var(--surface-chrome);
   --sidebar-hover-bg: var(--surface-chrome-hover);
   --sidebar-active-bg: var(--surface-chrome-active);
+  /* Entry row: pressed fill, hover = 50% of pressed */
+  --sidebar-entry-pressed-bg: color-mix(
+    in srgb,
+    var(--sidebar-active-bg) 55%,
+    white
+  );
+  --sidebar-entry-hover-bg: color-mix(
+    in srgb,
+    var(--sidebar-entry-pressed-bg) 50%,
+    transparent
+  );
 
   --button-primary: var(--accent);
   --button-primary-hover: var(--accent-hover);

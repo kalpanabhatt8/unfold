@@ -56,11 +56,22 @@ export function SidebarAccountMenu() {
   const [signOutPhase, setSignOutPhase] = useState<SignOutPhase>("idle");
   const [signOutError, setSignOutError] = useState<string | null>(null);
   const [signOutBusy, setSignOutBusy] = useState(false);
+  // Clerk user may be available on the client before hydration finishes, which
+  // would render an <img> where the server only had a placeholder. Wait for
+  // mount so the first client paint matches SSR.
+  const [hasMounted, setHasMounted] = useState(false);
 
-  const showPhoto = Boolean(isLoaded && user?.hasImage && user.imageUrl);
-  const letter = isLoaded
-    ? avatarInitial(resolvePreferredName(user) || user?.username)
-    : "";
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
+  const showPhoto = Boolean(
+    hasMounted && isLoaded && user?.hasImage && user.imageUrl,
+  );
+  const letter =
+    hasMounted && isLoaded
+      ? avatarInitial(resolvePreferredName(user) || user?.username)
+      : "";
 
   useEffect(() => {
     if (!menuOpen) {

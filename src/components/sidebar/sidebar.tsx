@@ -38,11 +38,6 @@ import { JournalInsightsPanel } from "@/components/journal-insights/journal-insi
 import { OVERLAY_NAV_QUERY } from "@/lib/breakpoints";
 import { OPEN_NAV_EVENT } from "@/lib/layout";
 import { resolvePreferredName } from "@/lib/user-display";
-import {
-  DUMMY_PATTERN_UNREAD_COUNT,
-  getDummySidebarEntries,
-  SIDEBAR_UI_DUMMY,
-} from "@/lib/sidebar-dummy-data";
 
 const UNTITLED_ENTRY = "Untitled";
 const SIDEBAR_COLLAPSED_KEY = "unfold-sidebar-collapsed";
@@ -109,9 +104,7 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
 
   // Empty on first paint so SSR and client HTML match; hydrate from localStorage
   // in useLayoutEffect (below) before the browser paints.
-  const [entries, setEntries] = useState<JournalEntry[]>(() =>
-    SIDEBAR_UI_DUMMY ? getDummySidebarEntries() : [],
-  );
+  const [entries, setEntries] = useState<JournalEntry[]>([]);
   const [query, setQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const isOverlayNav = useMediaQuery(OVERLAY_NAV_QUERY);
@@ -120,8 +113,7 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
   // Relative labels use Date.now() — empty until mount so SSR/client match.
   const [relativeTimesReady, setRelativeTimesReady] = useState(false);
   const initialSyncReady = useInitialSyncReady();
-  const showEntriesSkeleton =
-    !SIDEBAR_UI_DUMMY && !initialSyncReady && entries.length === 0;
+  const showEntriesSkeleton = !initialSyncReady && entries.length === 0;
 
   useEffect(() => {
     setRelativeTimesReady(true);
@@ -142,12 +134,8 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const prevPathnameRef = useRef(pathname);
   const livePatterns = useSurfacedPatterns();
-  const hasSurfacedPatterns = SIDEBAR_UI_DUMMY
-    ? true
-    : livePatterns.hasSurfaced;
-  const surfacedPatternCount = SIDEBAR_UI_DUMMY
-    ? DUMMY_PATTERN_UNREAD_COUNT
-    : livePatterns.count;
+  const hasSurfacedPatterns = livePatterns.hasSurfaced;
+  const surfacedPatternCount = livePatterns.count;
   usePatternGeneration();
 
   // Sync after mount / client navigations. Initial state comes from the
@@ -157,11 +145,6 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
   }, [pathname]);
 
   useLayoutEffect(() => {
-    if (SIDEBAR_UI_DUMMY) {
-      setEntries(getDummySidebarEntries());
-      return;
-    }
-
     const load = () => {
       try {
         setEntries(readAllEntries());
@@ -306,7 +289,7 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
   };
 
   const desktopSidebarClosed = collapsed;
-  const canShowMenuToggle = collapsed;
+  const canShowMenuToggle = collapsed && !isPatternsActive;
   const [menuToggleVisible, setMenuToggleVisible] = useState(false);
   const prevCanShowMenuToggleRef = useRef<boolean | null>(null);
 
@@ -373,7 +356,7 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
       {isPatternsActive ? (
         <div className="relative z-20 flex shrink-0 items-center justify-between gap-2 px-2 pb-3 pt-5">
           <p className="header-sm min-w-0 flex-1 truncate leading-tight tracking-tight">
-            Insights
+            Your Journal
           </p>
           <button
             type="button"
@@ -416,7 +399,7 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
       {isPatternsActive ? (
         <section
           className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden"
-          aria-label="Insights"
+          aria-label="Your Journal"
         >
           <div className="relative min-h-0 flex-1">
             <div className="sidebar-entries-scroll min-h-0 h-full overflow-y-auto overscroll-y-contain px-2 pt-3">
@@ -534,8 +517,8 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
                       className={clsx(
                         "group relative rounded-md transition-colors duration-150",
                         isActive
-                          ? "bg-(--sidebar-active-bg)"
-                          : "hover:bg-(--sidebar-hover-bg)",
+                          ? "bg-(--sidebar-entry-pressed-bg)"
+                          : "hover:bg-(--sidebar-entry-hover-bg)",
                       )}
                     >
                       <Link
@@ -634,22 +617,15 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
     </div>
   );
 
-  // Desktop: floating rounded surfaces. Overlay: full-height drawer (unchanged).
+  // Desktop: flush left rail. Overlay: full-height drawer (unchanged).
   const sidebarPanel = (
     <aside
       className={clsx(
         "flex h-full min-h-0 flex-col overflow-hidden bg-(--sidebar-bg)",
-        isOverlayNav
-          ? clsx(
-              SIDEBAR_WIDTH_CLASS,
-              "border-r border-(--sidebar-border) shadow-[0.25rem_0_1.5rem_rgba(0,0,0,0.08)]",
-            )
-          : clsx(
-              "w-full",
-              isPatternsActive
-                ? "rounded-[1.25rem] border border-(--sidebar-border)/80 shadow-[0_0.125rem_0.75rem_rgba(20,19,20,0.04)]"
-                : "rounded-[0.875rem] border border-(--sidebar-border)/55 shadow-[0_0.0625rem_0.375rem_rgba(20,19,20,0.03)]",
-            ),
+        SIDEBAR_WIDTH_CLASS,
+        "border-r border-(--sidebar-border)",
+        isOverlayNav &&
+          "shadow-[0.25rem_0_1.5rem_rgba(0,0,0,0.08)]",
       )}
       aria-hidden={isOverlayNav && collapsed ? true : undefined}
       inert={isOverlayNav && collapsed ? true : undefined}
@@ -677,25 +653,20 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
     </div>
   );
 
-  // Same outside inset for Entries and Insights; distinction is radius/elevation only.
-  const desktopGutterClass = "p-3";
-  const desktopRailWidthClass = "w-[calc(var(--sidebar-width)+1.5rem)]";
-
   const desktopSidebar = (
     <>
       <div
         className={clsx(
           "relative h-full shrink-0 overflow-hidden",
           SIDEBAR_WIDTH_TRANSITION,
-          desktopSidebarClosed ? "w-0" : desktopRailWidthClass,
+          desktopSidebarClosed ? "w-0" : SIDEBAR_WIDTH_CLASS,
         )}
         aria-hidden={desktopSidebarClosed}
       >
         <div
           className={clsx(
-            "absolute inset-0 box-border",
-            desktopRailWidthClass,
-            desktopGutterClass,
+            "absolute inset-y-0 left-0 box-border",
+            SIDEBAR_WIDTH_CLASS,
           )}
         >
           {sidebarPanel}

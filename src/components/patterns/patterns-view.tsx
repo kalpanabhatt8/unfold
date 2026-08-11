@@ -33,7 +33,6 @@ import {
   PAGE_PADDING_X_CLASS,
   patternsColumnMaxWidth,
 } from "@/lib/layout";
-import { SIDEBAR_UI_DUMMY } from "@/lib/sidebar-dummy-data";
 
 const formatEntryCount = (count: number): string =>
   count === 1 ? "Spotted in 1 moment" : `Spotted in ${count} moments`;
@@ -97,7 +96,6 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
   const hasReadyPatterns = listPatterns.length > 0;
 
   useEffect(() => {
-    if (SIDEBAR_UI_DUMMY) return;
     if (aggregate === null) return;
     if (!hasReadyPatterns) {
       router.replace("/dashboard");
