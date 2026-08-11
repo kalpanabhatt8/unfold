@@ -117,9 +117,15 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
   const isOverlayNav = useMediaQuery(OVERLAY_NAV_QUERY);
   const [collapsed, setCollapsed] = useState(false);
   const [isPatternsActive, setIsPatternsActive] = useState(initialPatternsActive);
+  // Relative labels use Date.now() — empty until mount so SSR/client match.
+  const [relativeTimesReady, setRelativeTimesReady] = useState(false);
   const initialSyncReady = useInitialSyncReady();
   const showEntriesSkeleton =
     !SIDEBAR_UI_DUMMY && !initialSyncReady && entries.length === 0;
+
+  useEffect(() => {
+    setRelativeTimesReady(true);
+  }, []);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -518,7 +524,9 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
                   const displayTitle = resolveEntryTitle(entry.title);
                   const isPlaceholder = displayTitle === UNTITLED_ENTRY;
                   const preview = entryPreview(entry);
-                  const relativeTime = formatRelativeTime(entry.createdAt);
+                  const relativeTime = relativeTimesReady
+                    ? formatRelativeTime(entry.createdAt)
+                    : "";
 
                   return (
                     <li
