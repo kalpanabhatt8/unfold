@@ -21,6 +21,10 @@ import {
   type PeriodChange,
   type TopicFrequency,
 } from "@/lib/journal-insights/stats";
+import {
+  getDummyJournalInsights,
+  SIDEBAR_UI_DUMMY,
+} from "@/lib/sidebar-dummy-data";
 
 export type JournalInsights = {
   summary: JournalSummary;
@@ -52,9 +56,16 @@ function buildInsights(
 
 /** Live journal-insight stats from local entries + analyses (no pattern aggregate). */
 export function useJournalInsights(): JournalInsights {
-  const [insights, setInsights] = useState<JournalInsights>(emptyInsights);
+  const [insights, setInsights] = useState<JournalInsights>(() =>
+    SIDEBAR_UI_DUMMY ? getDummyJournalInsights() : emptyInsights(),
+  );
 
   useEffect(() => {
+    if (SIDEBAR_UI_DUMMY) {
+      setInsights(getDummyJournalInsights());
+      return;
+    }
+
     const refresh = () => {
       try {
         setInsights(buildInsights(readAllEntries(), listAnalyses()));

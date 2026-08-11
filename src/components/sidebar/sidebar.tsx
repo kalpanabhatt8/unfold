@@ -38,6 +38,11 @@ import { JournalInsightsPanel } from "@/components/journal-insights/journal-insi
 import { OVERLAY_NAV_QUERY } from "@/lib/breakpoints";
 import { OPEN_NAV_EVENT } from "@/lib/layout";
 import { resolvePreferredName } from "@/lib/user-display";
+import {
+  DUMMY_PATTERN_UNREAD_COUNT,
+  getDummySidebarEntries,
+  SIDEBAR_UI_DUMMY,
+} from "@/lib/sidebar-dummy-data";
 
 const UNTITLED_ENTRY = "Untitled";
 const SIDEBAR_COLLAPSED_KEY = "unfold-sidebar-collapsed";
@@ -95,13 +100,16 @@ export function Sidebar() {
 
   // Empty on first paint so SSR and client HTML match; hydrate from localStorage
   // in useLayoutEffect (below) before the browser paints.
-  const [entries, setEntries] = useState<JournalEntry[]>([]);
+  const [entries, setEntries] = useState<JournalEntry[]>(() =>
+    SIDEBAR_UI_DUMMY ? getDummySidebarEntries() : [],
+  );
   const [query, setQuery] = useState("");
   const [searchOpen, setSearchOpen] = useState(false);
   const isOverlayNav = useMediaQuery(OVERLAY_NAV_QUERY);
   const [collapsed, setCollapsed] = useState(false);
   const initialSyncReady = useInitialSyncReady();
-  const showEntriesSkeleton = !initialSyncReady && entries.length === 0;
+  const showEntriesSkeleton =
+    !SIDEBAR_UI_DUMMY && !initialSyncReady && entries.length === 0;
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -117,11 +125,21 @@ export function Sidebar() {
   }, []);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const prevPathnameRef = useRef(pathname);
-  const { hasSurfaced: hasSurfacedPatterns, count: surfacedPatternCount } =
-    useSurfacedPatterns();
+  const livePatterns = useSurfacedPatterns();
+  const hasSurfacedPatterns = SIDEBAR_UI_DUMMY
+    ? true
+    : livePatterns.hasSurfaced;
+  const surfacedPatternCount = SIDEBAR_UI_DUMMY
+    ? DUMMY_PATTERN_UNREAD_COUNT
+    : livePatterns.count;
   usePatternGeneration();
 
   useLayoutEffect(() => {
+    if (SIDEBAR_UI_DUMMY) {
+      setEntries(getDummySidebarEntries());
+      return;
+    }
+
     const load = () => {
       try {
         setEntries(readAllEntries());
