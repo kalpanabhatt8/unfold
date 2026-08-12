@@ -306,7 +306,7 @@ export function DiscoveryCanvas({
               type="button"
               onClick={handleContinue}
               disabled={!ctaReady}
-              className="inline-flex min-h-(--touch-target-min) items-center gap-0.5 px-1 text-sm tracking-[0.01em] text-(--accent-muted) transition-colors duration-150 hover:text-(--accent) disabled:cursor-default disabled:opacity-40"
+              className="inline-flex min-h-(--touch-target-min) items-center gap-0.5 px-1 text-sm tracking-normal [word-spacing:normal] text-(--text-tertiary) transition-colors duration-150 hover:text-(--text-primary) disabled:cursor-default disabled:opacity-40"
             >
               {ctaReady ? (
                 <>

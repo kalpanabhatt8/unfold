@@ -45,7 +45,7 @@ export function EvidenceSection({
             ) : null}
           </p>
           <p className="evidence-card__quote-text text-sm!">
-          <span className="font-normal!">  &ldquo;</span>{quote.text} <span className="font-normal!">  &ldquo;</span>
+            <span className="font-normal!">&ldquo;</span>{quote.text}<span className="font-normal!">&rdquo;</span>
           </p>
         </div>
       ))}

@@ -1708,11 +1708,16 @@ input[type='number'] {
 }
 
 
-/* ── Pattern accordion - card rows (0.625rem) / expanded card (0.875rem) ── */
+/* ── Pattern accordion - closed rows (1rem) / expanded card (0.875rem) ── */
 
 .pattern-accordion {
-  --pattern-card-radius-collapsed: 0.625rem;
+  --pattern-card-radius-collapsed: var(--radius-lg);
   --pattern-card-radius-expanded: 0.875rem;
+  --pattern-accordion-duration: 300ms;
+  --pattern-accordion-close-duration: 240ms;
+  --pattern-accordion-ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --pattern-accordion-close-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --pattern-panel-max: min(70dvh, calc(100dvh - 12rem));
   --pattern-card-border: color-mix(
     in srgb,
     var(--border) 78%,
@@ -1735,11 +1740,14 @@ input[type='number'] {
   background: var(--surface-raised);
   overflow: hidden;
   scroll-margin-top: 1.25rem;
-  transition: border-radius 160ms ease;
+  transition: border-radius var(--pattern-accordion-close-duration)
+    var(--pattern-accordion-close-ease);
 }
 
 .pattern-accordion__item[data-expanded="true"] {
   border-radius: var(--pattern-card-radius-expanded);
+  transition: border-radius var(--pattern-accordion-duration)
+    var(--pattern-accordion-ease);
 }
 
 .pattern-accordion__item[data-unread="true"] {
@@ -1762,12 +1770,16 @@ input[type='number'] {
   margin: 0;
   padding: 0.85rem 0.85rem;
   border: 0;
+  border-bottom: 0.0625rem solid transparent;
   border-radius: 0;
   background: transparent;
   text-align: left;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: background-color 140ms ease;
+  transition:
+    background-color 140ms ease,
+    border-color var(--pattern-accordion-close-duration)
+      var(--pattern-accordion-close-ease);
   scroll-margin-top: 1.25rem;
 }
 
@@ -1778,8 +1790,10 @@ input[type='number'] {
 }
 
 .pattern-accordion__item[data-expanded="true"] .pattern-accordion__row {
-  border-bottom: 0.0625rem solid
-    color-mix(in srgb, var(--border) 65%, transparent);
+  border-bottom-color: color-mix(in srgb, var(--border) 65%, transparent);
+  transition:
+    background-color 140ms ease,
+    border-color var(--pattern-accordion-duration) var(--pattern-accordion-ease);
 }
 
 .pattern-accordion__row:hover {
@@ -1840,6 +1854,49 @@ input[type='number'] {
   min-height: var(--touch-target-min);
   margin: -0.35rem -0.35rem -0.35rem 0;
   color: color-mix(in srgb, var(--sidebar-ink-soft) 85%, transparent);
+}
+
+.pattern-accordion__row-chevron svg {
+  transition: transform var(--pattern-accordion-close-duration)
+    var(--pattern-accordion-close-ease);
+}
+
+.pattern-accordion__item[data-expanded="true"] .pattern-accordion__row-chevron svg {
+  transform: rotate(180deg);
+  transition: transform var(--pattern-accordion-duration)
+    var(--pattern-accordion-ease);
+}
+
+/*
+ * Pure CSS collapse — max-height avoids JS height races that leave panels
+ * stuck half-open (chevron up, body clipped to a sliver).
+ */
+.pattern-accordion__collapse {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    max-height var(--pattern-accordion-close-duration)
+      var(--pattern-accordion-close-ease),
+    opacity calc(var(--pattern-accordion-close-duration) * 0.85)
+      var(--pattern-accordion-close-ease),
+    visibility 0ms linear var(--pattern-accordion-close-duration);
+}
+
+.pattern-accordion__collapse[data-open="true"] {
+  max-height: var(--pattern-panel-max);
+  opacity: 1;
+  visibility: visible;
+  transition:
+    max-height var(--pattern-accordion-duration) var(--pattern-accordion-ease),
+    opacity calc(var(--pattern-accordion-duration) * 0.85)
+      var(--pattern-accordion-ease),
+    visibility 0ms linear 0ms;
+}
+
+.pattern-accordion__collapse-inner {
+  overflow: hidden;
 }
 
 /*
@@ -1925,6 +1982,8 @@ input[type='number'] {
 .pattern-accordion__panel .discovery-footer button {
   font-size: var(--text-sm);
   line-height: var(--text-sm--line-height);
+  letter-spacing: normal;
+  word-spacing: normal;
 }
 
 .pattern-accordion__panel .evidence-card {
@@ -1932,8 +1991,15 @@ input[type='number'] {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .pattern-accordion {
+    --pattern-accordion-duration: 0ms;
+    --pattern-accordion-close-duration: 0ms;
+  }
+
   .pattern-accordion__item,
-  .pattern-accordion__row {
+  .pattern-accordion__row,
+  .pattern-accordion__collapse,
+  .pattern-accordion__row-chevron svg {
     transition: none;
   }
 }

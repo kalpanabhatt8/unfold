@@ -2,11 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronDown, ChevronUp, Menu, Sprout } from "lucide-react";
+import { ChevronDown, Menu, Sprout } from "lucide-react";
 import { SidebarEmptyState } from "@/components/sidebar/sidebar-empty-state";
 import { PATTERN_LABELS } from "@/lib/patterns/vocabulary-public";
 import type { PatternName } from "@/lib/patterns/vocabulary-public";
 import { PatternDetailView } from "@/components/patterns/pattern-detail-view";
+import { PatternAccordionCollapse } from "@/components/patterns/pattern-accordion-collapse";
 import { usePatternDisplay } from "@/hooks/use-pattern-display";
 import { usePatternsAggregate } from "@/hooks/use-patterns-aggregate";
 import { useViewportLayout } from "@/hooks/use-viewport-layout";
@@ -24,7 +25,7 @@ import {
 } from "@/lib/patterns/pattern-view-store";
 import { PATTERN_PASSAGE_UPDATED_EVENT } from "@/lib/patterns/passage-store";
 import {
-  btnChromeNavLink,
+  btnAccentSoft,
   btnIconChrome,
   iconFixed,
   iconPx,
@@ -39,6 +40,7 @@ import {
 } from "@/lib/layout";
 import { useInitialSyncReady } from "@/lib/sync/use-initial-sync-ready";
 
+
 function PatternsListSkeleton() {
   return (
     <ul
@@ -49,7 +51,7 @@ function PatternsListSkeleton() {
       {Array.from({ length: 4 }, (_, i) => (
         <li
           key={i}
-          className="rounded-[0.625rem] border border-(--border)/60 px-4 py-4"
+          className="rounded-[1rem] border border-(--border)/60 px-4 py-4"
           aria-hidden
         >
           <span className="block h-4 w-[42%] animate-pulse rounded-sm bg-(--sidebar-ink)/12" />
@@ -130,6 +132,12 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
   const [expanded, setExpanded] = useState<PatternName | null>(
     initialPattern ?? null,
   );
+  /** Panels stay mounted once opened so close animation never reflows on unmount. */
+  const [mountedPanels, setMountedPanels] = useState<
+    ReadonlySet<PatternName>
+  >(() => new Set(initialPattern ? [initialPattern] : []));
+  /** Deep-link prefill applies once; closing must not re-open from ?p=. */
+  const initialPatternConsumedRef = useRef(Boolean(initialPattern));
 
   // Drop expansion if that pattern leaves the list; honor deep-link once ready.
   useEffect(() => {
@@ -140,14 +148,27 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
     setExpanded((prev) => {
       if (prev && listPatterns.some((p) => p.name === prev)) return prev;
       if (
+        !initialPatternConsumedRef.current &&
         initialPattern &&
         listPatterns.some((p) => p.name === initialPattern)
       ) {
+        initialPatternConsumedRef.current = true;
         return initialPattern;
       }
       return null;
     });
   }, [listPatterns, initialPattern]);
+
+  // Mount panel content the first time a row opens.
+  useEffect(() => {
+    if (!expanded) return;
+    setMountedPanels((current) => {
+      if (current.has(expanded)) return current;
+      const next = new Set(current);
+      next.add(expanded);
+      return next;
+    });
+  }, [expanded]);
 
   // Opening a pattern clears its unread state for the current evidence set.
   useEffect(() => {
@@ -233,7 +254,7 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
                 <h1 className="header-md tracking-tight">Patterns</h1>
               </div>
               <p className=" text-sm leading-relaxed text-(--sidebar-ink-soft) sm:text-sm">
-              Here's what your writing keeps circling back to
+              Here&apos;s what your writing keeps circling back to
               </p>
             </>
           ) : null}
@@ -251,7 +272,7 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
                 <button
                   type="button"
                   onClick={handleStartEntry}
-                  className={btnChromeNavLink}
+                  className={btnAccentSoft}
                 >
                   Start a entry
                 </button>
@@ -267,6 +288,7 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
               pattern.display?.displayTitle?.trim() ||
               PATTERN_LABELS[pattern.name];
             const isOpen = expanded === pattern.name;
+            const showPanel = mountedPanels.has(pattern.name);
             const isUnread = unreadNames.has(pattern.name);
             const entryCount =
               pattern.entryCount > 0
@@ -291,22 +313,27 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
                   type="button"
                   className="pattern-accordion__row"
                   aria-expanded={isOpen}
-                  aria-controls={
-                    isOpen
-                      ? `pattern-expanded-panel-${pattern.name}`
-                      : undefined
-                  }
+                  aria-controls={`pattern-expanded-panel-${pattern.name}`}
                   aria-label={
                     [title, factLine, isUnread ? "updated" : null]
                       .filter(Boolean)
                       .join(", ")
                   }
                   id={`pattern-expanded-${pattern.name}`}
-                  onClick={() =>
-                    setExpanded((prev) =>
-                      prev === pattern.name ? null : pattern.name,
-                    )
-                  }
+                  onClick={() => {
+                    initialPatternConsumedRef.current = true;
+                    const next =
+                      expanded === pattern.name ? null : pattern.name;
+                    if (next) {
+                      setMountedPanels((current) => {
+                        if (current.has(next)) return current;
+                        const updated = new Set(current);
+                        updated.add(next);
+                        return updated;
+                      });
+                    }
+                    setExpanded(next);
+                  }}
                 >
                   <span className="pattern-accordion__row-main">
                     <span className="pattern-accordion__row-title">
@@ -322,39 +349,32 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
                     className={`pattern-accordion__row-chevron shrink-0 ${btnIconChrome("xs")}`}
                     aria-hidden
                   >
-                    {isOpen ? (
-                      <ChevronUp
-                        size={iconPx("xs")}
-                        strokeWidth={iconStroke("xs")}
-                        className={iconFixed}
-                      />
-                    ) : (
-                      <ChevronDown
-                        size={iconPx("xs")}
-                        strokeWidth={iconStroke("xs")}
-                        className={iconFixed}
-                      />
-                    )}
+                    <ChevronDown
+                      size={iconPx("xs")}
+                      strokeWidth={iconStroke("xs")}
+                      className={iconFixed}
+                    />
                   </span>
                 </button>
 
-                {isOpen ? (
-                  <div
-                    id={`pattern-expanded-panel-${pattern.name}`}
-                    className="pattern-accordion__panel"
-                    role="region"
-                    aria-labelledby={`pattern-expanded-${pattern.name}`}
-                  >
-                    <div className="pattern-accordion__panel-scroll">
-                      <PatternDetailView
-                        key={pattern.name}
-                        patternName={pattern.name}
-                        embedded
-                        compactHeadline
-                      />
+                <PatternAccordionCollapse
+                  isOpen={isOpen}
+                  id={`pattern-expanded-panel-${pattern.name}`}
+                  labelledBy={`pattern-expanded-${pattern.name}`}
+                >
+                  {showPanel ? (
+                    <div className="pattern-accordion__panel">
+                      <div className="pattern-accordion__panel-scroll">
+                        <PatternDetailView
+                          key={pattern.name}
+                          patternName={pattern.name}
+                          embedded
+                          compactHeadline
+                        />
+                      </div>
                     </div>
-                  </div>
-                ) : null}
+                  ) : null}
+                </PatternAccordionCollapse>
               </li>
             );
           })}
