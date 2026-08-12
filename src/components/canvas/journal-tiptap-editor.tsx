@@ -12,9 +12,17 @@ import Text from "@tiptap/extension-text";
 import HardBreak from "@tiptap/extension-hard-break";
 import History from "@tiptap/extension-history";
 import Placeholder from "@tiptap/extension-placeholder";
-import type { TextBlockKind, JournalTextBlock } from "@/components/canvas/canvas-board";
+import type {
+  JournalHighlightColor,
+  JournalTextBlock,
+  TextBlockKind,
+} from "@/components/canvas/canvas-board";
 import { JournalBlock } from "@/components/canvas/extensions/journal-block";
 import { JournalMaxBlocks } from "@/components/canvas/extensions/journal-max-blocks";
+import {
+  JournalBold,
+  JournalHighlight,
+} from "@/components/canvas/extensions/journal-inline-marks";
 import { JournalQuoteHighlight } from "@/components/canvas/extensions/journal-quote-highlight";
 import { applyBlockKind } from "@/lib/journal-blocks";
 import {
@@ -42,6 +50,10 @@ export type JournalTiptapEditorHandle = {
   getActiveBlockId: () => string | null;
   getSelectionRect: () => DOMRect | null;
   getSelectedTextLength: () => number;
+  isInlineMarkActive: (mark: "bold") => boolean;
+  getHighlightColor: () => JournalHighlightColor | null;
+  toggleInlineMark: (mark: "bold") => void;
+  toggleHighlight: (color: JournalHighlightColor) => void;
   /** Highlight a Patterns quote; returns the range when found. */
   highlightQuote: (quote: string) => { from: number; to: number } | null;
   clearQuoteHighlight: () => void;
@@ -118,6 +130,8 @@ export const JournalTiptapEditor = forwardRef<
       History,
       JournalBlock,
       JournalMaxBlocks,
+      JournalBold,
+      JournalHighlight,
       JournalQuoteHighlight,
       Placeholder.configure({
         showOnlyCurrent: true,
@@ -284,6 +298,47 @@ export const JournalTiptapEditor = forwardRef<
         if (!editor) return 0;
         const { from, to } = editor.state.selection;
         return Math.abs(to - from);
+      },
+      isInlineMarkActive(mark: "bold") {
+        return editor?.isActive(mark) ?? false;
+      },
+      getHighlightColor() {
+        if (!editor?.isActive("highlight")) return null;
+        const color = editor.getAttributes("highlight").color;
+        if (color === "green" || color === "sage" || color === "pink") {
+          return color;
+        }
+        return "pink";
+      },
+      toggleInlineMark(mark: "bold") {
+        if (!editor) return;
+        const { from, to, empty } = editor.state.selection;
+        if (empty || from === to) return;
+        const markType = editor.schema.marks[mark];
+        if (!markType) return;
+        const tr = editor.state.tr;
+        if (editor.isActive(mark)) {
+          tr.removeMark(from, to, markType);
+        } else {
+          tr.addMark(from, to, markType.create());
+        }
+        editor.view.dispatch(tr);
+      },
+      toggleHighlight(color: JournalHighlightColor) {
+        if (!editor) return;
+        const { from, to, empty } = editor.state.selection;
+        if (empty || from === to) return;
+        const markType = editor.schema.marks.highlight;
+        if (!markType) return;
+        const tr = editor.state.tr;
+        const current = editor.isActive("highlight")
+          ? editor.getAttributes("highlight").color
+          : null;
+        tr.removeMark(from, to, markType);
+        if (current !== color) {
+          tr.addMark(from, to, markType.create({ color }));
+        }
+        editor.view.dispatch(tr);
       },
       highlightQuote(quote: string) {
         if (!editor) return null;

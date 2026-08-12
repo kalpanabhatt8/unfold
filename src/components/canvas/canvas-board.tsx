@@ -27,7 +27,7 @@ import React, {
   useState,
 } from "react";
 import clsx from "clsx";
-import { List, ListChecks, Pilcrow } from "lucide-react";
+import { Bold, Highlighter, List } from "lucide-react";
 import { JournalStamp, type JournalStampHandle } from "@/components/canvas/journal-stamp";
 import {
   JournalTiptapEditor,
@@ -77,10 +77,25 @@ export const CANVAS_SNAPSHOT_VERSION = 4 as const;
 
 export type TextBlockKind = "paragraph" | "bullet" | "checklist";
 
+export type JournalHighlightColor = "pink" | "green" | "sage";
+
+export type JournalInlineMark =
+  | "bold"
+  | "highlight"
+  | "highlight-green"
+  | "highlight-sage";
+
+export type JournalTextSpan = {
+  text: string;
+  marks?: JournalInlineMark[];
+};
+
 export type JournalTextBlock = {
   id: string;
   blockKind: TextBlockKind;
   text: string;
+  /** Inline bold/highlight runs. Absent = plain `text`. */
+  spans?: JournalTextSpan[];
   /** Only meaningful when blockKind === "checklist". */
   checked?: boolean;
 };
@@ -126,9 +141,20 @@ const fingerprintBlocks = (blocks: JournalTextBlock[]): string =>
     blocks.map((b) => ({
       k: b.blockKind,
       t: b.text,
+      s: b.spans ?? null,
       c: b.checked ?? false,
     })),
   );
+
+const HIGHLIGHT_SWATCHES: {
+  color: JournalHighlightColor;
+  label: string;
+  cssVar: string;
+}[] = [
+  { color: "pink", label: "Highlight pink", cssVar: "--journal-highlight-pink" },
+  { color: "green", label: "Highlight green", cssVar: "--journal-highlight-green" },
+  { color: "sage", label: "Highlight sage", cssVar: "--journal-highlight-sage" },
+];
 
 /** Minimum selected-character count before the text format bar appears. */
 const TEXT_CTX_SELECTION_MIN = 4;
@@ -183,6 +209,25 @@ const blocksFromSearchText = (searchText: string): JournalTextBlock[] => {
   }));
 };
 
+const sanitizeSpans = (raw: unknown): JournalTextSpan[] | undefined => {
+  if (!Array.isArray(raw) || raw.length === 0) return undefined;
+  const spans: JournalTextSpan[] = [];
+  for (const item of raw) {
+    if (!isRecord(item) || typeof item.text !== "string") continue;
+    const marks = Array.isArray(item.marks)
+      ? item.marks.filter(
+          (mark): mark is JournalInlineMark =>
+            mark === "bold" ||
+            mark === "highlight" ||
+            mark === "highlight-green" ||
+            mark === "highlight-sage",
+        )
+      : [];
+    spans.push(marks.length > 0 ? { text: item.text, marks } : { text: item.text });
+  }
+  return spans.length > 0 ? spans : undefined;
+};
+
 const sanitizeTextBlock = (raw: unknown): JournalTextBlock | null => {
   if (!isRecord(raw)) return null;
   const id = typeof raw.id === "string" ? raw.id : newId();
@@ -191,10 +236,12 @@ const sanitizeTextBlock = (raw: unknown): JournalTextBlock | null => {
     blockKindRaw === "bullet" || blockKindRaw === "checklist"
       ? blockKindRaw
       : "paragraph";
+  const spans = sanitizeSpans(raw.spans);
   return {
     id,
     blockKind,
     text: typeof raw.text === "string" ? raw.text : "",
+    spans,
     checked: blockKind === "checklist" ? Boolean(raw.checked) : undefined,
   };
 };
@@ -975,13 +1022,35 @@ function CanvasBoardInner(
     y: number;
     placeBelow: boolean;
   } | null>(null);
+  const [activeInlineMarks, setActiveInlineMarks] = useState<{
+    bold: boolean;
+    highlight: JournalHighlightColor | null;
+  }>({
+    bold: false,
+    highlight: null,
+  });
+  const lastHighlightColorRef = useRef<JournalHighlightColor>("pink");
+
+  const syncInlineMarks = useCallback(() => {
+    const highlight =
+      journalEditorRef.current?.getHighlightColor() ?? null;
+    if (highlight) lastHighlightColorRef.current = highlight;
+    setActiveInlineMarks({
+      bold: journalEditorRef.current?.isInlineMarkActive("bold") ?? false,
+      highlight,
+    });
+  }, []);
 
   useEffect(() => {
-    if (!isSealing) return;
+    if (!isSealing && sealedAt === null) return;
     setShowTextCtx(false);
-  }, [isSealing]);
+  }, [isSealing, sealedAt]);
 
   const refreshTextContext = useCallback(() => {
+    if (sealedAt !== null) {
+      setShowTextCtx(false);
+      return;
+    }
     const editorRoot = document.querySelector(
       ".journal-tiptap .ProseMirror"
     ) as HTMLElement | null;
@@ -1005,7 +1074,7 @@ function CanvasBoardInner(
       const rect = journalEditorRef.current?.getSelectionRect();
       if (rect) {
         const popoverGuessW = 160;
-        const popoverGuessH = 40;
+        const popoverGuessH = 64;
         const margin = 8;
         const gap = 8;
         const left = Math.max(
@@ -1019,12 +1088,13 @@ function CanvasBoardInner(
           y: placeBelow ? rect.bottom + gap : rect.top - gap,
           placeBelow,
         });
+        syncInlineMarks();
         setShowTextCtx(true);
         return;
       }
     }
     setShowTextCtx(false);
-  }, []);
+  }, [sealedAt, syncInlineMarks]);
 
   useEffect(() => {
     document.addEventListener("selectionchange", refreshTextContext);
@@ -1160,7 +1230,7 @@ function CanvasBoardInner(
       </div>
 
       {/* ---------- Text contextual format bar ---------- */}
-      {showTextCtx && textCtxPos && activeBlockId && (
+      {showTextCtx && textCtxPos && activeBlockId && sealedAt === null && (
         <div
           data-ctx
           className={clsx(
@@ -1171,6 +1241,7 @@ function CanvasBoardInner(
         >
           <div
             className="flex items-center gap-0.5 rounded-lg border border-black/[0.06] bg-white/95 px-1 py-0.5 shadow-[0_0.25rem_1.25rem_rgba(15,15,15,0.10)] backdrop-blur-md sm:rounded-xl sm:px-1.5 sm:py-1"
+            onMouseDown={(e) => e.preventDefault()}
             style={{
               fontFamily:
                 "var(--font-body)",
@@ -1179,21 +1250,9 @@ function CanvasBoardInner(
             {(
               [
                 {
-                  kind: "paragraph" as const,
-                  icon: <Pilcrow size={14} strokeWidth={iconStrokePx(14)} />,
-                  label: "Paragraph",
-                },
-                {
                   kind: "bullet" as const,
                   icon: <List size={14} strokeWidth={iconStrokePx(14)} />,
                   label: "Bullet list",
-                },
-                {
-                  kind: "checklist" as const,
-                  icon: (
-                    <ListChecks size={14} strokeWidth={iconStrokePx(14)} />
-                  ),
-                  label: "Checklist",
                 },
               ] as const
             ).map(({ kind, icon, label }) => (
@@ -1201,7 +1260,13 @@ function CanvasBoardInner(
                 key={kind}
                 type="button"
                 aria-label={label}
-                onClick={() => setBlockKind(activeBlockId, kind)}
+                aria-pressed={activeTextKind === kind}
+                onClick={() =>
+                  setBlockKind(
+                    activeBlockId,
+                    activeTextKind === kind ? "paragraph" : kind,
+                  )
+                }
                 className={clsx(
                   "inline-flex h-6 w-6 items-center justify-center rounded-md transition sm:h-7 sm:w-7 sm:rounded-lg",
                   activeTextKind === kind
@@ -1212,6 +1277,79 @@ function CanvasBoardInner(
                 {icon}
               </button>
             ))}
+            <button
+              type="button"
+              aria-label="Bold"
+              aria-pressed={activeInlineMarks.bold}
+              onClick={() => {
+                journalEditorRef.current?.toggleInlineMark("bold");
+                syncInlineMarks();
+              }}
+              className={clsx(
+                "inline-flex h-6 w-6 items-center justify-center rounded-md transition sm:h-7 sm:w-7 sm:rounded-lg",
+                activeInlineMarks.bold
+                  ? "bg-black/10 text-(--color-canvas-toolbar-icon)"
+                  : "text-(--color-canvas-toolbar-icon)/70 hover:bg-black/[0.05] hover:text-(--color-canvas-toolbar-icon)",
+              )}
+            >
+              <Bold size={14} strokeWidth={iconStrokePx(14)} />
+            </button>
+            <div className="relative">
+              <button
+                type="button"
+                aria-label="Highlight"
+                aria-pressed={activeInlineMarks.highlight !== null}
+                onClick={() => {
+                  journalEditorRef.current?.toggleHighlight(
+                    activeInlineMarks.highlight ??
+                      lastHighlightColorRef.current,
+                  );
+                  syncInlineMarks();
+                }}
+                className={clsx(
+                  "inline-flex h-6 w-6 items-center justify-center rounded-md transition sm:h-7 sm:w-7 sm:rounded-lg",
+                  activeInlineMarks.highlight
+                    ? "bg-black/10 text-(--color-canvas-toolbar-icon)"
+                    : "text-(--color-canvas-toolbar-icon)/70 hover:bg-black/[0.05] hover:text-(--color-canvas-toolbar-icon)",
+                )}
+              >
+                <Highlighter size={14} strokeWidth={iconStrokePx(14)} />
+              </button>
+              <div
+                className="absolute bottom-full left-1/2 mb-1 flex -translate-x-1/2 items-center gap-0.5 rounded-md border border-black/6 bg-white/95 px-0.5 py-0.5 shadow-[0_0.15rem_0.6rem_rgba(15,15,15,0.08)]"
+                role="group"
+                aria-label="Highlight color"
+              >
+                {HIGHLIGHT_SWATCHES.map(({ color, label, cssVar }) => {
+                  const active = activeInlineMarks.highlight === color;
+                  return (
+                    <button
+                      key={color}
+                      type="button"
+                      aria-label={label}
+                      aria-pressed={active}
+                      onClick={() => {
+                        journalEditorRef.current?.toggleHighlight(color);
+                        syncInlineMarks();
+                      }}
+                      className={clsx(
+                        "inline-flex h-6 w-6 items-center justify-center rounded-md transition",
+                        active ? "bg-black/10" : "hover:bg-black/5",
+                      )}
+                    >
+                      <span
+                        className={clsx(
+                          "block size-3.5 rounded-full ring-1",
+                          active ? "ring-black/25" : "ring-black/10",
+                        )}
+                        style={{ backgroundColor: `var(${cssVar})` }}
+                        aria-hidden
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         </div>
       )}

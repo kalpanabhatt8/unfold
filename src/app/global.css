@@ -945,8 +945,52 @@ input[type='number'] {
   outline: none;
   font-family: var(--font-body), system-ui, sans-serif;
   font-weight: 400 !important;
+}
 
+.journal-tiptap .ProseMirror strong,
+.journal-tiptap .ProseMirror b {
+  font-weight: 600 !important;
+}
 
+.journal-tiptap mark.journal-user-highlight {
+  color: inherit;
+  border-radius: 0.12em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  background-color: var(--journal-highlight-pink);
+}
+
+.journal-tiptap mark.journal-user-highlight[data-highlight-color="green"] {
+  background-color: var(--journal-highlight-green);
+}
+
+.journal-tiptap mark.journal-user-highlight[data-highlight-color="sage"] {
+  background-color: var(--journal-highlight-sage);
+}
+
+[data-writing-zone][data-sealed] .journal-tiptap mark.journal-user-highlight {
+  background-image: none !important;
+}
+
+[data-writing-zone][data-sealed]
+  .journal-tiptap
+  mark.journal-user-highlight:not([data-highlight-color]),
+[data-writing-zone][data-sealed]
+  .journal-tiptap
+  mark.journal-user-highlight[data-highlight-color="pink"] {
+  background-color: var(--journal-highlight-pink) !important;
+}
+
+[data-writing-zone][data-sealed]
+  .journal-tiptap
+  mark.journal-user-highlight[data-highlight-color="green"] {
+  background-color: var(--journal-highlight-green) !important;
+}
+
+[data-writing-zone][data-sealed]
+  .journal-tiptap
+  mark.journal-user-highlight[data-highlight-color="sage"] {
+  background-color: var(--journal-highlight-sage) !important;
 }
 
 /* Margin - NOT padding - so the gap between lines isn't part of the upper block's click target. */
