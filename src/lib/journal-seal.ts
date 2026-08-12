@@ -6,7 +6,12 @@
  * continue without the canvas staying mounted.
  */
 
-import type { CanvasSnapshot } from "@/components/canvas/canvas-board";
+import {
+  CANVAS_BACKGROUND,
+  CANVAS_SNAPSHOT_VERSION,
+  normalizeSnapshot,
+  type CanvasSnapshot,
+} from "@/components/canvas/canvas-board";
 import { hasBookTitle } from "@/lib/book-title";
 import {
   clearSealTitlePrefetch,
@@ -21,12 +26,14 @@ import {
   extractJournalPlainText,
   snapshotHasContent,
 } from "@/lib/canvas-word-count";
+import { newBlockId } from "@/lib/journal-blocks";
 import {
   ENTRY_BOARD_STORAGE_PREFIX,
   readEntryById,
   upsertEntry,
 } from "@/lib/journal-entries";
 import { notifyEntryCompleted } from "@/lib/patterns/entry-completion";
+import type { CompletionSource } from "@/lib/patterns/types";
 
 const flattenSnapshotText = (snapshot: CanvasSnapshot): string =>
   snapshot.textColumns
@@ -111,12 +118,16 @@ const applySealTitleInBackground = (
 };
 
 /**
- * Commit an explicit seal for `entryId`. Idempotent - returns the existing
- * `sealedAt` when already sealed. Safe to call before navigating away.
+ * Commit a seal for `entryId`. Idempotent - returns the existing `sealedAt`
+ * when already sealed. Safe to call before navigating away.
+ *
+ * `source` defaults to `"seal"` (stamp). Use `"inactivity"` for auto-seal after
+ * idle so analysis logging stays distinct.
  */
 export const commitEntrySeal = (
   entryId: string,
   snapshot: CanvasSnapshot,
+  options?: { source?: CompletionSource },
 ): number | null => {
   if (!entryId || typeof window === "undefined") return null;
 
@@ -130,6 +141,7 @@ export const commitEntrySeal = (
   const now = Date.now();
   const sealedSnapshot: CanvasSnapshot = { ...snapshot, sealedAt: now };
   const searchText = flattenSnapshotText(sealedSnapshot);
+  const source = options?.source ?? "seal";
 
   persistBoardSnapshot(entryId, sealedSnapshot);
 
@@ -144,8 +156,49 @@ export const commitEntrySeal = (
   // open editor - navigating to a new entry mid-stamp must not wait on them.
   applySealTitleInBackground(entryId, sealedSnapshot, existing?.title ?? "");
   window.setTimeout(() => {
-    void notifyEntryCompleted(entryId, "seal");
+    void notifyEntryCompleted(entryId, source);
   }, 0);
 
   return now;
+};
+
+/** Load a board snapshot from storage, or rebuild a minimal one from searchText. */
+const readSnapshotForSeal = (entryId: string): CanvasSnapshot | null => {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const raw = window.localStorage.getItem(boardStorageKey(entryId));
+    if (raw) {
+      const snap = normalizeSnapshot(JSON.parse(raw) as unknown);
+      if (snap && snapshotHasContent(snap)) return snap;
+    }
+  } catch {
+    /* fall through */
+  }
+
+  const entry = readEntryById(entryId);
+  const text = entry?.searchText?.trim() ?? "";
+  if (!text) return null;
+
+  return {
+    version: CANVAS_SNAPSHOT_VERSION,
+    textColumns: [
+      [{ id: newBlockId(), blockKind: "paragraph", text }],
+    ],
+    background: CANVAS_BACKGROUND,
+    updatedAt: entry?.lastEditedAt ?? entry?.updatedAt ?? Date.now(),
+  };
+};
+
+/**
+ * Seal from stored board / searchText (no open canvas required). Used by the
+ * inactivity auto-seal path.
+ */
+export const commitEntrySealFromStorage = (
+  entryId: string,
+  options?: { source?: CompletionSource },
+): number | null => {
+  const snapshot = readSnapshotForSeal(entryId);
+  if (!snapshot) return null;
+  return commitEntrySeal(entryId, snapshot, options);
 };

@@ -2,8 +2,8 @@
  * Unfold - the generic "entry completion" trigger.
  *
  * The analysis pipeline listens here and is agnostic to WHAT completed an
- * entry. V1 wires `"seal"` (explicit) and `"inactivity"` (implicit: 24h idle
- * + 50+ words - analysis-only, entry stays unsealed in the UI).
+ * entry. V1 wires `"seal"` (explicit stamp) and `"inactivity"` (auto-seal:
+ * 24h idle + 50+ words → sets `sealedAt`, locks the entry).
  *
  * Ordering: crisis check → content-quality check → pattern extraction.
  * Either gate skip extraction entirely when flagged.
@@ -44,14 +44,14 @@ import { putPipelineDebug } from "@/lib/patterns/pattern-pipeline-debug-store";
 import { countWords, readEntryText } from "@/lib/patterns/entry-text";
 import type { CompletionSource } from "@/lib/patterns/types";
 
-/** Idle time before an unsealed draft counts as complete for patterns only. */
+/** Idle time before an unsealed draft is auto-sealed (locked + analyzed). */
 export const IMPLICIT_SEAL_INACTIVITY_MS = 24 * 60 * 60 * 1000;
 
-/** Minimum words for the inactivity trigger (same ballpark as a real entry). */
+/** Minimum words for the inactivity auto-seal (same ballpark as a real entry). */
 export const IMPLICIT_SEAL_MIN_WORDS = 50;
 
 /**
- * Resolve idle threshold for implicit analysis.
+ * Resolve idle threshold for inactivity auto-seal.
  *
  * Production always uses 24h. In development only, you can shorten it to
  * exercise the inactivity path without waiting a day:
@@ -97,9 +97,9 @@ export const isExplicitlySealed = (entry: JournalEntry): boolean =>
 
 /**
  * Unsealed draft that has sat untouched long enough with enough text to
- * analyze. Does not set `sealedAt` - the user still sees an open draft.
+ * auto-seal. Used as the candidate check before `commitEntrySealFromStorage`.
  */
-export const isImplicitlySealedForAnalysis = (entry: JournalEntry): boolean => {
+export const isIdleEligibleForAutoSeal = (entry: JournalEntry): boolean => {
   if (isExplicitlySealed(entry)) return false;
   if (Date.now() - lastActivityAt(entry) < getImplicitSealInactivityMs()) {
     return false;
@@ -107,12 +107,24 @@ export const isImplicitlySealedForAnalysis = (entry: JournalEntry): boolean => {
   return countWords(readEntryText(entry.id)) >= IMPLICIT_SEAL_MIN_WORDS;
 };
 
-/** Whether pattern analysis may run for this entry (explicit or implicit seal). */
+/** Whether pattern analysis may run for this entry (must be sealed). */
 export const isAnalysisEligible = (entry: JournalEntry): boolean =>
-  isExplicitlySealed(entry) || isImplicitlySealedForAnalysis(entry);
+  isExplicitlySealed(entry);
 
-const completionSourceFor = (entry: JournalEntry): CompletionSource =>
-  isExplicitlySealed(entry) ? "seal" : "inactivity";
+/**
+ * Seal idle drafts that meet the inactivity threshold so they lock and cannot
+ * be edited further (avoids re-analysis if the user keeps writing). Dynamic
+ * import avoids a circular dependency with `journal-seal`.
+ */
+export async function sealIdleEligibleEntries(): Promise<void> {
+  const pending = readAllEntries().filter(isIdleEligibleForAutoSeal);
+  if (pending.length === 0) return;
+
+  const { commitEntrySealFromStorage } = await import("@/lib/journal-seal");
+  for (const entry of pending) {
+    commitEntrySealFromStorage(entry.id, { source: "inactivity" });
+  }
+}
 
 /** In-flight guard so a rapid double-fire never double-calls the model. */
 const inflight = new Set<string>();
@@ -258,13 +270,17 @@ export async function notifyEntryCompleted(
 }
 
 /**
- * Self-healing backfill: analyze completed entries that are missing analysis
- * or whose analysis is stale (promptVersion / content hash). Explicitly sealed,
- * or implicitly sealed (24h idle + 50+ words). Rate-limited and sequential.
+ * Self-healing backfill: auto-seal idle drafts, then analyze sealed entries
+ * that are missing analysis or whose analysis is stale (promptVersion /
+ * content hash). Rate-limited and sequential.
  *
  * Skips crisis- and quality-flagged entries so they never enter pattern extraction.
  */
 export async function reconcileAnalyses(): Promise<void> {
+  // Lock idle drafts first so analysis runs on a sealed snapshot and further
+  // edits cannot invalidate / require a re-run.
+  await sealIdleEligibleEntries();
+
   const needsExtraction = (entry: JournalEntry): boolean => {
     const text = readEntryText(entry.id);
     if (!text.trim()) return false;
@@ -278,15 +294,10 @@ export async function reconcileAnalyses(): Promise<void> {
     .filter((entry) => isAnalysisEligible(entry))
     .filter(needsExtraction)
     .filter((entry) => isAnalysisAttemptAllowed(entry.id))
-    .sort((a, b) => {
-      const aExplicit = isExplicitlySealed(a) ? 0 : 1;
-      const bExplicit = isExplicitlySealed(b) ? 0 : 1;
-      if (aExplicit !== bExplicit) return aExplicit - bExplicit;
-      return lastActivityAt(a) - lastActivityAt(b);
-    })
+    .sort((a, b) => lastActivityAt(a) - lastActivityAt(b))
     .slice(0, RECONCILE_BATCH_LIMIT);
 
   for (const entry of pending) {
-    await notifyEntryCompleted(entry.id, completionSourceFor(entry));
+    await notifyEntryCompleted(entry.id, "seal");
   }
 }

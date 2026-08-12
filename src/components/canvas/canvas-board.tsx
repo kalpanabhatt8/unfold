@@ -61,7 +61,7 @@ import {
   commitEntrySeal,
   entryIdFromBoardStorageKey,
 } from "@/lib/journal-seal";
-import { readEntryById } from "@/lib/journal-entries";
+import { ENTRIES_UPDATED_EVENT, readEntryById } from "@/lib/journal-entries";
 import {
   CONTENT_COLUMN_MAX_WIDTH,
   PAGE_PADDING_X_CLASS,
@@ -541,6 +541,24 @@ function CanvasBoardInner(
     }
     clearSavingLabel();
   }, [clearSavingLabel]);
+
+  // Inactivity auto-seal (and sync) may set `sealedAt` while this board is
+  // still mounted - lock the editor without requiring a remount.
+  useEffect(() => {
+    if (!isContentReady || sealedAt !== null) return;
+
+    const lockIfSealedExternally = () => {
+      const meta = readEntryById(entryIdFromBoardStorageKey(storageKey));
+      if (typeof meta?.sealedAt !== "number") return;
+      clearLocalMirrorTimers();
+      setSealedAt(meta.sealedAt);
+    };
+
+    lockIfSealedExternally();
+    window.addEventListener(ENTRIES_UPDATED_EVENT, lockIfSealedExternally);
+    return () =>
+      window.removeEventListener(ENTRIES_UPDATED_EVENT, lockIfSealedExternally);
+  }, [clearLocalMirrorTimers, isContentReady, sealedAt, storageKey]);
 
   // Fast local mirror so a tab close never loses keystrokes. This is *not*
   // the "milestone" save (AI title regen) - that fires from a coarser timer

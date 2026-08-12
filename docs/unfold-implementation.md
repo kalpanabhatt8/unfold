@@ -98,9 +98,9 @@ Editing is **local-first**: changes hit the browser immediately. When signed in,
 - Re-sealing an already sealed entry does nothing new.
 - Manual titles always win over AI.
 
-### Implicit completion (patterns only)
+### Auto-seal (inactivity)
 
-An **unsealed** draft that has been idle **≥ 24 hours** and has **≥ 50 words** is eligible for pattern analysis. The UI still shows it as a draft. This does not set a seal date.
+An **unsealed** draft that has been idle **≥ 24 hours** and has **≥ 50 words** is **auto-sealed**: `sealedAt` is set, the entry becomes read-only, title + pattern analysis run the same as an explicit stamp. This prevents further edits (and re-analysis) after the idle threshold.
 
 ### Delete
 
@@ -112,7 +112,7 @@ An **unsealed** draft that has been idle **≥ 24 hours** and has **≥ 50 words
 ```
 empty / new → DRAFT ⇄ edit & autosave
                 │
-           seal stamp
+        seal stamp  OR  idle ≥24h + ≥50 words
                 ↓
              SEALED (read-only; title & analysis async)
                 │
@@ -156,7 +156,7 @@ Opening a quote from a pattern can highlight that passage in the entry, scroll i
 ### Word counts (gates, not a badge)
 
 - **≥ 3 words** → AI title may run on seal.
-- **≥ 50 words** → inactivity can trigger analysis.
+- **≥ 50 words** → inactivity can auto-seal (then analyze).
 
 ---
 
@@ -265,8 +265,8 @@ Deferred (not in V1): need for control, guilt.
 | Trigger | Effect on entry | Effect on patterns |
 |---------|-----------------|--------------------|
 | Explicit seal | Sealed, read-only | Analyze once |
-| Idle ≥24h + ≥50 words | Still a draft in UI | Analyze once |
-| Patterns page load | - | Backfill up to 5 missing analyses |
+| Idle ≥24h + ≥50 words | Auto-sealed, read-only | Analyze once |
+| Patterns page load | Auto-seals idle drafts first | Backfill up to 5 missing analyses |
 
 **V1 rule:** one analysis per entry id, ever. Content hash is stored for future stale detection, but edits do **not** re-run analysis yet. Failures store nothing so reconcile can retry.
 

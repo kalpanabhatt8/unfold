@@ -1,7 +1,7 @@
 "use client";
 
 import type { QuoteRef } from "@/lib/patterns/evidence-signals";
-import { formatMomentLabel } from "@/lib/patterns/quote-meta";
+import { formatQuoteDatePill } from "@/lib/patterns/quote-meta";
 
 export type EvidenceSectionProps = {
   visible: QuoteRef[];
@@ -10,7 +10,7 @@ export type EvidenceSectionProps = {
   onOpenEntry: (entryId: string, quoteText?: string) => void;
 };
 
-/** Grid of journal quote cards - shared dusty-rose theme. */
+/** Grid of journal quote cards - shared light warm wash. */
 export function EvidenceSection({
   visible,
   onOpenEntry,
@@ -35,8 +35,16 @@ export function EvidenceSection({
         >
           <p className="evidence-card__top">
             <span className="evidence-card__date">
-              {formatMomentLabel(quote.anchorTs, quote.text)}
+              {formatQuoteDatePill(quote.anchorTs)}
             </span>
+            {quote.entryTitle ? (
+              <>
+                <span className="evidence-card__sep" aria-hidden>
+                  ·
+                </span>
+                <span className="evidence-card__label">{quote.entryTitle}</span>
+              </>
+            ) : null}
           </p>
           <p className="evidence-card__quote-text">
             &ldquo;{quote.text}&rdquo;

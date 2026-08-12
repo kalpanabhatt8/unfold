@@ -38,16 +38,19 @@ function MetricCard({
   tint,
   label,
   value,
+  approximate = false,
 }: {
   tint: keyof typeof METRIC_CARD_TINT;
   label: string;
   value: number;
+  approximate?: boolean;
 }) {
   return (
     <div
       className={`flex min-w-0 flex-col gap-1 rounded-xl px-3 py-3.5 ${METRIC_CARD_TINT[tint]}`}
     >
       <span className="header-md tabular-nums leading-none">
+        {approximate ? "~" : ""}
         {formatCount(value)}
       </span>
       <span className="text-sm leading-none text-tertiary">{label}</span>
@@ -66,6 +69,11 @@ function JournalSummaryFooter({ summary }: { summary: JournalSummary }) {
   );
 }
 
+function wordsPerEntry(summary: JournalSummary): number {
+  if (summary.entryCount <= 0) return 0;
+  return Math.round(summary.wordCount / summary.entryCount);
+}
+
 function YourJournal({ summary }: { summary: JournalSummary }) {
   return (
     <section className="flex flex-col gap-4">
@@ -78,7 +86,12 @@ function YourJournal({ summary }: { summary: JournalSummary }) {
             value={summary.entryCount}
             label="Entries"
           />
-          <MetricCard tint="words" value={summary.wordCount} label="Words" />
+          <MetricCard
+            tint="words"
+            value={wordsPerEntry(summary)}
+            label="words/entry"
+            approximate
+          />
         </div>
       </div>
       <JournalSummaryFooter summary={summary} />

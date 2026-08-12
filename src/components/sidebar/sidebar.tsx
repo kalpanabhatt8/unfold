@@ -112,11 +112,15 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
   const [isPatternsActive, setIsPatternsActive] = useState(initialPatternsActive);
   // Relative labels use Date.now() — empty until mount so SSR/client match.
   const [relativeTimesReady, setRelativeTimesReady] = useState(false);
+  // Clerk often has the user on the client before hydration finishes, while SSR
+  // still sees isLoaded=false → "Unfold" vs "Name's Unfold". Gate on mount.
+  const [hasMounted, setHasMounted] = useState(false);
   const initialSyncReady = useInitialSyncReady();
   const showEntriesSkeleton = !initialSyncReady && entries.length === 0;
 
   useEffect(() => {
     setRelativeTimesReady(true);
+    setHasMounted(true);
   }, []);
 
   useEffect(() => {
@@ -186,11 +190,12 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
     (pathname === "/dashboard" ||
       (pathname?.startsWith("/dashboard/journal") ?? false));
 
-  const displayName = !isLoaded
-    ? null
-    : user
-      ? (resolvePreferredName(user) || user.username || null)
-      : "Anonymous";
+  const displayName =
+    !hasMounted || !isLoaded
+      ? null
+      : user
+        ? (resolvePreferredName(user) || user.username || null)
+        : "Anonymous";
 
   const closeSearch = () => {
     setSearchOpen(false);
@@ -289,7 +294,10 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
   };
 
   const desktopSidebarClosed = collapsed;
-  const canShowMenuToggle = collapsed && !isPatternsActive;
+  // Patterns overlay keeps its own in-flow Menu; desktop Patterns has none,
+  // so show the floating toggle whenever the rail is closed there.
+  const canShowMenuToggle =
+    collapsed && !(isPatternsActive && isOverlayNav);
   const [menuToggleVisible, setMenuToggleVisible] = useState(false);
   const prevCanShowMenuToggleRef = useRef<boolean | null>(null);
 
@@ -530,7 +538,7 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
                       <div
                         className={clsx(
                           "pointer-events-none relative flex flex-col gap-0.5 px-2.75 py-2.5",
-                          isSealed && "opacity-78",
+                          isSealed && "opacity-79",
                         )}
                       >
                         <span className="flex items-start justify-between gap-3">
@@ -540,8 +548,8 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
                               isSealed
                                 ? "font-medium text-sealed"
                                 : clsx(
-                                    isPlaceholder ? "font-medium" : "font-semibold",
-                                    "text-primary opacity-80",
+                                    isPlaceholder ? "font-medium" : "font-medium",
+                                    "text-primary opacity-90",
                                   ),
                             )}
                           >

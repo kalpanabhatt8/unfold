@@ -26,8 +26,8 @@ export const PAGE_PADDING_X_CLASS = "px-4 sm:px-5 lg:px-6";
 
 /**
  * Fixed overlay hamburger clearance (≤1023px): top (24) + touch target (44) +
- * gap below (16) = 84. Used by the journal column; Patterns keeps the menu
- * in-flow instead.
+ * gap below (16) = 84. Used by the journal column; Patterns overlay keeps the
+ * menu in-flow instead (desktop Patterns uses the floating toggle when closed).
  */
 export const OVERLAY_MENU_CLEARANCE_PX = 84;
 

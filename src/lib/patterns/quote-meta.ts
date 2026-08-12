@@ -18,21 +18,3 @@ export const formatQuoteDatePill = (ts: number): string => {
     year: "numeric",
   });
 };
-
-/**
- * Short stem from a quote for moment cards - first few words, no ellipsis noise
- * when the quote is already short.
- */
-export const formatQuoteStem = (text: string, maxWords = 5): string => {
-  const words = text.trim().split(/\s+/).filter(Boolean);
-  if (words.length === 0) return "";
-  if (words.length <= maxWords) return words.join(" ");
-  return `${words.slice(0, maxWords).join(" ")}…`;
-};
-
-/** Moment card header: date · short quote stem (not the entry seal title). */
-export const formatMomentLabel = (anchorTs: number, quoteText: string): string => {
-  const date = formatQuoteDatePill(anchorTs);
-  const stem = formatQuoteStem(quoteText);
-  return stem ? `${date} · ${stem}` : date;
-};
