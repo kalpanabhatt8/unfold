@@ -19,7 +19,9 @@ const fromTipTapMark = (mark: JSONContent): JournalInlineMark | null => {
   return "highlight";
 };
 
-const toTipTapMark = (mark: JournalInlineMark): JSONContent => {
+type TipTapMark = NonNullable<JSONContent["marks"]>[number];
+
+const toTipTapMark = (mark: JournalInlineMark): TipTapMark => {
   if (mark === "bold") return { type: "bold" };
   if (mark === "highlight-green") {
     return { type: "highlight", attrs: { color: "green" } };
