@@ -7,7 +7,6 @@ import { useParams, usePathname, useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import {
   ChevronsLeft,
-  Feather,
   Menu,
   Plus,
   Search,
@@ -37,9 +36,15 @@ import { useSurfacedPatterns } from "@/hooks/use-surfaced-patterns";
 import { usePatternGeneration } from "@/hooks/use-pattern-generation";
 import { PatternsSidebarLink } from "@/components/sidebar/patterns-sidebar-link";
 import { SidebarAccountMenu } from "@/components/sidebar/sidebar-account-menu";
+import { SectionLabel } from "@/components/ui/section-label";
 import { JournalInsightsPanel } from "@/components/journal-insights/journal-insights-panel";
+import { useJournalInsights } from "@/hooks/use-journal-insights";
 import { OVERLAY_NAV_QUERY } from "@/lib/breakpoints";
-import { OPEN_NAV_EVENT } from "@/lib/layout";
+import {
+  OPEN_NAV_EVENT,
+  OVERLAY_MENU_ICON_ONLY_CLASS,
+  OVERLAY_MENU_INSET_LEFT_CLASS,
+} from "@/lib/layout";
 import { resolvePreferredName } from "@/lib/user-display";
 
 const UNTITLED_ENTRY = "Untitled";
@@ -128,6 +133,10 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
   const [hasMounted, setHasMounted] = useState(false);
   const initialSyncReady = useInitialSyncReady();
   const showEntriesSkeleton = !initialSyncReady && entries.length === 0;
+  const { summary: journalSummary, ready: journalInsightsReady } =
+    useJournalInsights();
+  const showSummaryHeading =
+    journalInsightsReady && journalSummary.entryCount > 0;
 
   useEffect(() => {
     setRelativeTimesReady(true);
@@ -180,7 +189,7 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
     };
   }, []);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (searchOpen) searchInputRef.current?.focus();
   }, [searchOpen]);
 
@@ -350,7 +359,11 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
       type="button"
       onClick={expandSidebar}
       aria-label="Open menu"
-      className={`shrink-0 ${btnIconChrome(SIDEBAR_TOGGLE_SIZE)}`}
+      className={
+        isOverlayNav
+          ? OVERLAY_MENU_ICON_ONLY_CLASS
+          : `shrink-0 ${btnIconChrome(SIDEBAR_TOGGLE_SIZE)}`
+      }
     >
       <Menu
         size={iconPx(SIDEBAR_TOGGLE_SIZE)}
@@ -411,9 +424,14 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
 
       {isPatternsActive ? (
         <section
-          className="relative z-10 -mr-2 flex min-h-0 flex-1 flex-col overflow-hidden"
+          className="relative z-10 -mr-2 flex min-h-0 flex-1 flex-col gap-2 overflow-hidden"
           aria-label="Your Journal"
         >
+          {showSummaryHeading ? (
+            <div className="flex h-9 shrink-0 items-center pl-4 pr-4">
+              <SectionLabel>Summary</SectionLabel>
+            </div>
+          ) : null}
           <div className="relative min-h-0 flex-1">
             <div className="sidebar-entries-scroll min-h-0 h-full overflow-y-auto overscroll-y-contain pl-4 pr-4">
               <JournalInsightsPanel />
@@ -426,9 +444,9 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
           className="relative z-10 -mr-2 flex min-h-0 flex-1 flex-col gap-2 overflow-hidden"
           aria-label="Entries"
         >
-          <div className="flex h-9 shrink-0 items-center pl-2 pr-4">
+          <div className="flex h-9 shrink-0 items-center pl-4 pr-4">
             {searchOpen ? (
-              <div className="flex h-full w-full items-center gap-2 rounded-md bg-(--sidebar-entry-pressed-bg) pl-3 pr-1">
+              <div className="flex h-full w-full items-center gap-2 rounded-md border border-[color-mix(in_srgb,var(--sidebar-ink-soft)_24%,var(--sidebar-edge-border))] bg-(--sidebar-entry-hover-bg) pl-3 pr-1 shadow-[0_1px_3px_color-mix(in_srgb,var(--sidebar-ink)_6%,transparent)]">
                 <Search
                   size={14}
                   strokeWidth={1.8}
@@ -463,9 +481,9 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
               </div>
             ) : (
               <>
-                <span className="min-w-0 flex-1 truncate text-xs font-medium tracking-[0.01em] text-(--text-tertiary) pl-2.75">
-                  Recent entries
-                </span>
+                <div className="min-w-0 flex-1">
+                  <SectionLabel>Recent entries</SectionLabel>
+                </div>
                 <div className="flex shrink-0 items-center gap-1">
                   <button
                     type="button"
@@ -509,7 +527,6 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
               <div className="pl-2 pr-4">
                 {entries.length === 0 ? (
                   <SidebarEmptyState
-                    icon={Feather}
                     title="No entries yet"
                     body="Start with a single line — your recent entries will live here."
                     action={
@@ -530,7 +547,6 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
                   />
                 ) : (
                   <SidebarEmptyState
-                    icon={Search}
                     title="No matches"
                     body="Try a different word or phrase."
                     compact
@@ -672,8 +688,8 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
   const collapsedMenuToggle = (
     <div
       className={clsx(
-        // Match sidebar brand row: px-2 + pl-4 = 1.5rem left; mt-4 top.
-        "fixed z-20 left-[calc(env(safe-area-inset-left,0)+1.5rem)]",
+        "fixed z-20",
+        OVERLAY_MENU_INSET_LEFT_CLASS,
         OVERLAY_OPACITY_TRANSITION,
         menuToggleVisible
           ? "opacity-100"

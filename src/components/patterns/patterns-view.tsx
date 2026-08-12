@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, ChevronUp, Menu } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ChevronDown, ChevronUp, Menu, Sprout } from "lucide-react";
+import { SidebarEmptyState } from "@/components/sidebar/sidebar-empty-state";
 import { PATTERN_LABELS } from "@/lib/patterns/vocabulary-public";
 import type { PatternName } from "@/lib/patterns/vocabulary-public";
 import { PatternDetailView } from "@/components/patterns/pattern-detail-view";
@@ -22,13 +24,16 @@ import {
 } from "@/lib/patterns/pattern-view-store";
 import { PATTERN_PASSAGE_UPDATED_EVENT } from "@/lib/patterns/passage-store";
 import {
+  btnChromeNavLink,
   btnIconChrome,
   iconFixed,
   iconPx,
   iconStroke,
 } from "@/components/ui/button-system";
+import { resolveNewEntryTarget } from "@/lib/entry-draft";
 import {
   openAppNav,
+  OVERLAY_MENU_BUTTON_CLASS,
   PAGE_PADDING_X_CLASS,
   patternsColumnMaxWidth,
 } from "@/lib/layout";
@@ -69,6 +74,7 @@ export type PatternsViewProps = {
  * time. "What's the pattern here?" advances phases in that panel.
  */
 export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
+  const router = useRouter();
   const viewport = useViewportLayout();
   const initialSyncReady = useInitialSyncReady();
   const aggregate = usePatternsAggregate();
@@ -118,6 +124,7 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
   // Aggregate not read yet, or empty local cache while cloud sync still filling in.
   const showPatternsSkeleton =
     aggregate === null || (!initialSyncReady && !hasReadyPatterns);
+  const showPatternsHeading = !showPatternsSkeleton && hasReadyPatterns;
 
   /** null = all collapsed. */
   const [expanded, setExpanded] = useState<PatternName | null>(
@@ -177,6 +184,11 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
     };
   }, [expanded]);
 
+  const handleStartEntry = () => {
+    const { id } = resolveNewEntryTarget();
+    router.push(`/dashboard/journal/${id}?new=1`);
+  };
+
   if (aggregate === null) {
     return null;
   }
@@ -205,7 +217,7 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
               type="button"
               onClick={openAppNav}
               aria-label="Open menu"
-              className="mb-1.5 flex h-11 w-11 shrink-0 items-center justify-center text-(--sidebar-ink) transition-colors duration-150 hover:text-(--sidebar-active-ink) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20"
+              className={OVERLAY_MENU_BUTTON_CLASS}
             >
               <Menu
                 size={18}
@@ -215,27 +227,36 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
               />
             </button>
           ) : null}
-          <div className="flex h-9 shrink-0 items-center">
-            <h1 className="header-md tracking-tight">Patterns</h1>
-          </div>
-          {hasReadyPatterns ? (
-            <p className="mt-1 text-xs leading-relaxed text-(--sidebar-ink-soft) sm:text-sm">
-              A few thoughts have been returning lately.
-            </p>
+          {showPatternsHeading ? (
+            <>
+              <div className="flex h-9 shrink-0 items-center">
+                <h1 className="header-md tracking-tight">Patterns</h1>
+              </div>
+              <p className=" text-sm leading-relaxed text-(--sidebar-ink-soft) sm:text-sm">
+              Here's what your writing keeps circling back to
+              </p>
+            </>
           ) : null}
         </header>
 
         {showPatternsSkeleton ? <PatternsListSkeleton /> : null}
 
         {!showPatternsSkeleton && !hasReadyPatterns ? (
-          <div className="mt-16 flex justify-center">
-            <div className="flex max-w-[18rem] flex-col items-center gap-1.5 text-center">
-              <p className="text-md font-medium text-primary">No pattern yet</p>
-              <p className="max-w-md text-center text-sm leading-snug text-(--sidebar-ink-soft)">
-                Keep writing, when a thought keeps returning, it will show up
-                here.
-              </p>
-            </div>
+          <div className="flex flex-1 flex-col items-center justify-center py-16">
+            <SidebarEmptyState
+              icon={Sprout}
+              title="No pattern yet"
+              body="Keep writing, when a thought keeps returning, it will show up here."
+              action={
+                <button
+                  type="button"
+                  onClick={handleStartEntry}
+                  className={btnChromeNavLink}
+                >
+                  Start a entry
+                </button>
+              }
+            />
           </div>
         ) : null}
 

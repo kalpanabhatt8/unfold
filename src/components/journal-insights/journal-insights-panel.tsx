@@ -1,17 +1,10 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { Info, PenLine, Sprout } from "lucide-react";
+import { Info } from "lucide-react";
+import { SectionLabel } from "@/components/ui/section-label";
 import { Tooltip } from "@/components/ui/tooltip";
-import {
-  btnPrimary,
-  iconFixed,
-  iconPx,
-  iconStroke,
-} from "@/components/ui/button-system";
 import { SidebarEmptyState } from "@/components/sidebar/sidebar-empty-state";
 import { JournalInsightsSkeleton } from "@/components/journal-insights/journal-insights-skeleton";
-import { resolveNewEntryTarget } from "@/lib/entry-draft";
 import { useJournalInsights } from "@/hooks/use-journal-insights";
 import { useInitialSyncReady } from "@/lib/sync/use-initial-sync-ready";
 import {
@@ -22,14 +15,6 @@ import {
   type JournalSummary,
   type TopicFrequency,
 } from "@/lib/journal-insights/stats";
-
-function SectionLabel({ children }: { children: string }) {
-  return (
-    <p className="text-[0.6875rem] font-medium tracking-[0.01em] text-tertiary uppercase">
-      {children}
-    </p>
-  );
-}
 
 function InsightsDivider() {
   return (
@@ -54,7 +39,9 @@ function MetricCard({
         {approximate ? "~" : ""}
         {formatCount(value)}
       </span>
-      <span className="text-sm leading-none text-tertiary">{label}</span>
+      <span className="text-sm leading-none text-secondary">
+        {label.charAt(0).toUpperCase() + label.slice(1)}
+      </span>
     </div>
   );
 }
@@ -79,10 +66,7 @@ function YourJournal({ summary }: { summary: JournalSummary }) {
   return (
     <section className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
-        <div className="flex h-9 shrink-0 items-center">
-          <SectionLabel>Summary</SectionLabel>
-        </div>
-        <div className="grid min-w-0 grid-cols-2 gap-2">
+        <div className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,7.5rem),1fr))] gap-2">
           <MetricCard value={summary.dayCount} label="Days" />
           <MetricCard value={summary.entryCount} label="Entries" />
           <MetricCard
@@ -190,14 +174,8 @@ function WhatsShowingUp({
  * Never lists patterns — those stay in the main Patterns view.
  */
 export function JournalInsightsPanel() {
-  const router = useRouter();
   const initialSyncReady = useInitialSyncReady();
   const { summary, topics, ready } = useJournalInsights();
-
-  const handleWriteFirstEntry = () => {
-    const { id } = resolveNewEntryTarget();
-    router.push(`/dashboard/journal/${id}?new=1`);
-  };
 
   // Local read pending, or empty local cache while cloud sync still filling in.
   if (!ready || (!initialSyncReady && summary.entryCount === 0)) {
@@ -207,24 +185,8 @@ export function JournalInsightsPanel() {
   if (summary.entryCount === 0) {
     return (
       <SidebarEmptyState
-        icon={Sprout}
-        title="Insights begin with a single page"
-        body="Write your first entry and a gentle picture of your days, themes, and rhythms will appear here."
-        action={
-          <button
-            type="button"
-            onClick={handleWriteFirstEntry}
-            className={btnPrimary("sm")}
-          >
-            <PenLine
-              size={iconPx("sm")}
-              strokeWidth={iconStroke("sm")}
-              aria-hidden
-              className={iconFixed}
-            />
-            Write your first entry
-          </button>
-        }
+        title="Start with a page"
+        body="Write something down. Insights will appear as you keep writing."
       />
     );
   }

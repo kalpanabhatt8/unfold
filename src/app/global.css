@@ -147,7 +147,7 @@
   --popover-border: #ede4e9;
   --sidebar-tab-track: #ede4e9;
   --sidebar-tab-selected-bg: #e7dde2;
-  --journal-quote-highlight: #f9e7eb;
+  --journal-quote-highlight: #F7E7EB;
   --canvas-recess: #f2efeb;
   --canvas-brown: #7e675f;
 
@@ -839,6 +839,55 @@ button:hover {
   cursor: pointer;
 }
 
+/* Landing nav CTA — beats global `button` font-size reset; shared with app chrome. */
+button.chrome-cta,
+a.chrome-cta,
+.chrome-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 1.25rem;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: color-mix(in srgb, var(--sidebar-tab-track) 70%, white);
+  color: var(--canvas-title-ink);
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: 0.9375rem;
+  line-height: 1.2;
+  text-decoration: none;
+  transition: background-color 180ms ease;
+}
+
+button.chrome-cta:hover:not(:disabled),
+a.chrome-cta:hover {
+  background: var(--sidebar-tab-selected-bg);
+}
+
+a.chrome-nav-link,
+button.chrome-nav-link,
+.chrome-nav-link {
+  color: var(--sidebar-ink-soft);
+  font-family: var(--font-body);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.2;
+  text-decoration: none;
+  transition: color 180ms ease;
+}
+
+button.chrome-nav-link {
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+
+a.chrome-nav-link:hover,
+button.chrome-nav-link:hover:not(:disabled),
+.chrome-nav-link:hover {
+  color: var(--canvas-title-ink);
+}
+
 .cl-formButtonPrimary {
   cursor: pointer;
   background-color: var(--gray-900);
@@ -1202,7 +1251,7 @@ input[type='number'] {
   min-height: 10rem;
   margin: 0;
   padding: 0.95rem 1rem 1.05rem;
-  border: 0.0625rem solid color-mix(in srgb, var(--border) 15%, transparent);
+  border: 0.0625rem solid color-mix(in srgb, var(--border) 32%, transparent);
   border-radius: 0.875rem;
   /* Light wash over raised paper - hover chrome alone reads too heavy in the grid. */
   background-color: var(--surface-wash);
@@ -1242,12 +1291,12 @@ input[type='number'] {
 .evidence-card__top {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
+  gap: 0.4rem;
   width: 100%;
   min-width: 0;
   margin: 0;
   font-family: var(--font-body);
-  font-size: 0.7rem;
+  /* font-size: 0.7rem; */
   font-weight: 400;
   line-height: 1.3;
   letter-spacing: 0.01em;
@@ -1263,9 +1312,18 @@ input[type='number'] {
   text-transform: lowercase;
 }
 
+.evidence-card__label::first-letter {
+  text-transform: uppercase;
+}
+
 .evidence-card__sep {
   flex-shrink: 0;
-  opacity: 0.7;
+  display: inline-block;
+  width: 0.15rem;
+  height: 0.15rem;
+  border-radius: 50%;
+  background-color: color-mix(in srgb, var(--accent) 34%, var(--text-muted));
+  opacity: 0.5;
 }
 
 .evidence-card__date {
@@ -1287,8 +1345,7 @@ input[type='number'] {
   overflow-wrap: anywhere;
   word-break: break-word;
   font-family: var(--font-heading);
-  font-size: 0.9rem;
-  font-style: normal;
+  color: var(--text-secondary);
   font-weight: 500;
   line-height: 1.4;
   letter-spacing: -0.015em;
@@ -1619,8 +1676,7 @@ input[type='number'] {
   flex-direction: column;
   border: 0.0625rem solid var(--pattern-card-border);
   border-radius: var(--pattern-card-radius-collapsed);
-  /* Same page plane as Entry writing canvas — border defines the card. */
-  background: var(--canvas-bg-gradient);
+  background: var(--surface-raised);
   overflow: hidden;
   scroll-margin-top: 1.25rem;
   transition: border-radius 160ms ease;
@@ -1631,11 +1687,8 @@ input[type='number'] {
 }
 
 .pattern-accordion__item[data-unread="true"] {
-  background: color-mix(
-    in srgb,
-    var(--surface-chrome-active) 58%,
-    var(--canvas-bg-gradient)
-  );
+  /* Soft wash — readable as new without darkening the card */
+  background: var(--surface-wash);
   border-color: color-mix(
     in srgb,
     var(--border) 78%,
@@ -1711,7 +1764,7 @@ input[type='number'] {
   font-weight: 400;
   line-height: 1.4;
   letter-spacing: 0.005em;
-  color: color-mix(in srgb, var(--sidebar-ink-soft) 92%, transparent);
+  color: var(--text-secondary);
 }
 
 .pattern-accordion__row-related {

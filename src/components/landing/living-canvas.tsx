@@ -348,10 +348,10 @@ export function LivingCanvas() {
       >
         <UnfoldBrand />
         <div className="lp-live__nav-actions">
-          <Link href={CTA.header.signInHref} className="lp-chrome__nav-link">
+          <Link href={CTA.header.signInHref} className="chrome-nav-link">
             {CTA.header.signIn}
           </Link>
-          <Link href={CTA.header.primaryHref} className="lp-chrome__cta lp-chrome__cta--lg">
+          <Link href={CTA.header.primaryHref} className="chrome-cta">
             {CTA.header.primary}
           </Link>
         </div>

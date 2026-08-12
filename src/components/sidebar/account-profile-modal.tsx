@@ -54,6 +54,11 @@ function PreferredNameField({
   const save = async () => {
     const next = draft.trim();
     if (savingRef.current) return;
+    if (!next) {
+      setDraft(value);
+      setError(null);
+      return;
+    }
     if (next === value.trim()) {
       setError(null);
       return;
@@ -110,7 +115,7 @@ function PreferredNameField({
             event.currentTarget.blur();
           }
         }}
-        className="w-full rounded-sm border border-(--border) bg-(--surface-raised) px-2.5 py-0.75 text-primary outline-none transition-colors focus:border-(--canvas-title-ink) focus-visible:ring-2 focus-visible:ring-black/10 read-only:opacity-60"
+        className="w-full rounded-sm border border-(--border) bg-(--surface-raised) px-2.5 py-0.75 text-primary outline-none transition-[border-color,box-shadow] duration-150 focus:border-[color-mix(in_srgb,var(--sidebar-ink-soft)_24%,var(--sidebar-edge-border))] focus:shadow-[0_1px_3px_color-mix(in_srgb,var(--sidebar-ink)_6%,transparent)] read-only:opacity-60"
         style={copyStyle}
         aria-invalid={error ? true : undefined}
         aria-busy={busy || undefined}

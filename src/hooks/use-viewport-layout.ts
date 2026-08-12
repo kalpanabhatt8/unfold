@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { BREAKPOINT_LG, BREAKPOINT_MD } from "@/lib/breakpoints";
 import {
   OVERLAY_MENU_CLEARANCE_PX,
+  OVERLAY_MENU_TOP_PX,
   SHELL_CONTENT_HEADER_TOP_PX,
 } from "@/lib/layout";
 
@@ -49,11 +50,10 @@ function computeViewportLayout(width: number): ViewportLayout {
     : SHELL_CONTENT_HEADER_TOP_PX;
   const pagePaddingYPx = pagePaddingBottomPx;
   // Patterns: desktop shares the shell content-header band with “Summary”.
-  // Overlay keeps a tight inset - the menu toggle lives in the page header.
+  // Overlay: page inset matches the fixed menu top; heading band comes from
+  // the in-flow menu control + `OVERLAY_MENU_BUTTON_CLASS` gap below.
   const patternsPagePaddingYPx = isOverlayNav
-    ? width >= BREAKPOINT_MD
-      ? 28
-      : 16
+    ? OVERLAY_MENU_TOP_PX
     : SHELL_CONTENT_HEADER_TOP_PX;
   const scrollComfortBottomPx =
     width >= BREAKPOINT_LG ? 72 : width >= BREAKPOINT_MD ? 56 : 44;

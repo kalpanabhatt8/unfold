@@ -30,7 +30,7 @@ import { usePatternDisplay } from "@/hooks/use-pattern-display";
 import { usePatternPassages } from "@/hooks/use-pattern-passages";
 import { usePatternsAggregate } from "@/hooks/use-patterns-aggregate";
 import { useViewportLayout } from "@/hooks/use-viewport-layout";
-import { patternsColumnMaxWidth, openAppNav } from "@/lib/layout";
+import { patternsColumnMaxWidth, openAppNav, OVERLAY_MENU_BUTTON_CLASS } from "@/lib/layout";
 import { stashJournalQuoteFocus } from "@/lib/journal-quote-focus";
 import {
   debugGroup,
@@ -309,7 +309,7 @@ export function PatternDetailView({
             type="button"
             onClick={openAppNav}
             aria-label="Open menu"
-            className="mb-3 flex h-11 w-11 shrink-0 items-center justify-center text-(--sidebar-ink) transition-colors duration-150 hover:text-(--sidebar-active-ink) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20"
+            className={OVERLAY_MENU_BUTTON_CLASS}
           >
             <Menu
               size={18}

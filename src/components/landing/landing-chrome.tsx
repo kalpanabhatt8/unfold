@@ -8,7 +8,7 @@ export function LandingEndCta({ className = "" }: { className?: string }) {
     <div className={`lp-end-cta ${className}`}>
       <p className="lp-end-cta__whisper">{CTA.whisper}</p>
       <div className="lp-end-cta__row">
-        <Link href={CTA.href} className="lp-chrome__cta lp-chrome__cta--lg">
+        <Link href={CTA.href} className="chrome-cta">
           {CTA.primary}
         </Link>
       </div>

@@ -33,21 +33,19 @@ export function EvidenceSection({
           }}
           className="evidence-card"
         >
-          <p className="evidence-card__top">
+          <p className="evidence-card__top text-xs!">
             <span className="evidence-card__date">
               {formatQuoteDatePill(quote.anchorTs)}
             </span>
             {quote.entryTitle ? (
               <>
-                <span className="evidence-card__sep" aria-hidden>
-                  ·
-                </span>
+                <span className="evidence-card__sep" aria-hidden />
                 <span className="evidence-card__label">{quote.entryTitle}</span>
               </>
             ) : null}
           </p>
-          <p className="evidence-card__quote-text">
-            &ldquo;{quote.text}&rdquo;
+          <p className="evidence-card__quote-text text-sm!">
+          <span className="font-normal!">  &ldquo;</span>{quote.text} <span className="font-normal!">  &ldquo;</span>
           </p>
         </div>
       ))}

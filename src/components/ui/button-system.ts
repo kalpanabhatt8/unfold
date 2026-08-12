@@ -84,6 +84,10 @@ export const btnType = {
     "bg-transparent text-(--color-icon) border border-transparent " +
     "hover:bg-(--color-iconbutton-hover) hover:text-(--color-icon) " +
     "active:bg-(--color-iconbutton-active) active:text-(--color-icon)",
+  accentSoft:
+    "bg-[color-mix(in_srgb,var(--sidebar-tab-track)_70%,white)] text-(--canvas-title-ink) " +
+    "hover:bg-(--sidebar-tab-selected-bg) active:bg-(--sidebar-tab-selected-bg) " +
+    "disabled:opacity-45 disabled:pointer-events-none",
 } as const;
 
 export type BtnType = keyof typeof btnType;
@@ -120,6 +124,12 @@ export const btnDestructiveSolid = (size: ButtonSize = "sm", radius?: BtnRadius)
 
 export const btnInvisible = (size: ButtonSize = "md", radius?: BtnRadius) =>
   `${btnText(size, radius)} ${btnType.invisible}`;
+
+/** Soft pill CTA - use `.chrome-cta` in global.css (matches landing Get started). */
+export const btnAccentSoft = "chrome-cta";
+
+/** Text nav link - use `.chrome-nav-link` in global.css (matches landing Sign In). */
+export const btnChromeNavLink = "chrome-nav-link";
 
 /** Icon-only chrome - matches modal close buttons (Send feedback, Account). */
 export const btnIconChromeType =

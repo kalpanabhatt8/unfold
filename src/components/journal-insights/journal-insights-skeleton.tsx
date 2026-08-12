@@ -11,10 +11,7 @@ export function JournalInsightsSkeleton() {
       aria-label="Loading insights"
     >
       <div className="flex flex-col gap-2">
-        <div className="flex h-9 shrink-0 items-center">
-          <span className="block h-3 w-16 animate-pulse rounded-sm bg-(--sidebar-ink)/10" />
-        </div>
-        <div className="grid min-w-0 grid-cols-2 gap-2">
+        <div className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,7.5rem),1fr))] gap-2">
           {Array.from({ length: 3 }, (_, i) => (
             <div
               key={i}
