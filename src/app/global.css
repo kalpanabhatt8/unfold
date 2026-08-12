@@ -133,7 +133,7 @@
   --surface-chrome-active: #e7dde2;
 
   /* 4. SURFACE-RAISED - cards, accordion, writing paper */
-  --surface-raised: #ffffff;
+  --surface-raised: #fafafa;
 
   /* 5. TEXT - primary / secondary / muted (+ disabled for UI state) */
   --text-primary: #141314;
@@ -148,6 +148,10 @@
   --sidebar-tab-track: #ede4e9;
   --sidebar-tab-selected-bg: #e7dde2;
   --journal-quote-highlight: #F7E7EB;
+  /* Same dusty wash as the pink highlight — sage stays gray-green, not lemon. */
+  --journal-highlight-pink: var(--journal-quote-highlight);
+  --journal-highlight-green: #e7f1ec;
+  --journal-highlight-sage: #e6ebe8;
   --canvas-recess: #f2efeb;
   --canvas-brown: #7e675f;
 
@@ -165,7 +169,7 @@
   /* Patterns main = Entry writing canvas */
   --discovery-canvas-bg: var(--canvas-bg-gradient);
 
-  --sidebar-bg: var(--surface-chrome);
+  --sidebar-bg: var(--surface-raised);
   --sidebar-hover-bg: var(--surface-chrome-hover);
   --sidebar-active-bg: var(--surface-chrome-active);
   /* Entry row: pressed fill, hover = 50% of pressed */
@@ -191,6 +195,10 @@
     var(--surface-chrome-hover) 68%,
     var(--surface-raised)
   );
+  /* Your Journal metric cards — independent of the writing highlighter. */
+  --journal-metric-days: var(--journal-highlight-pink);
+  --journal-metric-entries: var(--journal-highlight-green);
+  --journal-metric-words: var(--journal-highlight-sage);
 
   --button-primary: var(--accent);
   --button-primary-hover: var(--accent-hover);
@@ -208,6 +216,10 @@
   --button-destructive-border: #fecdca;
 
   --canvas-title-ink: var(--accent);
+
+  /* Letter avatar (sidebar, account) — change here, all avatars follow. */
+  --avatar-bg: #aea6ae;
+  --avatar-fg: #ffffff;
 
   --canvas-ink: var(--text-primary);
   --fg: var(--text-primary);
