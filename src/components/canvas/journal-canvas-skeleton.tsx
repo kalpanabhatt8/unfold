@@ -26,7 +26,8 @@ const BODY_LINES: ReadonlyArray<{ width: string; lastInPara?: boolean }> = [
 
 export function JournalCanvasSkeleton() {
   const viewport = useViewportLayout();
-  const pagePaddingY = viewport.pagePaddingYPx;
+  const pagePaddingTop = viewport.pagePaddingTopPx;
+  const pagePaddingBottom = viewport.pagePaddingBottomPx;
 
   return (
     <div
@@ -39,8 +40,8 @@ export function JournalCanvasSkeleton() {
         <div
           className="relative flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain"
           style={{
-            paddingTop: `${pagePaddingY / 16}rem`,
-            paddingBottom: `${pagePaddingY / 16}rem`,
+            paddingTop: `${pagePaddingTop / 16}rem`,
+            paddingBottom: `${pagePaddingBottom / 16}rem`,
           }}
         >
           <div
@@ -48,11 +49,11 @@ export function JournalCanvasSkeleton() {
             style={{ maxWidth: CONTENT_COLUMN_MAX_WIDTH }}
           >
             <header
-              className="mb-8 grid w-full grid-cols-1 items-end gap-y-1.5 sm:mb-10 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-x-4 sm:gap-y-0 md:gap-x-6 lg:mb-14 lg:gap-x-8 xl:gap-x-12"
+              className="mb-8 grid w-full grid-cols-1 items-center gap-y-1.5 sm:mb-10 sm:h-9 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-x-4 sm:gap-y-0 md:gap-x-6 lg:mb-14 lg:gap-x-8 xl:gap-x-12"
               aria-hidden
             >
-              <span className="col-start-1 row-start-1 block h-[1.3em] w-[42%] max-w-[16rem] animate-pulse self-end rounded-sm bg-(--text-primary)/12 sm:w-[38%]" />
-              <span className="col-start-1 row-start-2 mt-0.5 block h-3 w-38 animate-pulse rounded-sm bg-(--canvas-date-time)/35 sm:col-start-2 sm:row-start-1 sm:mt-0 sm:mb-1 sm:justify-self-end sm:w-40" />
+              <span className="col-start-1 row-start-1 block h-[1.3em] w-[42%] max-w-[16rem] animate-pulse self-center rounded-sm bg-(--text-primary)/12 sm:w-[38%]" />
+              <span className="col-start-1 row-start-2 mt-0.5 block h-3 w-38 animate-pulse rounded-sm bg-(--canvas-date-time)/35 sm:col-start-2 sm:row-start-1 sm:mt-0 sm:justify-self-end sm:self-center sm:w-40" />
             </header>
 
             <div className="relative flex w-full min-h-0 flex-1 flex-col" aria-hidden>

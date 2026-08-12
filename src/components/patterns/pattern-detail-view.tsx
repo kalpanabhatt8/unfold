@@ -291,7 +291,10 @@ export function PatternDetailView({
   }
 
   return (
-    <main className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-(--discovery-canvas-bg)">
+    <main
+      className="flex min-h-0 flex-1 flex-col overflow-y-auto"
+      style={{ background: "var(--canvas-bg-gradient)" }}
+    >
       <div
         className="mx-auto flex min-h-0 w-full min-w-0 flex-1 flex-col px-4 pb-[max(2.5rem,env(safe-area-inset-bottom))] sm:px-5 lg:px-6"
         style={{

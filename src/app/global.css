@@ -128,7 +128,7 @@
 
   /* 3. SURFACE-CHROME - sidebar (warm pink), 3 steps only.
    * Hover/active stepped darker within pink (not cool lavender). */
-  --surface-chrome: #faf8f9;
+  --surface-chrome: #fbf9fa;
   --surface-chrome-hover: #f0e6eb;
   --surface-chrome-active: #e7dde2;
 
@@ -142,7 +142,8 @@
   --text-color-disabled: #c2bbbf;
 
   /* Chrome accents that are intentionally distinct (not near-white fills) */
-  --sidebar-border: #e4d8de;
+  --border: #dcd5d8;
+  --sidebar-edge-border: #e8e5e6;
   --popover-border: #ede4e9;
   --sidebar-tab-track: #ede4e9;
   --sidebar-tab-selected-bg: #e7dde2;
@@ -161,7 +162,8 @@
   --canvas-bg: var(--surface-raised);
   --sidebar-bg-lightest: var(--surface-raised);
   --auth-card-bg: var(--surface-raised);
-  --discovery-canvas-bg: var(--surface-canvas);
+  /* Patterns main = Entry writing canvas */
+  --discovery-canvas-bg: var(--canvas-bg-gradient);
 
   --sidebar-bg: var(--surface-chrome);
   --sidebar-hover-bg: var(--surface-chrome-hover);
@@ -176,6 +178,18 @@
     in srgb,
     var(--sidebar-entry-pressed-bg) 50%,
     transparent
+  );
+  /* Soft paper wash (evidence cards) — lighter than chrome hover. */
+  --surface-wash: color-mix(
+    in srgb,
+    var(--surface-chrome-hover) 38%,
+    var(--surface-raised)
+  );
+  /* Slightly stronger wash for summary metrics on chrome sidebar. */
+  --surface-wash-strong: color-mix(
+    in srgb,
+    var(--surface-chrome-hover) 68%,
+    var(--surface-raised)
   );
 
   --button-primary: var(--accent);
@@ -212,7 +226,7 @@
   --text-tertiary: var(--text-muted);
   --text-color-tertiary: var(--text-muted);
   --sidebar-ink-soft: var(--text-muted);
-  --sidebar-icon: var(--text-muted);
+  --sidebar-icon: var(--text-color-sealed);
   --canvas-title-placeholder: var(--text-muted);
   --canvas-writing-placeholder: var(--text-muted);
 
@@ -222,7 +236,6 @@
   --surface-3: var(--gray-200);
   --shadow: none;
 
-  --border: var(--gray-300);
   --primary: var(--gray-900);
   --primary-soft: var(--gray-300);
 
@@ -278,7 +291,7 @@
   --auth-muted: var(--surface-chrome);
   --auth-input-bg: var(--surface-raised);
   --auth-neutral: var(--text-muted);
-  --auth-border: var(--sidebar-border);
+  --auth-border: var(--border);
   --auth-ring: var(--accent);
   --auth-shadow: color-mix(in srgb, var(--accent) 12%, transparent);
   --auth-modal-backdrop: color-mix(in srgb, var(--text-primary) 28%, transparent);
@@ -1189,14 +1202,10 @@ input[type='number'] {
   min-height: 10rem;
   margin: 0;
   padding: 0.95rem 1rem 1.05rem;
-  border: 0.0625rem solid color-mix(in srgb, var(--sidebar-border) 15%, transparent);
+  border: 0.0625rem solid color-mix(in srgb, var(--border) 15%, transparent);
   border-radius: 0.875rem;
   /* Light wash over raised paper - hover chrome alone reads too heavy in the grid. */
-  background-color: color-mix(
-    in srgb,
-    var(--surface-chrome-hover) 38%,
-    var(--surface-raised)
-  );
+  background-color: var(--surface-wash);
   overflow: hidden;
   cursor: pointer;
   transition:
@@ -1209,10 +1218,10 @@ input[type='number'] {
   outline: none;
   background-color: color-mix(
     in srgb,
-    var(--surface-chrome-hover) 62%,
+    var(--surface-chrome-hover) 46%,
     var(--surface-raised)
   );
-  border-color: color-mix(in srgb, var(--sidebar-border) 40%, transparent);
+  border-color: color-mix(in srgb, var(--border) 24%, transparent);
 }
 
 .evidence-card:active {
@@ -1278,9 +1287,9 @@ input[type='number'] {
   overflow-wrap: anywhere;
   word-break: break-word;
   font-family: var(--font-heading);
-  font-size: 0.9375rem;
+  font-size: 0.9rem;
   font-style: normal;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.4;
   letter-spacing: -0.015em;
   color: var(--sidebar-active-ink);
@@ -1586,14 +1595,14 @@ input[type='number'] {
 }
 
 
-/* ── Pattern accordion - card rows (0.5rem) / expanded card (0.75rem) ── */
+/* ── Pattern accordion - card rows (0.625rem) / expanded card (0.875rem) ── */
 
 .pattern-accordion {
-  --pattern-card-radius-collapsed: 0.875rem;
-  --pattern-card-radius-expanded: 1.125rem;
+  --pattern-card-radius-collapsed: 0.625rem;
+  --pattern-card-radius-expanded: 0.875rem;
   --pattern-card-border: color-mix(
     in srgb,
-    var(--sidebar-border) 78%,
+    var(--border) 78%,
     transparent
   );
   list-style: none;
@@ -1610,7 +1619,8 @@ input[type='number'] {
   flex-direction: column;
   border: 0.0625rem solid var(--pattern-card-border);
   border-radius: var(--pattern-card-radius-collapsed);
-  background: var(--surface-raised);
+  /* Same page plane as Entry writing canvas — border defines the card. */
+  background: var(--canvas-bg-gradient);
   overflow: hidden;
   scroll-margin-top: 1.25rem;
   transition: border-radius 160ms ease;
@@ -1624,11 +1634,11 @@ input[type='number'] {
   background: color-mix(
     in srgb,
     var(--surface-chrome-active) 58%,
-    var(--surface-raised)
+    var(--canvas-bg-gradient)
   );
   border-color: color-mix(
     in srgb,
-    var(--sidebar-border) 78%,
+    var(--border) 78%,
     var(--pattern-card-border)
   );
 }
@@ -1660,13 +1670,13 @@ input[type='number'] {
 
 .pattern-accordion__item[data-expanded="true"] .pattern-accordion__row {
   border-bottom: 0.0625rem solid
-    color-mix(in srgb, var(--sidebar-border) 65%, transparent);
+    color-mix(in srgb, var(--border) 65%, transparent);
 }
 
 .pattern-accordion__row:hover {
   background-color: color-mix(
     in srgb,
-    var(--sidebar-hover-bg) 45%,
+    var(--sidebar-hover-bg) 18%,
     transparent
   );
 }

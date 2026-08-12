@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { ENTRIES_UPDATED_EVENT } from "@/lib/journal-entries";
 import { aggregateAnalyses } from "@/lib/patterns/aggregate";
 import { ANALYSES_UPDATED_EVENT } from "@/lib/patterns/analysis-store";
@@ -11,7 +11,7 @@ import type { PatternsAggregate } from "@/lib/patterns/types";
 export function usePatternsAggregate(): PatternsAggregate | null {
   const [aggregate, setAggregate] = useState<PatternsAggregate | null>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const refresh = () => {
       try {
         setAggregate(aggregateAnalyses());

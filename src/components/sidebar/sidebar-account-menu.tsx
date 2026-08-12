@@ -12,7 +12,7 @@ import { resolvePreferredName, avatarInitial } from "@/lib/user-display";
 //   "mailto:hello.unfoldapp@gmail.com?subject=Supporting%20Unfold";
 
 const menuItemClassName =
-  "flex w-full items-center px-3 py-2 text-left text-sm font-medium leading-snug text-primary opacity-80 transition-colors duration-150 hover:bg-(--sidebar-hover-bg) focus-visible:bg-(--sidebar-hover-bg) focus-visible:outline-none";
+  "flex w-full items-center rounded-md px-3 py-2 text-left text-sm font-medium leading-snug text-primary opacity-80 transition-colors duration-150 hover:bg-(--sidebar-entry-hover-bg) focus-visible:bg-(--sidebar-entry-hover-bg) focus-visible:outline-none";
 
 const menuItemStyle = {
   fontSize: "var(--text-sm)",
@@ -187,17 +187,17 @@ export function SidebarAccountMenu() {
             }
             setMenuOpen((prev) => !prev);
           }}
-          className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-[5px] bg-(--canvas-title-ink) text-[0.8125rem] font-medium leading-none text-white transition-opacity duration-150 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20 active:opacity-80"
-          style={{ fontFamily: "var(--font-body)", fontSize: "0.8125rem" }}
+          className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-[3px] bg-(--canvas-title-ink) text-[0.625rem] font-medium leading-none text-white transition-opacity duration-150 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20 active:opacity-80"
+          style={{ fontFamily: "var(--font-body)" }}
         >
           {isSaving ? (
-            <SignOutSpinner className="h-3.5 w-3.5 border-white/35 border-t-white" />
+            <SignOutSpinner className="h-2.5 w-2.5 border-white/35 border-t-white" />
           ) : showPhoto && user ? (
             <img
               src={user.imageUrl}
               alt=""
-              width={28}
-              height={28}
+              width={24}
+              height={24}
               className="h-full w-full object-cover"
               referrerPolicy="no-referrer"
             />

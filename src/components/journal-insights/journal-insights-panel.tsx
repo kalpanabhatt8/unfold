@@ -1,8 +1,19 @@
 "use client";
 
-import { Info } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Info, PenLine, Sprout } from "lucide-react";
 import { Tooltip } from "@/components/ui/tooltip";
+import {
+  btnPrimary,
+  iconFixed,
+  iconPx,
+  iconStroke,
+} from "@/components/ui/button-system";
+import { SidebarEmptyState } from "@/components/sidebar/sidebar-empty-state";
+import { JournalInsightsSkeleton } from "@/components/journal-insights/journal-insights-skeleton";
+import { resolveNewEntryTarget } from "@/lib/entry-draft";
 import { useJournalInsights } from "@/hooks/use-journal-insights";
+import { useInitialSyncReady } from "@/lib/sync/use-initial-sync-ready";
 import {
   formatCount,
   formatTopicLabel,
@@ -23,32 +34,22 @@ function SectionLabel({ children }: { children: string }) {
 function InsightsDivider() {
   return (
     <div className="py-6" role="separator" aria-hidden>
-      <div className="border-t border-(--sidebar-border)" />
+      <div className="border-t border-(--border)" />
     </div>
   );
 }
 
-const METRIC_CARD_TINT = {
-  days: "bg-[#f9eef1]",
-  entries: "bg-[#f4eef5]",
-  words: "bg-[#f8f0ec]",
-} as const;
-
 function MetricCard({
-  tint,
   label,
   value,
   approximate = false,
 }: {
-  tint: keyof typeof METRIC_CARD_TINT;
   label: string;
   value: number;
   approximate?: boolean;
 }) {
   return (
-    <div
-      className={`flex min-w-0 flex-col gap-1 rounded-xl px-3 py-3.5 ${METRIC_CARD_TINT[tint]}`}
-    >
+    <div className="flex min-w-0 flex-col gap-1 rounded-xl bg-(--surface-wash-strong) px-3 py-3.5">
       <span className="header-md tabular-nums leading-none">
         {approximate ? "~" : ""}
         {formatCount(value)}
@@ -77,17 +78,14 @@ function wordsPerEntry(summary: JournalSummary): number {
 function YourJournal({ summary }: { summary: JournalSummary }) {
   return (
     <section className="flex flex-col gap-4">
-      <div className="flex flex-col gap-2">
-        <SectionLabel>Summary</SectionLabel>
+      <div className="flex flex-col gap-1">
+        <div className="flex h-9 shrink-0 items-center">
+          <SectionLabel>Summary</SectionLabel>
+        </div>
         <div className="grid min-w-0 grid-cols-2 gap-2">
-          <MetricCard tint="days" value={summary.dayCount} label="Days" />
+          <MetricCard value={summary.dayCount} label="Days" />
+          <MetricCard value={summary.entryCount} label="Entries" />
           <MetricCard
-            tint="entries"
-            value={summary.entryCount}
-            label="Entries"
-          />
-          <MetricCard
-            tint="words"
             value={wordsPerEntry(summary)}
             label="words/entry"
             approximate
@@ -124,7 +122,7 @@ function TopicPeriodDeltaInfo({
       <button
         type="button"
         aria-label={explanation}
-        className="inline-flex size-3.5 shrink-0 items-center justify-center rounded-full text-tertiary transition-colors hover:text-tertiary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-(--sidebar-border)"
+        className="inline-flex size-3.5 shrink-0 items-center justify-center rounded-full text-tertiary transition-colors hover:text-tertiary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-(--border)"
       >
         <Info size={11} strokeWidth={1.75} aria-hidden className="block" />
       </button>
@@ -150,7 +148,7 @@ function WhatsShowingUp({
           {topics.map((row) => (
             <li
               key={row.topic}
-              className="flex items-center justify-between gap-3 rounded-xl bg-linear-to-br from-(--surface-raised) to-(--sidebar-hover-bg) px-3 py-3"
+              className="flex items-center justify-between gap-3 rounded-xl bg-(--sidebar-entry-hover-bg) px-3 py-3"
             >
               <div className="min-w-0">
                 <p className="truncate text-sm leading-snug text-secondary">
@@ -192,13 +190,42 @@ function WhatsShowingUp({
  * Never lists patterns — those stay in the main Patterns view.
  */
 export function JournalInsightsPanel() {
-  const { summary, topics } = useJournalInsights();
+  const router = useRouter();
+  const initialSyncReady = useInitialSyncReady();
+  const { summary, topics, ready } = useJournalInsights();
+
+  const handleWriteFirstEntry = () => {
+    const { id } = resolveNewEntryTarget();
+    router.push(`/dashboard/journal/${id}?new=1`);
+  };
+
+  // Local read pending, or empty local cache while cloud sync still filling in.
+  if (!ready || (!initialSyncReady && summary.entryCount === 0)) {
+    return <JournalInsightsSkeleton />;
+  }
 
   if (summary.entryCount === 0) {
     return (
-      <p className="py-6 text-sm text-tertiary">
-        No journal yet. Write an entry to see your insights here.
-      </p>
+      <SidebarEmptyState
+        icon={Sprout}
+        title="Insights begin with a single page"
+        body="Write your first entry and a gentle picture of your days, themes, and rhythms will appear here."
+        action={
+          <button
+            type="button"
+            onClick={handleWriteFirstEntry}
+            className={btnPrimary("sm")}
+          >
+            <PenLine
+              size={iconPx("sm")}
+              strokeWidth={iconStroke("sm")}
+              aria-hidden
+              className={iconFixed}
+            />
+            Write your first entry
+          </button>
+        }
+      />
     );
   }
 

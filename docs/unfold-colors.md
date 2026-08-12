@@ -26,7 +26,8 @@ Source of truth: `src/app/global.css` (`:root`).
 
 | Token | Hex | Use |
 | --- | --- | --- |
-| `--sidebar-border` | `#E4D8DE` | chrome border |
+| `--border` | `#DCD5D8` | chrome border |
+| `--sidebar-edge-border` | `#E8E5E6` | sidebar right edge |
 | `--sidebar-tab-track` | `#EDE4E9` | tab track |
 | `--sidebar-tab-selected-bg` | `#E7DDE2` | selected tab |
 | `--journal-quote-highlight` | `#F9E7EB` | quote tint |

@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { BREAKPOINT_LG, BREAKPOINT_MD } from "@/lib/breakpoints";
-import { OVERLAY_MENU_CLEARANCE_PX } from "@/lib/layout";
+import {
+  OVERLAY_MENU_CLEARANCE_PX,
+  SHELL_CONTENT_HEADER_TOP_PX,
+} from "@/lib/layout";
 
 export type ViewportLayout = {
   /** Stamp inset from viewport edges (px). */
@@ -10,12 +13,17 @@ export type ViewportLayout = {
   stampButtonSizePx: number;
   /**
    * Vertical page padding (px). On overlay nav this clears the fixed
-   * hamburger - use for journal.
+   * hamburger - use for journal. On desktop, top padding aligns the canvas
+   * title/date with sidebar “Recent entries”; bottom keeps reading comfort.
    */
   pagePaddingYPx: number;
+  /** Journal top padding - aligns with the shell content-header band. */
+  pagePaddingTopPx: number;
+  /** Journal bottom padding - reading comfort (unchanged from legacy Y). */
+  pagePaddingBottomPx: number;
   /**
-   * Patterns page top padding - tighter on phone because the menu is in-flow
-   * (no floating hamburger to clear).
+   * Patterns page top padding. On desktop, aligns “Patterns” with sidebar
+   * “Summary”; on overlay nav the menu is in-flow so padding stays tight.
    */
   patternsPagePaddingYPx: number;
   scrollComfortBottomPx: number;
@@ -31,12 +39,22 @@ function computeViewportLayout(width: number): ViewportLayout {
   const basePaddingY =
     width >= BREAKPOINT_LG ? 88 : width >= BREAKPOINT_MD ? 64 : 48;
   // Below lg the fixed journal menu sits in the top-left; keep titles below it.
-  const pagePaddingYPx = isOverlayNav
+  const pagePaddingBottomPx = isOverlayNav
     ? Math.max(basePaddingY, OVERLAY_MENU_CLEARANCE_PX)
     : basePaddingY;
-  // Patterns: menu lives in the header - only need a small top inset on phone.
-  const patternsPagePaddingYPx =
-    width >= BREAKPOINT_LG ? 64 : width >= BREAKPOINT_MD ? 28 : 16;
+  // Desktop: pin title/date to the same band as “Recent entries”. Overlay
+  // keeps the larger clearance so the floating menu never covers the header.
+  const pagePaddingTopPx = isOverlayNav
+    ? pagePaddingBottomPx
+    : SHELL_CONTENT_HEADER_TOP_PX;
+  const pagePaddingYPx = pagePaddingBottomPx;
+  // Patterns: desktop shares the shell content-header band with “Summary”.
+  // Overlay keeps a tight inset - the menu toggle lives in the page header.
+  const patternsPagePaddingYPx = isOverlayNav
+    ? width >= BREAKPOINT_MD
+      ? 28
+      : 16
+    : SHELL_CONTENT_HEADER_TOP_PX;
   const scrollComfortBottomPx =
     width >= BREAKPOINT_LG ? 72 : width >= BREAKPOINT_MD ? 56 : 44;
 
@@ -44,6 +62,8 @@ function computeViewportLayout(width: number): ViewportLayout {
     stampCornerInsetPx,
     stampButtonSizePx,
     pagePaddingYPx,
+    pagePaddingTopPx,
+    pagePaddingBottomPx,
     patternsPagePaddingYPx,
     scrollComfortBottomPx,
     isOverlayNav,

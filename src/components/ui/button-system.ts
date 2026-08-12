@@ -19,14 +19,14 @@ export const buttonSize = {
     iconButton: "h-7 w-7 p-0",
     textButton: "h-7 px-2.5 gap-1 !text-xs font-medium whitespace-nowrap",
     icon: 14,
-    stroke: 1.75,
+    stroke: 1.8,
     radius: btnRadius.xs,
   },
   sm: {
     iconButton: "h-8 w-8 p-0",
     textButton: "h-8 px-3 gap-1.5 !text-sm font-medium whitespace-nowrap",
     icon: 16,
-    stroke: 1.75,
+    stroke: 1.8,
     radius: btnRadius.sm,
   },
   md: {
@@ -61,7 +61,7 @@ export const iconStroke = (size: ButtonSize = "md") => buttonSize[size].stroke;
 
 export const iconStrokePx = (px: number) => {
   if (px <= 13) return 1.7;
-  if (px <= 16) return 1.75;
+  if (px <= 16) return 1.8;
   if (px <= 18) return 1.85;
   return 1.9;
 };
@@ -123,12 +123,12 @@ export const btnInvisible = (size: ButtonSize = "md", radius?: BtnRadius) =>
 
 /** Icon-only chrome - matches modal close buttons (Send feedback, Account). */
 export const btnIconChromeType =
-  "bg-transparent text-(--sidebar-ink-soft) border border-transparent " +
-  "hover:bg-[color-mix(in_srgb,var(--text-primary)_6%,transparent)] hover:text-(--sidebar-ink) " +
-  "active:bg-[color-mix(in_srgb,var(--text-primary)_9%,transparent)] active:text-(--sidebar-ink)";
+  "bg-transparent text-(--sidebar-icon) border border-transparent " +
+  "hover:bg-[color-mix(in_srgb,var(--text-primary)_6%,transparent)] " +
+  "active:bg-[color-mix(in_srgb,var(--text-primary)_9%,transparent)]";
 
 export const btnIconChrome = (size: ButtonSize = "sm", radius?: BtnRadius) => {
-  const radiusClass = radius ? btnRadius[radius] : "rounded-md";
+  const radiusClass = radius ? btnRadius[radius] : "rounded-[8px]";
   return `${btnBase} ${buttonSize[size].iconButton} ${radiusClass} ${btnIconChromeType}`;
 };
 

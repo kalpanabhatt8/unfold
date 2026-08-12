@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import {
   ENTRIES_UPDATED_EVENT,
   ENTRY_DRAFTS_STORAGE_KEY,
@@ -23,9 +23,11 @@ import {
 export type JournalInsights = {
   summary: JournalSummary;
   topics: TopicFrequency[];
+  /** False until the first local read (avoids empty-state flash on refresh). */
+  ready: boolean;
 };
 
-const emptyInsights = (): JournalInsights => ({
+const emptyInsights = (): Omit<JournalInsights, "ready"> => ({
   summary: {
     entryCount: 0,
     wordCount: 0,
@@ -39,7 +41,7 @@ const emptyInsights = (): JournalInsights => ({
 function buildInsights(
   entries: JournalEntry[],
   analyses: EntryAnalysis[],
-): JournalInsights {
+): Omit<JournalInsights, "ready"> {
   return {
     summary: computeJournalSummary(entries),
     topics: aggregateDisplayTopics(entries, analyses),
@@ -48,15 +50,21 @@ function buildInsights(
 
 /** Live journal-insight stats from local entries + analyses (no pattern aggregate). */
 export function useJournalInsights(): JournalInsights {
-  const [insights, setInsights] = useState<JournalInsights>(emptyInsights);
+  const [insights, setInsights] = useState<JournalInsights>({
+    ...emptyInsights(),
+    ready: false,
+  });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const refresh = () => {
       try {
-        setInsights(buildInsights(readAllEntries(), listAnalyses()));
+        setInsights({
+          ...buildInsights(readAllEntries(), listAnalyses()),
+          ready: true,
+        });
       } catch (error) {
         console.error("Failed to compute journal insights", error);
-        setInsights(emptyInsights());
+        setInsights({ ...emptyInsights(), ready: true });
       }
     };
 

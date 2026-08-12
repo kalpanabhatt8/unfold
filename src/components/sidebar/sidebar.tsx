@@ -7,6 +7,7 @@ import { useParams, usePathname, useRouter } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import {
   ChevronsLeft,
+  Feather,
   Menu,
   Plus,
   Search,
@@ -15,6 +16,7 @@ import {
 } from "lucide-react";
 import {
   btnIconChrome,
+  btnPrimary,
   iconFixed,
   iconPx,
   iconStroke,
@@ -29,6 +31,7 @@ import {
 import { resolveNewEntryTarget } from "@/lib/entry-draft";
 import { useInitialSyncReady } from "@/lib/sync/use-initial-sync-ready";
 import { SidebarEntriesSkeleton } from "@/components/sidebar/sidebar-entries-skeleton";
+import { SidebarEmptyState } from "@/components/sidebar/sidebar-empty-state";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useSurfacedPatterns } from "@/hooks/use-surfaced-patterns";
 import { usePatternGeneration } from "@/hooks/use-pattern-generation";
@@ -44,12 +47,20 @@ const SIDEBAR_COLLAPSED_KEY = "unfold-sidebar-collapsed";
 const SIDEBAR_WIDTH_CLASS = "w-(--sidebar-width)";
 const SIDEBAR_TOGGLE_SIZE = "xs" as const;
 const SIDEBAR_ACTION_SIZE = "xs" as const;
+/** Brand row: mt-4 + h-7 + mb-2 = 52 — matches SHELL_BRAND_ROW_HEIGHT_PX. */
+const SIDEBAR_BRAND_ROW =
+  "relative z-20 flex h-7 shrink-0 items-center justify-between gap-2 mt-4 mb-2 pl-4";
+const SIDEBAR_BRAND_TITLE =
+  "min-w-0 flex-1 truncate text-md font-semibold leading-none tracking-tight text-primary [font-family:var(--font-heading)]";
 const OVERLAY_OPACITY_TRANSITION =
   "transition-opacity duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none";
 const OVERLAY_TRANSFORM_TRANSITION =
   "transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none";
 const SIDEBAR_WIDTH_TRANSITION =
   "transition-[width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none";
+/** Soft edge above Patterns / panel bottom — gradient only, no blur (blur cuts mid-glyph). */
+const SIDEBAR_SCROLL_FADE =
+  "pointer-events-none absolute inset-x-0 bottom-0 z-1 h-10 bg-gradient-to-t from-(--sidebar-bg) from-[12%] to-transparent";
 const SIDEBAR_ANIMATION_MS = 300;
 
 function resolveEntryTitle(title: string): string {
@@ -137,9 +148,7 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
   }, []);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const prevPathnameRef = useRef(pathname);
-  const livePatterns = useSurfacedPatterns();
-  const hasSurfacedPatterns = livePatterns.hasSurfaced;
-  const surfacedPatternCount = livePatterns.count;
+  const { count: surfacedPatternCount } = useSurfacedPatterns();
   usePatternGeneration();
 
   // Sync after mount / client navigations. Initial state comes from the
@@ -353,19 +362,15 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
   );
 
   const sidebarContent = (
-    <div className="relative flex h-full min-h-0 flex-col gap-3 px-2 pb-4">
-      {hasSurfacedPatterns && !isPatternsActive ? (
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-32 bg-linear-to-b from-transparent via-(--sidebar-bg)/40 to-(--sidebar-bg)"
-        />
-      ) : null}
+    <div className="relative flex h-full min-h-0 flex-col gap-4 px-2 pb-4">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-32 bg-linear-to-b from-transparent via-(--sidebar-bg)/40 to-(--sidebar-bg)"
+      />
 
       {isPatternsActive ? (
-        <div className="relative z-20 flex shrink-0 items-center justify-between gap-2 px-2 pb-3 pt-5">
-          <p className="header-sm min-w-0 flex-1 truncate leading-tight tracking-tight">
-            Your Journal
-          </p>
+        <div className={SIDEBAR_BRAND_ROW}>
+          <p className={SIDEBAR_BRAND_TITLE}>Your Journal</p>
           <button
             type="button"
             onClick={toggleCollapsed}
@@ -381,10 +386,10 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
           </button>
         </div>
       ) : (
-        <div className="relative z-20 flex shrink-0 items-center justify-between gap-2 pb-3 pt-5 pl-2">
+        <div className={SIDEBAR_BRAND_ROW}>
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <SidebarAccountMenu />
-            <p className="header-sm min-w-0 flex-1 truncate leading-tight tracking-tight">
+            <p className={SIDEBAR_BRAND_TITLE}>
               {displayName ? `${displayName}\u2019s ` : ""}Unfold
             </p>
           </div>
@@ -406,30 +411,27 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
 
       {isPatternsActive ? (
         <section
-          className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden"
+          className="relative z-10 -mr-2 flex min-h-0 flex-1 flex-col overflow-hidden"
           aria-label="Your Journal"
         >
           <div className="relative min-h-0 flex-1">
-            <div className="sidebar-entries-scroll min-h-0 h-full overflow-y-auto overscroll-y-contain px-2 pt-3">
+            <div className="sidebar-entries-scroll min-h-0 h-full overflow-y-auto overscroll-y-contain pl-4 pr-4">
               <JournalInsightsPanel />
             </div>
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-(--sidebar-bg)/85 backdrop-blur-[0.1875rem] [mask-image:linear-gradient(to_bottom,transparent,black_55%)] [-webkit-mask-image:linear-gradient(to_bottom,transparent,black_55%)]"
-            />
+            <div aria-hidden className={SIDEBAR_SCROLL_FADE} />
           </div>
         </section>
       ) : (
         <section
-          className="relative z-10 flex min-h-0 flex-1 flex-col gap-2 overflow-hidden"
+          className="relative z-10 -mr-2 flex min-h-0 flex-1 flex-col gap-2 overflow-hidden"
           aria-label="Entries"
         >
-          <div className="flex h-9 shrink-0 items-center px-2">
+          <div className="flex h-9 shrink-0 items-center pl-2 pr-4">
             {searchOpen ? (
-              <div className="flex h-full w-full items-center gap-2 rounded-md bg-(--sidebar-active-bg) px-3">
+              <div className="flex h-full w-full items-center gap-2 rounded-md bg-(--sidebar-entry-pressed-bg) pl-3 pr-1">
                 <Search
                   size={14}
-                  strokeWidth={1.75}
+                  strokeWidth={1.8}
                   className="shrink-0 text-(--sidebar-icon)"
                   aria-hidden
                 />
@@ -461,7 +463,7 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
               </div>
             ) : (
               <>
-                <span className="min-w-0 flex-1 truncate text-xs font-medium tracking-[0.01em] text-tertiary ">
+                <span className="min-w-0 flex-1 truncate text-xs font-medium tracking-[0.01em] text-(--text-tertiary) pl-2.75">
                   Recent entries
                 </span>
                 <div className="flex shrink-0 items-center gap-1">
@@ -504,11 +506,39 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
             {showEntriesSkeleton ? (
               <SidebarEntriesSkeleton />
             ) : filteredEntries.length === 0 ? (
-              <p className="px-2 py-6 text-center text-sm text-(--sidebar-ink-soft)">
-                {entries.length === 0 ? "No entries yet" : "No matches"}
-              </p>
+              <div className="pl-2 pr-4">
+                {entries.length === 0 ? (
+                  <SidebarEmptyState
+                    icon={Feather}
+                    title="No entries yet"
+                    body="Start with a single line — your recent entries will live here."
+                    action={
+                      <button
+                        type="button"
+                        onClick={handleNewEntry}
+                        className={btnPrimary("sm")}
+                      >
+                        <Plus
+                          size={iconPx("sm")}
+                          strokeWidth={iconStroke("sm")}
+                          aria-hidden
+                          className={iconFixed}
+                        />
+                        New entry
+                      </button>
+                    }
+                  />
+                ) : (
+                  <SidebarEmptyState
+                    icon={Search}
+                    title="No matches"
+                    body="Try a different word or phrase."
+                    compact
+                  />
+                )}
+              </div>
             ) : (
-              <ul className="flex flex-col gap-1 px-2 pb-4">
+              <ul className="flex flex-col gap-1 pl-2 pr-4 pb-10">
                 {filteredEntries.map((entry) => {
                   const isActive = entry.id === activeEntryId;
                   const isSealed = typeof entry.sealedAt === "number";
@@ -580,7 +610,7 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
                             >
                               <Trash2
                                 size={12}
-                                strokeWidth={1.75}
+                                strokeWidth={1.8}
                                 aria-hidden
                                 className={iconFixed}
                               />
@@ -605,16 +635,13 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
             )}
             </nav>
 
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-(--sidebar-bg)/85 backdrop-blur-[0.1875rem] [mask-image:linear-gradient(to_bottom,transparent,black_55%)] [-webkit-mask-image:linear-gradient(to_bottom,transparent,black_55%)]"
-            />
+            <div aria-hidden className={SIDEBAR_SCROLL_FADE} />
           </div>
         </section>
       )}
 
-      {hasSurfacedPatterns && !isPatternsActive ? (
-        <div className="relative z-10">
+      {!isPatternsActive ? (
+        <div className="relative z-10 pl-2">
           <PatternsSidebarLink
             count={surfacedPatternCount}
             active={false}
@@ -631,7 +658,7 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
       className={clsx(
         "flex h-full min-h-0 flex-col overflow-hidden bg-(--sidebar-bg)",
         SIDEBAR_WIDTH_CLASS,
-        "border-r border-(--sidebar-border)",
+        "border-r border-(--sidebar-edge-border)",
         isOverlayNav &&
           "shadow-[0.25rem_0_1.5rem_rgba(0,0,0,0.08)]",
       )}
@@ -645,16 +672,15 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
   const collapsedMenuToggle = (
     <div
       className={clsx(
-        // Match page `px-4` / `sm:px-5` plus body safe-area so the icon
-        // shares a left edge with Patterns / journal titles.
-        "fixed z-20 left-[calc(env(safe-area-inset-left,0)+1rem)] sm:left-[calc(env(safe-area-inset-left,0)+1.25rem)]",
+        // Match sidebar brand row: px-2 + pl-4 = 1.5rem left; mt-4 top.
+        "fixed z-20 left-[calc(env(safe-area-inset-left,0)+1.5rem)]",
         OVERLAY_OPACITY_TRANSITION,
         menuToggleVisible
           ? "opacity-100"
           : "pointer-events-none opacity-0",
       )}
       style={{
-        top: "max(1.5rem, env(safe-area-inset-top))",
+        top: "max(1rem, env(safe-area-inset-top))",
       }}
     >
       {menuToggle}

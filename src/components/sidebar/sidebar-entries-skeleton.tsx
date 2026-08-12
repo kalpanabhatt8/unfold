@@ -20,7 +20,7 @@ const ROWS: ReadonlyArray<{
 export function SidebarEntriesSkeleton() {
   return (
     <ul
-      className="flex flex-col gap-1 px-2 pb-4"
+      className="flex flex-col gap-1 pl-2 pr-4 pb-4"
       aria-busy="true"
       aria-label="Loading entries"
     >

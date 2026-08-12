@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import { ChevronDown, ChevronUp, Menu } from "lucide-react";
 import { PATTERN_LABELS } from "@/lib/patterns/vocabulary-public";
 import type { PatternName } from "@/lib/patterns/vocabulary-public";
@@ -33,6 +32,28 @@ import {
   PAGE_PADDING_X_CLASS,
   patternsColumnMaxWidth,
 } from "@/lib/layout";
+import { useInitialSyncReady } from "@/lib/sync/use-initial-sync-ready";
+
+function PatternsListSkeleton() {
+  return (
+    <ul
+      className="flex flex-col gap-2"
+      aria-busy="true"
+      aria-label="Loading patterns"
+    >
+      {Array.from({ length: 4 }, (_, i) => (
+        <li
+          key={i}
+          className="rounded-[0.625rem] border border-(--border)/60 px-4 py-4"
+          aria-hidden
+        >
+          <span className="block h-4 w-[42%] animate-pulse rounded-sm bg-(--sidebar-ink)/12" />
+          <span className="mt-2 block h-3 w-[58%] animate-pulse rounded-sm bg-(--sidebar-ink)/8" />
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 const formatEntryCount = (count: number): string =>
   count === 1 ? "Spotted in 1 moment" : `Spotted in ${count} moments`;
@@ -48,8 +69,8 @@ export type PatternsViewProps = {
  * time. "What's the pattern here?" advances phases in that panel.
  */
 export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
-  const router = useRouter();
   const viewport = useViewportLayout();
+  const initialSyncReady = useInitialSyncReady();
   const aggregate = usePatternsAggregate();
   const patterns = usePatternDisplay(aggregate);
   const itemRefs = useRef<Map<PatternName, HTMLLIElement>>(new Map());
@@ -94,13 +115,9 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
   }, [listPatterns, viewsTick]);
 
   const hasReadyPatterns = listPatterns.length > 0;
-
-  useEffect(() => {
-    if (aggregate === null) return;
-    if (!hasReadyPatterns) {
-      router.replace("/dashboard");
-    }
-  }, [aggregate, hasReadyPatterns, router]);
+  // Aggregate not read yet, or empty local cache while cloud sync still filling in.
+  const showPatternsSkeleton =
+    aggregate === null || (!initialSyncReady && !hasReadyPatterns);
 
   /** null = all collapsed. */
   const [expanded, setExpanded] = useState<PatternName | null>(
@@ -160,14 +177,16 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
     };
   }, [expanded]);
 
-  if (aggregate === null || !hasReadyPatterns) {
+  if (aggregate === null) {
     return null;
   }
 
   return (
     <main
-      className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-(--app-bg)"
+      className="flex min-h-0 flex-1 flex-col overflow-y-auto"
       style={{
+        // Match Entry writing canvas (`CANVAS_BACKGROUND`).
+        background: "var(--canvas-bg-gradient)",
         paddingTop:
           viewport.isOverlayNav
             ? `max(${viewport.patternsPagePaddingYPx / 16}rem, env(safe-area-inset-top))`
@@ -177,7 +196,7 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
       }}
     >
       <div
-        className={`mx-auto flex w-full min-w-0 flex-col ${PAGE_PADDING_X_CLASS}`}
+        className={`mx-auto flex w-full min-w-0 flex-1 flex-col ${PAGE_PADDING_X_CLASS}`}
         style={{ maxWidth: patternsColumnMaxWidth(viewport.isOverlayNav) }}
       >
         <header className="mb-5 flex shrink-0 flex-col items-stretch sm:mb-6">
@@ -196,12 +215,31 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
               />
             </button>
           ) : null}
-          <h1 className="header-md tracking-tight">Patterns</h1>
-          <p className="mt-1 text-xs leading-relaxed text-(--sidebar-ink-soft) sm:text-sm">
-            A few thoughts have been returning lately.
-          </p>
+          <div className="flex h-9 shrink-0 items-center">
+            <h1 className="header-md tracking-tight">Patterns</h1>
+          </div>
+          {hasReadyPatterns ? (
+            <p className="mt-1 text-xs leading-relaxed text-(--sidebar-ink-soft) sm:text-sm">
+              A few thoughts have been returning lately.
+            </p>
+          ) : null}
         </header>
 
+        {showPatternsSkeleton ? <PatternsListSkeleton /> : null}
+
+        {!showPatternsSkeleton && !hasReadyPatterns ? (
+          <div className="mt-16 flex justify-center">
+            <div className="flex max-w-[18rem] flex-col items-center gap-1.5 text-center">
+              <p className="text-md font-medium text-primary">No pattern yet</p>
+              <p className="max-w-md text-center text-sm leading-snug text-(--sidebar-ink-soft)">
+                Keep writing, when a thought keeps returning, it will show up
+                here.
+              </p>
+            </div>
+          </div>
+        ) : null}
+
+        {!showPatternsSkeleton && hasReadyPatterns ? (
         <ul className="pattern-accordion" aria-label="Patterns">
           {listPatterns.map((pattern) => {
             const title =
@@ -300,6 +338,7 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
             );
           })}
         </ul>
+        ) : null}
       </div>
     </main>
   );

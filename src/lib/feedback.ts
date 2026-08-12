@@ -60,7 +60,7 @@ export const feedbackChipStyle = {
 } as const;
 
 export const feedbackChipClass =
-  "inline-flex items-center gap-1 rounded-full border border-(--sidebar-border) bg-(--surface-raised) px-3 py-1.5 font-normal text-primary transition-colors duration-150 " +
+  "inline-flex items-center gap-1 rounded-full border border-(--border) bg-(--surface-raised) px-3 py-1.5 font-normal text-primary transition-colors duration-150 " +
   "hover:bg-(--surface-chrome) " +
   "data-[active=true]:bg-(--surface-chrome-hover) " +
   "data-[active=true]:hover:bg-(--surface-chrome-active)";

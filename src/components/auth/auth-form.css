@@ -45,7 +45,7 @@
     var(--surface-chrome) 78%,
     var(--surface-raised)
   );
-  border: 0.0625rem solid color-mix(in srgb, var(--sidebar-border) 50%, transparent);
+  border: 0.0625rem solid color-mix(in srgb, var(--border) 50%, transparent);
   border-radius: calc(var(--radius-md) + 6px);
   */
 }
@@ -65,7 +65,7 @@
     var(--surface-chrome) 78%,
     var(--surface-raised)
   );
-  border: 0.0625rem solid color-mix(in srgb, var(--sidebar-border) 50%, transparent);
+  border: 0.0625rem solid color-mix(in srgb, var(--border) 50%, transparent);
   border-radius: calc(var(--radius-md) + 6px);
   */
 }

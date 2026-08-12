@@ -110,7 +110,7 @@ export function SendFeedbackModal({ open, onClose }: SendFeedbackModalProps) {
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="relative z-10 w-full max-w-lg overflow-hidden rounded-xl border border-(--sidebar-border) bg-(--surface-canvas) shadow-[0_1.25rem_3rem_-1rem_rgba(15,15,15,0.28)]"
+        className="relative z-10 w-full max-w-lg overflow-hidden rounded-xl border border-(--border) bg-(--surface-canvas) shadow-[0_1.25rem_3rem_-1rem_rgba(15,15,15,0.28)]"
         style={{ fontFamily: "var(--font-body)", minHeight: "min(28rem, calc(100svh - 2rem))" }}
       >
         <div className="relative flex min-h-[inherit] flex-col py-6">
@@ -201,7 +201,7 @@ export function SendFeedbackModal({ open, onClose }: SendFeedbackModalProps) {
                 }
                 disabled={busy || sent}
                 tabIndex={sent ? -1 : undefined}
-                className="w-full resize-y rounded-md border border-(--sidebar-border) bg-(--surface-raised) px-3 py-2.5 text-primary outline-none transition-colors placeholder:text-(--sidebar-ink-soft)/70 focus:border-[color-mix(in_srgb,var(--canvas-title-ink)_28%,var(--sidebar-border))] focus-visible:ring-2 focus-visible:ring-black/10 disabled:opacity-60"
+                className="w-full resize-y rounded-md border border-(--border) bg-(--surface-raised) px-3 py-2.5 text-primary outline-none transition-colors placeholder:text-(--sidebar-ink-soft)/70 focus:border-[color-mix(in_srgb,var(--canvas-title-ink)_28%,var(--border))] focus-visible:ring-2 focus-visible:ring-black/10 disabled:opacity-60"
                 style={copyStyle}
               />
             </label>

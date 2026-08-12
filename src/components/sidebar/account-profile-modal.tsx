@@ -110,7 +110,7 @@ function PreferredNameField({
             event.currentTarget.blur();
           }
         }}
-        className="w-full rounded-sm border border-(--sidebar-border) bg-(--surface-raised) px-2.5 py-0.75 text-primary outline-none transition-colors focus:border-(--canvas-title-ink) focus-visible:ring-2 focus-visible:ring-black/10 read-only:opacity-60"
+        className="w-full rounded-sm border border-(--border) bg-(--surface-raised) px-2.5 py-0.75 text-primary outline-none transition-colors focus:border-(--canvas-title-ink) focus-visible:ring-2 focus-visible:ring-black/10 read-only:opacity-60"
         style={copyStyle}
         aria-invalid={error ? true : undefined}
         aria-busy={busy || undefined}
@@ -423,7 +423,7 @@ function AccountPanelView() {
         </div>
 
         <div className="flex flex-col gap-4">
-          <div className="border-b border-(--sidebar-border) pb-3">
+          <div className="border-b border-(--border) pb-3">
             <h2 className="font-medium text-primary" style={copyStyle}>
               Profile
             </h2>
@@ -666,7 +666,7 @@ export function AccountProfileModal({ open, onClose }: AccountProfileModalProps)
         role="dialog"
         aria-modal="true"
         aria-label="Account"
-        className="relative z-10 flex w-full max-w-2xl overflow-hidden rounded-xl border border-(--sidebar-border) bg-(--surface-canvas) shadow-[0_1.25rem_3rem_-1rem_rgba(15,15,15,0.28)]"
+        className="relative z-10 flex w-full max-w-2xl overflow-hidden rounded-xl border border-(--border) bg-(--surface-canvas) shadow-[0_1.25rem_3rem_-1rem_rgba(15,15,15,0.28)]"
         style={{ height: PANEL_HEIGHT, fontFamily: "var(--font-body)" }}
       >
         <div className="relative flex min-w-0 flex-1 flex-col pt-4 pb-4">

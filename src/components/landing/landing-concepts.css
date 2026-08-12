@@ -29,8 +29,8 @@
   justify-content: center;
   padding: 0.55rem 1.1rem;
   border-radius: var(--radius-pill);
-  background: var(--button-primary);
-  color: var(--button-primary-foreground);
+  background: color-mix(in srgb, var(--sidebar-tab-track) 70%, white);
+  color: var(--canvas-title-ink);
   font-family: var(--font-body);
   font-weight: 500;
   font-size: 0.8125rem;
@@ -57,7 +57,7 @@
 }
 
 .lp-chrome__cta:hover {
-  background: var(--button-primary-hover);
+  background: var(--sidebar-tab-selected-bg);
 }
 
 .lp-chrome__cta--lg {
@@ -377,7 +377,7 @@ html:has(.lp-live)::-webkit-scrollbar-button {
   gap: 0.75rem;
   min-height: 0;
   padding: 0 0.5rem 1rem;
-  border-right: 0.0625rem solid var(--sidebar-border);
+  border-right: 0.0625rem solid var(--sidebar-edge-border);
   background: var(--sidebar-bg);
   overflow: hidden;
 }
@@ -549,12 +549,12 @@ html:has(.lp-live)::-webkit-scrollbar-button {
   inset-inline: 0;
   bottom: 0;
   z-index: 1;
-  height: 3rem;
-  background: color-mix(in srgb, var(--sidebar-bg) 85%, transparent);
-  backdrop-filter: blur(0.1875rem);
-  -webkit-backdrop-filter: blur(0.1875rem);
-  mask-image: linear-gradient(to top, black 20%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to top, black 20%, transparent 100%);
+  height: 2.5rem;
+  background: linear-gradient(
+    to top,
+    var(--sidebar-bg) 12%,
+    transparent 100%
+  );
 }
 
 .lp-live__entry-list ul {
@@ -948,8 +948,13 @@ html:has(.lp-live)::-webkit-scrollbar-button {
   min-height: 8rem;
   padding: 0.95rem 1rem 1.05rem;
   border-radius: 0.875rem;
-  background: var(--surface-chrome-hover);
-  border: 0.0625rem solid color-mix(in srgb, var(--sidebar-border) 15%, transparent);
+  /* Match evidence-card wash - solid chrome hover reads too heavy on the mock. */
+  background: color-mix(
+    in srgb,
+    var(--surface-chrome-hover) 38%,
+    var(--surface-raised)
+  );
+  border: 0.0625rem solid color-mix(in srgb, var(--border) 15%, transparent);
   box-shadow: none;
   box-sizing: border-box;
 }

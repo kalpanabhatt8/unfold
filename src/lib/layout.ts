@@ -25,11 +25,27 @@ export const patternsColumnMaxWidth = (isOverlayNav: boolean): string =>
 export const PAGE_PADDING_X_CLASS = "px-4 sm:px-5 lg:px-6";
 
 /**
- * Fixed overlay hamburger clearance (≤1023px): top (24) + touch target (44) +
- * gap below (16) = 84. Used by the journal column; Patterns overlay keeps the
+ * Fixed overlay hamburger clearance (≤1023px): top (16) + control (28) +
+ * gap below (40) ≈ 84. Used by the journal column; Patterns overlay keeps the
  * menu in-flow instead (desktop Patterns uses the floating toggle when closed).
  */
 export const OVERLAY_MENU_CLEARANCE_PX = 84;
+
+/**
+ * Shell content-header band - sidebar section label + main title share one
+ * horizontal line under the brand chrome:
+ *   Entries:  “Recent entries” + book title + date
+ *   Patterns: “Summary” + “Patterns”
+ *
+ * Brand row: mt-4 (16) + collapse control h-7 (28) + mb-2 (8) = 52;
+ * gap-3 to header = 12. Keep sidebar + canvas/patterns in sync when adjusting.
+ */
+export const SHELL_BRAND_ROW_HEIGHT_PX = 52;
+export const SHELL_BRAND_TO_HEADER_GAP_PX = 12;
+export const SHELL_CONTENT_HEADER_TOP_PX =
+  SHELL_BRAND_ROW_HEIGHT_PX + SHELL_BRAND_TO_HEADER_GAP_PX;
+/** Shared row height for Recent entries / canvas title+date (`h-9`). */
+export const SHELL_CONTENT_HEADER_HEIGHT_CLASS = "h-9";
 
 /** Open the overlay / collapsed sidebar from in-page controls (e.g. Patterns). */
 export const OPEN_NAV_EVENT = "unfold-open-nav";

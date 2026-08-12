@@ -407,7 +407,8 @@ function CanvasBoardInner(
 
 
   const viewport = useViewportLayout();
-  const pagePaddingY = viewport.pagePaddingYPx;
+  const pagePaddingTop = viewport.pagePaddingTopPx;
+  const pagePaddingBottom = viewport.pagePaddingBottomPx;
   const scrollComfortBottom = viewport.scrollComfortBottomPx;
 
   const outerRef = useRef<HTMLDivElement | null>(null);
@@ -1097,10 +1098,10 @@ function CanvasBoardInner(
           ref={writingScrollRef}
           className="relative flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain"
           style={{
-            paddingTop: `${pagePaddingY / 16}rem`,
-            paddingBottom: `${pagePaddingY / 16}rem`,
-            scrollPaddingTop: `${pagePaddingY / 16}rem`,
-            scrollPaddingBottom: `${(pagePaddingY + scrollComfortBottom) / 16}rem`,
+            paddingTop: `${pagePaddingTop / 16}rem`,
+            paddingBottom: `${pagePaddingBottom / 16}rem`,
+            scrollPaddingTop: `${pagePaddingTop / 16}rem`,
+            scrollPaddingBottom: `${(pagePaddingBottom + scrollComfortBottom) / 16}rem`,
           }}
         >
           <div
@@ -1341,7 +1342,7 @@ function CanvasHeader({
 
   return (
     <header
-      className="mb-8 grid w-full grid-cols-1 items-end gap-y-1.5 sm:mb-10 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-x-4 sm:gap-y-0 md:gap-x-6 lg:mb-14 lg:gap-x-8 xl:gap-x-12"
+      className="mb-8 grid w-full grid-cols-1 items-center gap-y-1.5 sm:mb-10 sm:h-9 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-x-4 sm:gap-y-0 md:gap-x-6 lg:mb-14 lg:gap-x-8 xl:gap-x-12"
       style={{
         fontFamily:
           "var(--font-body)",
@@ -1369,12 +1370,12 @@ function CanvasHeader({
         spellCheck={false}
         aria-label="Book title"
         className={clsx(
-          "header-md col-start-1 row-start-1 min-w-0 w-full truncate self-end border-0 bg-transparent p-0 text-left tracking-tight outline-none focus:outline-none placeholder:text-(--canvas-title-placeholder)",
+          "header-md col-start-1 row-start-1 min-w-0 w-full truncate self-center border-0 bg-transparent p-0 text-left tracking-tight outline-none focus:outline-none placeholder:text-(--canvas-title-placeholder)",
           hasTitle ? "text-primary" : "text-(--canvas-title-placeholder)"
         )}
       />
       <div
-        className="col-start-1 row-start-2 flex flex-wrap items-baseline gap-x-2.5 gap-y-0.5 text-left text-xs font-light tracking-[0.05em] sm:col-start-2 sm:row-start-1 sm:justify-end sm:text-right"
+        className="col-start-1 row-start-2 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-left text-xs font-light tracking-[0.05em] sm:col-start-2 sm:row-start-1 sm:justify-end sm:self-center sm:text-right"
         style={{ lineHeight: 1.5 }}
       >
         {saveStatus ? (
