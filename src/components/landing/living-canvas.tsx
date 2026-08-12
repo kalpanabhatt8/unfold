@@ -8,6 +8,7 @@ import { LandingEndCta, LandingEndNote } from "./landing-chrome";
 // import { ExamplePatternCard } from "./example-pattern-card"; // parked: See an example
 import { MechanismChain } from "@/components/patterns/mechanism-chain";
 import { Tooltip } from "@/components/ui/tooltip";
+import { SectionLabel } from "@/components/ui/section-label";
 import {
   CTA,
   LIVE_SCREEN2_CARDS,
@@ -17,11 +18,14 @@ import {
   WRITE_NATURALLY,
 } from "./story";
 import {
+  btnIconChrome,
   btnIconInvisible,
   iconFixed,
   iconPx,
   iconStroke,
 } from "@/components/ui/button-system";
+
+const SIDEBAR_ACTION_SIZE = "xs" as const;
 import "./landing-concepts.css";
 
 function clamp(n: number, min = 0, max = 1) {
@@ -423,19 +427,32 @@ export function LivingCanvas() {
                 <div className="lp-live__sidebar-wash" aria-hidden />
 
                 <div className="lp-live__sidebar-top">
-                  <p className="lp-live__sidebar-owner">{WORKSPACE_LABEL}</p>
+                  <div className="lp-live__sidebar-brand">
+                    {/* <span className="lp-live__sidebar-avatar" aria-hidden>
+                      J
+                    </span> */}
+                    <p className="lp-live__sidebar-owner">{WORKSPACE_LABEL}</p>
+                  </div>
                   <button
                     type="button"
-                    className="lp-live__sidebar-icon-btn"
+                    className={`shrink-0 ${btnIconChrome(SIDEBAR_ACTION_SIZE)}`}
                     aria-label="Collapse sidebar"
                     tabIndex={interactive ? 0 : -1}
                   >
-                    <ChevronsLeft size={16} strokeWidth={1.85} aria-hidden />
+                    <ChevronsLeft
+                      size={iconPx(SIDEBAR_ACTION_SIZE)}
+                      strokeWidth={iconStroke(SIDEBAR_ACTION_SIZE)}
+                      aria-hidden
+                      className={iconFixed}
+                    />
                   </button>
                 </div>
 
                 <section className="lp-live__entries" aria-label="Entries">
-                  <div className="lp-live__sidebar-tools">
+                  <div
+                    className="lp-live__sidebar-tools"
+                    data-search={searchOpen}
+                  >
                     {searchOpen ? (
                       <div className="lp-live__search">
                         <Search size={14} strokeWidth={1.75} aria-hidden />
@@ -457,38 +474,53 @@ export function LivingCanvas() {
                         <button
                           type="button"
                           aria-label="Close search"
-                          className="lp-live__sidebar-icon-btn"
+                          className={`shrink-0 ${btnIconChrome(SIDEBAR_ACTION_SIZE)}`}
                           onClick={() => {
                             setSearchOpen(false);
                             setQuery("");
                           }}
                         >
-                          <X size={14} strokeWidth={1.9} aria-hidden />
+                          <X
+                            size={iconPx(SIDEBAR_ACTION_SIZE)}
+                            strokeWidth={iconStroke(SIDEBAR_ACTION_SIZE)}
+                            aria-hidden
+                            className={iconFixed}
+                          />
                         </button>
                       </div>
                     ) : (
                       <>
-                        <span className="lp-live__sidebar-label">
-                          Recent entries
-                        </span>
+                        <div className="lp-live__sidebar-label">
+                          <SectionLabel>Recent entries</SectionLabel>
+                        </div>
                         <div className="lp-live__sidebar-icons">
                           <button
                             type="button"
-                            className="lp-live__sidebar-icon-btn"
+                            className={`shrink-0 ${btnIconChrome(SIDEBAR_ACTION_SIZE)}`}
                             aria-label="Search entries"
                             tabIndex={interactive ? 0 : -1}
                             onClick={() => interactive && setSearchOpen(true)}
                           >
-                            <Search size={14} strokeWidth={1.75} aria-hidden />
+                            <Search
+                              size={iconPx(SIDEBAR_ACTION_SIZE)}
+                              strokeWidth={iconStroke(SIDEBAR_ACTION_SIZE)}
+                              aria-hidden
+                              className={iconFixed}
+                            />
                           </button>
                           <button
                             type="button"
-                            className="lp-live__sidebar-icon-btn"
+                            className={`shrink-0 ${btnIconChrome(SIDEBAR_ACTION_SIZE)}`}
                             aria-label="New entry"
                             tabIndex={interactive ? 0 : -1}
                             onClick={() => openNewEntry()}
                           >
-                            <Plus size={14} strokeWidth={1.75} aria-hidden />
+                            <Plus
+                              size={iconPx(SIDEBAR_ACTION_SIZE)}
+                              strokeWidth={iconStroke(SIDEBAR_ACTION_SIZE)}
+                              aria-hidden
+                              className={iconFixed}
+                            />
                           </button>
                         </div>
                       </>
@@ -535,23 +567,25 @@ export function LivingCanvas() {
                   </div>
                 </section>
 
-                <button
-                  type="button"
-                  className="lp-live__patterns-link"
-                  data-active={patternsActive}
-                  onClick={openPatterns}
-                  disabled={!interactive}
-                  aria-label="Patterns, 2 reflections"
-                >
-                  <Waypoints
-                    className="lp-live__patterns-icon"
-                    size={16}
-                    strokeWidth={1.85}
-                    aria-hidden
-                  />
-                  <span className="lp-live__patterns-text">Patterns</span>
-                  <span className="lp-live__patterns-badge">2</span>
-                </button>
+                <div className="lp-live__patterns-wrap">
+                  <button
+                    type="button"
+                    className="lp-live__patterns-link"
+                    data-active={patternsActive}
+                    onClick={openPatterns}
+                    disabled={!interactive}
+                    aria-label="Patterns, 2 reflections"
+                  >
+                    <Waypoints
+                      className="lp-live__patterns-icon"
+                      size={16}
+                      strokeWidth={1.85}
+                      aria-hidden
+                    />
+                    <span className="lp-live__patterns-text">Patterns</span>
+                    <span className="lp-live__patterns-badge">2</span>
+                  </button>
+                </div>
               </aside>
 
               <main className="lp-live__canvas">
@@ -567,8 +601,8 @@ export function LivingCanvas() {
                       <p
                         className={
                           writeSealed
-                            ? "lp-live__journal-title header-md"
-                            : "lp-live__journal-title header-md lp-live__title-placeholder"
+                            ? "lp-live__journal-title header-md tracking-tight"
+                            : "lp-live__journal-title header-md tracking-tight lp-live__title-placeholder"
                         }
                       >
                         {writeSealed
@@ -643,7 +677,7 @@ export function LivingCanvas() {
                 >
                   <div className="lp-live__column">
                     <header className="lp-live__journal-head">
-                      <h1 className="lp-live__journal-title header-md">
+                      <h1 className="lp-live__journal-title header-md tracking-tight">
                         {activeEntry.title}
                       </h1>
                       <time className="lp-live__journal-meta">
@@ -737,7 +771,7 @@ export function LivingCanvas() {
                   aria-hidden={patternOpacity < 0.05}
                 >
                   <div className="lp-live__column lp-live__pattern-inner">
-                    <h2 className="lp-live__pattern-title">
+                    <h2 className="lp-live__pattern-title header-md tracking-tight">
                       {PATTERN.title}
                     </h2>
                     <div
@@ -789,19 +823,8 @@ export function LivingCanvas() {
                       >
                         <LandingEndCta />
                       </div>
+                      <LandingEndNote />
                     </div>
-                  </div>
-
-                  <div
-                    className="lp-live__end-note-wrap"
-                    style={{
-                      opacity: viewOverride === "pattern" ? 1 : showCta,
-                    }}
-                    aria-hidden={
-                      viewOverride === "pattern" ? false : showCta < 0.05
-                    }
-                  >
-                    <LandingEndNote />
                   </div>
                 </section>
 
