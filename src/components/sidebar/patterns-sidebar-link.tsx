@@ -24,7 +24,7 @@ export function PatternsSidebarLink({
         "group relative rounded-[0.625rem] transition-colors duration-150",
         active
           ? "bg-(--sidebar-entry-pressed-bg)"
-          : "hover:bg-(--sidebar-entry-hover-bg)",
+          : "hover:bg-(--sidebar-entry-hover-bg) active:bg-(--sidebar-entry-pressed-bg)",
       )}
     >
       <Link

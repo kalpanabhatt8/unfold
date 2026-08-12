@@ -72,6 +72,18 @@ export function SidebarAccountMenu() {
     hasMounted && isLoaded
       ? avatarInitial(resolvePreferredName(user) || user?.username)
       : "";
+  const identityReady = hasMounted && isLoaded;
+  const [photoReady, setPhotoReady] = useState(false);
+  const photoRef = useRef<HTMLImageElement>(null);
+
+  useEffect(() => {
+    setPhotoReady(false);
+  }, [user?.imageUrl]);
+
+  useEffect(() => {
+    const img = photoRef.current;
+    if (img?.complete && img.naturalWidth > 0) setPhotoReady(true);
+  }, [user?.imageUrl, showPhoto]);
 
   useEffect(() => {
     if (!menuOpen) {
@@ -187,20 +199,40 @@ export function SidebarAccountMenu() {
             }
             setMenuOpen((prev) => !prev);
           }}
-          className="flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-[3px] bg-(--canvas-title-ink) text-[0.625rem] font-medium leading-none text-white transition-opacity duration-150 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20 active:opacity-80"
+          className="relative flex size-6 shrink-0 items-center justify-center overflow-hidden rounded-[3px] bg-(--avatar-bg) text-[0.625rem] font-medium leading-none text-(--avatar-fg) transition-opacity duration-150 hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20 active:opacity-80"
           style={{ fontFamily: "var(--font-body)" }}
         >
           {isSaving ? (
             <SignOutSpinner className="h-2.5 w-2.5 border-white/35 border-t-white" />
-          ) : showPhoto && user ? (
-            <img
-              src={user.imageUrl}
-              alt=""
-              width={24}
-              height={24}
-              className="h-full w-full object-cover"
-              referrerPolicy="no-referrer"
+          ) : !identityReady ? (
+            <span
+              className="size-full animate-pulse bg-(--sidebar-ink)/12"
+              aria-hidden
             />
+          ) : showPhoto && user ? (
+            <>
+              {!photoReady ? (
+                <span
+                  className="size-full animate-pulse bg-(--sidebar-ink)/12"
+                  aria-hidden
+                />
+              ) : null}
+              <img
+                ref={photoRef}
+                src={user.imageUrl}
+                alt=""
+                width={24}
+                height={24}
+                className={
+                  photoReady
+                    ? "h-full w-full object-cover"
+                    : "pointer-events-none absolute inset-0 size-full object-cover opacity-0"
+                }
+                referrerPolicy="no-referrer"
+                onLoad={() => setPhotoReady(true)}
+                onError={() => setPhotoReady(true)}
+              />
+            </>
           ) : (
             letter || "\u00a0"
           )}

@@ -54,7 +54,7 @@ const SIDEBAR_TOGGLE_SIZE = "xs" as const;
 const SIDEBAR_ACTION_SIZE = "xs" as const;
 /** Brand row: mt-4 + h-7 + mb-2 = 52 — matches SHELL_BRAND_ROW_HEIGHT_PX. */
 const SIDEBAR_BRAND_ROW =
-  "relative z-20 flex h-7 shrink-0 items-center justify-between gap-2 mt-4 mb-2 pl-4";
+  "relative z-20 flex h-7 shrink-0 items-center justify-between gap-2 mt-4 mb-2 pl-4 pr-2";
 const SIDEBAR_BRAND_TITLE =
   "min-w-0 flex-1 truncate text-md font-semibold leading-none tracking-tight text-primary [font-family:var(--font-heading)]";
 const OVERLAY_OPACITY_TRANSITION =
@@ -214,6 +214,7 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
       : user
         ? (resolvePreferredName(user) || user.username || null)
         : "Anonymous";
+  const showBrandSkeleton = !hasMounted || !isLoaded;
 
   const closeSearch = () => {
     setSearchOpen(false);
@@ -401,10 +402,29 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
       ) : (
         <div className={SIDEBAR_BRAND_ROW}>
           <div className="flex min-w-0 flex-1 items-center gap-2">
-            <SidebarAccountMenu />
-            <p className={SIDEBAR_BRAND_TITLE}>
-              {displayName ? `${displayName}\u2019s ` : ""}Unfold
-            </p>
+            {showBrandSkeleton ? (
+              <div
+                className="flex min-w-0 flex-1 items-center gap-2"
+                aria-busy="true"
+                aria-label="Loading account"
+              >
+                <span
+                  className="size-6 shrink-0 animate-pulse rounded-[3px] bg-(--sidebar-ink)/12"
+                  aria-hidden
+                />
+                <span
+                  className="block h-4 w-[62%] max-w-full animate-pulse rounded-sm bg-(--sidebar-ink)/12"
+                  aria-hidden
+                />
+              </div>
+            ) : (
+              <>
+                <SidebarAccountMenu />
+                <p className={SIDEBAR_BRAND_TITLE}>
+                  {displayName ? `${displayName}\u2019s ` : ""}Unfold
+                </p>
+              </>
+            )}
           </div>
           <button
             type="button"
@@ -444,7 +464,12 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
           className="relative z-10 -mr-2 flex min-h-0 flex-1 flex-col gap-2 overflow-hidden"
           aria-label="Entries"
         >
-          <div className="flex h-9 shrink-0 items-center pl-4 pr-4">
+          <div
+            className={clsx(
+              "flex h-9 shrink-0 items-center pr-4",
+              searchOpen ? "pl-2" : "pl-4",
+            )}
+          >
             {searchOpen ? (
               <div className="flex h-full w-full items-center gap-2 rounded-md border border-[color-mix(in_srgb,var(--sidebar-ink-soft)_24%,var(--sidebar-edge-border))] bg-(--sidebar-entry-hover-bg) pl-3 pr-1 shadow-[0_1px_3px_color-mix(in_srgb,var(--sidebar-ink)_6%,transparent)]">
                 <Search
@@ -572,7 +597,7 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
                         "group relative rounded-md transition-colors duration-150",
                         isActive
                           ? "bg-(--sidebar-entry-pressed-bg)"
-                          : "hover:bg-(--sidebar-entry-hover-bg)",
+                          : "hover:bg-(--sidebar-entry-hover-bg) active:bg-(--sidebar-entry-pressed-bg)",
                       )}
                     >
                       <Link
@@ -604,7 +629,7 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
                           <span
                             className={clsx(
                               "flex shrink-0 items-center gap-1.5 pt-0.5 text-xs",
-                              isSealed ? "text-sealed" : "text-secondary opacity-90",
+                              isSealed ? "text-sealed" : "text-secondary opacity-80",
                             )}
                           >
                             <span className="tabular-nums leading-none">

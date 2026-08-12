@@ -436,7 +436,7 @@ function AccountPanelView() {
 
           <div className="flex items-center gap-4">
             <div
-              className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-(--canvas-title-ink) text-lg font-semibold text-white"
+              className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-full bg-(--avatar-bg) text-lg font-semibold text-(--avatar-fg)"
               style={{ fontFamily: "var(--font-body)" }}
             >
               {showPhoto ? (
