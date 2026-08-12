@@ -12,10 +12,16 @@ export function JournalInsightsSkeleton() {
     >
       <div className="flex flex-col gap-2">
         <div className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,7.5rem),1fr))] gap-2">
-          {Array.from({ length: 3 }, (_, i) => (
+          {(
+            [
+              "bg-(--journal-metric-days)",
+              "bg-(--journal-metric-entries)",
+              "bg-(--journal-metric-words)",
+            ] as const
+          ).map((bg) => (
             <div
-              key={i}
-              className="flex min-w-0 flex-col gap-2 rounded-xl bg-(--surface-wash-strong) px-3 py-3.5"
+              key={bg}
+              className={`flex min-w-0 flex-col gap-2 rounded-xl px-3 py-3.5 ${bg}`}
               aria-hidden
             >
               <span className="block h-6 w-10 animate-pulse rounded-sm bg-(--sidebar-ink)/12" />

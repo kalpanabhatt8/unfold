@@ -24,17 +24,27 @@ function InsightsDivider() {
   );
 }
 
+const METRIC_TONE_BG = {
+  days: "bg-(--journal-metric-days)",
+  entries: "bg-(--journal-metric-entries)",
+  words: "bg-(--journal-metric-words)",
+} as const;
+
 function MetricCard({
   label,
   value,
   approximate = false,
+  tone,
 }: {
   label: string;
   value: number;
   approximate?: boolean;
+  tone: keyof typeof METRIC_TONE_BG;
 }) {
   return (
-    <div className="flex min-w-0 flex-col gap-1 rounded-xl bg-(--surface-wash-strong) px-3 py-3.5">
+    <div
+      className={`flex min-w-0 flex-col gap-1 rounded-xl px-3 py-3.5 ${METRIC_TONE_BG[tone]}`}
+    >
       <span className="header-md tabular-nums leading-none">
         {approximate ? "~" : ""}
         {formatCount(value)}
@@ -67,12 +77,13 @@ function YourJournal({ summary }: { summary: JournalSummary }) {
     <section className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
         <div className="grid min-w-0 grid-cols-[repeat(auto-fit,minmax(min(100%,7.5rem),1fr))] gap-2">
-          <MetricCard value={summary.dayCount} label="Days" />
-          <MetricCard value={summary.entryCount} label="Entries" />
+          <MetricCard value={summary.dayCount} label="Days" tone="days" />
+          <MetricCard value={summary.entryCount} label="Entries" tone="entries" />
           <MetricCard
             value={wordsPerEntry(summary)}
             label="words/entry"
             approximate
+            tone="words"
           />
         </div>
       </div>
