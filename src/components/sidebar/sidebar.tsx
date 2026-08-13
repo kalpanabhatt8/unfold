@@ -54,7 +54,7 @@ const SIDEBAR_TOGGLE_SIZE = "xs" as const;
 const SIDEBAR_ACTION_SIZE = "xs" as const;
 /** Brand row: mt-4 + h-7 + mb-2 = 52 — matches SHELL_BRAND_ROW_HEIGHT_PX. */
 const SIDEBAR_BRAND_ROW =
-  "relative z-20 flex h-7 shrink-0 items-center justify-between gap-2 mt-4 mb-2 pl-4 pr-2";
+  "relative z-20 flex h-7 shrink-0 items-center justify-between gap-2 mt-4 mb-3 pl-4 pr-2";
 const SIDEBAR_BRAND_TITLE =
   "min-w-0 flex-1 truncate text-md font-semibold leading-none tracking-tight text-primary [font-family:var(--font-heading)]";
 const OVERLAY_OPACITY_TRANSITION =
@@ -471,7 +471,7 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
             )}
           >
             {searchOpen ? (
-              <div className="flex h-full w-full items-center gap-2 rounded-md border border-[color-mix(in_srgb,var(--sidebar-ink-soft)_24%,var(--sidebar-edge-border))] bg-(--sidebar-entry-hover-bg) pl-3 pr-1 shadow-[0_1px_3px_color-mix(in_srgb,var(--sidebar-ink)_6%,transparent)]">
+              <div className="flex h-full w-full items-center gap-2 rounded-md border border-[color-mix(in_srgb,var(--sidebar-ink-soft)_0%,var(--sidebar-entry-hover-bg))] bg-(--sidebar-entry-hover-bg) pl-3 pr-1 shadow-[0_1px_3px_color-mix(in_srgb,var(--sidebar-ink)_6%,transparent)] has-[input:focus]:border-[#E1D2D8]">
                 <Search
                   size={14}
                   strokeWidth={1.8}
