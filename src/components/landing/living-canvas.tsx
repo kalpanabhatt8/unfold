@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import Link from "next/link";
 import { ChevronsLeft, Plus, Search, Signature, Waypoints, X } from "lucide-react";
 import { UnfoldBrand } from "@/components/brand/unfold-brand";
@@ -66,6 +73,39 @@ function formatSealedStamp(ts: number): string {
 
 const SIGNATURE_NAME = "Jamie";
 const WORKSPACE_LABEL = `${SIGNATURE_NAME}'s Unfold`;
+
+/** Phrases in the write demo that use the product highlighter. */
+const WRITE_HIGHLIGHTS = [
+  "a worry that keeps showing up",
+  "a moment you keep coming back to",
+] as const;
+
+function renderWithHighlights(
+  text: string,
+  phrases: readonly string[],
+): ReactNode {
+  const hits = phrases
+    .map((phrase) => ({ phrase, index: text.indexOf(phrase) }))
+    .filter((hit) => hit.index >= 0)
+    .sort((a, b) => a.index - b.index);
+
+  if (hits.length === 0) return text;
+
+  const parts: ReactNode[] = [];
+  let cursor = 0;
+  hits.forEach((hit, i) => {
+    if (hit.index < cursor) return;
+    if (hit.index > cursor) parts.push(text.slice(cursor, hit.index));
+    parts.push(
+      <mark key={`${hit.phrase}-${i}`} className="journal-user-highlight">
+        {hit.phrase}
+      </mark>,
+    );
+    cursor = hit.index + hit.phrase.length;
+  });
+  if (cursor < text.length) parts.push(text.slice(cursor));
+  return parts;
+}
 
 type PrototypeEntry = {
   id: string;
@@ -221,7 +261,7 @@ export function LivingCanvas() {
     return () => window.removeEventListener("scroll", onScroll);
   }, [reduced, viewOverride]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (searchOpen) searchInputRef.current?.focus();
   }, [searchOpen]);
 
@@ -423,6 +463,7 @@ export function LivingCanvas() {
             <div className="lp-live__frame">
               <div className="lp-live__desktop" data-interactive={interactive}>
               <aside className="lp-live__sidebar">
+                <div className="lp-live__sidebar-inner">
                 {/* Soft bottom wash behind Patterns - matches real dashboard sidebar. */}
                 <div className="lp-live__sidebar-wash" aria-hidden />
 
@@ -455,7 +496,12 @@ export function LivingCanvas() {
                   >
                     {searchOpen ? (
                       <div className="lp-live__search">
-                        <Search size={14} strokeWidth={1.75} aria-hidden />
+                        <Search
+                          size={14}
+                          strokeWidth={1.8}
+                          aria-hidden
+                          className="lp-live__search-icon"
+                        />
                         <input
                           ref={searchInputRef}
                           type="text"
@@ -536,12 +582,15 @@ export function LivingCanvas() {
                             entry.id === activeEntryId &&
                             !patternsActive;
                           return (
-                            <li key={entry.id}>
+                            <li
+                              key={entry.id}
+                              className="lp-live__entry-row"
+                              data-active={isActive}
+                              data-sealed={entry.sealed}
+                            >
                               <button
                                 type="button"
                                 className="lp-live__entry"
-                                data-active={isActive}
-                                data-sealed={entry.sealed}
                                 onClick={() => openJournal(entry.id)}
                                 disabled={!interactive}
                               >
@@ -586,6 +635,7 @@ export function LivingCanvas() {
                     <span className="lp-live__patterns-badge">2</span>
                   </button>
                 </div>
+                </div>
               </aside>
 
               <main className="lp-live__canvas">
@@ -626,7 +676,7 @@ export function LivingCanvas() {
                           >
                             {para.split("\n").map((line, li, lines) => (
                               <span key={li}>
-                                {line}
+                                {renderWithHighlights(line, WRITE_HIGHLIGHTS)}
                                 {li < lines.length - 1 ? <br /> : null}
                               </span>
                             ))}
@@ -690,7 +740,13 @@ export function LivingCanvas() {
                       <div className="ProseMirror">
                         {activeEntry.body.map((para, i) => (
                           <p key={i} className="journal-block">
-                            {para}
+                            {i === 0 ? (
+                              <mark className="journal-user-highlight">
+                                {para}
+                              </mark>
+                            ) : (
+                              para
+                            )}
                           </p>
                         ))}
                       </div>
@@ -823,8 +879,19 @@ export function LivingCanvas() {
                       >
                         <LandingEndCta />
                       </div>
-                      <LandingEndNote />
                     </div>
+                  </div>
+
+                  <div
+                    className="lp-live__end-note-wrap"
+                    style={{
+                      opacity: viewOverride === "pattern" ? 1 : showCta,
+                    }}
+                    aria-hidden={
+                      viewOverride === "pattern" ? false : showCta < 0.05
+                    }
+                  >
+                    <LandingEndNote />
                   </div>
                 </section>
 
