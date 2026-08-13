@@ -130,7 +130,7 @@
    * Hover/active stepped darker within pink (not cool lavender). */
   --surface-chrome: #fbf9fa;
   --surface-chrome-hover: #f0e6eb;
-  --surface-chrome-active: #e7dde2;
+  --surface-chrome-active: #E4DDE0;
 
   /* 4. SURFACE-RAISED - cards, accordion, writing paper */
   --surface-raised: #fafafa;
@@ -147,7 +147,7 @@
   --popover-border: #ede4e9;
   --sidebar-tab-track: #ede4e9;
   --sidebar-tab-selected-bg: #e7dde2;
-  --journal-quote-highlight: #F7E7EB;
+  --journal-quote-highlight: #f2e4eb;
   /* Same dusty wash as the pink highlight — sage stays gray-green, not lemon. */
   --journal-highlight-pink: var(--journal-quote-highlight);
   --journal-highlight-green: #e7f1ec;
@@ -170,18 +170,31 @@
   --discovery-canvas-bg: var(--canvas-bg-gradient);
 
   --sidebar-bg: var(--surface-raised);
+  /* --sidebar-bg:#f3f2f2; */
+
   --sidebar-hover-bg: var(--surface-chrome-hover);
   --sidebar-active-bg: var(--surface-chrome-active);
   /* Entry row: pressed fill, hover = 50% of pressed */
   --sidebar-entry-pressed-bg: color-mix(
     in srgb,
-    var(--sidebar-active-bg) 55%,
+    var(--sidebar-active-bg) 58%,
     white
   );
   --sidebar-entry-hover-bg: color-mix(
     in srgb,
-    var(--sidebar-entry-pressed-bg) 50%,
+    var(--sidebar-entry-pressed-bg) 48%,
     transparent
+  );
+  /* Pattern / quote cards — change pressed here to retint the click fill. */
+  --pattern-card-hover-bg: color-mix(
+    in srgb,
+    var(--sidebar-entry-hover-bg) 70%,
+    white
+  );
+  --pattern-card-pressed-bg: color-mix(
+    in srgb,
+    var(--sidebar-entry-pressed-bg) 70%,
+    white
   );
   /* Soft paper wash (evidence cards) — lighter than chrome hover. */
   --surface-wash: color-mix(
@@ -1313,6 +1326,7 @@ input[type='number'] {
   background-color: var(--surface-wash);
   overflow: hidden;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
   transition:
     background-color 150ms ease,
     border-color 150ms ease;
@@ -1321,20 +1335,12 @@ input[type='number'] {
 .evidence-card:hover,
 .evidence-card:focus-visible {
   outline: none;
-  background-color: color-mix(
-    in srgb,
-    var(--surface-chrome-hover) 46%,
-    var(--surface-raised)
-  );
+  background-color: var(--pattern-card-hover-bg);
   border-color: color-mix(in srgb, var(--border) 24%, transparent);
 }
 
 .evidence-card:active {
-  background-color: color-mix(
-    in srgb,
-    var(--surface-chrome-active) 48%,
-    var(--surface-raised)
-  );
+  background-color: var(--pattern-card-pressed-bg);
 }
 
 .evidence-card--featured,
@@ -1796,12 +1802,13 @@ input[type='number'] {
     border-color var(--pattern-accordion-duration) var(--pattern-accordion-ease);
 }
 
-.pattern-accordion__row:hover {
-  background-color: color-mix(
-    in srgb,
-    var(--sidebar-hover-bg) 18%,
-    transparent
-  );
+.pattern-accordion__row:hover,
+.pattern-accordion__row:focus-visible {
+  background-color: var(--pattern-card-hover-bg);
+}
+
+.pattern-accordion__row:active {
+  background-color: var(--pattern-card-pressed-bg);
 }
 
 .pattern-accordion__row:focus-visible {
