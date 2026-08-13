@@ -64,7 +64,7 @@ function stampAlignedCornerInsets(
   };
 }
 
-const STAMP_INK = "123, 102, 107"; // #7B666B
+const STAMP_INK = "135, 101, 115"; // #876573
 
 /* ─── Resolve display name from Clerk / Google OAuth ─────────────────────── */
 
