@@ -113,17 +113,17 @@ export function SendFeedbackModal({ open, onClose }: SendFeedbackModalProps) {
         className="relative z-10 w-full max-w-lg overflow-hidden rounded-xl border border-(--border) bg-(--surface-canvas) shadow-[0_1.25rem_3rem_-1rem_rgba(15,15,15,0.28)]"
         style={{ fontFamily: "var(--font-body)", minHeight: "min(28rem, calc(100svh - 2rem))" }}
       >
-        <div className="relative flex min-h-[inherit] flex-col py-6">
+        <div className="relative flex min-h-[inherit] flex-col pt-2 pb-2">
           <button
             type="button"
             aria-label="Close"
             onClick={onClose}
-            className={`absolute top-6 right-6 z-10 ${btnIconChrome("sm")}`}
+            className={`absolute top-5 right-6 z-10 ${btnIconChrome("sm")}`}
           >
             <X size={16} strokeWidth={1.85} aria-hidden />
           </button>
 
-          <div className="relative px-6">
+          <div className="relative px-6 md:pt-3">
             {/* Keep form in layout when sent so the dialog height doesn’t jump. */}
             <div
               className={

@@ -38,7 +38,9 @@ export function JournalSnippet({
         </span>
         {quote.entryTitle ? (
           <>
-            <span className="evidence-card__sep" aria-hidden />
+            <span className="evidence-card__sep" aria-hidden>
+              ·
+            </span>
             <span className="evidence-card__label">{quote.entryTitle}</span>
           </>
         ) : null}

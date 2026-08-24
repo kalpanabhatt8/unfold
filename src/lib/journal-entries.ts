@@ -147,8 +147,8 @@ const writeDraftsRaw = (drafts: Record<string, unknown>) => {
   }
 };
 
-export const createEntryId = () =>
-  `entry-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+/** Unguessable client id. Existing `entry-<timestamp>` rows keep working. */
+export const createEntryId = (): string => `entry-${crypto.randomUUID()}`;
 
 export const readEntryById = (id: string): JournalEntry | null => {
   const drafts = readDraftsRaw();

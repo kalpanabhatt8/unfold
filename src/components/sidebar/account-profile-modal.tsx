@@ -415,7 +415,7 @@ function AccountPanelView() {
   return (
     <div className="flex flex-col gap-10">
       <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-1.5 md:pt-4">
+        <div className="flex flex-col gap-1.5 md:pt-3">
           <h1
             className="text-lg font-semibold tracking-tight text-primary"
             style={pageTitleStyle}
@@ -674,7 +674,7 @@ export function AccountProfileModal({ open, onClose }: AccountProfileModalProps)
         className="relative z-10 flex w-full max-w-2xl overflow-hidden rounded-xl border border-(--border) bg-(--surface-canvas) shadow-[0_1.25rem_3rem_-1rem_rgba(15,15,15,0.28)]"
         style={{ height: PANEL_HEIGHT, fontFamily: "var(--font-body)" }}
       >
-        <div className="relative flex min-w-0 flex-1 flex-col pt-4 pb-4">
+        <div className="relative flex min-w-0 flex-1 flex-col pt-2 pb-2">
           <button
             type="button"
             aria-label="Close"

@@ -20,7 +20,7 @@ const ROWS: ReadonlyArray<{
 export function SidebarEntriesSkeleton() {
   return (
     <ul
-      className="flex flex-col gap-1 pl-2 pr-4 pb-4"
+      className="flex flex-col gap-1 pb-4"
       aria-busy="true"
       aria-label="Loading entries"
     >
@@ -29,22 +29,22 @@ export function SidebarEntriesSkeleton() {
           key={i}
           className={
             row.active
-              ? "relative rounded-md bg-(--sidebar-active-bg)"
+              ? "relative rounded-md bg-(--sidebar-entry-pressed-bg)"
               : "relative rounded-md"
           }
           aria-hidden
         >
-          <div className="relative flex flex-col gap-0.5 px-2.75 py-2.5">
+          <div className="relative flex flex-col gap-0.5 px-2.5 py-2.5">
             <span className="flex items-start justify-between gap-3">
               <span
-                className={`mt-0.5 block h-3.5 animate-pulse rounded-sm bg-(--sidebar-ink)/12 ${row.title}`}
+                className={`mt-0.5 block h-3.5 animate-pulse rounded-sm bg-(--sidebar-entry-hover-bg) ${row.title}`}
               />
               <span
-                className={`mt-1 block h-3 shrink-0 animate-pulse rounded-sm bg-(--sidebar-ink)/8 ${row.time}`}
+                className={`mt-1 block h-3 shrink-0 animate-pulse rounded-sm bg-(--sidebar-entry-hover-bg) ${row.time}`}
               />
             </span>
             <span
-              className={`mt-0.5 block h-3.5 max-w-[88%] animate-pulse rounded-sm bg-(--sidebar-ink)/8 ${row.preview}`}
+              className={`mt-0.5 block h-3.5 max-w-[88%] animate-pulse rounded-sm bg-(--sidebar-entry-hover-bg) ${row.preview}`}
             />
           </div>
         </li>

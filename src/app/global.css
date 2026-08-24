@@ -2016,6 +2016,90 @@ input[type='number'] {
   padding-top: 0.1em;
 }
 
+/* ── App search - same chrome as auth email field; reuse for every SaaS search ── */
+
+.app-search {
+  --search-ink: var(--canvas-title-ink);
+  --search-soft: var(--sidebar-ink-soft);
+  --search-line: color-mix(in srgb, var(--search-soft) 28%, transparent);
+  --search-border-hover: color-mix(in srgb, var(--search-ink) 18%, var(--search-line));
+  --search-border-focus: color-mix(in srgb, var(--search-ink) 35%, var(--search-line));
+  --search-ring: color-mix(in srgb, var(--search-ink) 12%, transparent);
+
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0.5rem;
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 0 0.625rem;
+  border: 0.0625rem solid var(--search-line);
+  border-radius: var(--radius-md);
+  background: #fff;
+  color: var(--sidebar-ink);
+  box-shadow: none;
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    background-color 150ms ease;
+}
+
+/* Outer box matches entry-card width; inner px-2.5 matches Untitled / 1h. */
+.app-search--flush {
+  padding: 0;
+}
+
+.app-search:hover:not(:focus-within) {
+  border-color: var(--search-border-hover);
+}
+
+.app-search:active:not(:focus-within) {
+  border-color: var(--search-border-focus);
+  background: color-mix(in srgb, var(--search-ink) 3%, #fff);
+}
+
+.app-search:focus-within {
+  border-color: var(--search-border-focus);
+  background: #fff;
+  box-shadow: 0 0 0 0.0625rem var(--search-ring);
+}
+
+.app-search input,
+.app-search input:focus,
+.app-search input:focus-visible {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: 1 1 auto;
+  min-width: 0;
+  width: auto;
+  height: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  outline: none;
+  font-family: var(--font-body);
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.2;
+  color: var(--sidebar-ink);
+}
+
+.app-search input::placeholder {
+  color: color-mix(in srgb, var(--search-soft) 75%, transparent);
+}
+
+.app-search__icon {
+  flex-shrink: 0;
+  color: var(--sidebar-icon);
+}
+
 /* ── App toast - reuse anywhere; tweak tokens below ── */
 
 .app-toast {

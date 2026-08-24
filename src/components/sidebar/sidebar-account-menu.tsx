@@ -12,7 +12,7 @@ import { resolvePreferredName, avatarInitial } from "@/lib/user-display";
 //   "mailto:hello.unfoldapp@gmail.com?subject=Supporting%20Unfold";
 
 const menuItemClassName =
-  "flex w-full items-center rounded-[3px] px-3 py-2 text-left text-sm font-medium leading-snug text-primary opacity-80 transition-colors duration-150 hover:bg-(--sidebar-entry-hover-bg) focus-visible:bg-(--sidebar-entry-hover-bg) active:bg-(--sidebar-entry-pressed-bg) focus-visible:outline-none";
+  "flex w-full items-center rounded-sm px-3 py-2 text-left text-sm font-medium leading-snug text-primary opacity-80 transition-colors duration-150 hover:bg-(--sidebar-entry-pressed-bg) focus-visible:bg-(--sidebar-entry-pressed-bg) active:bg-(--sidebar-entry-pressed-bg) focus-visible:outline-none";
 
 const menuItemStyle = {
   fontSize: "var(--text-sm)",
@@ -206,14 +206,14 @@ export function SidebarAccountMenu() {
             <SignOutSpinner className="h-2.5 w-2.5 border-white/35 border-t-white" />
           ) : !identityReady ? (
             <span
-              className="size-full animate-pulse bg-(--sidebar-ink)/12"
+              className="size-full animate-pulse bg-(--sidebar-entry-hover-bg)"
               aria-hidden
             />
           ) : showPhoto && user ? (
             <>
               {!photoReady ? (
                 <span
-                  className="size-full animate-pulse bg-(--sidebar-ink)/12"
+                  className="size-full animate-pulse bg-(--sidebar-entry-hover-bg)"
                   aria-hidden
                 />
               ) : null}
@@ -243,7 +243,7 @@ export function SidebarAccountMenu() {
             id={menuId}
             role="menu"
             aria-label="Account"
-            className="absolute top-full left-0 z-30 mt-1.5 min-w-42 overflow-hidden rounded-[3px] border border-black/6 bg-white p-2 shadow-[0_0.25rem_1.25rem_rgba(15,15,15,0.10)]"
+            className="absolute top-full left-0 z-30 mt-1.5 min-w-42 overflow-hidden rounded-md border border-black/6 bg-white p-1.5 shadow-[0_0.25rem_1.25rem_rgba(15,15,15,0.10)]"
           >
             <button
               type="button"

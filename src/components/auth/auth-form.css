@@ -159,6 +159,14 @@
   gap: 0.55rem;
 }
 
+.auth-google:hover:not(:disabled) {
+  background-color: var(--sidebar-entry-hover-bg);
+}
+
+.auth-google:active:not(:disabled) {
+  background-color: var(--sidebar-entry-pressed-bg);
+}
+
 .auth-google:disabled,
 .auth-submit:disabled,
 .auth-ghost:disabled {

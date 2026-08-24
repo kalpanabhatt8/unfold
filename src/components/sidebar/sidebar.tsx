@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import {
   btnIconChrome,
+  btnIconChromeType,
   btnPrimary,
   iconFixed,
   iconPx,
@@ -52,9 +53,17 @@ const SIDEBAR_COLLAPSED_KEY = "unfold-sidebar-collapsed";
 const SIDEBAR_WIDTH_CLASS = "w-(--sidebar-width)";
 const SIDEBAR_TOGGLE_SIZE = "xs" as const;
 const SIDEBAR_ACTION_SIZE = "xs" as const;
-/** Brand row: mt-4 + h-7 + mb-2 = 52 — matches SHELL_BRAND_ROW_HEIGHT_PX. */
+/**
+ * Horizontal rhythm: shell `px-2.5` + row `px-2.5` share one content column
+ * with entry rows — avatar, section labels, entry text, chevron, +, and days
+ * align on the same left/right edges.
+ * Brand row: mt-4 + h-7 + mb-2 = 52 — matches SHELL_BRAND_ROW_HEIGHT_PX.
+ */
 const SIDEBAR_BRAND_ROW =
-  "relative z-20 flex h-7 shrink-0 items-center justify-between gap-2 mt-4 mb-3 pl-4 pr-2";
+  "relative z-20 flex h-7 shrink-0 items-center justify-between gap-2 mt-4 mb-3 px-2.5";
+const SIDEBAR_SECTION_HEAD = "flex h-9 shrink-0 items-center px-2.5";
+const SIDEBAR_ENTRY_ROW =
+  "pointer-events-none relative flex flex-col gap-0.5 px-2.5 py-2.5";
 const SIDEBAR_BRAND_TITLE =
   "min-w-0 flex-1 truncate text-md font-semibold leading-none tracking-tight text-primary [font-family:var(--font-heading)]";
 const OVERLAY_OPACITY_TRANSITION =
@@ -376,7 +385,7 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
   );
 
   const sidebarContent = (
-    <div className="relative flex h-full min-h-0 flex-col gap-4 px-2 pb-4">
+    <div className="relative flex h-full min-h-0 flex-col gap-4 px-2.5 pb-4">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 bottom-0 z-0 h-32 bg-linear-to-b from-transparent via-(--sidebar-bg)/40 to-(--sidebar-bg)"
@@ -409,11 +418,11 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
                 aria-label="Loading account"
               >
                 <span
-                  className="size-6 shrink-0 animate-pulse rounded-[3px] bg-(--sidebar-ink)/12"
+                  className="size-6 shrink-0 animate-pulse rounded-[3px] bg-(--sidebar-entry-hover-bg)"
                   aria-hidden
                 />
                 <span
-                  className="block h-4 w-[62%] max-w-full animate-pulse rounded-sm bg-(--sidebar-ink)/12"
+                  className="block h-4 w-[62%] max-w-full animate-pulse rounded-sm bg-(--sidebar-entry-hover-bg)"
                   aria-hidden
                 />
               </div>
@@ -444,16 +453,16 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
 
       {isPatternsActive ? (
         <section
-          className="relative z-10 -mr-2 flex min-h-0 flex-1 flex-col gap-2 overflow-hidden"
+          className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden"
           aria-label="Your Journal"
         >
           {showSummaryHeading ? (
-            <div className="flex h-9 shrink-0 items-center pl-4 pr-4">
+            <div className={SIDEBAR_SECTION_HEAD}>
               <SectionLabel>Summary</SectionLabel>
             </div>
           ) : null}
           <div className="relative min-h-0 flex-1">
-            <div className="sidebar-entries-scroll min-h-0 h-full overflow-y-auto overscroll-y-contain pl-4 pr-4">
+            <div className="sidebar-entries-scroll min-h-0 h-full overflow-y-auto overscroll-y-contain">
               <JournalInsightsPanel />
             </div>
             <div aria-hidden className={SIDEBAR_SCROLL_FADE} />
@@ -461,48 +470,51 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
         </section>
       ) : (
         <section
-          className="relative z-10 -mr-2 flex min-h-0 flex-1 flex-col gap-2 overflow-hidden"
+          className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden"
           aria-label="Entries"
         >
           <div
             className={clsx(
-              "flex h-9 shrink-0 items-center pr-4",
-              searchOpen ? "pl-2" : "pl-4",
+              "flex h-9 shrink-0 items-center",
+              !searchOpen && "px-2.5",
             )}
           >
             {searchOpen ? (
-              <div className="flex h-full w-full items-center gap-2 rounded-md border border-[color-mix(in_srgb,var(--sidebar-ink-soft)_0%,var(--sidebar-entry-hover-bg))] bg-(--sidebar-entry-hover-bg) pl-3 pr-1 shadow-[0_1px_3px_color-mix(in_srgb,var(--sidebar-ink)_6%,transparent)] has-[input:focus]:border-[#E1D2D8]">
-                <Search
-                  size={14}
-                  strokeWidth={1.8}
-                  className="shrink-0 text-(--sidebar-icon)"
-                  aria-hidden
-                />
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Escape") closeSearch();
-                  }}
-                  placeholder="Search"
-                  aria-label="Search entries"
-                  className="w-full min-w-0 bg-transparent text-sm text-(--sidebar-ink) outline-none placeholder:text-(--sidebar-ink-soft)"
-                />
-                <button
-                  type="button"
-                  onClick={closeSearch}
-                  aria-label="Close search"
-                  className={`shrink-0 ${btnIconChrome(SIDEBAR_ACTION_SIZE)}`}
-                >
-                  <X
-                    size={iconPx(SIDEBAR_ACTION_SIZE)}
-                    strokeWidth={iconStroke(SIDEBAR_ACTION_SIZE)}
+              <div className="app-search app-search--flush">
+                <div className="flex h-full min-w-0 w-full items-center gap-2 px-2.5">
+                  <Search
+                    size={14}
+                    strokeWidth={1.8}
+                    className="app-search__icon"
                     aria-hidden
-                    className={iconFixed}
                   />
-                </button>
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Escape") closeSearch();
+                    }}
+                    placeholder="Search"
+                    aria-label="Search entries"
+                    autoComplete="off"
+                    spellCheck={false}
+                  />
+                  <button
+                    type="button"
+                    onClick={closeSearch}
+                    aria-label="Close search"
+                    className={`flex size-3.5 shrink-0 items-center justify-center rounded-[4px] ${btnIconChromeType} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20`}
+                  >
+                    <X
+                      size={14}
+                      strokeWidth={iconStroke(SIDEBAR_ACTION_SIZE)}
+                      aria-hidden
+                      className={iconFixed}
+                    />
+                  </button>
+                </div>
               </div>
             ) : (
               <>
@@ -549,7 +561,7 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
             {showEntriesSkeleton ? (
               <SidebarEntriesSkeleton />
             ) : filteredEntries.length === 0 ? (
-              <div className="pl-2 pr-4">
+              <div>
                 {entries.length === 0 ? (
                   <SidebarEmptyState
                     title="No entries yet"
@@ -579,7 +591,7 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
                 )}
               </div>
             ) : (
-              <ul className="flex flex-col gap-1 pl-2 pr-4 pb-10">
+              <ul className="flex flex-col gap-1 pb-10">
                 {filteredEntries.map((entry) => {
                   const isActive = entry.id === activeEntryId;
                   const isSealed = typeof entry.sealedAt === "number";
@@ -608,7 +620,7 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
                       />
                       <div
                         className={clsx(
-                          "pointer-events-none relative flex flex-col gap-0.5 px-2.75 py-2.5",
+                          SIDEBAR_ENTRY_ROW,
                           isSealed && "opacity-79",
                         )}
                       >
@@ -682,7 +694,7 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
       )}
 
       {!isPatternsActive ? (
-        <div className="relative z-10 pl-2">
+        <div>
           <PatternsSidebarLink
             count={surfacedPatternCount}
             active={false}
