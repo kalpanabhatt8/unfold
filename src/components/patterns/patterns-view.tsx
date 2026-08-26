@@ -11,6 +11,10 @@ import { PatternAccordionCollapse } from "@/components/patterns/pattern-accordio
 import { usePatternList } from "@/hooks/use-pattern-list";
 import { useViewportLayout } from "@/hooks/use-viewport-layout";
 import {
+  ensurePatternsHydrated,
+  fullSync,
+} from "@/lib/sync/sync-client";
+import {
   formatPatternTimeline,
   patternTimelineEnd,
 } from "@/lib/patterns/time-hint";
@@ -124,6 +128,19 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
   const itemRefs = useRef<Map<PatternName, HTMLLIElement>>(new Map());
   const scrollerRef = useRef<HTMLElement | null>(null);
   const [viewsTick, setViewsTick] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    const hydrate = async () => {
+      await ensurePatternsHydrated();
+      if (cancelled) return;
+      await fullSync();
+    };
+    void hydrate();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const bumpViews = () => setViewsTick((t) => t + 1);

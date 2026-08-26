@@ -12,6 +12,7 @@ import {
 } from "@/lib/patterns/server-ready-patterns";
 import type { PatternsAggregate } from "@/lib/patterns/types";
 import {
+  getLastPatternsPullMeta,
   hasPatternsMetaHydrated,
   hasPatternsPullAttempted,
   hasPatternsPullSucceeded,
@@ -29,6 +30,16 @@ export const resolvePatternsPagePhase = (
 
   if (!hasPatternsPullAttempted() || !hasPatternsPullSucceeded()) {
     return "loading";
+  }
+
+  const pullMeta = getLastPatternsPullMeta();
+  if (
+    pullMeta &&
+    (pullMeta.passages > 0 || pullMeta.displays > 0) &&
+    listServerReadyPatterns().length === 0
+  ) {
+    // Server reported artifacts but local caches did not surface them yet.
+    return "syncing";
   }
 
   if (hasSyncedPatternWorkInProgress()) return "syncing";

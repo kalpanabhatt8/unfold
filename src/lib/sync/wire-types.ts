@@ -83,6 +83,13 @@ export type PatternsSnapshot = {
   votes?: WirePatternVote[];
 };
 
+/** Counts from the first patterns pull page — used to detect apply/hydration gaps. */
+export type PatternsPullMeta = {
+  states: number;
+  passages: number;
+  displays: number;
+};
+
 /** GET /api/sync/patterns response - analyses are paged; meta tables on page 1. */
 export type PatternsPullResponse = PatternsSnapshot & {
   /** Last analysis entryId on this page - pass as `cursor` on the next pull. */
@@ -92,6 +99,8 @@ export type PatternsPullResponse = PatternsSnapshot & {
    * this still apply the first page (states/passages/displays/votes included).
    */
   hasMore?: boolean;
+  /** Row counts on page 1 — lets the client detect server/local mismatches. */
+  meta?: PatternsPullMeta;
 };
 
 export type ImportPayload = {

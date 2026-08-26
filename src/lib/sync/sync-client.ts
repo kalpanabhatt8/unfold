@@ -28,10 +28,13 @@ import {
   putCachedDisplay,
 } from "@/lib/patterns/pattern-display-store";
 import { getState, listStates, putState } from "@/lib/patterns/pattern-state";
+import { isCompleteVoicePassage } from "@/lib/patterns/passage-fill";
 import {
+  getCachedPassage,
   listCachedPassages,
   putCachedPassage,
 } from "@/lib/patterns/passage-store";
+import { listServerReadyPatterns } from "@/lib/patterns/server-ready-patterns";
 import {
   listVotes,
   putVoteQuiet,
@@ -65,6 +68,7 @@ import { waitForSyncScope } from "@/lib/sync/sync-scope";
 import type {
   EntriesPullResponse,
   EntryPushResult,
+  PatternsPullMeta,
   PatternsPullResponse,
   PatternsSnapshot,
   WireEntry,
@@ -192,8 +196,18 @@ const applyServerPatterns = (snapshot: PatternsSnapshot) => {
     }
     for (const state of snapshot.states) {
       const local = getState(state.name);
-      // Server artifacts are authoritative unless local offline planning is strictly ahead.
-      if (local?.evidenceKey && local.lastPlanAt > state.lastPlanAt) continue;
+      const localPassage = getCachedPassage(state.name);
+      const localComplete =
+        localPassage != null && isCompleteVoicePassage(localPassage);
+      // Server artifacts are authoritative unless local offline planning is
+      // strictly ahead *and* still has a complete passage to show.
+      if (
+        local?.evidenceKey &&
+        local.lastPlanAt > state.lastPlanAt &&
+        localComplete
+      ) {
+        continue;
+      }
       putState(state);
     }
     for (const passage of snapshot.passages) {
@@ -269,7 +283,15 @@ const pullAndApplyEntries = async (): Promise<boolean> => {
   return true;
 };
 
-const pullAndApplyPatterns = async (): Promise<boolean> => {
+const recordPatternsPullMeta = (payload: PatternsPullResponse): void => {
+  lastPatternsPullMeta = payload.meta ?? {
+    states: payload.states.length,
+    passages: payload.passages.length,
+    displays: payload.displays.length,
+  };
+};
+
+const pullAndApplyPatternsOnce = async (): Promise<boolean> => {
   patternsPullAttempted = true;
   let cursor: string | null = null;
   let anyPageOk = false;
@@ -287,6 +309,7 @@ const pullAndApplyPatterns = async (): Promise<boolean> => {
     const payload: PatternsPullResponse = result.data;
     applyServerPatterns(payload);
     if (!cursor) {
+      recordPatternsPullMeta(payload);
       markPatternsMetaHydrated();
     }
     if (!payload.hasMore) {
@@ -301,6 +324,33 @@ const pullAndApplyPatterns = async (): Promise<boolean> => {
   }
   patternsPullSucceeded = anyPageOk;
   return anyPageOk;
+};
+
+const PATTERNS_PULL_MAX_ATTEMPTS = 3;
+
+const pullAndApplyPatterns = async (): Promise<boolean> => {
+  for (let attempt = 0; attempt < PATTERNS_PULL_MAX_ATTEMPTS; attempt++) {
+    const ok = await pullAndApplyPatternsOnce();
+    if (!ok) {
+      if (attempt + 1 < PATTERNS_PULL_MAX_ATTEMPTS) {
+        await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
+      }
+      continue;
+    }
+    const meta = lastPatternsPullMeta;
+    if (
+      meta &&
+      meta.passages > 0 &&
+      listServerReadyPatterns().length === 0 &&
+      attempt + 1 < PATTERNS_PULL_MAX_ATTEMPTS
+    ) {
+      // Server sent passages but local caches did not surface them — retry apply.
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      continue;
+    }
+    return true;
+  }
+  return patternsPullSucceeded;
 };
 
 const toTombstoneWire = (tombstone: EntryTombstone): WireEntry => ({
@@ -572,14 +622,30 @@ let initialSyncGeneration = 0;
 let patternsMetaHydrated = false;
 let patternsPullAttempted = false;
 let patternsPullSucceeded = false;
+let lastPatternsPullMeta: PatternsPullMeta | null = null;
+let patternsHydratedPromise: Promise<void> | null = null;
+let patternsHydratedResolve: (() => void) | null = null;
 
 export const hasPatternsMetaHydrated = (): boolean => patternsMetaHydrated;
 export const hasPatternsPullAttempted = (): boolean => patternsPullAttempted;
 export const hasPatternsPullSucceeded = (): boolean => patternsPullSucceeded;
+export const getLastPatternsPullMeta = (): PatternsPullMeta | null =>
+  lastPatternsPullMeta;
+
+const patternsHydratedGate = (): Promise<void> => {
+  if (!patternsHydratedPromise) {
+    patternsHydratedPromise = new Promise<void>((resolve) => {
+      patternsHydratedResolve = resolve;
+    });
+  }
+  return patternsHydratedPromise;
+};
 
 const markPatternsMetaHydrated = (): void => {
   if (patternsMetaHydrated) return;
   patternsMetaHydrated = true;
+  patternsHydratedResolve?.();
+  patternsHydratedResolve = null;
   if (typeof window !== "undefined") {
     window.dispatchEvent(new Event(PATTERNS_HYDRATED_EVENT));
   }
@@ -627,6 +693,9 @@ export const resetInitialSyncGate = (): void => {
   patternsMetaHydrated = false;
   patternsPullAttempted = false;
   patternsPullSucceeded = false;
+  lastPatternsPullMeta = null;
+  patternsHydratedPromise = null;
+  patternsHydratedResolve = null;
   // The wipe discarded whatever the previous pull reconciled.
   entriesPulled = false;
   entriesReconciled = false;
@@ -660,6 +729,29 @@ export const ensureInitialSync = async (): Promise<void> => {
   while (!entriesReconciled) {
     const generation = initialSyncGeneration;
     const ready = entriesReadyGate();
+    if (!initialSyncPromise) {
+      initialSyncPromise = fullSync().finally(() => {
+        if (generation === initialSyncGeneration) markInitialSyncCompleted();
+      });
+    }
+    await ready;
+    if (generation === initialSyncGeneration) return;
+  }
+};
+
+/**
+ * Wait until pattern titles/voice meta has been pulled and applied at least once.
+ * Safe to call from the Patterns page — kicks or joins the in-flight full sync.
+ */
+export const ensurePatternsHydrated = async (): Promise<void> => {
+  if (typeof window === "undefined") return;
+  if (hasPatternsMetaHydrated()) return;
+
+  await waitForSyncScope();
+
+  while (!hasPatternsMetaHydrated()) {
+    const generation = initialSyncGeneration;
+    const ready = patternsHydratedGate();
     if (!initialSyncPromise) {
       initialSyncPromise = fullSync().finally(() => {
         if (generation === initialSyncGeneration) markInitialSyncCompleted();

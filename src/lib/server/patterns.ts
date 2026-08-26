@@ -234,12 +234,20 @@ export const pullPatterns = async (
   `;
 
   const row = rows[0];
+  const states = toStates(row?.states ?? null);
+  const passages = (row?.passages ?? []) as WirePassage[];
+  const displays = toDisplays(row?.displays ?? null);
   return {
     ...pageAnalyses(row?.analyses ?? []),
-    states: toStates(row?.states ?? null),
-    passages: (row?.passages ?? []) as WirePassage[],
-    displays: toDisplays(row?.displays ?? null),
+    states,
+    passages,
+    displays,
     votes: toVotes(row?.votes ?? null),
+    meta: {
+      states: states.length,
+      passages: passages.length,
+      displays: displays.length,
+    },
   };
 };
 
