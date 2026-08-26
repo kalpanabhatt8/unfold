@@ -8,8 +8,7 @@ import { PATTERN_LABELS } from "@/lib/patterns/vocabulary-public";
 import type { PatternName } from "@/lib/patterns/vocabulary-public";
 import { PatternDetailView } from "@/components/patterns/pattern-detail-view";
 import { PatternAccordionCollapse } from "@/components/patterns/pattern-accordion-collapse";
-import { usePatternDisplay } from "@/hooks/use-pattern-display";
-import { usePatternsAggregate } from "@/hooks/use-patterns-aggregate";
+import { usePatternList } from "@/hooks/use-pattern-list";
 import { useViewportLayout } from "@/hooks/use-viewport-layout";
 import {
   formatPatternTimeline,
@@ -17,20 +16,14 @@ import {
 } from "@/lib/patterns/time-hint";
 import { buildEvidenceKey } from "@/lib/patterns/evidence-signals";
 import {
-  isPatternFullyReady,
-  isPatternListVisible,
-} from "@/lib/patterns/pattern-readiness";
-import {
   PATTERN_GENERATION_MIN_SEALED_ENTRIES,
   PATTERN_GENERATION_MIN_TOTAL_WORDS,
 } from "@/lib/patterns/generation-gate-public";
-import { PATTERN_DISPLAY_UPDATED_EVENT } from "@/lib/patterns/pattern-display-store";
 import {
   isReadyPatternUnread,
   markPatternSeen,
   PATTERN_VIEWS_UPDATED_EVENT,
 } from "@/lib/patterns/pattern-view-store";
-import { PATTERN_PASSAGE_UPDATED_EVENT } from "@/lib/patterns/passage-store";
 import {
   btnAccentSoft,
   btnIconChrome,
@@ -45,8 +38,6 @@ import {
   PAGE_PADDING_X_CLASS,
   patternsColumnMaxWidth,
 } from "@/lib/layout";
-import { useInitialSyncReady } from "@/lib/sync/use-initial-sync-ready";
-
 
 function PatternsListSkeleton() {
   return (
@@ -58,7 +49,7 @@ function PatternsListSkeleton() {
       {Array.from({ length: 4 }, (_, i) => (
         <li
           key={i}
-          className="rounded-[1rem] border border-(--border)/60 px-4 py-4"
+          className="rounded-2xl border border-(--border)/60 px-4 py-4"
           aria-hidden
         >
           <span className="block h-4 w-[42%] animate-pulse rounded-sm bg-(--sidebar-ink)/12" />
@@ -109,10 +100,6 @@ function accordionDurationMs(fromEl: HTMLElement): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 400;
 }
 
-/**
- * ScrollTop that parks `item` in the top band of the viewport, without
- * moving the window (which would drag the sidebar).
- */
 function desiredPatternScrollTop(
   item: HTMLElement,
   scroller: HTMLElement,
@@ -127,110 +114,74 @@ function desiredPatternScrollTop(
 }
 
 export type PatternsViewProps = {
-  /** Prefill expansion (e.g. legacy `/patterns/[name]` deep link). */
   initialPattern?: PatternName;
 };
 
-/**
- * Patterns - collapsible list. Rows show title + date/entry meta; tapping
- * expands the detail view inside the same card. Only one pattern open at a
- * time. "What's the pattern here?" advances phases in that panel.
- */
 export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
   const router = useRouter();
   const viewport = useViewportLayout();
-  const initialSyncReady = useInitialSyncReady();
-  const aggregate = usePatternsAggregate();
-  const patterns = usePatternDisplay(aggregate);
+  const { phase, patterns: listPatterns } = usePatternList();
   const itemRefs = useRef<Map<PatternName, HTMLLIElement>>(new Map());
   const scrollerRef = useRef<HTMLElement | null>(null);
-  const [readinessTick, setReadinessTick] = useState(0);
   const [viewsTick, setViewsTick] = useState(0);
 
   useEffect(() => {
-    const bump = () => setReadinessTick((t) => t + 1);
     const bumpViews = () => setViewsTick((t) => t + 1);
-    const onStorage = () => {
-      bump();
-      bumpViews();
-    };
-    window.addEventListener(PATTERN_DISPLAY_UPDATED_EVENT, bump);
-    window.addEventListener(PATTERN_PASSAGE_UPDATED_EVENT, bump);
     window.addEventListener(PATTERN_VIEWS_UPDATED_EVENT, bumpViews);
-    window.addEventListener("storage", onStorage);
     return () => {
-      window.removeEventListener(PATTERN_DISPLAY_UPDATED_EVENT, bump);
-      window.removeEventListener(PATTERN_PASSAGE_UPDATED_EVENT, bump);
       window.removeEventListener(PATTERN_VIEWS_UPDATED_EVENT, bumpViews);
-      window.removeEventListener("storage", onStorage);
     };
   }, []);
 
-  const listPatterns = useMemo(() => {
-    if (aggregate === null) return [];
-    const enriched = patterns.length > 0 ? patterns : aggregate.surfaced;
-    const visible = enriched.filter((pattern) => isPatternListVisible(pattern));
-    return [...visible].sort(
-      (a, b) =>
-        patternTimelineEnd(b.evidence) - patternTimelineEnd(a.evidence),
-    );
-  }, [aggregate, patterns, readinessTick]);
-
-  const fullyReadyNames = useMemo(() => {
-    const names = new Set<PatternName>();
-    for (const pattern of listPatterns) {
-      if (isPatternFullyReady(pattern)) names.add(pattern.name);
-    }
-    return names;
-  }, [listPatterns, readinessTick]);
+  const sortedPatterns = useMemo(
+    () =>
+      [...listPatterns].sort(
+        (a, b) =>
+          patternTimelineEnd(b.evidence) - patternTimelineEnd(a.evidence),
+      ),
+    [listPatterns],
+  );
 
   const unreadNames = useMemo(() => {
+    void viewsTick;
     const names = new Set<PatternName>();
-    for (const pattern of listPatterns) {
-      if (!fullyReadyNames.has(pattern.name)) continue;
+    for (const pattern of sortedPatterns) {
       if (isReadyPatternUnread(pattern)) names.add(pattern.name);
     }
     return names;
-  }, [listPatterns, fullyReadyNames, viewsTick]);
+  }, [sortedPatterns, viewsTick]);
 
-  const hasVisiblePatterns = listPatterns.length > 0;
-  // Wait only for sync — patterns are pre-generated on the server.
-  const showPatternsSkeleton =
-    aggregate === null || (!initialSyncReady && !hasVisiblePatterns);
-  const showPatternsHeading = !showPatternsSkeleton && hasVisiblePatterns;
+  const showSkeleton = phase === "loading" || phase === "syncing";
+  const showEmpty = phase === "empty";
+  const showList = phase === "ready" && sortedPatterns.length > 0;
 
-  /** null = all collapsed. */
   const [expanded, setExpanded] = useState<PatternName | null>(
     initialPattern ?? null,
   );
-  /** Panels stay mounted once opened so close animation never reflows on unmount. */
   const [mountedPanels, setMountedPanels] = useState<
     ReadonlySet<PatternName>
   >(() => new Set(initialPattern ? [initialPattern] : []));
-  /** Deep-link prefill applies once; closing must not re-open from ?p=. */
   const initialPatternConsumedRef = useRef(Boolean(initialPattern));
 
-  // Drop expansion if that pattern leaves the list; honor deep-link once ready.
   useEffect(() => {
-    if (listPatterns.length === 0) {
+    if (sortedPatterns.length === 0) {
       setExpanded(null);
       return;
     }
     setExpanded((prev) => {
-      if (prev && listPatterns.some((p) => p.name === prev)) return prev;
+      if (prev && sortedPatterns.some((p) => p.name === prev)) return prev;
       if (
         !initialPatternConsumedRef.current &&
         initialPattern &&
-        listPatterns.some((p) => p.name === initialPattern)
+        sortedPatterns.some((p) => p.name === initialPattern)
       ) {
         initialPatternConsumedRef.current = true;
         return initialPattern;
       }
       return null;
     });
-  }, [listPatterns, initialPattern]);
+  }, [sortedPatterns, initialPattern]);
 
-  // Mount panel content the first time a row opens.
   useEffect(() => {
     if (!expanded) return;
     setMountedPanels((current) => {
@@ -241,17 +192,13 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
     });
   }, [expanded]);
 
-  // Opening a pattern clears its unread state for the current evidence set.
   useEffect(() => {
     if (!expanded) return;
-    const pattern = listPatterns.find((p) => p.name === expanded);
+    const pattern = sortedPatterns.find((p) => p.name === expanded);
     if (!pattern) return;
     markPatternSeen(pattern.name, buildEvidenceKey(pattern.evidence));
-  }, [expanded, listPatterns]);
+  }, [expanded, sortedPatterns]);
 
-  // After expand: glide the Patterns pane so the card parks in the top
-  // band. Same duration + easing as the CSS open, re-measured each frame
-  // so the moving max-height doesn't fight a one-shot native smooth scroll.
   useLayoutEffect(() => {
     if (!expanded) return;
     const el = itemRefs.current.get(expanded);
@@ -294,16 +241,11 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
     router.push(`/dashboard/journal/${id}?new=1`);
   };
 
-  if (aggregate === null) {
-    return null;
-  }
-
   return (
     <main
       ref={scrollerRef}
       className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain"
       style={{
-        // Match Entry writing canvas (`CANVAS_BACKGROUND`).
         background: "var(--canvas-bg-gradient)",
         paddingTop:
           viewport.isOverlayNav
@@ -333,21 +275,21 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
               />
             </button>
           ) : null}
-          {showPatternsHeading ? (
+          {showList ? (
             <>
               <div className="flex h-9 shrink-0 items-center">
                 <h1 className="header-md tracking-tight">Patterns</h1>
               </div>
               <p className=" text-sm leading-relaxed text-(--sidebar-ink-soft) sm:text-sm">
-              Here&apos;s what your writing keeps circling back to
+                Here&apos;s what your writing keeps circling back to
               </p>
             </>
           ) : null}
         </header>
 
-        {showPatternsSkeleton ? <PatternsListSkeleton /> : null}
+        {showSkeleton ? <PatternsListSkeleton /> : null}
 
-        {!showPatternsSkeleton && !hasVisiblePatterns ? (
+        {showEmpty ? (
           <div className="flex flex-1 flex-col items-center justify-center py-16">
             <SidebarEmptyState
               icon={Sprout}
@@ -366,104 +308,104 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
           </div>
         ) : null}
 
-        {!showPatternsSkeleton && hasVisiblePatterns ? (
-        <ul className="pattern-accordion" aria-label="Patterns">
-          {listPatterns.map((pattern) => {
-            const title =
-              pattern.display?.displayTitle?.trim() ||
-              PATTERN_LABELS[pattern.name];
-            const isOpen = expanded === pattern.name;
-            const showPanel = mountedPanels.has(pattern.name);
-            const isUnread = unreadNames.has(pattern.name);
-            const entryCount =
-              pattern.entryCount > 0
-                ? pattern.entryCount
-                : pattern.evidence.length;
-            const entryLabel = formatEntryCount(entryCount);
-            const timeline = formatPatternTimeline(pattern.evidence);
-            const factLine = [timeline, entryLabel].filter(Boolean).join(" · ");
+        {showList ? (
+          <ul className="pattern-accordion" aria-label="Patterns">
+            {sortedPatterns.map((pattern) => {
+              const title =
+                pattern.display?.displayTitle?.trim() ||
+                PATTERN_LABELS[pattern.name];
+              const isOpen = expanded === pattern.name;
+              const showPanel = mountedPanels.has(pattern.name);
+              const isUnread = unreadNames.has(pattern.name);
+              const entryCount =
+                pattern.entryCount > 0
+                  ? pattern.entryCount
+                  : pattern.evidence.length;
+              const entryLabel = formatEntryCount(entryCount);
+              const timeline = formatPatternTimeline(pattern.evidence);
+              const factLine = [timeline, entryLabel].filter(Boolean).join(" · ");
 
-            return (
-              <li
-                key={pattern.name}
-                ref={(node) => {
-                  if (node) itemRefs.current.set(pattern.name, node);
-                  else itemRefs.current.delete(pattern.name);
-                }}
-                className="pattern-accordion__item"
-                data-expanded={isOpen ? "true" : "false"}
-                data-unread={isUnread ? "true" : "false"}
-              >
-                <button
-                  type="button"
-                  className="pattern-accordion__row"
-                  aria-expanded={isOpen}
-                  aria-controls={`pattern-expanded-panel-${pattern.name}`}
-                  aria-label={
-                    [title, factLine, isUnread ? "updated" : null]
-                      .filter(Boolean)
-                      .join(", ")
-                  }
-                  id={`pattern-expanded-${pattern.name}`}
-                  onClick={() => {
-                    initialPatternConsumedRef.current = true;
-                    const next =
-                      expanded === pattern.name ? null : pattern.name;
-                    if (next) {
-                      setMountedPanels((current) => {
-                        if (current.has(next)) return current;
-                        const updated = new Set(current);
-                        updated.add(next);
-                        return updated;
-                      });
-                    }
-                    setExpanded(next);
+              return (
+                <li
+                  key={pattern.name}
+                  ref={(node) => {
+                    if (node) itemRefs.current.set(pattern.name, node);
+                    else itemRefs.current.delete(pattern.name);
                   }}
+                  className="pattern-accordion__item"
+                  data-expanded={isOpen ? "true" : "false"}
+                  data-unread={isUnread ? "true" : "false"}
                 >
-                  <span className="pattern-accordion__row-main">
-                    <span className="pattern-accordion__row-title">
-                      {title}
-                    </span>
-                    {factLine ? (
-                      <span className="pattern-accordion__row-fact">
-                        {factLine}
-                      </span>
-                    ) : null}
-                  </span>
-                  <span
-                    className={`pattern-accordion__row-chevron shrink-0 ${btnIconChrome("xs")}`}
-                    aria-hidden
+                  <button
+                    type="button"
+                    className="pattern-accordion__row"
+                    aria-expanded={isOpen}
+                    aria-controls={`pattern-expanded-panel-${pattern.name}`}
+                    aria-label={
+                      [title, factLine, isUnread ? "updated" : null]
+                        .filter(Boolean)
+                        .join(", ")
+                    }
+                    id={`pattern-expanded-${pattern.name}`}
+                    onClick={() => {
+                      initialPatternConsumedRef.current = true;
+                      const next =
+                        expanded === pattern.name ? null : pattern.name;
+                      if (next) {
+                        setMountedPanels((current) => {
+                          if (current.has(next)) return current;
+                          const updated = new Set(current);
+                          updated.add(next);
+                          return updated;
+                        });
+                      }
+                      setExpanded(next);
+                    }}
                   >
-                    <ChevronDown
-                      size={iconPx("xs")}
-                      strokeWidth={iconStroke("xs")}
-                      className={iconFixed}
-                    />
-                  </span>
-                </button>
+                    <span className="pattern-accordion__row-main">
+                      <span className="pattern-accordion__row-title">
+                        {title}
+                      </span>
+                      {factLine ? (
+                        <span className="pattern-accordion__row-fact">
+                          {factLine}
+                        </span>
+                      ) : null}
+                    </span>
+                    <span
+                      className={`pattern-accordion__row-chevron shrink-0 ${btnIconChrome("xs")}`}
+                      aria-hidden
+                    >
+                      <ChevronDown
+                        size={iconPx("xs")}
+                        strokeWidth={iconStroke("xs")}
+                        className={iconFixed}
+                      />
+                    </span>
+                  </button>
 
-                <PatternAccordionCollapse
-                  isOpen={isOpen}
-                  id={`pattern-expanded-panel-${pattern.name}`}
-                  labelledBy={`pattern-expanded-${pattern.name}`}
-                >
-                  {showPanel ? (
-                    <div className="pattern-accordion__panel">
-                      <div className="pattern-accordion__panel-scroll">
-                        <PatternDetailView
-                          key={pattern.name}
-                          patternName={pattern.name}
-                          embedded
-                          compactHeadline
-                        />
+                  <PatternAccordionCollapse
+                    isOpen={isOpen}
+                    id={`pattern-expanded-panel-${pattern.name}`}
+                    labelledBy={`pattern-expanded-${pattern.name}`}
+                  >
+                    {showPanel ? (
+                      <div className="pattern-accordion__panel">
+                        <div className="pattern-accordion__panel-scroll">
+                          <PatternDetailView
+                            key={pattern.name}
+                            patternName={pattern.name}
+                            embedded
+                            compactHeadline
+                          />
+                        </div>
                       </div>
-                    </div>
-                  ) : null}
-                </PatternAccordionCollapse>
-              </li>
-            );
-          })}
-        </ul>
+                    ) : null}
+                  </PatternAccordionCollapse>
+                </li>
+              );
+            })}
+          </ul>
         ) : null}
       </div>
     </main>

@@ -11,8 +11,13 @@
 
 import { useLayoutEffect, useState } from "react";
 import { ENTRIES_UPDATED_EVENT, readAllEntries } from "@/lib/journal-entries";
-import { INITIAL_SYNC_DONE_EVENT } from "@/lib/sync/local-flags";
 import {
+  INITIAL_PATTERNS_SYNC_DONE_EVENT,
+  INITIAL_SYNC_DONE_EVENT,
+  PATTERNS_HYDRATED_EVENT,
+} from "@/lib/sync/local-flags";
+import {
+  hasPatternsMetaHydrated,
   hasReconciledEntries,
   isInitialSyncCompleted,
 } from "@/lib/sync/sync-client";
@@ -41,6 +46,30 @@ export function useInitialSyncReady(): boolean {
     return () => {
       window.removeEventListener(INITIAL_SYNC_DONE_EVENT, refresh);
       window.removeEventListener(ENTRIES_UPDATED_EVENT, refresh);
+    };
+  }, []);
+
+  return ready;
+}
+
+/**
+ * True once pattern meta (states, passages, displays) has been pulled from
+ * the server at least once. The Patterns page must not show "No patterns yet"
+ * before this — entries-ready is too early.
+ */
+export function usePatternsSyncReady(): boolean {
+  const [ready, setReady] = useState(false);
+
+  useLayoutEffect(() => {
+    const refresh = () => setReady(hasPatternsMetaHydrated());
+    refresh();
+    window.addEventListener(PATTERNS_HYDRATED_EVENT, refresh);
+    window.addEventListener(INITIAL_PATTERNS_SYNC_DONE_EVENT, refresh);
+    window.addEventListener(INITIAL_SYNC_DONE_EVENT, refresh);
+    return () => {
+      window.removeEventListener(PATTERNS_HYDRATED_EVENT, refresh);
+      window.removeEventListener(INITIAL_PATTERNS_SYNC_DONE_EVENT, refresh);
+      window.removeEventListener(INITIAL_SYNC_DONE_EVENT, refresh);
     };
   }, []);
 

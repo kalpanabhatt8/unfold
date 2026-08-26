@@ -1,17 +1,134 @@
 /**
  * Run server pattern generation for an account (same path as seal sync).
  * Run: npx tsx --tsconfig tsconfig.json scripts/run-pattern-pipeline.ts
+ *      npx tsx --tsconfig tsconfig.json scripts/run-pattern-pipeline.ts --force
+ *      npx tsx --tsconfig tsconfig.json scripts/run-pattern-pipeline.ts --regen-questions
+ *      npx tsx --tsconfig tsconfig.json scripts/run-pattern-pipeline.ts --regen-loops
  */
 
 import { config } from "dotenv";
 config({ path: ".env.local" });
 
+import { createRequire } from "node:module";
 import { createClerkClient } from "@clerk/backend";
-import { runFullPatternGeneration } from "../src/lib/server/pattern-pipeline";
-import { db } from "../src/lib/server/db";
+import { PrismaClient } from "../src/generated/prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
+import pg from "pg";
+import type { PatternPassage } from "../src/lib/patterns/passage-types";
+
+// tsx is not Next.js — stub server-only so pipeline modules can load.
+const require = createRequire(import.meta.url);
+const serverOnlyPath = require.resolve("server-only");
+require.cache[serverOnlyPath] = {
+  id: serverOnlyPath,
+  filename: serverOnlyPath,
+  loaded: true,
+  exports: {},
+} as NodeModule;
 
 const email = process.env.PATTERN_CHECK_EMAIL ?? "kalpanabhatt818@gmail.com";
 const force = process.argv.includes("--force");
+const regenQuestions = process.argv.includes("--regen-questions");
+const regenLoops = process.argv.includes("--regen-loops");
+
+const pool = new pg.Pool({
+  connectionString:
+    process.env.DATABASE_URL_UNPOOLED ?? process.env.DATABASE_URL,
+});
+const db = new PrismaClient({ adapter: new PrismaPg(pool) });
+
+const questionOf = (passage: PatternPassage): string | null => {
+  for (const slot of passage.slots) {
+    if (slot.kind === "close" && slot.endingKind === "question") {
+      return slot.text;
+    }
+  }
+  return null;
+};
+
+const mechanismOf = (passage: PatternPassage): string | null => {
+  for (const slot of passage.slots) {
+    if (slot.kind === "line" && slot.text) return slot.text;
+  }
+  return null;
+};
+
+const loadPassages = async (userId: string): Promise<PatternPassage[]> => {
+  const rows = await db.patternPassage.findMany({ where: { userId } });
+  return rows.map((row) => row.passage as PatternPassage);
+};
+
+const clearVoiceSlots = async (
+  userId: string,
+  mode: "questions" | "loops",
+): Promise<Map<string, { loop: string | null; question: string | null }>> => {
+  const previous = new Map<
+    string,
+    { loop: string | null; question: string | null }
+  >();
+  const rows = await db.patternPassage.findMany({ where: { userId } });
+  for (const row of rows) {
+    const passage = row.passage as PatternPassage;
+    previous.set(passage.name, {
+      loop: mechanismOf(passage),
+      question: questionOf(passage),
+    });
+    const next: PatternPassage = {
+      ...passage,
+      slots: passage.slots.map((slot) => {
+        if (mode === "questions") {
+          return slot.kind === "close" && slot.endingKind === "question"
+            ? { ...slot, text: null }
+            : slot;
+        }
+        if (slot.kind === "line") return { ...slot, text: null };
+        if (slot.kind === "close" && slot.endingKind === "question") {
+          return { ...slot, text: null };
+        }
+        return slot;
+      }),
+    };
+    await db.patternPassage.update({
+      where: { userId_patternName: { userId, patternName: row.patternName } },
+      data: { passage: next },
+    });
+  }
+  return previous;
+};
+
+async function regenVoiceForUser(
+  userId: string,
+  mode: "questions" | "loops",
+): Promise<void> {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    console.error("Missing ANTHROPIC_API_KEY");
+    process.exit(1);
+  }
+
+  const previous = await clearVoiceSlots(userId, mode);
+  const label =
+    mode === "loops"
+      ? "Loop + reflection (Loop regen clears both)"
+      : "reflection question";
+  console.log(`Cleared ${previous.size} ${label}(s). Regenerating…`);
+
+  const { generateUserPatternArtifacts } = await import(
+    "../src/lib/server/generate-user-patterns"
+  );
+  await generateUserPatternArtifacts(userId, apiKey);
+
+  const after = await loadPassages(userId);
+  console.log("\n=== Regenerated voice ===");
+  for (const passage of after) {
+    const prior = previous.get(passage.name);
+    console.log(`\n${passage.name}`);
+    console.log("  Loop WAS:", prior?.loop ?? "(none)");
+    console.log("  Loop NOW:", mechanismOf(passage) ?? "(empty — check logs)");
+    console.log("  Q WAS:", prior?.question ?? "(none)");
+    console.log("  Q NOW:", questionOf(passage) ?? "(empty — check logs)");
+  }
+}
 
 async function main() {
   const clerk = createClerkClient({
@@ -27,7 +144,27 @@ async function main() {
     process.exit(1);
   }
 
-  console.log("Running pattern pipeline for", email, user.id, force ? "(force)" : "");
+  if (regenQuestions) {
+    console.log("Regenerating reflection questions for", email, user.id);
+    await regenVoiceForUser(user.id, "questions");
+    return;
+  }
+
+  if (regenLoops) {
+    console.log("Regenerating Loops for", email, user.id);
+    await regenVoiceForUser(user.id, "loops");
+    return;
+  }
+
+  console.log(
+    "Running pattern pipeline for",
+    email,
+    user.id,
+    force ? "(force)" : "",
+  );
+  const { runFullPatternGeneration } = await import(
+    "../src/lib/server/pattern-pipeline"
+  );
   const ok = await runFullPatternGeneration(user.id, {
     bypassGate: force,
   });
@@ -41,4 +178,5 @@ main()
   })
   .finally(async () => {
     await db.$disconnect();
+    await pool.end();
   });

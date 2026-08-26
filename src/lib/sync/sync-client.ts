@@ -43,7 +43,9 @@ import {
   getPullCursor,
   hasEntryTombstone,
   hasPendingSync,
+  INITIAL_PATTERNS_SYNC_DONE_EVENT,
   INITIAL_SYNC_DONE_EVENT,
+  PATTERNS_HYDRATED_EVENT,
   isEntryDeleted,
   isImported,
   isPatternsDirty,
@@ -189,10 +191,9 @@ const applyServerPatterns = (snapshot: PatternsSnapshot) => {
       putAnalysis(analysis);
     }
     for (const state of snapshot.states) {
-      // Local state may be ahead (device kept planning offline) - prefer the
-      // copy with the later plan activity.
       const local = getState(state.name);
-      if (local && local.lastPlanAt >= state.lastPlanAt) continue;
+      // Server artifacts are authoritative unless local offline planning is strictly ahead.
+      if (local?.evidenceKey && local.lastPlanAt > state.lastPlanAt) continue;
       putState(state);
     }
     for (const passage of snapshot.passages) {
@@ -268,21 +269,38 @@ const pullAndApplyEntries = async (): Promise<boolean> => {
   return true;
 };
 
-const pullAndApplyPatterns = async (): Promise<void> => {
+const pullAndApplyPatterns = async (): Promise<boolean> => {
+  patternsPullAttempted = true;
   let cursor: string | null = null;
+  let anyPageOk = false;
   // Page analyses until caught up - meta tables arrive on page 1 only.
   for (let page = 0; page < 50; page++) {
     const url: string = cursor
       ? `/api/sync/patterns?cursor=${encodeURIComponent(cursor)}`
       : "/api/sync/patterns";
     const result = await fetchJson<PatternsPullResponse>(url);
-    if (!result.ok) return;
+    if (!result.ok) {
+      patternsPullSucceeded = anyPageOk;
+      return anyPageOk;
+    }
+    anyPageOk = true;
     const payload: PatternsPullResponse = result.data;
     applyServerPatterns(payload);
-    if (!payload.hasMore) return;
+    if (!cursor) {
+      markPatternsMetaHydrated();
+    }
+    if (!payload.hasMore) {
+      patternsPullSucceeded = true;
+      return true;
+    }
     cursor = payload.cursor ?? null;
-    if (!cursor) return;
+    if (!cursor) {
+      patternsPullSucceeded = true;
+      return true;
+    }
   }
+  patternsPullSucceeded = anyPageOk;
+  return anyPageOk;
 };
 
 const toTombstoneWire = (tombstone: EntryTombstone): WireEntry => ({
@@ -550,6 +568,23 @@ let initialSyncPromise: Promise<void> | null = null;
 /** Bumped on every re-scope so a superseded pass cannot report readiness. */
 let initialSyncGeneration = 0;
 
+/** True after pattern meta (states/passages/displays) applied from pull page 1. */
+let patternsMetaHydrated = false;
+let patternsPullAttempted = false;
+let patternsPullSucceeded = false;
+
+export const hasPatternsMetaHydrated = (): boolean => patternsMetaHydrated;
+export const hasPatternsPullAttempted = (): boolean => patternsPullAttempted;
+export const hasPatternsPullSucceeded = (): boolean => patternsPullSucceeded;
+
+const markPatternsMetaHydrated = (): void => {
+  if (patternsMetaHydrated) return;
+  patternsMetaHydrated = true;
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(PATTERNS_HYDRATED_EVENT));
+  }
+};
+
 // Entries-ready gate. Resolves as soon as one pass reconciles entries with the
 // server (or a pass settles without a successful pull). Routing waits on this
 // rather than the whole pass, so opening the first entry no longer blocks on
@@ -589,6 +624,9 @@ export const resetInitialSyncGate = (): void => {
   initialSyncGeneration += 1;
   initialSyncCompleted = false;
   initialSyncPromise = null;
+  patternsMetaHydrated = false;
+  patternsPullAttempted = false;
+  patternsPullSucceeded = false;
   // The wipe discarded whatever the previous pull reconciled.
   entriesPulled = false;
   entriesReconciled = false;
@@ -601,6 +639,9 @@ const markInitialSyncCompleted = (): void => {
   // Fallback: if the entries pull never succeeded, still unblock routing once
   // the pass settles so a transient failure can't strand the skeleton.
   markEntriesReconciled();
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(INITIAL_PATTERNS_SYNC_DONE_EVENT));
+  }
 };
 
 /**

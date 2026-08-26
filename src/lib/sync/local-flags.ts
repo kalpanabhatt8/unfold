@@ -33,6 +33,12 @@ export const SYNC_STATUS_EVENT = "unfold-sync-status";
 /** Fired once the first post-sign-in `fullSync` settles for this session. */
 export const INITIAL_SYNC_DONE_EVENT = "unfold-initial-sync-done";
 
+/** Fired after the first pass has also pulled pattern analyses/displays/passages. */
+export const INITIAL_PATTERNS_SYNC_DONE_EVENT = "unfold-initial-patterns-sync-done";
+
+/** Fired when pattern meta (states/passages/displays) has been applied from the server. */
+export const PATTERNS_HYDRATED_EVENT = "unfold-patterns-hydrated";
+
 export type SyncStatusDetail = { status: "syncing" | "idle" };
 
 const hasWindow = () => typeof window !== "undefined";

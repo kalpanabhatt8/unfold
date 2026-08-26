@@ -7,6 +7,7 @@ import {
   hasCitationBrackets,
   stripCitationBrackets,
 } from "../src/lib/ai/pattern-slots/citations";
+import { buildFallbackReflectionFills } from "../src/lib/ai/pattern-slots/fallback";
 import { validateSlotFills } from "../src/lib/ai/pattern-slots/validation";
 import { PATTERN_DEFINITIONS } from "../src/lib/patterns/vocabulary";
 import { splitMechanismSteps } from "../src/lib/patterns/mechanism-steps";
@@ -268,7 +269,7 @@ console.log("incident stitch rejected");
   );
 
   const goodLoop =
-    "Someone else's milestone showed up. The bar moved before my own work started. Everything else waited.";
+    "Revisiting keeps happening when no satisfying answer has arrived yet. The same situation comes back for another pass.";
   const acceptGeneric = validateSlotFills(
     [{ index: 0, text: goodLoop }],
     [
@@ -285,9 +286,32 @@ console.log("incident stitch rejected");
     "comparison",
   );
   assert(
-    "generic loop shape accepted",
+    "behavioral synthesis loop accepted",
     acceptGeneric.ok && acceptGeneric.fills.length === 1,
     JSON.stringify(acceptGeneric.rejected),
+  );
+
+  const literaryLoop =
+    "Turning it over becomes the work itself, as if the right angle of examination might finally resolve it. The loop tightens when resolution doesn't come.";
+  const rejectLiterary = validateSlotFills(
+    [{ index: 0, text: literaryLoop }],
+    [
+      {
+        index: 0,
+        kind: "line",
+        endingKind: "line",
+        role: "mechanism",
+        precedingQuotes: comparisonQuotes,
+      },
+    ],
+    comparisonQuotes,
+    PATTERN_DEFINITIONS.comparison,
+    "comparison",
+  );
+  assert(
+    "literary loop rejected",
+    rejectLiterary.rejected.some((r) => r.reason === "literary_voice"),
+    JSON.stringify(rejectLiterary.rejected),
   );
 
   const traitLoop =
@@ -323,7 +347,7 @@ console.log("reflection question grounding");
     "I keep wondering why I'm so far behind.",
   ];
   const mech =
-    "When another person's progress shows up in the writing, attention turns toward where you are. The next thought is already about the gap.";
+    "Revisiting keeps happening when no satisfying answer has arrived yet. The same situation comes back for another pass.";
   const slots = [
     {
       index: 0,
@@ -384,7 +408,7 @@ console.log("reflection question grounding");
     [
       {
         index: 1,
-        text: "When progress shows up in the writing, what comes next?",
+        text: "When revisiting keeps happening, what usually comes next?",
       },
     ],
     [slots[1]!],
@@ -403,7 +427,7 @@ console.log("reflection question grounding");
     [
       {
         index: 1,
-        text: "You wondered why you're still here. What was that bringing up?",
+        text: "You wondered why you're still here. What do you usually find yourself measuring against?",
       },
     ],
     [slots[1]!],
@@ -413,9 +437,68 @@ console.log("reflection question grounding");
     [{ index: 0, role: "mechanism", text: mech }],
   );
   assert(
-    "evidence-grounded question accepted",
+    "evidence-grounded investigative question accepted",
     goodQ.ok && goodQ.fills.length === 1,
     JSON.stringify(goodQ.rejected),
+  );
+
+  const conversationsQuotes = [
+    "I keep imagining conversations before they happen.",
+  ];
+  const conversationsQ = validateSlotFills(
+    [
+      {
+        index: 1,
+        text: "You mentioned imagining conversations before they happen. What do you usually find yourself worrying about?",
+      },
+    ],
+    [slots[1]!],
+    conversationsQuotes,
+    PATTERN_DEFINITIONS.comparison,
+    "Comparison",
+  );
+  assert(
+    "cite-then-investigate question accepted",
+    conversationsQ.ok && conversationsQ.fills.length === 1,
+    JSON.stringify(conversationsQ.rejected),
+  );
+
+  const jobsQuotes = [
+    "I find tiny jobs that make me feel like I'm doing something.",
+  ];
+  const jobsQ = validateSlotFills(
+    [
+      {
+        index: 1,
+        text: "You mentioned finding tiny jobs that make you feel like you're doing something. What kinds of things do you usually end up doing?",
+      },
+    ],
+    [slots[1]!],
+    jobsQuotes,
+    PATTERN_DEFINITIONS.comparison,
+    "Comparison",
+  );
+  assert(
+    "longer two-beat question accepted",
+    jobsQ.ok && jobsQ.fills.length === 1,
+    JSON.stringify(jobsQ.rejected),
+  );
+
+  const fallback = buildFallbackReflectionFills({
+    patternName: "comparison",
+    label: "Comparison",
+    definition: PATTERN_DEFINITIONS.comparison,
+    quotes,
+    voiceSlots: [slots[1]!],
+    shapeId: "discovery",
+    priorVoice: [{ index: 0, role: "mechanism", text: mech }],
+  });
+  assert(
+    "fallback reflection cites evidence then investigates",
+    fallback.length === 1 &&
+      fallback[0]!.text.startsWith("You mentioned ") &&
+      fallback[0]!.text.endsWith("?"),
+    JSON.stringify(fallback),
   );
 }
 

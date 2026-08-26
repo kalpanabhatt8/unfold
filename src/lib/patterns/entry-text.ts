@@ -46,8 +46,11 @@ export function countWords(text: string): number {
   return trimmed.split(/\s+/).filter(Boolean).length;
 }
 
-/** An entry's full plain text - snapshot first, cached `searchText` fallback. */
+/** Plain text for analysis freshness — same order as server `resolveEntryText`. */
 export function readEntryText(entryId: string): string {
+  const fromSearch = readEntryById(entryId)?.searchText?.trim();
+  if (fromSearch) return fromSearch;
+
   if (typeof window !== "undefined") {
     try {
       const raw = window.localStorage.getItem(
@@ -58,8 +61,8 @@ export function readEntryText(entryId: string): string {
         if (flattened) return flattened;
       }
     } catch {
-      /* fall through to searchText */
+      /* fall through */
     }
   }
-  return readEntryById(entryId)?.searchText ?? "";
+  return "";
 }

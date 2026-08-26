@@ -34,6 +34,10 @@ const INSIGHT_MARKERS =
 const TRAIT_MARKERS =
   /\b(you always|you tend to|your mind|you are someone who|you compare yourself|measuring rod)\b/i;
 
+/** Literary / metaphorical insight poetry - rephrases quotes instead of synthesizing. */
+const LITERARY_MARKERS =
+  /\b(turning it over|becomes the work|the work itself|stands in for|sense of motion|the loop tightens|loop tightens|right angle of examination|might finally resolve|narrows the space|imagined reaction|attention turns toward|the next thought is already|tightens when resolution|creates a sense of|filled every gap until|feels urgent|shift from what's actually|what might be said about it)\b/i;
+
 export type SlotRejection = { index: number; text: string; reason: string };
 
 export type SlotValidationResult = {
@@ -206,6 +210,7 @@ const validateLine = (
     if (text.endsWith("?")) return "not_statement";
     if (/^you\b/i.test(text)) return "you_opener";
     if (TRAIT_MARKERS.test(text)) return "trait_voice";
+    if (LITERARY_MARKERS.test(text)) return "literary_voice";
     if (INTERPRETIVE_MARKERS.test(text)) return "interpretive_voice";
     if (soundsLikeSummary(text)) return "summary_voice";
     if (stitchesIncidents(text, allQuotes)) return "incident_stitch";

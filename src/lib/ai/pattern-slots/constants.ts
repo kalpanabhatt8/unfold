@@ -10,14 +10,15 @@ export const SLOT_MAX_QUOTE_CHARS = 160;
 /** Voice slot word budgets - enforced in validation. */
 export const SLOT_MAX_LINE_WORDS = 12;
 export const SLOT_MAX_LINE_CHARS = 72;
-export const SLOT_MAX_QUESTION_CHARS = 80;
+/** Cite a moment, then ask — room for a two-beat investigative question. */
+export const SLOT_MAX_QUESTION_CHARS = 160;
 /** Mechanism slot replays the event chain - 2–4 short sentences. */
 export const SLOT_MIN_MECHANISM_SENTENCES = 2;
 export const SLOT_MAX_MECHANISM_SENTENCES = 4;
 export const SLOT_MAX_MECHANISM_WORDS = 42;
 export const SLOT_MAX_MECHANISM_CHARS = 200;
 /** Total AI words allowed across all voice slots in one passage. */
-export const SLOT_MAX_PASSAGE_AI_WORDS = 64;
+export const SLOT_MAX_PASSAGE_AI_WORDS = 80;
 
 /**
  * Client abort for /api/pattern-slots. Discovery now batches mechanism +

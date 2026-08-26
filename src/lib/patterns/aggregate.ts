@@ -10,6 +10,7 @@
 import { readAllEntries, type JournalEntry } from "@/lib/journal-entries";
 import { resolveBookDisplayTitle } from "@/lib/book-title";
 import { isAnalysisCurrent } from "@/lib/patterns/analysis-freshness";
+import { readEntryText } from "@/lib/patterns/entry-text";
 import { listAnalyses } from "@/lib/patterns/analysis-store";
 import { applyOverlapSuppression } from "@/lib/patterns/overlap-policy";
 import {
@@ -54,7 +55,7 @@ export function aggregateFromInputs(
     if (entry.crisisFlagged === true) continue; // never count crisis-flagged entries
     if (entry.qualityFlagged === true) continue; // never count quality-flagged entries
 
-    const entryText = entry.searchText ?? "";
+    const entryText = entry.searchText?.trim() || readEntryText(analysis.entryId);
     if (!isAnalysisCurrent(analysis, entryText)) {
       staleExcluded += 1;
       if (

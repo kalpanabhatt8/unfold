@@ -66,7 +66,7 @@ export type PatternSpec = {
   /** Contrast/rule line injected into DISAMBIGUATION. */
   disambiguation: string;
   /**
-   * Last-resort curiosity/tension title used when display-title generation
+   * Last-resort evidence-grounded title used when display-title generation
    * fails. A tension HOOK, never the behavioral test - must NOT echo the
    * definition or label (guarded by `npm run check:pattern-vocab`). Consumed by
    * pattern-display/fallback.ts, which derives its map from this catalog.

@@ -15,7 +15,7 @@ const THERAPY_MARKERS =
 const CONTRAST_MARKERS = /\binstead of\b|\brather than\b/i;
 
 const PSYCHOLOGY_LABEL_MARKERS =
-  /\b(avoidance|perfectionism|procrastinat|overthink|catastrophiz|people[- ]pleas|self[- ]doubt|self[- ]critic|all[- ]or[- ]nothing|fear of judgment|impostor|self-sabotag)\b/i;
+  /\b(avoidance|perfectionism|procrastinat|overthink|catastrophiz|people[- ]pleas|self[- ]doubt|self[- ]critic|all[- ]or[- ]nothing|fear of judgment|impostor|self-sabotag|anxiety|depression|ocd|ptsd|adhd|codependen)\b/i;
 
 const BEHAVIOR_SUMMARY_MARKERS =
   /\b(fixing small things|tweaking details|waiting until it feels|searching for the perfect|one more pass on|rewriting the|cleaning before|pros.and.cons|preparing instead)\b/i;
@@ -65,7 +65,49 @@ const BANNED_SELF_HELP = [
   "awareness",
   "embracing",
   "becoming",
+  "letting go",
+  "learning to",
 ] as const;
+
+/** Literary metaphor nouns - reject unless the word also appears in the quotes. */
+const POETIC_METAPHOR_WORDS = [
+  "ocean",
+  "oceans",
+  "tide",
+  "tides",
+  "storm",
+  "storms",
+  "fog",
+  "garden",
+  "gardens",
+  "bloom",
+  "bloomed",
+  "tapestry",
+  "echo",
+  "echoes",
+  "shadow",
+  "shadows",
+  "flame",
+  "flames",
+  "ashes",
+  "labyrinth",
+  "abyss",
+  "constellation",
+  "whisper",
+  "whispers",
+  "moonlight",
+  "horizon",
+  "veil",
+  "wings",
+  "thorns",
+  "dawn",
+  "dusk",
+  "embers",
+] as const;
+
+/** "Tide of…", "Garden of…" - almost always decorative metaphor. */
+const POETIC_OF_CONSTRUCTION =
+  /\b(tide|tides|ocean|sea|storm|garden|echoes?|shadows?|flame|ashes|veil|abyss|tapestry|weight) of\b/i;
 
 export type DisplayValidationResult =
   | { ok: true; display: ParsedDisplay }
@@ -173,6 +215,22 @@ export function isVerdictTitle(title: string): boolean {
   return false;
 }
 
+/**
+ * Overly poetic metaphor: literary image-words that are not in the evidence,
+ * or "X of Y" constructions that stand in for feeling.
+ */
+export function isPoeticMetaphorTitle(title: string, quotes: string[]): boolean {
+  const trimmed = title.trim();
+  if (!trimmed) return false;
+  if (POETIC_OF_CONSTRUCTION.test(trimmed)) return true;
+
+  const titleWords = new Set(tokens(title));
+  const corpus = new Set(tokens(quotes.join(" ")));
+  return POETIC_METAPHOR_WORDS.some(
+    (word) => titleWords.has(word) && !corpus.has(word),
+  );
+}
+
 const validateTitle = (
   title: string,
   quotes: string[],
@@ -199,6 +257,7 @@ const validateTitle = (
     return "banned_voice";
   }
   if (isVerdictTitle(title)) return "verdict_voice";
+  if (isPoeticMetaphorTitle(title, quotes)) return "poetic_voice";
   if (echoesLabel(title, label)) return "label_echo";
   if (echoesDefinition(title, definition)) return "definition_echo";
   if (isVagueTitle(title)) return "vague_title";

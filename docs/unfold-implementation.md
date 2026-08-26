@@ -203,7 +203,7 @@ Sync runs on sign-in/mount, about every **5 minutes**, on tab focus if due, and 
 | Entry analysis | One AI extraction per entry |
 | Pattern state | Non-regenerable planner memory (lifecycle, signatures, epochs) |
 | Pattern passage | Cached guided reading + AI voice fills |
-| Pattern display | Cached curiosity title / summary |
+| Pattern display | Cached evidence-grounded title / summary |
 | Pattern vote | Thumbs on closing beat |
 
 **Not stored as source of truth:** which patterns surface, time hints, co-patterns, discovery arc UI structure - those are computed.
@@ -332,9 +332,9 @@ Thresholds are tunable (recent window, return gap, min dwell before stage change
 
 ### Landing titles (pattern list)
 
-Separate from passages. Purpose: make the writer **want to open** the pattern before knowing what it means.
+Separate from passages. Purpose: a short title the writer can recognize from the evidence — evocative and slightly mysterious, not a riddle.
 
-- AI: short curiosity/tension title (not psychology labels, not coaching).
+- AI: short tension title (not psychology/clinical labels, not self-help, not poetic metaphor).
 - Optional short observational summary.
 - Fallback titles per pattern if AI fails.
 - List and sidebar only show patterns whose display title is **ready** (no skeleton tease).
@@ -344,7 +344,7 @@ Separate from passages. Purpose: make the writer **want to open** the pattern be
 **List**
 
 - Intro: patterns that have been returning.
-- Accordion: curiosity title + date range · entry count.
+- Accordion: evidence-grounded title + date range · entry count.
 - One open at a time → embedded detail.
 - Nothing surfaced → redirect to dashboard.
 - Sidebar badge = count of patterns with ready display titles.
@@ -445,7 +445,7 @@ Write (local) → Seal (or idle long draft)
                                      ↓
                          Pattern appears in ≥3 entries
                                      ↓
-                    Lifecycle stage + curiosity title
+                    Lifecycle stage + evidence-grounded title
                                      ↓
               Plan reading shape → fill mechanism/reflection
                                      ↓

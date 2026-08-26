@@ -29,6 +29,8 @@ import { usePatternDisplay } from "@/hooks/use-pattern-display";
 import { usePatternPassages } from "@/hooks/use-pattern-passages";
 import { usePatternsAggregate } from "@/hooks/use-patterns-aggregate";
 import { useViewportLayout } from "@/hooks/use-viewport-layout";
+import { getDisplayPassage } from "@/lib/patterns/passage-store";
+import { resolveServerReadyPattern } from "@/lib/patterns/server-ready-patterns";
 import { patternsColumnMaxWidth, openAppNav, OVERLAY_MENU_BUTTON_CLASS } from "@/lib/layout";
 import { stashJournalQuoteFocus } from "@/lib/journal-quote-focus";
 import {
@@ -85,6 +87,7 @@ export function PatternDetailView({
   const aggregate = usePatternsAggregate();
   const displayPatterns = usePatternDisplay(aggregate);
   const patterns = usePatternPassages(aggregate);
+  const serverReady = resolveServerReadyPattern(patternName);
   const [phaseIndex, setPhaseIndex] = useState(0);
   const [readerReady, setReaderReady] = useState(false);
   const [closingVote, setClosingVote] = useState<PatternVoteValue | null>(null);
@@ -92,9 +95,12 @@ export function PatternDetailView({
   const stablePassageRef = useRef<PatternPassage | null>(null);
   const timingStartedRef = useRef(false);
 
-  const pattern = patterns.find((p) => p.name === patternName);
-  const displayPattern = displayPatterns.find((p) => p.name === patternName);
-  const passage: PatternPassage | null = pattern?.passage ?? null;
+  const enriched = patterns.find((p) => p.name === patternName);
+  const pattern = enriched ?? serverReady;
+  const displayPattern =
+    displayPatterns.find((p) => p.name === patternName) ?? serverReady;
+  const passage: PatternPassage | null =
+    enriched?.passage ?? getDisplayPassage(patternName);
 
   if (passage && isCompleteVoicePassage(passage)) {
     stablePassageRef.current = passage;
@@ -114,10 +120,16 @@ export function PatternDetailView({
   const cacheKey = activePassage?.cacheKey ?? "";
 
   const headlineTitle = useMemo(() => {
-    const behavioral = displayPattern?.display?.displayTitle?.trim();
+    const behavioral =
+      displayPattern?.display?.displayTitle?.trim() ??
+      serverReady?.display?.displayTitle?.trim();
     if (behavioral) return behavioral;
     return PATTERN_LABELS[patternName];
-  }, [displayPattern?.display?.displayTitle, patternName]);
+  }, [
+    displayPattern?.display?.displayTitle,
+    serverReady?.display?.displayTitle,
+    patternName,
+  ]);
 
   // Only render the canvas when evidence + mechanism + reflection are filled.
   // Incomplete passages stay off-screen (no quotes-only "a moment…" shell).

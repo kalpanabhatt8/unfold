@@ -42,7 +42,7 @@ export const PATTERN_LABELS: Record<PatternName, string> = {
 };
 
 /**
- * Last-resort curiosity/tension titles when display-title generation fails.
+ * Last-resort evidence-grounded titles when display-title generation fails.
  * Must NOT echo the behavioral definition or label (guarded by check:pattern-vocab).
  */
 export const PATTERN_FALLBACK_HOOKS: Record<PatternName, string> = {

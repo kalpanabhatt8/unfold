@@ -4,6 +4,7 @@ import { callAnthropicMessages } from "@/lib/ai/claude";
 import {
   DISPLAY_MAX_TOKENS,
   DISPLAY_MODEL,
+  DISPLAY_REJECTION_MESSAGES,
   DISPLAY_TEMPERATURE,
 } from "@/lib/ai/pattern-display/constants";
 import { prepareDisplayInput } from "@/lib/ai/pattern-display/input";
@@ -11,7 +12,6 @@ import { parseDisplayResponse } from "@/lib/ai/pattern-display/parse";
 import {
   buildDisplayPrompt,
   buildDisplayRetryPrompt,
-  DISPLAY_REJECTION_MESSAGES,
 } from "@/lib/ai/pattern-display/prompt";
 import { validateDisplay } from "@/lib/ai/pattern-display/validation";
 import type { PatternDisplay } from "@/lib/patterns/types";

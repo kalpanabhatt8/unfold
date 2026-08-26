@@ -41,8 +41,8 @@ const isAcceptableFallback = (question: string, quotes: string[]): boolean => {
 
 /**
  * Last-resort reflection question when Claude + validation retries leave the
- * close slot empty. Skips slot-echo checks — a short grounded question is
- * better than an indefinitely hidden pattern.
+ * close slot empty. Skips slot-echo checks — a short grounded investigative
+ * question is better than an indefinitely hidden pattern.
  */
 export function buildFallbackReflectionFills(
   input: SlotGenerationInput,
@@ -62,10 +62,10 @@ export function buildFallbackReflectionFills(
   if (anchors.length === 0) return [];
 
   const templates = (anchor: string): string[] => [
-    `What was ${anchor} pointing to?`,
-    `Where did ${anchor} come from?`,
-    `What sat behind ${anchor}?`,
-    `What linked ${anchor} here?`,
+    `You mentioned ${anchor}. What do you usually find yourself doing?`,
+    `You mentioned ${anchor}. What tends to come up around that?`,
+    `You wrote about ${anchor}. What usually happens next?`,
+    `You mentioned ${anchor}. What kinds of things tend to follow?`,
   ];
 
   for (const slot of pending) {

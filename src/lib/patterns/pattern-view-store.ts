@@ -7,7 +7,6 @@
  */
 
 import { buildEvidenceKey } from "@/lib/patterns/evidence-signals";
-import { isPatternFullyReady } from "@/lib/patterns/pattern-readiness";
 import type { SurfacedPattern } from "@/lib/patterns/types";
 import { isPatternName, type PatternName } from "@/lib/patterns/vocabulary-public";
 
@@ -81,10 +80,11 @@ export const isPatternUnread = (
   evidenceKey: string,
 ): boolean => getSeenEvidenceKey(patternName) !== evidenceKey;
 
-/** True when a fully ready pattern has new or updated evidence since last open. */
+/** True when a server-ready pattern has new or updated evidence since last open. */
 export const isReadyPatternUnread = (pattern: SurfacedPattern): boolean => {
-  if (!isPatternFullyReady(pattern)) return false;
-  return isPatternUnread(pattern.name, buildEvidenceKey(pattern.evidence));
+  if (!pattern.display) return false;
+  const evidenceKey = buildEvidenceKey(pattern.evidence);
+  return isPatternUnread(pattern.name, evidenceKey);
 };
 
 export const countUnreadReadyPatterns = (

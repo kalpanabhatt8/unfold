@@ -104,3 +104,9 @@ export const isPatternListVisible = (pattern: SurfacedPatternTarget): boolean =>
 export const countFullyReadyPatterns = (
   surfaced: SurfacedPattern[],
 ): number => surfaced.filter(isPatternFullyReady).length;
+
+/**
+ * @deprecated Use {@link listServerReadyPatterns} from server-ready-patterns.ts.
+ * Kept for scripts/tests that imported the old name.
+ */
+export { listServerReadyPatterns as listReadyPatternsFromSyncCache } from "@/lib/patterns/server-ready-patterns";
