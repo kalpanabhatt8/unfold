@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronDown, Menu, Sprout } from "lucide-react";
 import { SidebarEmptyState } from "@/components/sidebar/sidebar-empty-state";
@@ -72,6 +72,60 @@ function PatternsListSkeleton() {
 const formatEntryCount = (count: number): string =>
   count === 1 ? "Spotted in 1 moment" : `Spotted in ${count} moments`;
 
+/** Place the expanded card in the top 5–10% of the viewport. */
+const EXPANDED_PATTERN_VIEWPORT_TOP = 0.07;
+
+/** Matches `--pattern-accordion-ease: cubic-bezier(0.22, 1, 0.36, 1)`. */
+const ACCORDION_EASE = { x1: 0.22, y1: 1, x2: 0.36, y2: 1 } as const;
+
+function bezierCoord(t: number, a: number, b: number): number {
+  const mt = 1 - t;
+  return 3 * mt * mt * t * a + 3 * mt * t * t * b + t * t * t;
+}
+
+function bezierDeriv(t: number, a: number, b: number): number {
+  const mt = 1 - t;
+  return 3 * mt * mt * a + 6 * mt * t * (b - a) + 3 * t * t * (1 - b);
+}
+
+function accordionEase(t: number): number {
+  if (t <= 0) return 0;
+  if (t >= 1) return 1;
+  let x = t;
+  for (let i = 0; i < 6; i += 1) {
+    const dx = bezierDeriv(x, ACCORDION_EASE.x1, ACCORDION_EASE.x2);
+    if (Math.abs(dx) < 1e-6) break;
+    x -= (bezierCoord(x, ACCORDION_EASE.x1, ACCORDION_EASE.x2) - t) / dx;
+  }
+  return bezierCoord(x, ACCORDION_EASE.y1, ACCORDION_EASE.y2);
+}
+
+function accordionDurationMs(fromEl: HTMLElement): number {
+  const host = fromEl.closest(".pattern-accordion");
+  const raw = host
+    ? getComputedStyle(host).getPropertyValue("--pattern-accordion-duration")
+    : "";
+  const parsed = Number.parseFloat(raw);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 400;
+}
+
+/**
+ * ScrollTop that parks `item` in the top band of the viewport, without
+ * moving the window (which would drag the sidebar).
+ */
+function desiredPatternScrollTop(
+  item: HTMLElement,
+  scroller: HTMLElement,
+): number {
+  const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+  const viewportOffset = window.visualViewport?.offsetTop ?? 0;
+  const targetTop =
+    viewportOffset + viewportHeight * EXPANDED_PATTERN_VIEWPORT_TOP;
+  const delta = item.getBoundingClientRect().top - targetTop;
+  const maxScroll = Math.max(0, scroller.scrollHeight - scroller.clientHeight);
+  return Math.max(0, Math.min(maxScroll, scroller.scrollTop + delta));
+}
+
 export type PatternsViewProps = {
   /** Prefill expansion (e.g. legacy `/patterns/[name]` deep link). */
   initialPattern?: PatternName;
@@ -89,6 +143,7 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
   const aggregate = usePatternsAggregate();
   const patterns = usePatternDisplay(aggregate);
   const itemRefs = useRef<Map<PatternName, HTMLLIElement>>(new Map());
+  const scrollerRef = useRef<HTMLElement | null>(null);
   const [readinessTick, setReadinessTick] = useState(0);
   const [viewsTick, setViewsTick] = useState(0);
 
@@ -194,31 +249,44 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
     markPatternSeen(pattern.name, buildEvidenceKey(pattern.evidence));
   }, [expanded, listPatterns]);
 
-  // After expand: pin the persistent header near the top of the viewport.
-  useEffect(() => {
+  // After expand: glide the Patterns pane so the card parks in the top
+  // band. Same duration + easing as the CSS open, re-measured each frame
+  // so the moving max-height doesn't fight a one-shot native smooth scroll.
+  useLayoutEffect(() => {
     if (!expanded) return;
     const el = itemRefs.current.get(expanded);
-    if (!el) return;
+    const scroller = scrollerRef.current;
+    if (!el || !scroller) return;
+
+    if (window.scrollY !== 0 || window.scrollX !== 0) {
+      window.scrollTo(0, 0);
+    }
+
     const reduceMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
     ).matches;
-    const run = () => {
-      const heading = el.querySelector<HTMLElement>(
-        ".pattern-accordion__row",
-      );
-      (heading ?? el).scrollIntoView({
-        behavior: reduceMotion ? "auto" : "smooth",
-        block: "start",
-      });
+    if (reduceMotion) {
+      scroller.scrollTop = desiredPatternScrollTop(el, scroller);
+      return;
+    }
+
+    const startScroll = scroller.scrollTop;
+    const durationMs = accordionDurationMs(el);
+    let raf = 0;
+    let startTime: number | null = null;
+
+    const tick = (now: number) => {
+      if (startTime === null) startTime = now;
+      const t = Math.min(1, (now - startTime) / durationMs);
+      const next =
+        startScroll +
+        (desiredPatternScrollTop(el, scroller) - startScroll) * accordionEase(t);
+      scroller.scrollTop = next;
+      if (t < 1) raf = window.requestAnimationFrame(tick);
     };
-    let raf2 = 0;
-    const raf1 = window.requestAnimationFrame(() => {
-      raf2 = window.requestAnimationFrame(run);
-    });
-    return () => {
-      window.cancelAnimationFrame(raf1);
-      window.cancelAnimationFrame(raf2);
-    };
+
+    raf = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(raf);
   }, [expanded]);
 
   const handleStartEntry = () => {
@@ -232,7 +300,8 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
 
   return (
     <main
-      className="flex min-h-0 flex-1 flex-col overflow-y-auto"
+      ref={scrollerRef}
+      className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-contain"
       style={{
         // Match Entry writing canvas (`CANVAS_BACKGROUND`).
         background: "var(--canvas-bg-gradient)",
