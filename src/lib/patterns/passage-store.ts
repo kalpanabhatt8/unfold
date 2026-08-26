@@ -154,6 +154,12 @@ export const listCachedPassages = (): PatternPassage[] =>
 
 export const putCachedPassage = (passage: PatternPassage): void => {
   if (!isValidPassage(passage)) return;
+  const backing = getActivePatternStoreBacking();
+  if (backing) {
+    backing.passages[passage.name] = passage;
+    notifyPassageUpdated();
+    return;
+  }
   rememberSessionPassage(passage);
   const map = readAllFromDisk();
   const previous = map[passage.name];

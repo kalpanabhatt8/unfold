@@ -214,6 +214,11 @@ export const listStates = (): PatternState[] => Object.values(readAll());
 
 export const putState = (state: PatternState): void => {
   if (!isValidState(state)) return;
+  const backing = getActivePatternStoreBacking();
+  if (backing) {
+    backing.states[state.name] = state;
+    return;
+  }
   rememberSessionState(state);
   const map = readAllFromDisk();
   map[state.name] = state;

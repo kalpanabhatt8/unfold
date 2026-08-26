@@ -54,10 +54,14 @@ export const evaluatePatternGenerationGate = async (
   const patternsGeneratedAt = user?.patternsGeneratedAt ?? null;
 
   if (options?.bypassThresholds) {
+    const hasArtifacts =
+      (await db.patternDisplay.count({ where: { userId } })) > 0 ||
+      (await db.patternPassage.count({ where: { userId } })) > 0;
     const stale =
-      latestSealAt !== null &&
-      (patternsGeneratedAt === null ||
-        patternsGeneratedAt.getTime() < latestSealAt.getTime());
+      hasArtifacts === false ||
+      (latestSealAt !== null &&
+        (patternsGeneratedAt === null ||
+          patternsGeneratedAt.getTime() < latestSealAt.getTime()));
     return {
       sealedCount,
       totalWords,

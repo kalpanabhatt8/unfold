@@ -18,10 +18,6 @@ import {
 } from "@/lib/sync/local-flags";
 import {
   ensurePatternsHydrated,
-  getLastPatternsPullMeta,
-  hasPatternsMetaHydrated,
-  hasPatternsPullAttempted,
-  hasPatternsPullSucceeded,
   hydratePatternArtifactsFromSnapshot,
 } from "@/lib/sync/sync-client";
 import { usePatternsAggregate } from "@/hooks/use-patterns-aggregate";
@@ -39,22 +35,7 @@ type ReadyApiPayload = {
     displays: Parameters<typeof hydratePatternArtifactsFromSnapshot>[0]["displays"];
   };
   meta?: { states: number; passages: number; displays: number };
-};
-
-const logPatternsDiagnostics = (
-  phase: PatternsPagePhase,
-  localCount: number,
-  remoteCount: number,
-) => {
-  console.info("[patterns]", {
-    phase,
-    localCount,
-    remoteCount,
-    hydrated: hasPatternsMetaHydrated(),
-    pullAttempted: hasPatternsPullAttempted(),
-    pullSucceeded: hasPatternsPullSucceeded(),
-    pullMeta: getLastPatternsPullMeta(),
-  });
+  debug?: { userId: string; sealedEntryCount: number; analysisCount: number };
 };
 
 /**
@@ -115,11 +96,15 @@ export function usePatternList(): PatternListState {
         }
         if (Array.isArray(payload.patterns)) {
           setRemotePatterns(payload.patterns);
-          logPatternsDiagnostics(
-            payload.patterns.length > 0 ? "ready" : "empty",
-            listServerReadyPatterns().length,
-            payload.patterns.length,
-          );
+          console.info("[patterns]", {
+            phase: payload.patterns.length > 0 ? "ready" : "empty",
+            localCount: listServerReadyPatterns().length,
+            remoteCount: payload.patterns.length,
+            userId: payload.debug?.userId,
+            sealedEntryCount: payload.debug?.sealedEntryCount,
+            analysisCount: payload.debug?.analysisCount,
+            meta: payload.meta,
+          });
         }
         setTick((t) => t + 1);
       } catch (error) {

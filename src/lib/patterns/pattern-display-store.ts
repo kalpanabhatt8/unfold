@@ -110,6 +110,12 @@ export const putCachedDisplay = (
     sourceEvidenceKey: evidenceKey,
     createdAt: display.createdAt ?? Date.now(),
   };
+  const backing = getActivePatternStoreBacking();
+  if (backing) {
+    backing.displays[cacheKey(name, evidenceKey)] = record;
+    notifyDisplayUpdated();
+    return record;
+  }
   rememberSessionDisplay(name, evidenceKey, record);
   const map = readAllFromDisk();
   map[cacheKey(name, evidenceKey)] = record;

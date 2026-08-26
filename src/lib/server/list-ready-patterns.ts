@@ -2,10 +2,10 @@
  * Build the Patterns list from Postgres — bypasses client localStorage entirely.
  */
 
-import { listServerReadyPatternsFromSnapshot } from "@/lib/patterns/server-ready-from-snapshot";
+import { listServerReadyPatternsFromSnapshot } from "@/lib/patterns/server-ready-patterns";
 import { pullPatterns as pullPatternLayer } from "@/lib/server/patterns";
-import type { SurfacedPattern } from "@/lib/patterns/types";
-import type { PatternDisplay } from "@/lib/patterns/types";
+import { db } from "@/lib/server/db";
+import type { PatternDisplay, SurfacedPattern } from "@/lib/patterns/types";
 import type { PatternPassage } from "@/lib/patterns/passage-types";
 import type { PatternState } from "@/lib/patterns/pattern-state";
 import { isPatternName } from "@/lib/patterns/vocabulary-public";
@@ -24,6 +24,12 @@ export type ReadyPatternsPayload = {
     }>;
   };
   meta: { states: number; passages: number; displays: number };
+  /** Helps diagnose prod/dev Clerk userId mismatches — same email, different ids. */
+  debug: {
+    userId: string;
+    sealedEntryCount: number;
+    analysisCount: number;
+  };
 };
 
 export const listReadyPatternsForUser = async (
@@ -63,6 +69,13 @@ export const listReadyPatternsForUser = async (
     displays: displayRecords,
   });
 
+  const [sealedEntryCount, analysisCount] = await Promise.all([
+    db.journalEntry.count({
+      where: { userId, deletedAt: null, sealedAt: { not: null } },
+    }),
+    db.entryAnalysis.count({ where: { userId } }),
+  ]);
+
   return {
     patterns,
     snapshot: { states, passages, displays },
@@ -71,5 +84,6 @@ export const listReadyPatternsForUser = async (
       passages: passages.length,
       displays: displays.length,
     },
+    debug: { userId, sealedEntryCount, analysisCount },
   };
 };
