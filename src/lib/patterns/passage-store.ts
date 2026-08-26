@@ -10,6 +10,10 @@ import { isCompleteVoicePassage } from "@/lib/patterns/passage-fill";
 import type { PatternPassage } from "@/lib/patterns/passage-types";
 import { isPatternName, type PatternName } from "@/lib/patterns/vocabulary-public";
 import { getActivePatternStoreBacking } from "@/lib/patterns/store-backing";
+import {
+  mergeSessionPassages,
+  rememberSessionPassage,
+} from "@/lib/patterns/client-session-cache";
 import { markPatternsDirty } from "@/lib/sync/local-flags";
 
 export const PATTERN_PASSAGES_STORAGE_KEY = "unfold-pattern-passages";
@@ -42,9 +46,7 @@ const isValidPassage = (v: unknown): v is PatternPassage => {
   );
 };
 
-const readAll = (): Record<string, PatternPassage> => {
-  const backing = getActivePatternStoreBacking();
-  if (backing) return backing.passages;
+const readAllFromDisk = (): Record<string, PatternPassage> => {
   if (typeof window === "undefined") return {};
   try {
     const raw = window.localStorage.getItem(PATTERN_PASSAGES_STORAGE_KEY);
@@ -60,6 +62,12 @@ const readAll = (): Record<string, PatternPassage> => {
     console.error("Failed to read pattern passages", error);
     return {};
   }
+};
+
+const readAll = (): Record<string, PatternPassage> => {
+  const backing = getActivePatternStoreBacking();
+  if (backing) return backing.passages;
+  return mergeSessionPassages(readAllFromDisk());
 };
 
 const writeAll = (map: Record<string, PatternPassage>) => {
@@ -146,7 +154,8 @@ export const listCachedPassages = (): PatternPassage[] =>
 
 export const putCachedPassage = (passage: PatternPassage): void => {
   if (!isValidPassage(passage)) return;
-  const map = readAll();
+  rememberSessionPassage(passage);
+  const map = readAllFromDisk();
   const previous = map[passage.name];
   // Snapshot the last complete version before an incomplete replan overwrites it.
   if (

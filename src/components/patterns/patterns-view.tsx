@@ -12,7 +12,6 @@ import { usePatternList } from "@/hooks/use-pattern-list";
 import { useViewportLayout } from "@/hooks/use-viewport-layout";
 import {
   ensurePatternsHydrated,
-  fullSync,
 } from "@/lib/sync/sync-client";
 import {
   formatPatternTimeline,
@@ -130,16 +129,7 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
   const [viewsTick, setViewsTick] = useState(0);
 
   useEffect(() => {
-    let cancelled = false;
-    const hydrate = async () => {
-      await ensurePatternsHydrated();
-      if (cancelled) return;
-      await fullSync();
-    };
-    void hydrate();
-    return () => {
-      cancelled = true;
-    };
+    void ensurePatternsHydrated();
   }, []);
 
   useEffect(() => {

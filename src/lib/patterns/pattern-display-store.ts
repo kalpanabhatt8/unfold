@@ -8,6 +8,10 @@
 import type { PatternDisplay } from "@/lib/patterns/types";
 import type { PatternName } from "@/lib/patterns/vocabulary-public";
 import { getActivePatternStoreBacking } from "@/lib/patterns/store-backing";
+import {
+  mergeSessionDisplays,
+  rememberSessionDisplay,
+} from "@/lib/patterns/client-session-cache";
 import { markPatternsDirty } from "@/lib/sync/local-flags";
 
 export const PATTERN_DISPLAY_STORAGE_KEY = "unfold-pattern-display";
@@ -36,9 +40,7 @@ const isValidDisplay = (v: unknown): v is PatternDisplay => {
 const cacheKey = (name: PatternName, evidenceKey: string): string =>
   `${name}|${evidenceKey}`;
 
-const readAll = (): Record<string, PatternDisplay> => {
-  const backing = getActivePatternStoreBacking();
-  if (backing) return backing.displays;
+const readAllFromDisk = (): Record<string, PatternDisplay> => {
   if (typeof window === "undefined") return {};
   try {
     const raw = window.localStorage.getItem(PATTERN_DISPLAY_STORAGE_KEY);
@@ -54,6 +56,12 @@ const readAll = (): Record<string, PatternDisplay> => {
     console.error("Failed to read pattern display cache", error);
     return {};
   }
+};
+
+const readAll = (): Record<string, PatternDisplay> => {
+  const backing = getActivePatternStoreBacking();
+  if (backing) return backing.displays;
+  return mergeSessionDisplays(readAllFromDisk());
 };
 
 const writeAll = (map: Record<string, PatternDisplay>) => {
@@ -102,7 +110,8 @@ export const putCachedDisplay = (
     sourceEvidenceKey: evidenceKey,
     createdAt: display.createdAt ?? Date.now(),
   };
-  const map = readAll();
+  rememberSessionDisplay(name, evidenceKey, record);
+  const map = readAllFromDisk();
   map[cacheKey(name, evidenceKey)] = record;
   writeAll(map);
   markPatternsDirty();

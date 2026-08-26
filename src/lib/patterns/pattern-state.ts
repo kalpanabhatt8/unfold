@@ -20,6 +20,10 @@
 
 import { isPatternName, type PatternName } from "@/lib/patterns/vocabulary-public";
 import { getActivePatternStoreBacking } from "@/lib/patterns/store-backing";
+import {
+  mergeSessionStates,
+  rememberSessionState,
+} from "@/lib/patterns/client-session-cache";
 import { markPatternsDirty } from "@/lib/sync/local-flags";
 
 export const PATTERN_STATE_STORAGE_KEY = "unfold-pattern-state";
@@ -166,17 +170,13 @@ export const withPlan = (
 
 // ── Persistence ────────────────────────────────────────────────────────────
 
-const readAll = (): Record<string, PatternState> => {
-  const backing = getActivePatternStoreBacking();
-  if (backing) return backing.states;
+const readAllFromDisk = (): Record<string, PatternState> => {
   if (typeof window === "undefined") return {};
   try {
     const raw = window.localStorage.getItem(PATTERN_STATE_STORAGE_KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw);
     if (!isRecord(parsed)) return {};
-    // Defensively drop malformed / orphaned records rather than trusting the
-    // blob - a bad PatternState would corrupt lifecycle and repetition logic.
     const clean: Record<string, PatternState> = {};
     for (const [key, value] of Object.entries(parsed)) {
       if (isValidState(value) && value.name === key) clean[key] = value;
@@ -186,6 +186,12 @@ const readAll = (): Record<string, PatternState> => {
     console.error("Failed to read pattern state", error);
     return {};
   }
+};
+
+const readAll = (): Record<string, PatternState> => {
+  const backing = getActivePatternStoreBacking();
+  if (backing) return backing.states;
+  return mergeSessionStates(readAllFromDisk());
 };
 
 const writeAll = (map: Record<string, PatternState>) => {
@@ -208,7 +214,8 @@ export const listStates = (): PatternState[] => Object.values(readAll());
 
 export const putState = (state: PatternState): void => {
   if (!isValidState(state)) return;
-  const map = readAll();
+  rememberSessionState(state);
+  const map = readAllFromDisk();
   map[state.name] = state;
   writeAll(map);
   markPatternsDirty();

@@ -36,9 +36,9 @@ export const resolvePatternsPagePhase = (
   if (
     pullMeta &&
     (pullMeta.passages > 0 || pullMeta.displays > 0) &&
-    listServerReadyPatterns().length === 0
+    listServerReadyPatterns().length === 0 &&
+    hasSyncedPatternWorkInProgress()
   ) {
-    // Server reported artifacts but local caches did not surface them yet.
     return "syncing";
   }
 

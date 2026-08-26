@@ -5,6 +5,7 @@
  */
 
 import { ENTRIES_UPDATED_EVENT } from "@/lib/journal-entries";
+import { clearSessionPatternCache } from "@/lib/patterns/client-session-cache";
 import { resetInitialSyncGate } from "@/lib/sync/sync-client";
 
 export const AUTH_USER_STORAGE_KEY = "unfold-auth-user-id";
@@ -33,6 +34,7 @@ export function clearLocalUnfoldData(): void {
     for (const key of collectPrefixedKeys(window.sessionStorage)) {
       window.sessionStorage.removeItem(key);
     }
+    clearSessionPatternCache();
     resetInitialSyncGate();
     window.dispatchEvent(new Event(ENTRIES_UPDATED_EVENT));
   } catch {

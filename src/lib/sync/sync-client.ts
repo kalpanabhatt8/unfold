@@ -65,6 +65,7 @@ import {
   type SyncStatusDetail,
 } from "@/lib/sync/local-flags";
 import { waitForSyncScope } from "@/lib/sync/sync-scope";
+import { clearSessionPatternCache } from "@/lib/patterns/client-session-cache";
 import type {
   EntriesPullResponse,
   EntryPushResult,
@@ -696,6 +697,7 @@ export const resetInitialSyncGate = (): void => {
   lastPatternsPullMeta = null;
   patternsHydratedPromise = null;
   patternsHydratedResolve = null;
+  clearSessionPatternCache();
   // The wipe discarded whatever the previous pull reconciled.
   entriesPulled = false;
   entriesReconciled = false;
