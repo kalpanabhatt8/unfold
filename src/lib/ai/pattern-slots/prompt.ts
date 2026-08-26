@@ -11,8 +11,11 @@
  *   incident_stitch, paraphrase, literary_voice, trait_voice.
  * - Reflection is the next step after the Loop: cite a concrete evidence
  *   fragment, then ask the user to investigate what Unfold noticed.
- *   Do not explain the psychology or assume the underlying reason.
- *   Validators: not_grounded, label_echo, slot_echo (mechanism paraphrase).
+ *   Must be a complete, grammatically correct sentence that can be read
+ *   aloud and answered on its own. Do not explain the psychology, assume
+ *   a shift/cause/hidden meaning, diagnose, or tell the user what they feel.
+ *   Validators: incomplete_question, abstract_question, diagnostic_voice,
+ *   not_grounded, label_echo, slot_echo (mechanism paraphrase).
  * - Form variety: mechanism beat count/length and reflection openings must
  *   vary across patterns - never default to a fixed 3-beat / "When…" template.
  */
@@ -36,33 +39,38 @@ const describeSlot = (
 
 The Loop is what Unfold noticed in the writing. Your job is the next step: help the user investigate that observation themselves.
 
-Two beats:
-1. Point back to something specific and interesting in the evidence quotes (a phrase, image, or moment they wrote).
-2. Ask a grounded follow-up that invites them to explore what Unfold noticed.
+HARD RULE - completeness: the full text must be a complete, grammatically correct sentence (or two short sentences) that sounds natural when read aloud and can be answered on its own. Never return a fragment, a cut-off line, or a question that trails off (ending on "the", "what", "of", or a hanging clause). If it would not make sense spoken out loud, rewrite it.
 
-Do not name the pattern. Do not restate or paraphrase the Loop as the question. Do not explain the psychology. Do not assume the underlying reason. Do not tell them the answer.
+Two beats:
+1. Cite a concrete detail from the evidence quotes (a phrase, image, or moment they actually wrote). This beat must be a finished clause, not a stub.
+2. Ask a grounded, conversational follow-up that helps them investigate what Unfold noticed.
+
+Do not name the pattern. Do not restate or paraphrase the Loop as the question. Do not explain the psychology. Do not assume that something changed, had a cause, or has a hidden meaning unless the evidence clearly supports it. Do not diagnose, explain, or tell the user what they feel. Do not tell them the answer.
 
 A possible connection Unfold noticed may be pointed toward, then left for the user to investigate. Never suggest an action, alternative, or that they should notice/stop/change anything. No advice, no conclusions, no therapy.
 
 Variety (form only - content rules unchanged):
-- Prefer openings that cite the writing: You mentioned…, You wrote…, You kept…
-- The second beat is the investigation - natural, specific, open
-- Do NOT default to cryptic "What was X doing there / standing in for / bringing up?"
+- Open by pointing at the writing in a natural way: You mentioned…, You wrote…, You kept…, You came back…
+- The second beat is a complete question they can answer without guessing what you meant
+- Do NOT use abstract phrasing: "what shifted?", "what was it doing there?", "what was it pointing to?", "what was actually happening between…?"
 - Do NOT default to "When X, what usually happens / comes next / signals Y?"
 - Stay observational - variety is syntax, not advice or verdict
 
-REJECT (cryptic / ungrounded / assumes the reason / restates the Loop / coaches):
+REJECT (incomplete / abstract / assumes a shift or hidden meaning / restates the Loop / coaches / diagnoses):
+- "What was actually happening between the?"
+- "What shifted between those two moments of reviewing what?"
 - "What was it doing there?"
+- "What was that pointing to?"
 - "What were those jobs standing in for?"
 - "What was that bringing up?"
 - "How does the comparison shift when you encounter someone else's success?"
 - "What part of the loop feels most familiar when it starts again?"
 - "What would it feel like to leave it unopened for an hour?"
 
-ACCEPT (cites a concrete fragment, then invites investigation of what was noticed):
-- "You mentioned imagining conversations before they happen. What do you usually find yourself worrying about?"
-- "You mentioned finding tiny jobs that make you feel like you're doing something. What kinds of things do you usually end up doing?"
-- "You wondered why you're still here. What do you usually find yourself measuring against?"`;
+ACCEPT (complete sentences, concrete cite, natural follow-up they can answer on their own):
+- "You came back to it later and found yourself editing it in your head. What made you look again?"
+- "You kept coming back to how you sounded. What were you trying to figure out?"
+- "You mentioned imagining conversations before they happen. What do you usually find yourself worrying about?"`;
   }
   if (slot.role === "mechanism") {
     return `Slot ${slot.index} (Loop / mechanism): Synthesize the underlying recurring behavior across the evidence. Point toward what Unfold notices - do not simply rephrase the user's sentences or dress them up in poetic language.
@@ -143,7 +151,7 @@ export function buildSlotPrompt(input: SlotGenerationInput): string {
   const { label, definition, quotes, voiceSlots } = input;
 
   const arcNote = input.shapeId === "discovery"
-    ? "\nArc: guided discovery. The user's quotes are the primary voice - already shown verbatim. The Loop synthesizes the recurring behavior Unfold noticed across those moments (evidence → synthesis → clear observation). The question is the next step: point back to a specific moment in the writing, then invite the user to investigate that observation. Never explain unsupported psychology, assume the reason, diagnose the person, or suggest they should do anything differently.\n"
+    ? "\nArc: guided discovery. The user's quotes are the primary voice - already shown verbatim. The Loop synthesizes the recurring behavior Unfold noticed across those moments (evidence → synthesis → clear observation). The question is the next step: point back to a specific moment in the writing, then invite the user to investigate that observation. The question must be a complete sentence that can be read aloud and answered on its own. Never explain unsupported psychology, assume a shift/cause/hidden meaning, diagnose the person, tell them what they feel, or suggest they should do anything differently.\n"
     : "";
 
   return `You write very small pieces of text for a private journal reflection. The application already placed the user's quotes - you add at most one Loop (synthesized recurring behavior Unfold noticed) and a question that helps the user investigate that observation.
@@ -166,13 +174,15 @@ Rules:
 - For mechanism slots: vary beat count (${SLOT_MIN_MECHANISM_SENTENCES}–${SLOT_MAX_MECHANISM_SENTENCES}, not always 3) and sentence length - avoid a fixed equal-beat template
 - For mechanism slots: never "you always…", "you tend to…", "your mind…", "you are someone who…"
 - For reflection: cite a concrete fragment from the evidence, then ask the user to investigate what Unfold noticed
+- For reflection: every question must be a complete grammatical sentence that sounds natural read aloud and can be answered on its own - never a fragment or cut-off line
 - For reflection: do NOT name the pattern label; do NOT restate the Loop as the question
-- For reflection: do NOT explain the psychology or assume the underlying reason
-- For reflection: two beats (cite, then ask) - concise, not cryptic; do not default to "What was X doing there?"
+- For reflection: do NOT explain the psychology, diagnose, or tell the user what they feel
+- For reflection: do NOT assume something changed, had a cause, or has a hidden meaning unless the evidence clearly supports it
+- For reflection: two beats (cite, then ask) - concise, not cryptic; never "what shifted?", "what was it doing there?", or "what was it pointing to?"
 - For reflection: vary the grammatical opening - do not default to "When X, what usually happens/comes next/signals Y?"
 - No advice, no therapy voice, no pattern names, no diagnoses
 - For mechanism slots: no invented emotions or psychology; no explaining what the behavior means about the person
-- No motive-based phrasing ("because you", "trying to", "permission to")
+- For mechanism slots: no motive-based phrasing ("because you", "trying to", "permission to")
 - Never imply the user's thinking is a problem to correct
 - Never suggest alternative behavior, even framed as a question
 - Never presume a negative outcome the journal did not state
@@ -201,26 +211,44 @@ const RETRY_COACHING: Record<string, string> = {
     "Do not restate or paraphrase the Loop as the question. Cite a specific moment from the quotes, then ask the next investigative step.",
   trait_voice:
     "Synthesize recurring behavior from the evidence - not a trait claim about the person (no 'you always', 'your mind', 'you compare yourself').",
+  incomplete_question:
+    "Your question was not a complete sentence - it cut off or trailed into a fragment. Write two finished beats that can be read aloud: a concrete cite from the evidence, then one full question the user can answer on its own. Never end on 'the', 'what', 'of', or a hanging clause.",
+  abstract_question:
+    "Do not ask abstract questions like 'what shifted?', 'what was it doing there?', or 'what was it pointing to?'. Cite a concrete detail from the writing, then ask a natural follow-up. Do not assume something changed or had a hidden meaning unless the evidence says so.",
+  diagnostic_voice:
+    "Do not diagnose, explain, or tell the user what they feel. Cite a concrete moment from the writing, then ask a question they can answer themselves.",
 };
 
 export function buildSlotRetryPrompt(
   input: SlotGenerationInput,
   rejection: string,
+  extraHint?: string,
 ): string {
-  const coaching = RETRY_COACHING[rejection] ?? rejection;
+  const coaching =
+    RETRY_COACHING[rejection] ??
+    SLOT_REJECTION_MESSAGES[rejection] ??
+    rejection;
   const toneHint =
     rejection === "incident_stitch"
       ? "Synthesize the recurring behavior - not quote-specific incidents."
       : rejection === "literary_voice" || rejection === "paraphrase"
         ? "Plain behavioral synthesis in original words. No poetic rephrasing of the quotes."
+      : rejection === "incomplete_question"
+        ? "Write a complete sentence that can be read aloud and answered on its own. Cite a concrete detail, then ask one full question. Never trail off."
+      : rejection === "abstract_question"
+        ? "Cite a concrete moment from the writing, then ask a natural follow-up. No 'what shifted' or 'what was it doing there'."
+      : rejection === "diagnostic_voice"
+        ? "Do not tell the user what they feel. Point at a moment from the writing, then ask."
       : rejection === "not_grounded" || rejection === "slot_echo"
         ? "Cite a specific phrase from the evidence, then ask the user to investigate what Unfold noticed. Do not explain why."
         : "Shorter. Plain synthesis - no corrective framing, no suggested alternatives, no citation brackets.";
 
+  const extra = extraHint ? `\n${extraHint}` : "";
+
   return `${buildSlotPrompt(input)}
 
 Your previous response was rejected: ${coaching}
-
+${extra}
 Return a corrected JSON array only. ${toneHint}`;
 }
 
@@ -248,6 +276,12 @@ export const SLOT_REJECTION_MESSAGES: Record<string, string> = {
   paraphrase: "A line repeated or paraphrased the user's quote text.",
   slot_echo: "A line repeated or paraphrased another voice slot.",
   not_question: "A question slot did not end with '?'.",
+  incomplete_question:
+    "A reflection question was not a complete sentence that can be read aloud and answered on its own.",
+  abstract_question:
+    "A reflection question used abstract phrasing (what shifted, doing there, pointing to) instead of a concrete, answerable follow-up.",
+  diagnostic_voice:
+    "A reflection question diagnosed, explained, or told the user what they feel.",
   not_statement: "A mechanism slot ended with '?' or started with 'You'.",
   multiple_sentences: "A line contained more than one sentence.",
   too_few_sentences: "A mechanism slot needs at least two sentences.",

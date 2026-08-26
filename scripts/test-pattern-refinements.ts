@@ -8,7 +8,10 @@ import {
   stripCitationBrackets,
 } from "../src/lib/ai/pattern-slots/citations";
 import { buildFallbackReflectionFills } from "../src/lib/ai/pattern-slots/fallback";
-import { validateSlotFills } from "../src/lib/ai/pattern-slots/validation";
+import {
+  isCompleteQuestionText,
+  validateSlotFills,
+} from "../src/lib/ai/pattern-slots/validation";
 import { PATTERN_DEFINITIONS } from "../src/lib/patterns/vocabulary";
 import { splitMechanismSteps } from "../src/lib/patterns/mechanism-steps";
 import {
@@ -497,8 +500,182 @@ console.log("reflection question grounding");
     "fallback reflection cites evidence then investigates",
     fallback.length === 1 &&
       fallback[0]!.text.startsWith("You mentioned ") &&
-      fallback[0]!.text.endsWith("?"),
+      fallback[0]!.text.endsWith("?") &&
+      isCompleteQuestionText(fallback[0]!.text),
     JSON.stringify(fallback),
+  );
+
+  const cutOff = validateSlotFills(
+    [
+      {
+        index: 1,
+        text: "What was actually happening between the?",
+      },
+    ],
+    [slots[1]!],
+    quotes,
+    PATTERN_DEFINITIONS.comparison,
+    "Comparison",
+  );
+  assert(
+    "cut-off 'between the?' rejected as incomplete",
+    cutOff.rejected.some((r) => r.reason === "incomplete_question"),
+    JSON.stringify(cutOff.rejected),
+  );
+
+  const hangingWhat = validateSlotFills(
+    [
+      {
+        index: 1,
+        text: "What shifted between those two moments of reviewing what?",
+      },
+    ],
+    [slots[1]!],
+    quotes,
+    PATTERN_DEFINITIONS.comparison,
+    "Comparison",
+  );
+  assert(
+    "hanging 'reviewing what?' rejected as incomplete",
+    hangingWhat.rejected.some(
+      (r) =>
+        r.reason === "incomplete_question" || r.reason === "abstract_question",
+    ),
+    JSON.stringify(hangingWhat.rejected),
+  );
+
+  const abstractShift = validateSlotFills(
+    [
+      {
+        index: 1,
+        text: "What shifted between those two moments of reviewing the draft?",
+      },
+    ],
+    [slots[1]!],
+    ["I kept reviewing the draft after I sealed it."],
+    PATTERN_DEFINITIONS.comparison,
+    "Comparison",
+  );
+  assert(
+    "abstract 'what shifted' rejected",
+    abstractShift.rejected.some((r) => r.reason === "abstract_question"),
+    JSON.stringify(abstractShift.rejected),
+  );
+
+  const doingThere = validateSlotFills(
+    [
+      {
+        index: 1,
+        text: "You mentioned the draft. What was it doing there?",
+      },
+    ],
+    [slots[1]!],
+    ["I kept reviewing the draft after I sealed it."],
+    PATTERN_DEFINITIONS.comparison,
+    "Comparison",
+  );
+  assert(
+    "abstract 'doing there' rejected",
+    doingThere.rejected.some((r) => r.reason === "abstract_question"),
+    JSON.stringify(doingThere.rejected),
+  );
+
+  const pointingTo = validateSlotFills(
+    [
+      {
+        index: 1,
+        text: "You mentioned the draft. What was it pointing to?",
+      },
+    ],
+    [slots[1]!],
+    ["I kept reviewing the draft after I sealed it."],
+    PATTERN_DEFINITIONS.comparison,
+    "Comparison",
+  );
+  assert(
+    "abstract 'pointing to' rejected",
+    pointingTo.rejected.some((r) => r.reason === "abstract_question"),
+    JSON.stringify(pointingTo.rejected),
+  );
+
+  const diagnosed = validateSlotFills(
+    [
+      {
+        index: 1,
+        text: "You felt anxious about still being here. What was underneath that feeling?",
+      },
+    ],
+    [slots[1]!],
+    quotes,
+    PATTERN_DEFINITIONS.comparison,
+    "Comparison",
+  );
+  assert(
+    "question that tells the user what they feel rejected",
+    diagnosed.rejected.some((r) => r.reason === "diagnostic_voice"),
+    JSON.stringify(diagnosed.rejected),
+  );
+
+  const editingQuotes = [
+    "I came back to it later and found myself editing it in my head.",
+  ];
+  const naturalCite = validateSlotFills(
+    [
+      {
+        index: 1,
+        text: "You came back to it later and found yourself editing it in your head. What made you look again?",
+      },
+    ],
+    [slots[1]!],
+    editingQuotes,
+    PATTERN_DEFINITIONS.comparison,
+    "Comparison",
+  );
+  assert(
+    "complete conversational cite-then-ask accepted",
+    naturalCite.ok && naturalCite.fills.length === 1,
+    JSON.stringify(naturalCite.rejected),
+  );
+
+  const soundedQuotes = [
+    "I kept coming back to how I sounded.",
+  ];
+  const naturalSounded = validateSlotFills(
+    [
+      {
+        index: 1,
+        text: "You kept coming back to how you sounded. What were you trying to figure out?",
+      },
+    ],
+    [slots[1]!],
+    soundedQuotes,
+    PATTERN_DEFINITIONS.comparison,
+    "Comparison",
+  );
+  assert(
+    "complete 'how you sounded' question accepted",
+    naturalSounded.ok && naturalSounded.fills.length === 1,
+    JSON.stringify(naturalSounded.rejected),
+  );
+
+  const overlong =
+    "You mentioned imagining conversations before they happen and then rewriting the whole talk on the walk home afterward while still hearing their voice in the room. What were you trying to figure out?";
+  const overlongResult = validateSlotFills(
+    [{ index: 1, text: overlong }],
+    [slots[1]!],
+    conversationsQuotes,
+    PATTERN_DEFINITIONS.comparison,
+    "Comparison",
+  );
+  assert(
+    "overlong question is rejected intact, not truncated into a fragment",
+    overlong.length > 160 &&
+      overlongResult.rejected.some((r) => r.reason === "too_long") &&
+      overlongResult.fills.length === 0,
+    JSON.stringify({
+      length: overlong.length,
+      rejected: overlongResult.rejected,
+    }),
   );
 }
 

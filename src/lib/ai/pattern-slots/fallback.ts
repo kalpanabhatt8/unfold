@@ -1,7 +1,10 @@
 import { SLOT_MAX_QUESTION_CHARS } from "@/lib/ai/pattern-slots/constants";
 import type { SlotGenerationInput } from "@/lib/ai/pattern-slots/input";
 import type { ParsedSlotFill } from "@/lib/ai/pattern-slots/parse";
-import { normalizeQuestionText } from "@/lib/ai/pattern-slots/validation";
+import {
+  isCompleteQuestionText,
+  normalizeQuestionText,
+} from "@/lib/ai/pattern-slots/validation";
 
 const tokenize = (text: string): string[] =>
   text
@@ -35,8 +38,23 @@ const isAcceptableFallback = (question: string, quotes: string[]): boolean => {
   return (
     q.endsWith("?") &&
     q.length <= SLOT_MAX_QUESTION_CHARS &&
+    isCompleteQuestionText(q) &&
     isGrounded(q, quotes)
   );
+};
+
+const phraseAnchors = (quotes: string[]): string[] => {
+  const phrases: string[] = [];
+  for (const quote of quotes) {
+    const clipped = quote.replace(/[.?!]+$/g, "").trim();
+    const words = clipped.split(/\s+/).filter(Boolean);
+    const start = /^(i|i'm|im)$/i.test(words[0] ?? "") ? 1 : 0;
+    const slice = words.slice(start, start + 6);
+    if (slice.length >= 3) {
+      phrases.push(slice.join(" ").toLowerCase());
+    }
+  }
+  return phrases;
 };
 
 /**
@@ -52,20 +70,20 @@ export function buildFallbackReflectionFills(
   );
   if (pending.length === 0) return [];
 
-  const anchors = [
+  const tokenAnchors = [
     ...new Set(
       tokenize(input.quotes.join(" ")).filter(
         (w) => w.length >= 4 && !STOPWORDS.has(w),
       ),
     ),
   ];
+  const anchors = [...phraseAnchors(input.quotes), ...tokenAnchors];
   if (anchors.length === 0) return [];
 
   const templates = (anchor: string): string[] => [
+    `You mentioned ${anchor}. What were you trying to figure out?`,
     `You mentioned ${anchor}. What do you usually find yourself doing?`,
-    `You mentioned ${anchor}. What tends to come up around that?`,
-    `You wrote about ${anchor}. What usually happens next?`,
-    `You mentioned ${anchor}. What kinds of things tend to follow?`,
+    `You wrote about ${anchor}. What were you trying to figure out?`,
   ];
 
   for (const slot of pending) {

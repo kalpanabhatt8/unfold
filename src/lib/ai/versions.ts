@@ -7,7 +7,7 @@
 export const PROMPT_VERSIONS = {
   /** Bump whenever extraction prompt, catalog, shared examples, or validation that affects stored patterns changes. */
   extraction: "v4",
-  slots: "v1",
+  slots: "v2",
   display: "v1",
   title: "v1",
 } as const;

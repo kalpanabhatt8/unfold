@@ -141,6 +141,9 @@ export async function runFullPatternGeneration(
   return promise;
 }
 
+export const isPatternGenerationInflight = (userId: string): boolean =>
+  inflightByUser.has(userId);
+
 /** Users whose gate is open and patterns are stale since the latest seal. */
 export const findUsersNeedingPatternGeneration = async (): Promise<
   string[]

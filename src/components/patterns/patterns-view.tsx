@@ -324,6 +324,7 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
               const isOpen = expanded === pattern.name;
               const showPanel = mountedPanels.has(pattern.name);
               const isUnread = unreadNames.has(pattern.name);
+              const showUnread = isUnread && !isOpen;
               const entryCount =
                 pattern.entryCount > 0
                   ? pattern.entryCount
@@ -341,7 +342,7 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
                   }}
                   className="pattern-accordion__item"
                   data-expanded={isOpen ? "true" : "false"}
-                  data-unread={isUnread ? "true" : "false"}
+                  data-unread={showUnread ? "true" : "false"}
                 >
                   <button
                     type="button"
@@ -349,7 +350,7 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
                     aria-expanded={isOpen}
                     aria-controls={`pattern-expanded-panel-${pattern.name}`}
                     aria-label={
-                      [title, factLine, isUnread ? "updated" : null]
+                      [title, factLine, showUnread ? "updated" : null]
                         .filter(Boolean)
                         .join(", ")
                     }

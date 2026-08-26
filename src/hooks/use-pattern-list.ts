@@ -18,6 +18,7 @@ import {
 } from "@/lib/sync/local-flags";
 import {
   ensurePatternsHydrated,
+  fullSync,
   hydratePatternArtifactsFromSnapshot,
 } from "@/lib/sync/sync-client";
 import { usePatternsAggregate } from "@/hooks/use-patterns-aggregate";
@@ -36,11 +37,28 @@ type ReadyApiPayload = {
   };
   meta?: { states: number; passages: number; displays: number };
   debug?: { userId: string; sealedEntryCount: number; analysisCount: number };
+  generating?: boolean;
+};
+
+const POLL_MS = 5_000;
+const MAX_POLLS = 60; // ~5 minutes
+
+const applyReadyPayload = (payload: ReadyApiPayload): SurfacedPattern[] => {
+  if (payload.snapshot) {
+    hydratePatternArtifactsFromSnapshot(payload.snapshot);
+  }
+  return Array.isArray(payload.patterns) ? payload.patterns : [];
+};
+
+const fetchReady = async (): Promise<ReadyApiPayload | null> => {
+  const response = await fetch("/api/patterns/ready");
+  if (!response.ok) return null;
+  return (await response.json()) as ReadyApiPayload;
 };
 
 /**
  * Unified Patterns list driver — phase + rows from synced artifacts,
- * with a direct server fetch when local caches fail to hydrate.
+ * with automatic server generation when patterns are due but missing.
  */
 export function usePatternList(): PatternListState {
   const aggregate = usePatternsAggregate();
@@ -48,6 +66,7 @@ export function usePatternList(): PatternListState {
   const [remotePatterns, setRemotePatterns] = useState<SurfacedPattern[] | null>(
     null,
   );
+  const [serverGenerating, setServerGenerating] = useState(false);
 
   useEffect(() => {
     const bump = () => setTick((t) => t + 1);
@@ -84,31 +103,44 @@ export function usePatternList(): PatternListState {
     const load = async () => {
       await ensurePatternsHydrated();
       try {
-        const response = await fetch("/api/patterns/ready");
-        if (!response.ok) {
-          console.warn("[patterns] /api/patterns/ready failed", response.status);
+        let payload = await fetchReady();
+        if (cancelled || !payload) return;
+
+        let patterns = applyReadyPayload(payload);
+        setRemotePatterns(patterns);
+
+        const sealedCount = payload.debug?.sealedEntryCount ?? 0;
+        const eligibleForGeneration = sealedCount >= 5;
+
+        setServerGenerating(
+          Boolean(payload.generating) ||
+            (patterns.length === 0 && eligibleForGeneration),
+        );
+        setTick((t) => t + 1);
+
+        if (patterns.length > 0 || (!payload.generating && !eligibleForGeneration)) {
           return;
         }
-        const payload = (await response.json()) as ReadyApiPayload;
-        if (cancelled) return;
-        if (payload.snapshot) {
-          hydratePatternArtifactsFromSnapshot(payload.snapshot);
+
+        for (let poll = 0; poll < MAX_POLLS; poll += 1) {
+          await new Promise((resolve) => setTimeout(resolve, POLL_MS));
+          if (cancelled) return;
+          payload = await fetchReady();
+          if (cancelled || !payload) return;
+          patterns = applyReadyPayload(payload);
+          setRemotePatterns(patterns);
+          setServerGenerating(
+            Boolean(payload.generating) && patterns.length === 0,
+          );
+          setTick((t) => t + 1);
+          if (patterns.length > 0) {
+            await fullSync();
+            return;
+          }
+          if (!payload.generating) return;
         }
-        if (Array.isArray(payload.patterns)) {
-          setRemotePatterns(payload.patterns);
-          console.info("[patterns]", {
-            phase: payload.patterns.length > 0 ? "ready" : "empty",
-            localCount: listServerReadyPatterns().length,
-            remoteCount: payload.patterns.length,
-            userId: payload.debug?.userId,
-            sealedEntryCount: payload.debug?.sealedEntryCount,
-            analysisCount: payload.debug?.analysisCount,
-            meta: payload.meta,
-          });
-        }
-        setTick((t) => t + 1);
-      } catch (error) {
-        console.warn("[patterns] /api/patterns/ready error", error);
+      } catch {
+        /* network blip — skeleton/empty phase handles it */
       }
     };
 
@@ -131,8 +163,10 @@ export function usePatternList(): PatternListState {
     let phase = resolvePatternsPagePhase(aggregate);
     if (patterns.length > 0) {
       phase = "ready";
+    } else if (serverGenerating) {
+      phase = "syncing";
     }
 
     return { phase, patterns };
-  }, [aggregate, remotePatterns, tick]);
+  }, [aggregate, remotePatterns, serverGenerating, tick]);
 }

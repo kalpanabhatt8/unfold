@@ -1759,20 +1759,27 @@ input[type='number'] {
   overflow: hidden;
   overflow-anchor: none;
   scroll-margin-top: 5vh;
-  transition: border-radius var(--pattern-accordion-close-duration)
-    var(--pattern-accordion-close-ease);
+  transition:
+    border-radius var(--pattern-accordion-close-duration)
+      var(--pattern-accordion-close-ease),
+    background-color 140ms ease,
+    border-color 140ms ease;
 }
 
 .pattern-accordion__item[data-expanded="true"] {
   max-height: var(--pattern-item-max);
   min-height: 0;
   border-radius: var(--pattern-card-radius-expanded);
-  transition: border-radius var(--pattern-accordion-duration)
-    var(--pattern-accordion-ease);
+  background: var(--surface-raised);
+  transition:
+    border-radius var(--pattern-accordion-duration)
+      var(--pattern-accordion-ease),
+    background-color 140ms ease,
+    border-color 140ms ease;
 }
 
-.pattern-accordion__item[data-unread="true"] {
-  /* Soft wash — readable as new without darkening the card */
+/* New-pattern wash: closed rows only. Same fill as quote cards. */
+.pattern-accordion__item[data-unread="true"]:not([data-expanded="true"]) {
   background: var(--surface-wash);
   border-color: color-mix(
     in srgb,

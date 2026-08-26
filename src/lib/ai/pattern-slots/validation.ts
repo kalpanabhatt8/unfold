@@ -140,18 +140,90 @@ const paraphrasesQuotes = (text: string, quotes: string[]): boolean => {
   return false;
 };
 
-/** Trim overlong Claude questions instead of rejecting the whole batch. */
+/**
+ * Normalize whitespace and ensure a trailing "?".
+ * Never cut mid-sentence - overlong text is rejected as too_long so retry
+ * can write a shorter complete question instead of a fragment.
+ */
 export const normalizeQuestionText = (text: string): string => {
-  let t = text.trim();
+  let t = text.replace(/\s+/g, " ").trim();
   if (!t.endsWith("?")) t = `${t.replace(/[.!]+$/, "").trim()}?`;
-  if (t.length <= SLOT_MAX_QUESTION_CHARS) return t;
-  const body = t.slice(0, -1).trim();
-  const cut = body
-    .slice(0, SLOT_MAX_QUESTION_CHARS - 1)
-    .replace(/\s+\S*$/, "")
-    .trim();
-  return cut.length > 0 ? `${cut}?` : t.slice(0, SLOT_MAX_QUESTION_CHARS);
+  return t;
 };
+
+/**
+ * Last-word fragments that mean the sentence was cut off or never finished.
+ * Stranded prepositions ("worrying about?") are allowed; articles,
+ * conjunctions, auxiliaries, and hanging "what" are not.
+ */
+const QUESTION_DANGLING_WORDS = new Set([
+  "a", "an", "the",
+  "and", "or", "but", "as", "if", "than", "because", "though", "although",
+  "whether", "until", "unless",
+  "this", "those", "these", "their", "your", "my", "our", "its",
+  "what", "who", "whom", "which", "whose", "how", "where", "why", "when",
+  "was", "were", "is", "are", "be", "been", "being",
+  "do", "does", "did", "have", "has", "had",
+  "would", "could", "should", "might", "must", "will", "can",
+  "of", "between", "among", "into", "onto",
+]);
+
+const QUESTION_STEM =
+  /^(what|who|whom|whose|which|where|when|why|how)\b/i;
+const QUESTION_INVERSION =
+  /^(did|do|does|were|was|are|is|can|could|would|should|will|have|has|had)\s+you\b/i;
+
+const lastWordOf = (clause: string): string => {
+  const words = clause
+    .replace(/[.?!,"]+$/g, "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  return (words[words.length - 1] ?? "")
+    .toLowerCase()
+    .replace(/^[^\w']+|[^\w']+$/g, "");
+};
+
+const clausesOfQuestion = (text: string): string[] =>
+  text
+    .replace(/\?+$/, "")
+    .split(/[.!?]+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+/**
+ * True when the question can be read aloud as a finished sentence and
+ * answered on its own - not a cut-off line or hanging clause.
+ */
+export const isCompleteQuestionText = (text: string): boolean => {
+  const t = text.trim();
+  if (!t.endsWith("?")) return false;
+  if ((t.match(/\?/g) ?? []).length > 1) return false;
+  if (wordCount(t) < 6) return false;
+
+  const clauses = clausesOfQuestion(t);
+  if (clauses.length === 0 || clauses.length > 2) return false;
+
+  for (const clause of clauses) {
+    const last = lastWordOf(clause);
+    if (!last || QUESTION_DANGLING_WORDS.has(last)) return false;
+  }
+
+  const lastClause = clauses[clauses.length - 1] ?? "";
+  if (!QUESTION_STEM.test(lastClause) && !QUESTION_INVERSION.test(lastClause)) {
+    return false;
+  }
+
+  return true;
+};
+
+/** Abstract probes that assume a shift, cause, or hidden meaning. */
+const ABSTRACT_QUESTION_MARKERS =
+  /\b(what shifted|what changed|what was actually happening|happening between|those two moments|what was (it|that) doing there|what was (it|that) pointing to|standing in for|what was (it|that) bringing up|what did that mean|what does that mean|what was that about|what was it about)\b/i;
+
+/** Tells the user what they feel, or diagnoses them. */
+const DIAGNOSTIC_QUESTION_MARKERS =
+  /\b(you felt|you were feeling|you must have felt|this means you|you were actually|underneath (that|it)|the real reason|you were avoiding|your anxiety|your fear|your shame)\b/i;
 
 const validateQuestion = (
   text: string,
@@ -160,7 +232,10 @@ const validateQuestion = (
   otherVoice: string[],
 ): string | null => {
   if (!text.endsWith("?")) return "not_question";
+  if (!isCompleteQuestionText(text)) return "incomplete_question";
   if (text.length > SLOT_MAX_QUESTION_CHARS) return "too_long";
+  if (ABSTRACT_QUESTION_MARKERS.test(text)) return "abstract_question";
+  if (DIAGNOSTIC_QUESTION_MARKERS.test(text)) return "diagnostic_voice";
   if (hasCitationBrackets(text)) return "citation_leak";
   if (CORRECTIVE_MARKERS.test(text)) return "corrective_voice";
   if (ADVICE_MARKERS.test(text) || THERAPY_MARKERS.test(text)) {

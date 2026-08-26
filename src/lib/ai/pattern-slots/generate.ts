@@ -15,7 +15,6 @@ import { parseSlotResponse } from "@/lib/ai/pattern-slots/parse";
 import {
   buildSlotPrompt,
   buildSlotRetryPrompt,
-  SLOT_REJECTION_MESSAGES,
 } from "@/lib/ai/pattern-slots/prompt";
 import {
   validateSlotFills,
@@ -27,10 +26,6 @@ export type SlotGenerationResult = {
   fills: ParsedSlotFill[];
   rejected: SlotRejection[];
 };
-
-function rejectionMessage(reason: string): string {
-  return SLOT_REJECTION_MESSAGES[reason] ?? reason;
-}
 
 async function attemptSlots(
   apiKey: string,
@@ -166,7 +161,7 @@ async function generateRecognitionSlots(
         first.rejected.find((r) => r.index === slot.index)?.reason ??
         "incomplete";
       const second = await attemptSlots(apiKey, slotInput, () =>
-        buildSlotRetryPrompt(slotInput, rejectionMessage(retryReason)),
+        buildSlotRetryPrompt(slotInput, retryReason),
       );
       fills = mergeFills(fills, second.fills);
       rejected = mergeRejected(rejected, second.rejected);
@@ -180,7 +175,8 @@ async function generateRecognitionSlots(
       const third = await attemptSlots(apiKey, slotInput, () =>
         buildSlotRetryPrompt(
           slotInput,
-          `${rejectionMessage(retryReason)} Return one line for slot index ${slot.index} only.`,
+          retryReason,
+          `Return one line for slot index ${slot.index} only.`,
         ),
       );
       fills = mergeFills(fills, third.fills);
@@ -239,7 +235,7 @@ async function generateBatchedSlots(
   };
 
   const second = await attemptSlots(apiKey, retryInput, () =>
-    buildSlotRetryPrompt(retryInput, rejectionMessage(retryReason)),
+    buildSlotRetryPrompt(retryInput, retryReason),
   );
   fills = mergeFills(fills, second.fills);
   rejected = mergeRejected(rejected, second.rejected);
@@ -265,7 +261,8 @@ async function generateBatchedSlots(
   const third = await attemptSlots(apiKey, thirdInput, () =>
     buildSlotRetryPrompt(
       thirdInput,
-      `${rejectionMessage(second.reason!)} Return one line per requested slot index only.`,
+      second.reason!,
+      "Return one line per requested slot index only.",
     ),
   );
 

@@ -367,6 +367,13 @@ const pullAndApplyPatterns = async (): Promise<boolean> => {
   return patternsPullSucceeded;
 };
 
+/** Ask the server to generate patterns when sync shows none yet. */
+const kickPatternGenerationIfNeeded = (): void => {
+  const meta = lastPatternsPullMeta;
+  if (!meta || meta.passages > 0 || meta.displays > 0) return;
+  void fetch("/api/patterns/ready").catch(() => {});
+};
+
 const toTombstoneWire = (tombstone: EntryTombstone): WireEntry => ({
   id: tombstone.id,
   title: "",
@@ -567,6 +574,7 @@ export const fullSync = async (): Promise<void> => {
       await pullAndApplyPatterns();
       await pushDirtyEntries();
       await pushPatternsIfDirty();
+      kickPatternGenerationIfNeeded();
     } catch (error) {
       console.error("Sync failed", error);
     }

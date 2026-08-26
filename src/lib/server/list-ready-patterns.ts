@@ -3,8 +3,12 @@
  */
 
 import { listServerReadyPatternsFromSnapshot } from "@/lib/patterns/server-ready-patterns";
+import {
+  PATTERN_GENERATION_MIN_SEALED_ENTRIES,
+} from "@/lib/patterns/generation-gate-public";
 import { pullPatterns as pullPatternLayer } from "@/lib/server/patterns";
 import { db } from "@/lib/server/db";
+import { isPatternGenerationInflight } from "@/lib/server/pattern-pipeline";
 import type { PatternDisplay, SurfacedPattern } from "@/lib/patterns/types";
 import type { PatternPassage } from "@/lib/patterns/passage-types";
 import type { PatternState } from "@/lib/patterns/pattern-state";
@@ -30,6 +34,8 @@ export type ReadyPatternsPayload = {
     sealedEntryCount: number;
     analysisCount: number;
   };
+  /** True when the server kicked off generation — client should poll. */
+  generating: boolean;
 };
 
 export const listReadyPatternsForUser = async (
@@ -85,5 +91,31 @@ export const listReadyPatternsForUser = async (
       displays: displays.length,
     },
     debug: { userId, sealedEntryCount, analysisCount },
+    generating: false,
   };
+};
+
+/** True when this account should run generation (caller schedules via `after()`). */
+export const shouldSchedulePatternGeneration = (
+  payload: ReadyPatternsPayload,
+): boolean => {
+  const { userId, sealedEntryCount } = payload.debug;
+  if (payload.patterns.length > 0) return false;
+  if (isPatternGenerationInflight(userId)) return false;
+  if (sealedEntryCount < PATTERN_GENERATION_MIN_SEALED_ENTRIES) return false;
+  return true;
+};
+
+export const isPatternGenerationActiveForPayload = (
+  payload: ReadyPatternsPayload,
+): boolean =>
+  isPatternGenerationInflight(payload.debug.userId) ||
+  shouldSchedulePatternGeneration(payload);
+
+export const listReadyPatternsForUserWithGeneration = async (
+  userId: string,
+): Promise<ReadyPatternsPayload> => {
+  const payload = await listReadyPatternsForUser(userId);
+  const generating = isPatternGenerationActiveForPayload(payload);
+  return { ...payload, generating };
 };
