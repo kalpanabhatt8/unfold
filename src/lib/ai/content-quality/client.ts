@@ -1,17 +1,16 @@
+import { BROWSER_PATTERN_AI_DISABLED } from "@/lib/ai/server-only-policy";
 import {
   QUALITY_CLIENT_TIMEOUT_MS,
   type ContentQualityResult,
 } from "@/lib/ai/content-quality/constants";
 
 /**
- * Client wrapper for content-quality classification.
- * Returns null on failure/timeout so callers can fail open (treat as unflagged).
+ * Content-quality classification is server-only. Returns null so legacy callers fail open.
  */
 export async function fetchContentQuality(
   text: string,
 ): Promise<ContentQualityResult | null> {
-  const trimmed = text.trim();
-  if (!trimmed) return null;
+  if (BROWSER_PATTERN_AI_DISABLED || !text.trim()) return null;
 
   const controller = new AbortController();
   const timeoutId = window.setTimeout(
@@ -23,7 +22,7 @@ export async function fetchContentQuality(
     const res = await fetch("/api/content-quality", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: trimmed }),
+      body: JSON.stringify({ text: text.trim() }),
       signal: controller.signal,
     });
 

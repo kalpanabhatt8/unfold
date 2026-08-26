@@ -1,3 +1,4 @@
+import { BROWSER_PATTERN_AI_DISABLED } from "@/lib/ai/server-only-policy";
 import { applySlotFills } from "@/lib/patterns/passage-fill";
 import { putCachedPassage } from "@/lib/patterns/passage-store";
 import {
@@ -28,6 +29,8 @@ const flightKey = (passage: PatternPassage): string => {
 async function fetchPatternSlotFillsOnce(
   passage: PatternPassage,
 ): Promise<PatternPassage> {
+  if (BROWSER_PATTERN_AI_DISABLED) return passage;
+
   const input = buildSlotGenerationInput(
     passage,
     PATTERN_LABELS[passage.name],

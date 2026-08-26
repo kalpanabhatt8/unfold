@@ -1,3 +1,4 @@
+import { BROWSER_PATTERN_AI_DISABLED } from "@/lib/ai/server-only-policy";
 import {
   MAX_TITLE_CHARS,
   MAX_TITLE_WORDS,
@@ -58,6 +59,7 @@ export type TitlePrefetch = {
 let activeTitlePrefetch: TitlePrefetch | null = null;
 
 export const warmJournalTitleRoute = async (): Promise<void> => {
+  if (BROWSER_PATTERN_AI_DISABLED) return;
   try {
     await fetch("/api/journal-title");
   } catch {
@@ -66,6 +68,7 @@ export const warmJournalTitleRoute = async (): Promise<void> => {
 };
 
 export function prefetchSealTitle(text: string): Promise<string> | null {
+  if (BROWSER_PATTERN_AI_DISABLED) return null;
   const prepared = prepareTitleInput(text);
   if (!prepared) return null;
 
@@ -104,6 +107,7 @@ export function sealTitleNeedsShortening(raw: string): boolean {
 export async function fetchJournalTitle(text: string): Promise<string> {
   const prepared = prepareTitleInput(text);
   if (!prepared) return UNTITLED_ENTRY;
+  if (BROWSER_PATTERN_AI_DISABLED) return fallbackTitle(prepared);
 
   const controller = new AbortController();
   const timeoutId = window.setTimeout(

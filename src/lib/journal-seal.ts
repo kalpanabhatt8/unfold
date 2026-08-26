@@ -32,7 +32,6 @@ import {
   readEntryById,
   upsertEntry,
 } from "@/lib/journal-entries";
-import { notifyEntryCompleted } from "@/lib/patterns/entry-completion";
 import type { CompletionSource } from "@/lib/patterns/types";
 
 const flattenSnapshotText = (snapshot: CanvasSnapshot): string =>
@@ -141,7 +140,6 @@ export const commitEntrySeal = (
   const now = Date.now();
   const sealedSnapshot: CanvasSnapshot = { ...snapshot, sealedAt: now };
   const searchText = flattenSnapshotText(sealedSnapshot);
-  const source = options?.source ?? "seal";
 
   persistBoardSnapshot(entryId, sealedSnapshot);
 
@@ -152,12 +150,8 @@ export const commitEntrySeal = (
     updatedAt: now,
   });
 
-  // Title + pattern analysis are intentionally async and unbound from the
-  // open editor - navigating to a new entry mid-stamp must not wait on them.
+  // Local title only — pattern generation runs on the server after sync.
   applySealTitleInBackground(entryId, sealedSnapshot, existing?.title ?? "");
-  window.setTimeout(() => {
-    void notifyEntryCompleted(entryId, source);
-  }, 0);
 
   return now;
 };

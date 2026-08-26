@@ -27,6 +27,8 @@ model User {
   displayName String?  @map("display_name")
   preferences Json     @default("{}")
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  /// Last time the server finished a full pattern generation pass.
+  patternsGeneratedAt DateTime? @map("patterns_generated_at") @db.Timestamptz(3)
 
   entries       JournalEntry[]
   analyses      EntryAnalysis[]

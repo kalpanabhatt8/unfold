@@ -40,6 +40,10 @@ import {
   JOURNAL_SEAL_AURORA_MS,
   JOURNAL_SEAL_AURORA_START_MS,
 } from "@/lib/journal-seal-animation";
+import {
+  CANVAS_BACKGROUND,
+  CANVAS_SNAPSHOT_VERSION,
+} from "@/lib/canvas-snapshot-constants";
 import { useViewportLayout } from "@/hooks/use-viewport-layout";
 import {
   collectJournalWordTokens,
@@ -69,11 +73,11 @@ import {
 import { useSaveStatus } from "@/hooks/use-save-status";
 import { FLUSH_LOCAL_WRITES_EVENT } from "@/lib/sync/local-flags";
 
+export { CANVAS_BACKGROUND, CANVAS_SNAPSHOT_VERSION };
+
 /* -------------------------------------------------------------------------- */
 /*  Types                                                                     */
 /* -------------------------------------------------------------------------- */
-
-export const CANVAS_SNAPSHOT_VERSION = 4 as const;
 
 export type TextBlockKind = "paragraph" | "bullet" | "checklist";
 
@@ -113,9 +117,6 @@ export type CanvasSnapshot = {
 /* -------------------------------------------------------------------------- */
 /*  Visual constants                                                          */
 /* -------------------------------------------------------------------------- */
-
-/** Page + canvas - tokens in `global.css`. */
-export const CANVAS_BACKGROUND = "var(--canvas-bg-gradient)";
 
 /** Centered writing column width - shared with Patterns (`layout.ts`). */
 const WRITING_COLUMN_MAX_WIDTH = CONTENT_COLUMN_MAX_WIDTH;

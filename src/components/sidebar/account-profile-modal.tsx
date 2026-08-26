@@ -18,6 +18,7 @@ import {
   resolvePreferredName,
 } from "@/lib/user-display";
 import { clearLocalUnfoldData } from "@/lib/clear-local-data";
+import { beginSignOut } from "@/lib/sign-out-state";
 import { cacheStampDisplayName } from "@/lib/stamp-display-name";
 
 const EXPORT_MAILTO =
@@ -525,6 +526,7 @@ function SupportSection() {
     setBusy(true);
     setError(null);
     try {
+      beginSignOut();
       clearLocalUnfoldData();
       await user.delete();
       router.replace("/");

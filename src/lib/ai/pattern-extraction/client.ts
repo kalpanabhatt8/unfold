@@ -1,10 +1,10 @@
+import { BROWSER_PATTERN_AI_DISABLED } from "@/lib/ai/server-only-policy";
 import { EXTRACTION_CLIENT_TIMEOUT_MS } from "@/lib/ai/pattern-extraction/constants";
 import type { ExtractionDebugTrace } from "@/lib/ai/pattern-extraction/debug-types";
 import type { AnalysisPayload, EntryAnalysisResult } from "@/lib/patterns/types";
 
 export type EntryAnalysisFetchResult = {
   analysis: AnalysisPayload | null;
-  /** Present only when request asked for debug. */
   debug?: ExtractionDebugTrace;
   failureReason?: string;
 };
@@ -17,13 +17,14 @@ export async function fetchEntryAnalysis(
   return result.analysis;
 }
 
-/** TEMPORARY — used by debug page / optional completion capture. */
+/** Pattern extraction is server-only — browser returns empty. */
 export async function fetchEntryAnalysisDetailed(
   text: string,
-  options?: { debug?: boolean },
+  _options?: { debug?: boolean },
 ): Promise<EntryAnalysisFetchResult> {
-  const trimmed = text.trim();
-  if (!trimmed) return { analysis: null };
+  if (BROWSER_PATTERN_AI_DISABLED || !text.trim()) {
+    return { analysis: null, failureReason: "server_only" };
+  }
 
   const controller = new AbortController();
   const timeoutId = window.setTimeout(
@@ -35,10 +36,7 @@ export async function fetchEntryAnalysisDetailed(
     const res = await fetch("/api/entry-analysis", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        text: trimmed,
-        ...(options?.debug ? { debug: true } : {}),
-      }),
+      body: JSON.stringify({ text: text.trim() }),
       signal: controller.signal,
     });
 

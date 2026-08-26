@@ -3,20 +3,22 @@
  *
  * Generation iterates `aggregate.surfaced` only (post overlap-suppression).
  * Never `suppressedPatterns` or the pre-suppression bucket.
+ *
+ * The list never shows a quotes-only / "a moment…" shell. A row appears when
+ * the current evidence set has a complete guided passage, or while a
+ * replacement is generating we keep the last complete snapshot on screen.
  */
 
+import { isVoiceArcShape } from "@/lib/patterns/discovery-arc";
 import { buildEvidenceKey } from "@/lib/patterns/evidence-signals";
-import {
-  passageStructureValid,
-  passageVoiceEchoes,
-} from "@/lib/patterns/passage-fill";
+import { isCompleteVoicePassage } from "@/lib/patterns/passage-fill";
 import { getCachedDisplay } from "@/lib/patterns/pattern-display-store";
-import { getCachedPassage } from "@/lib/patterns/passage-store";
 import {
-  passageCacheVersionIsCurrent,
-  passageEvidenceKeyFromCacheKey,
-  passageNeedsGeneration,
-} from "@/lib/patterns/passage-types";
+  getCachedPassage,
+  getDisplayPassage,
+} from "@/lib/patterns/passage-store";
+import { passageEvidenceKeyFromCacheKey } from "@/lib/patterns/passage-types";
+import { getState } from "@/lib/patterns/pattern-state";
 import type { PatternsAggregate, SurfacedPattern } from "@/lib/patterns/types";
 import type { PatternName } from "@/lib/patterns/vocabulary-public";
 
@@ -42,19 +44,62 @@ export const isPatternVoiceReady = (pattern: SurfacedPatternTarget): boolean => 
   const evidenceKey = buildEvidenceKey(pattern.evidence);
   const passage = getCachedPassage(pattern.name as PatternName);
   if (!passage) return false;
-  if (!passageCacheVersionIsCurrent(passage.cacheKey)) return false;
   if (passageEvidenceKeyFromCacheKey(passage.cacheKey) !== evidenceKey) {
     return false;
   }
-  if (passageNeedsGeneration(passage)) return false;
-  if (!passageStructureValid(passage)) return false;
-  if (passageVoiceEchoes(passage)) return false;
-  return true;
+  return isCompleteVoicePassage(passage);
 };
 
-/** Display + reconciled passage with complete voice for the current evidence set. */
+const discoveryEligibleForPattern = (pattern: SurfacedPatternTarget): boolean => {
+  const quoteCount = pattern.evidence.reduce(
+    (total, item) => total + item.quotes.length,
+    0,
+  );
+  if (quoteCount < 3) return false;
+  const lifecycle =
+    getState(pattern.name as PatternName)?.lifecycle ?? "emerging";
+  return lifecycle !== "resting" && lifecycle !== "emerging";
+};
+
+/**
+ * Guided arc has mechanism/reflection when discovery is warranted.
+ * Evidence-only passages must not surface as ready once eligible.
+ */
+export const isPatternGuidedArcReady = (
+  pattern: SurfacedPatternTarget,
+  passage = getDisplayPassage(pattern.name as PatternName),
+): boolean => {
+  if (!passage) return false;
+  if (isVoiceArcShape(passage.shapeId) && isCompleteVoicePassage(passage)) {
+    return true;
+  }
+  return !discoveryEligibleForPattern(pattern);
+};
+
+const heldReadyTitleExists = (pattern: SurfacedPatternTarget): boolean => {
+  const passage = getDisplayPassage(pattern.name as PatternName);
+  if (!passage || !isCompleteVoicePassage(passage)) return false;
+  const heldKey = passageEvidenceKeyFromCacheKey(passage.cacheKey);
+  return getCachedDisplay(pattern.name as PatternName, heldKey) !== null;
+};
+
+/** Display + complete voice + guided beats for the current evidence set. */
 export const isPatternFullyReady = (pattern: SurfacedPatternTarget): boolean =>
-  isPatternDisplayReady(pattern) && isPatternVoiceReady(pattern);
+  isPatternDisplayReady(pattern) &&
+  isPatternVoiceReady(pattern) &&
+  isPatternGuidedArcReady(pattern, getCachedPassage(pattern.name as PatternName));
+
+/**
+ * Show the row only when the guided passage is complete, or keep the last
+ * complete snapshot while the next one is still generating.
+ */
+export const isPatternListVisible = (pattern: SurfacedPatternTarget): boolean => {
+  if (isPatternFullyReady(pattern)) return true;
+  const display = getDisplayPassage(pattern.name as PatternName);
+  if (!display || !isCompleteVoicePassage(display)) return false;
+  if (!isPatternGuidedArcReady(pattern, display)) return false;
+  return heldReadyTitleExists(pattern);
+};
 
 export const countFullyReadyPatterns = (
   surfaced: SurfacedPattern[],

@@ -16,7 +16,6 @@ import {
 import {
   btnIconChrome,
   btnIconChromeType,
-  btnPrimary,
   iconFixed,
   iconPx,
   iconStroke,
@@ -47,6 +46,7 @@ import {
   OVERLAY_MENU_INSET_LEFT_CLASS,
 } from "@/lib/layout";
 import { resolvePreferredName } from "@/lib/user-display";
+import { useSignOutPending } from "@/lib/sign-out-state";
 
 const UNTITLED_ENTRY = "Untitled";
 const SIDEBAR_COLLAPSED_KEY = "unfold-sidebar-collapsed";
@@ -141,7 +141,14 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
   // still sees isLoaded=false → "Unfold" vs "Name's Unfold". Gate on mount.
   const [hasMounted, setHasMounted] = useState(false);
   const initialSyncReady = useInitialSyncReady();
-  const showEntriesSkeleton = !initialSyncReady && entries.length === 0;
+  const signOutPending = useSignOutPending();
+  const showEntriesSkeleton =
+    !signOutPending && !initialSyncReady && entries.length === 0;
+  const showDefaultEntryLoader =
+    !signOutPending &&
+    initialSyncReady &&
+    entries.length === 0 &&
+    query.trim().length === 0;
   const { summary: journalSummary, ready: journalInsightsReady } =
     useJournalInsights();
   const showSummaryHeading =
@@ -197,6 +204,19 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
       window.removeEventListener(ENTRIES_UPDATED_EVENT, load);
     };
   }, []);
+
+  // Every account keeps at least one untitled draft — provision locally once sync
+  // has settled and the list would otherwise look empty.
+  useLayoutEffect(() => {
+    if (signOutPending || !initialSyncReady || query.trim().length > 0) return;
+    if (entries.length > 0) return;
+    try {
+      resolveNewEntryTarget();
+      setEntries(readAllEntries());
+    } catch (error) {
+      console.error("Failed to provision default entry", error);
+    }
+  }, [signOutPending, initialSyncReady, entries.length, query]);
 
   useLayoutEffect(() => {
     if (searchOpen) searchInputRef.current?.focus();
@@ -558,38 +578,14 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
               className="sidebar-entries-scroll min-h-0 h-full overflow-y-auto overscroll-y-contain"
               aria-label="Entries"
             >
-            {showEntriesSkeleton ? (
+            {showEntriesSkeleton || showDefaultEntryLoader ? (
               <SidebarEntriesSkeleton />
             ) : filteredEntries.length === 0 ? (
-              <div>
-                {entries.length === 0 ? (
-                  <SidebarEmptyState
-                    title="No entries yet"
-                    body="Start with a single line — your recent entries will live here."
-                    action={
-                      <button
-                        type="button"
-                        onClick={handleNewEntry}
-                        className={btnPrimary("sm")}
-                      >
-                        <Plus
-                          size={iconPx("sm")}
-                          strokeWidth={iconStroke("sm")}
-                          aria-hidden
-                          className={iconFixed}
-                        />
-                        New entry
-                      </button>
-                    }
-                  />
-                ) : (
-                  <SidebarEmptyState
-                    title="No matches"
-                    body="Try a different word or phrase."
-                    compact
-                  />
-                )}
-              </div>
+              <SidebarEmptyState
+                title="No matches"
+                body="Try a different word or phrase."
+                compact
+              />
             ) : (
               <ul className="flex flex-col gap-1 pb-10">
                 {filteredEntries.map((entry) => {

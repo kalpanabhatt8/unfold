@@ -8,6 +8,10 @@
 
 import type { ParsedSlotFill } from "@/lib/ai/pattern-slots/parse";
 import type { PassageSlot, PatternPassage } from "@/lib/patterns/passage-types";
+import {
+  passageCacheVersionIsCurrent,
+  passageNeedsGeneration,
+} from "@/lib/patterns/passage-types";
 import { stripTypographicDashes } from "@/lib/patterns/voice-prose";
 
 const SHAPES_REQUIRING_VOICE: Record<
@@ -100,6 +104,13 @@ export const passageVoiceEchoes = (passage: PatternPassage): boolean => {
   }
   return false;
 };
+
+/** Cache-current passage with no pending voice slots and no echo failures. */
+export const isCompleteVoicePassage = (passage: PatternPassage): boolean =>
+  passageCacheVersionIsCurrent(passage.cacheKey) &&
+  !passageNeedsGeneration(passage) &&
+  passageStructureValid(passage) &&
+  !passageVoiceEchoes(passage);
 
 export const passageStructureValid = (passage: PatternPassage): boolean => {
   const required = SHAPES_REQUIRING_VOICE[passage.shapeId];

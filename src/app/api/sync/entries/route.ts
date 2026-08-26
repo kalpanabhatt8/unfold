@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { after } from "next/server";
 import { requireUser } from "@/lib/server/auth";
 import { pullEntries, pushEntries } from "@/lib/server/entries";
+import { scheduleSealedEntryPipeline } from "@/lib/server/pattern-pipeline";
 import type { WireEntry } from "@/lib/sync/wire-types";
 
 export const runtime = "nodejs";
@@ -34,6 +36,21 @@ export async function POST(request: Request) {
         typeof entry.updatedAt === "number",
     );
     const results = await pushEntries(userId, valid);
+
+    const acceptedSealedIds = valid
+      .filter(
+        (entry, index) =>
+          results[index]?.accepted === true &&
+          typeof entry.sealedAt === "number",
+      )
+      .map((entry) => entry.id);
+
+    if (acceptedSealedIds.length > 0) {
+      after(() => {
+        scheduleSealedEntryPipeline(userId, acceptedSealedIds);
+      });
+    }
+
     return NextResponse.json({ results });
   } catch (error) {
     if (error instanceof Response) return error;

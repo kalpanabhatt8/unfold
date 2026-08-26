@@ -1008,7 +1008,7 @@ input[type='number'] {
 
 /* Margin - NOT padding - so the gap between lines isn't part of the upper block's click target. */
 .journal-tiptap p.journal-block {
-  margin: 0 0 1.75em;
+  margin: 0 0 1em;
   font-weight: 400;
   white-space: pre-wrap;
   overflow-wrap: break-word;
@@ -1895,6 +1895,8 @@ input[type='number'] {
   max-height: var(--pattern-panel-max);
   opacity: 1;
   visibility: visible;
+  display: flex;
+  flex-direction: column;
   transition:
     max-height var(--pattern-accordion-duration) var(--pattern-accordion-ease),
     opacity calc(var(--pattern-accordion-duration) * 0.85)
@@ -1903,6 +1905,10 @@ input[type='number'] {
 }
 
 .pattern-accordion__collapse-inner {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
   overflow: hidden;
 }
 
@@ -1913,8 +1919,9 @@ input[type='number'] {
  */
 .pattern-accordion__panel {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
-  height: auto;
+  min-height: 0;
   max-height: min(70dvh, calc(100dvh - 12rem));
   margin: 0;
   border: 0;
@@ -1947,8 +1954,6 @@ input[type='number'] {
   flex: 1 1 auto;
   flex-direction: column;
   min-height: 0;
-  height: auto;
-  max-height: 100%;
   overflow: hidden;
   gap: 0.75rem;
 }
@@ -1980,9 +1985,9 @@ input[type='number'] {
 .pattern-accordion__panel .discovery-footer {
   position: static;
   z-index: auto;
-  flex-shrink: 0;
+  flex: 0 0 auto;
   margin-top: 0;
-  padding: 0.15rem 0 0;
+  padding: 0.15rem 0 0.35rem;
   background: transparent;
 }
 

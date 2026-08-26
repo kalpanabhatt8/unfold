@@ -15,11 +15,10 @@ import {
   buildOrientingLine,
   explainArc,
   getInitialRevealIndex,
-  isVoiceArcShape,
   phaseAtIndex,
   type DiscoveryArc,
 } from "@/lib/patterns/discovery-arc";
-import { passageStructureValid } from "@/lib/patterns/passage-fill";
+import { passageStructureValid, isCompleteVoicePassage } from "@/lib/patterns/passage-fill";
 import { passageToBeats } from "@/lib/patterns/passage-beats";
 import { passageNeedsGeneration } from "@/lib/patterns/passage-types";
 import type { PatternName } from "@/lib/patterns/vocabulary-public";
@@ -97,15 +96,21 @@ export function PatternDetailView({
   const displayPattern = displayPatterns.find((p) => p.name === patternName);
   const passage: PatternPassage | null = pattern?.passage ?? null;
 
-  useLayoutEffect(() => {
-    stablePassageRef.current = null;
-  }, [patternName, passage?.cacheKey ?? ""]);
-
-  if (passage && isVoiceArcShape(passage.shapeId)) {
+  if (passage && isCompleteVoicePassage(passage)) {
     stablePassageRef.current = passage;
+  } else if (
+    !stablePassageRef.current ||
+    stablePassageRef.current.name !== patternName
+  ) {
+    stablePassageRef.current = null;
   }
 
-  const activePassage = stablePassageRef.current ?? passage;
+  const activePassage =
+    stablePassageRef.current && isCompleteVoicePassage(stablePassageRef.current)
+      ? stablePassageRef.current
+      : passage && isCompleteVoicePassage(passage)
+        ? passage
+        : null;
   const cacheKey = activePassage?.cacheKey ?? "";
 
   const headlineTitle = useMemo(() => {
@@ -114,12 +119,10 @@ export function PatternDetailView({
     return PATTERN_LABELS[patternName];
   }, [displayPattern?.display?.displayTitle, patternName]);
 
-  // Headline + evidence need no AI, so the arc renders immediately. The CTA
-  // is the only thing gated on full generation: the beat count isn't final
-  // until every voice slot is filled, so the canvas hides the button (never
-  // guessing between Continue/Done) until voice is ready.
+  // Only render the canvas when evidence + mechanism + reflection are filled.
+  // Incomplete passages stay off-screen (no quotes-only "a moment…" shell).
   const voiceReady =
-    activePassage !== null && !passageNeedsGeneration(activePassage);
+    activePassage !== null && isCompleteVoicePassage(activePassage);
 
   const arc: DiscoveryArc | null = useMemo(() => {
     if (!activePassage || !pattern) return null;
@@ -260,22 +263,23 @@ export function PatternDetailView({
     return null;
   }
 
-  const canvas = arc ? (
-    <DiscoveryCanvas
-      arc={arc}
-      phaseIndex={phaseIndex}
-      revealKey={cacheKey}
-      ctaReady={ctaReady}
-      compactHeadline={compactHeadline}
-      patternName={patternName}
-      closingVote={closingVote}
-      onClosingVote={handleClosingVote}
-      onContinue={handleContinue}
-      onOpenEntry={handleOpenEntry}
-    />
-  ) : (
-    <CanvasSkeleton />
-  );
+  const canvas =
+    arc && voiceReady ? (
+      <DiscoveryCanvas
+        arc={arc}
+        phaseIndex={phaseIndex}
+        revealKey={cacheKey}
+        ctaReady={ctaReady}
+        compactHeadline={compactHeadline}
+        patternName={patternName}
+        closingVote={closingVote}
+        onClosingVote={handleClosingVote}
+        onContinue={handleContinue}
+        onOpenEntry={handleOpenEntry}
+      />
+    ) : (
+      <CanvasSkeleton />
+    );
 
   if (embedded) {
     return (

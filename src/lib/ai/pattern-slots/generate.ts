@@ -130,8 +130,9 @@ const priorFromFills = (
   });
 };
 
-/** Recognition arcs fill one slot at a time so realization sees connection. */
+/** Guided arcs fill one slot at a time so reflection sees mechanism. */
 const isSequentialShape = (shapeId: string): boolean =>
+  shapeId === "discovery" ||
   shapeId === "recognition" ||
   shapeId === "recognition_q" ||
   shapeId === "recognition_deep";
@@ -159,12 +160,31 @@ async function generateRecognitionSlots(
     let fills = first.fills;
     let rejected = first.rejected;
 
-    if (!fills.some((f) => f.index === slot.index) && first.reason) {
+    if (!fills.some((f) => f.index === slot.index)) {
+      const retryReason =
+        first.reason ??
+        first.rejected.find((r) => r.index === slot.index)?.reason ??
+        "incomplete";
       const second = await attemptSlots(apiKey, slotInput, () =>
-        buildSlotRetryPrompt(slotInput, rejectionMessage(first.reason!)),
+        buildSlotRetryPrompt(slotInput, rejectionMessage(retryReason)),
       );
       fills = mergeFills(fills, second.fills);
       rejected = mergeRejected(rejected, second.rejected);
+    }
+
+    if (!fills.some((f) => f.index === slot.index)) {
+      const retryReason =
+        first.reason ??
+        first.rejected.find((r) => r.index === slot.index)?.reason ??
+        "incomplete";
+      const third = await attemptSlots(apiKey, slotInput, () =>
+        buildSlotRetryPrompt(
+          slotInput,
+          `${rejectionMessage(retryReason)} Return one line for slot index ${slot.index} only.`,
+        ),
+      );
+      fills = mergeFills(fills, third.fills);
+      rejected = mergeRejected(rejected, third.rejected);
     }
 
     const accepted = fills.find((f) => f.index === slot.index);

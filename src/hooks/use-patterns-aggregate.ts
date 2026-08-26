@@ -4,7 +4,6 @@ import { useLayoutEffect, useState } from "react";
 import { ENTRIES_UPDATED_EVENT } from "@/lib/journal-entries";
 import { aggregateAnalyses } from "@/lib/patterns/aggregate";
 import { ANALYSES_UPDATED_EVENT } from "@/lib/patterns/analysis-store";
-import { reconcileAnalyses } from "@/lib/patterns/entry-completion";
 import type { PatternsAggregate } from "@/lib/patterns/types";
 
 /** Shared aggregate loader for Patterns index + detail. */
@@ -22,7 +21,6 @@ export function usePatternsAggregate(): PatternsAggregate | null {
     };
 
     refresh();
-    void reconcileAnalyses();
 
     const onStorage = (event: StorageEvent) => {
       if (

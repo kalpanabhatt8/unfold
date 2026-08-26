@@ -16,7 +16,14 @@ import {
   patternTimelineEnd,
 } from "@/lib/patterns/time-hint";
 import { buildEvidenceKey } from "@/lib/patterns/evidence-signals";
-import { isPatternFullyReady } from "@/lib/patterns/pattern-readiness";
+import {
+  isPatternFullyReady,
+  isPatternListVisible,
+} from "@/lib/patterns/pattern-readiness";
+import {
+  PATTERN_GENERATION_MIN_SEALED_ENTRIES,
+  PATTERN_GENERATION_MIN_TOTAL_WORDS,
+} from "@/lib/patterns/generation-gate-public";
 import { PATTERN_DISPLAY_UPDATED_EVENT } from "@/lib/patterns/pattern-display-store";
 import {
   isReadyPatternUnread,
@@ -107,26 +114,35 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
   const listPatterns = useMemo(() => {
     if (aggregate === null) return [];
     const enriched = patterns.length > 0 ? patterns : aggregate.surfaced;
-    const ready = enriched.filter((pattern) => isPatternFullyReady(pattern));
-    return [...ready].sort(
+    const visible = enriched.filter((pattern) => isPatternListVisible(pattern));
+    return [...visible].sort(
       (a, b) =>
         patternTimelineEnd(b.evidence) - patternTimelineEnd(a.evidence),
     );
   }, [aggregate, patterns, readinessTick]);
 
+  const fullyReadyNames = useMemo(() => {
+    const names = new Set<PatternName>();
+    for (const pattern of listPatterns) {
+      if (isPatternFullyReady(pattern)) names.add(pattern.name);
+    }
+    return names;
+  }, [listPatterns, readinessTick]);
+
   const unreadNames = useMemo(() => {
     const names = new Set<PatternName>();
     for (const pattern of listPatterns) {
+      if (!fullyReadyNames.has(pattern.name)) continue;
       if (isReadyPatternUnread(pattern)) names.add(pattern.name);
     }
     return names;
-  }, [listPatterns, viewsTick]);
+  }, [listPatterns, fullyReadyNames, viewsTick]);
 
-  const hasReadyPatterns = listPatterns.length > 0;
-  // Aggregate not read yet, or empty local cache while cloud sync still filling in.
+  const hasVisiblePatterns = listPatterns.length > 0;
+  // Wait only for sync — patterns are pre-generated on the server.
   const showPatternsSkeleton =
-    aggregate === null || (!initialSyncReady && !hasReadyPatterns);
-  const showPatternsHeading = !showPatternsSkeleton && hasReadyPatterns;
+    aggregate === null || (!initialSyncReady && !hasVisiblePatterns);
+  const showPatternsHeading = !showPatternsSkeleton && hasVisiblePatterns;
 
   /** null = all collapsed. */
   const [expanded, setExpanded] = useState<PatternName | null>(
@@ -262,12 +278,12 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
 
         {showPatternsSkeleton ? <PatternsListSkeleton /> : null}
 
-        {!showPatternsSkeleton && !hasReadyPatterns ? (
+        {!showPatternsSkeleton && !hasVisiblePatterns ? (
           <div className="flex flex-1 flex-col items-center justify-center py-16">
             <SidebarEmptyState
               icon={Sprout}
-              title="No pattern yet"
-              body="Keep writing, when a thought keeps returning, it will show up here."
+              title="No patterns yet"
+              body={`Patterns appear after ${PATTERN_GENERATION_MIN_SEALED_ENTRIES} sealed entries and ${PATTERN_GENERATION_MIN_TOTAL_WORDS}+ words. Keep writing — the server generates them automatically.`}
               action={
                 <button
                   type="button"
@@ -281,7 +297,7 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
           </div>
         ) : null}
 
-        {!showPatternsSkeleton && hasReadyPatterns ? (
+        {!showPatternsSkeleton && hasVisiblePatterns ? (
         <ul className="pattern-accordion" aria-label="Patterns">
           {listPatterns.map((pattern) => {
             const title =

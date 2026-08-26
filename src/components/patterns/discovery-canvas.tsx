@@ -35,7 +35,7 @@ export type DiscoveryCanvasProps = {
   phaseIndex: number;
   /** Resets when the passage changes (parent may remount on key). */
   revealKey?: string;
-  /** When false, the CTA waits (voice text still arriving). */
+  /** When false, Continue is locked (reveal animation). */
   ctaReady?: boolean;
   /** When true, skip the in-panel pattern title. */
   compactHeadline?: boolean;
@@ -308,19 +308,13 @@ export function DiscoveryCanvas({
               disabled={!ctaReady}
               className="inline-flex min-h-(--touch-target-min) items-center gap-0.5 px-1 text-sm tracking-normal [word-spacing:normal] text-(--text-tertiary) transition-colors duration-150 hover:text-(--text-primary) disabled:cursor-default disabled:opacity-40"
             >
-              {ctaReady ? (
-                <>
-                  <span>{discoveryContinueLabel(arc, currentIndex)}</span>
-                  <ChevronRight
-                    size={iconPx("xs")}
-                    strokeWidth={iconStroke("xs")}
-                    className={iconFixed}
-                    aria-hidden
-                  />
-                </>
-              ) : (
-                "a moment…"
-              )}
+              <span>{discoveryContinueLabel(arc, currentIndex)}</span>
+              <ChevronRight
+                size={iconPx("xs")}
+                strokeWidth={iconStroke("xs")}
+                className={iconFixed}
+                aria-hidden
+              />
             </button>
           )}
         </div>

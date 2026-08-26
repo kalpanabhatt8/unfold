@@ -136,6 +136,19 @@ const paraphrasesQuotes = (text: string, quotes: string[]): boolean => {
   return false;
 };
 
+/** Trim overlong Claude questions instead of rejecting the whole batch. */
+export const normalizeQuestionText = (text: string): string => {
+  let t = text.trim();
+  if (!t.endsWith("?")) t = `${t.replace(/[.!]+$/, "").trim()}?`;
+  if (t.length <= SLOT_MAX_QUESTION_CHARS) return t;
+  const body = t.slice(0, -1).trim();
+  const cut = body
+    .slice(0, SLOT_MAX_QUESTION_CHARS - 1)
+    .replace(/\s+\S*$/, "")
+    .trim();
+  return cut.length > 0 ? `${cut}?` : t.slice(0, SLOT_MAX_QUESTION_CHARS);
+};
+
 const validateQuestion = (
   text: string,
   quotes: string[],
@@ -282,9 +295,14 @@ export function validateSlotFills(
       continue;
     }
 
+    const normalizedFill =
+      spec.endingKind === "question" || spec.role === "reflection"
+        ? { ...fill, text: normalizeQuestionText(fill.text) }
+        : fill;
+
     const otherVoice = [...priorTexts, ...valid.map((v) => v.text)];
     const reason = validateOne(
-      fill,
+      normalizedFill,
       spec,
       allQuotes,
       definition,
@@ -296,7 +314,7 @@ export function validateSlotFills(
       if (firstReason === "empty") firstReason = reason;
       continue;
     }
-    valid.push(fill);
+    valid.push(normalizedFill);
   }
 
   if (valid.length === 0) {

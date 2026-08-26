@@ -5,6 +5,7 @@ import { useClerk, useUser } from "@clerk/nextjs";
 import { AccountProfileModal } from "@/components/sidebar/account-profile-modal";
 import { SendFeedbackModal } from "@/components/sidebar/send-feedback-modal";
 import { clearLocalUnfoldData } from "@/lib/clear-local-data";
+import { beginSignOut } from "@/lib/sign-out-state";
 import { flushPendingSync } from "@/lib/sync/sync-client";
 import { resolvePreferredName, avatarInitial } from "@/lib/user-display";
 
@@ -127,6 +128,7 @@ export function SidebarAccountMenu() {
   };
 
   const finishSignOut = useCallback(() => {
+    beginSignOut();
     clearLocalUnfoldData();
     void clerk.signOut({ redirectUrl: "/" });
   }, [clerk]);
@@ -153,6 +155,7 @@ export function SidebarAccountMenu() {
   const signOut = async () => {
     if (signOutBusy) return;
 
+    beginSignOut();
     setSignOutError(null);
     setSignOutBusy(true);
     setMenuOpen(true);

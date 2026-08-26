@@ -3,7 +3,11 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { buildEvidenceKey } from "@/lib/patterns/evidence-signals";
 import { isVoiceArcShape } from "@/lib/patterns/discovery-arc";
-import { getCachedPassage, PATTERN_PASSAGE_UPDATED_EVENT } from "@/lib/patterns/passage-store";
+import {
+  getCachedPassage,
+  getDisplayPassage,
+  PATTERN_PASSAGE_UPDATED_EVENT,
+} from "@/lib/patterns/passage-store";
 import { logReconcileStart } from "@/lib/patterns/pattern-timing";
 import { reconcileAllPassages } from "@/lib/patterns/passage-orchestrator";
 import {
@@ -30,7 +34,7 @@ const mergePassageFromCache = (
 ): PatternWithPassage[] =>
   surfaced.map((p) => ({
     ...p,
-    passage: getCachedPassage(p.name),
+    passage: getDisplayPassage(p.name) ?? getCachedPassage(p.name),
   }));
 
 const EVIDENCE_ONLY_SHAPES = new Set(["bare", "bare_close", "echo", "pair"]);
@@ -42,7 +46,11 @@ const mergeReconciledPassages = (
   surfaced.map((p) => {
     const result = reconciled.get(p.name as PatternName);
     const cached = getCachedPassage(p.name as PatternName);
-    const passage = preferPassage(result?.passage, cached ?? undefined);
+    const display = getDisplayPassage(p.name as PatternName);
+    const passage = preferPassage(
+      result?.passage,
+      display ?? cached ?? undefined,
+    );
     return { ...p, passage };
   });
 
@@ -106,6 +114,15 @@ const preferPassage = (
     return current;
   }
 
+  // Keep the last complete passage on screen while a new evidence set generates.
+  if (
+    !passageNeedsGeneration(current) &&
+    passageNeedsGeneration(next) &&
+    currentVoiceCurrent
+  ) {
+    return current;
+  }
+
   if (
     !passageNeedsGeneration(current) &&
     !passageNeedsGeneration(next) &&
@@ -152,17 +169,22 @@ export function usePatternPassages(
     [aggregate],
   );
 
-  const syncFromAggregate = () => {
+  useLayoutEffect(() => {
     const current = aggregateRef.current;
     if (!current?.surfaced.length) {
       setPatterns([]);
       return;
     }
-    setPatterns(reconcileSurfaced(current.surfaced));
-  };
-
-  useLayoutEffect(() => {
-    syncFromAggregate();
+    const next = reconcileSurfaced(current.surfaced);
+    setPatterns((prev) =>
+      next.map((row) => {
+        const existing = prev.find((p) => p.name === row.name);
+        return {
+          ...row,
+          passage: preferPassage(row.passage, existing?.passage ?? undefined),
+        };
+      }),
+    );
   }, [evidenceKey]);
 
   useEffect(() => {
@@ -173,7 +195,11 @@ export function usePatternPassages(
         current.surfaced.map((p) => {
           const existing = prev.find((row) => row.name === p.name);
           const cached = getCachedPassage(p.name as PatternName);
-          const passage = preferPassage(cached, existing?.passage ?? undefined);
+          const display = getDisplayPassage(p.name as PatternName);
+          const passage = preferPassage(
+            display ?? cached,
+            existing?.passage ?? undefined,
+          );
           return { ...p, passage };
         }),
       );

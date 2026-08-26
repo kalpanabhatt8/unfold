@@ -19,6 +19,7 @@
  */
 
 import { isPatternName, type PatternName } from "@/lib/patterns/vocabulary-public";
+import { getActivePatternStoreBacking } from "@/lib/patterns/store-backing";
 import { markPatternsDirty } from "@/lib/sync/local-flags";
 
 export const PATTERN_STATE_STORAGE_KEY = "unfold-pattern-state";
@@ -166,6 +167,8 @@ export const withPlan = (
 // ── Persistence ────────────────────────────────────────────────────────────
 
 const readAll = (): Record<string, PatternState> => {
+  const backing = getActivePatternStoreBacking();
+  if (backing) return backing.states;
   if (typeof window === "undefined") return {};
   try {
     const raw = window.localStorage.getItem(PATTERN_STATE_STORAGE_KEY);
@@ -186,6 +189,7 @@ const readAll = (): Record<string, PatternState> => {
 };
 
 const writeAll = (map: Record<string, PatternState>) => {
+  if (getActivePatternStoreBacking()) return;
   if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(

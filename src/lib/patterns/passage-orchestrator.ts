@@ -353,6 +353,35 @@ export function reconcilePatternPassage(
     advanced.lifecycleChanged;
 
   if (!shouldReplan && cached) {
+    // Stale evidence-only cache can look "usable" when planner lottery repeats
+    // the same shape — force discovery before returning a quotes-only arc.
+    if (
+      identityUnchanged &&
+      isDiscoveryEligible(advanced.lifecycle, discoveryQuotes) &&
+      EVIDENCE_ONLY_SHAPES.has(cached.shapeId) &&
+      !isVoiceGenerationActive(ctx.name)
+    ) {
+      const upgraded = createDiscoveryPlan(planCtx, advanced);
+      if (upgraded) {
+        const passage = materializePreservingVoice(
+          ctx.name,
+          upgraded.plan,
+          advanced.evidenceKey,
+          ctx.now,
+        );
+        putCachedPassage(passage);
+        if (persist) putState(upgraded.state);
+        return {
+          passage,
+          state: upgraded.state,
+          regenerated: true,
+          needsGeneration: passageNeedsGeneration(passage),
+          evidenceChanged: false,
+          lifecycleChanged: advanced.lifecycleChanged,
+        };
+      }
+    }
+
     if (persist) putState(advanced.state);
     return {
       passage: cached,

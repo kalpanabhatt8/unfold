@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { headers } from "next/headers";
-import { AnalysisReconcileOnMount } from "@/components/patterns/analysis-reconcile-on-mount";
+import { SignOutOverlay } from "@/components/auth/sign-out-overlay";
 import { Sidebar } from "@/components/sidebar/sidebar";
 import { DashboardScrollLock } from "./dashboard-scroll-lock";
 
@@ -15,7 +15,7 @@ export default async function DashboardShellLayout({
 
   return (
     <DashboardScrollLock>
-      <AnalysisReconcileOnMount />
+      <SignOutOverlay />
       <div className="flex h-svh min-h-0 w-full max-w-[100vw] overflow-hidden bg-(--app-bg)">
         <Sidebar initialPatternsActive={initialPatternsActive} />
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">

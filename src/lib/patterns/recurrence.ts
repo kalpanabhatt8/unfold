@@ -132,8 +132,14 @@ export function decidePatternRecurrence(
   };
 }
 
-/** Concise console line for testing / debug. */
+/** Concise console line for testing / debug (development only). */
 export function logRecurrenceDecision(decision: RecurrenceDecision): void {
+  if (
+    typeof process !== "undefined" &&
+    process.env.NODE_ENV !== "development"
+  ) {
+    return;
+  }
   const {
     name,
     surfaced,
