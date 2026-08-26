@@ -8,14 +8,22 @@ import {
   resolvePatternsPagePhase,
   type PatternsPagePhase,
 } from "@/lib/patterns/pattern-list-phase";
-import { PATTERN_STATE_STORAGE_KEY } from "@/lib/patterns/pattern-state";
 import { PATTERN_DISPLAY_UPDATED_EVENT } from "@/lib/patterns/pattern-display-store";
 import { PATTERN_PASSAGE_UPDATED_EVENT } from "@/lib/patterns/passage-store";
+import { listServerReadyPatterns } from "@/lib/patterns/server-ready-patterns";
 import type { SurfacedPattern } from "@/lib/patterns/types";
 import {
   INITIAL_PATTERNS_SYNC_DONE_EVENT,
   PATTERNS_HYDRATED_EVENT,
 } from "@/lib/sync/local-flags";
+import {
+  ensurePatternsHydrated,
+  getLastPatternsPullMeta,
+  hasPatternsMetaHydrated,
+  hasPatternsPullAttempted,
+  hasPatternsPullSucceeded,
+  hydratePatternArtifactsFromSnapshot,
+} from "@/lib/sync/sync-client";
 import { usePatternsAggregate } from "@/hooks/use-patterns-aggregate";
 
 export type PatternListState = {
@@ -23,12 +31,42 @@ export type PatternListState = {
   patterns: SurfacedPattern[];
 };
 
+type ReadyApiPayload = {
+  patterns?: SurfacedPattern[];
+  snapshot?: {
+    states: Parameters<typeof hydratePatternArtifactsFromSnapshot>[0]["states"];
+    passages: Parameters<typeof hydratePatternArtifactsFromSnapshot>[0]["passages"];
+    displays: Parameters<typeof hydratePatternArtifactsFromSnapshot>[0]["displays"];
+  };
+  meta?: { states: number; passages: number; displays: number };
+};
+
+const logPatternsDiagnostics = (
+  phase: PatternsPagePhase,
+  localCount: number,
+  remoteCount: number,
+) => {
+  console.info("[patterns]", {
+    phase,
+    localCount,
+    remoteCount,
+    hydrated: hasPatternsMetaHydrated(),
+    pullAttempted: hasPatternsPullAttempted(),
+    pullSucceeded: hasPatternsPullSucceeded(),
+    pullMeta: getLastPatternsPullMeta(),
+  });
+};
+
 /**
- * Unified Patterns list driver — phase + rows from synced artifacts.
+ * Unified Patterns list driver — phase + rows from synced artifacts,
+ * with a direct server fetch when local caches fail to hydrate.
  */
 export function usePatternList(): PatternListState {
   const aggregate = usePatternsAggregate();
   const [tick, setTick] = useState(0);
+  const [remotePatterns, setRemotePatterns] = useState<SurfacedPattern[] | null>(
+    null,
+  );
 
   useEffect(() => {
     const bump = () => setTick((t) => t + 1);
@@ -59,10 +97,57 @@ export function usePatternList(): PatternListState {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      await ensurePatternsHydrated();
+      try {
+        const response = await fetch("/api/patterns/ready");
+        if (!response.ok) {
+          console.warn("[patterns] /api/patterns/ready failed", response.status);
+          return;
+        }
+        const payload = (await response.json()) as ReadyApiPayload;
+        if (cancelled) return;
+        if (payload.snapshot) {
+          hydratePatternArtifactsFromSnapshot(payload.snapshot);
+        }
+        if (Array.isArray(payload.patterns)) {
+          setRemotePatterns(payload.patterns);
+          logPatternsDiagnostics(
+            payload.patterns.length > 0 ? "ready" : "empty",
+            listServerReadyPatterns().length,
+            payload.patterns.length,
+          );
+        }
+        setTick((t) => t + 1);
+      } catch (error) {
+        console.warn("[patterns] /api/patterns/ready error", error);
+      }
+    };
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return useMemo(() => {
     void tick;
-    const phase = resolvePatternsPagePhase(aggregate);
-    const patterns = phase === "ready" ? listVisiblePatterns() : [];
+    const local = listServerReadyPatterns();
+    const patterns =
+      local.length > 0
+        ? local
+        : remotePatterns && remotePatterns.length > 0
+          ? remotePatterns
+          : listVisiblePatterns();
+
+    let phase = resolvePatternsPagePhase(aggregate);
+    if (patterns.length > 0) {
+      phase = "ready";
+    }
+
     return { phase, patterns };
-  }, [aggregate, tick]);
+  }, [aggregate, remotePatterns, tick]);
 }

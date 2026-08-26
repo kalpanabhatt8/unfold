@@ -236,6 +236,19 @@ const applyServerPatterns = (snapshot: PatternsSnapshot) => {
   });
 };
 
+/** Apply pattern artifacts from /api/patterns/ready into session + local caches. */
+export const hydratePatternArtifactsFromSnapshot = (
+  snapshot: Pick<PatternsSnapshot, "states" | "passages" | "displays">,
+): void => {
+  applyServerPatterns({
+    analyses: [],
+    states: snapshot.states,
+    passages: snapshot.passages,
+    displays: snapshot.displays,
+    votes: [],
+  });
+};
+
 // ── Network steps ───────────────────────────────────────────────────────────
 
 /**
