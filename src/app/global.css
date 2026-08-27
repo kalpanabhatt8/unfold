@@ -1770,7 +1770,7 @@ input[type='number'] {
   max-height: var(--pattern-item-max);
   min-height: 0;
   border-radius: var(--pattern-card-radius-expanded);
-  background: var(--surface-raised);
+  background: var(--surface-canvas);
   transition:
     border-radius var(--pattern-accordion-duration)
       var(--pattern-accordion-ease),
