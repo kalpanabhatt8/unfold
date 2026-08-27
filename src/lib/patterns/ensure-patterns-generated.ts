@@ -7,6 +7,10 @@
  */
 
 import { PATTERN_GENERATION_MIN_SEALED_ENTRIES } from "@/lib/patterns/generation-gate-public";
+import {
+  logPatternsCheckpoint,
+  snapshotFromReady,
+} from "@/lib/patterns/patterns-debug";
 import type { SurfacedPattern } from "@/lib/patterns/types";
 import type { hydratePatternArtifactsFromSnapshot } from "@/lib/sync/sync-client";
 
@@ -22,9 +26,19 @@ export type ReadyPatternsResponse = {
 };
 
 export const fetchReadyPatterns = async (): Promise<ReadyPatternsResponse | null> => {
-  const response = await fetch("/api/patterns/ready");
-  if (!response.ok) return null;
-  return (await response.json()) as ReadyPatternsResponse;
+  try {
+    const response = await fetch("/api/patterns/ready");
+    if (!response.ok) {
+      logPatternsCheckpoint("ready:failed", { status: response.status });
+      return null;
+    }
+    const payload = (await response.json()) as ReadyPatternsResponse;
+    logPatternsCheckpoint("ready:fetch", snapshotFromReady(payload));
+    return payload;
+  } catch (error) {
+    logPatternsCheckpoint("ready:failed", { error: String(error) });
+    return null;
+  }
 };
 
 export const isEligibleForPatternGeneration = (
@@ -42,15 +56,28 @@ let inflightRebuild: Promise<boolean> | null = null;
 
 /** Runs analysis + artifact generation on the server; one in-flight call per tab. */
 export const requestPatternRebuild = (): Promise<boolean> => {
-  if (inflightRebuild) return inflightRebuild;
+  if (inflightRebuild) {
+    logPatternsCheckpoint("rebuild:join_inflight");
+    return inflightRebuild;
+  }
+
+  logPatternsCheckpoint("rebuild:start");
 
   inflightRebuild = (async () => {
     try {
       const response = await fetch("/api/patterns/rebuild", { method: "POST" });
-      if (!response.ok) return false;
-      const body = (await response.json()) as { ok?: boolean };
+      if (!response.ok) {
+        logPatternsCheckpoint("rebuild:failed", { status: response.status });
+        return false;
+      }
+      const body = (await response.json()) as { ok?: boolean; message?: string };
+      logPatternsCheckpoint("rebuild:done", {
+        ok: body.ok === true,
+        message: body.message,
+      });
       return body.ok === true;
-    } catch {
+    } catch (error) {
+      logPatternsCheckpoint("rebuild:failed", { error: String(error) });
       return false;
     }
   })().finally(() => {
@@ -75,7 +102,12 @@ export const ensurePatternsOnServer = async (): Promise<ReadyPatternsResponse | 
 export const kickPatternGenerationInBackground = (): void => {
   void (async () => {
     const payload = await fetchReadyPatterns();
-    if (!payload || !isEligibleForPatternGeneration(payload)) return;
+    if (!payload) return;
+    if (!isEligibleForPatternGeneration(payload)) {
+      logPatternsCheckpoint("sync:kick_skip", snapshotFromReady(payload));
+      return;
+    }
+    logPatternsCheckpoint("sync:kick", snapshotFromReady(payload));
     await requestPatternRebuild();
   })();
 };

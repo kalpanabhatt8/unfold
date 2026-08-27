@@ -1,18 +1,24 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ENTRIES_UPDATED_EVENT } from "@/lib/journal-entries";
 import { ANALYSES_UPDATED_EVENT } from "@/lib/patterns/analysis-store";
 import {
   ensurePatternsOnServer,
   fetchReadyPatterns,
   isEligibleForPatternGeneration,
+  type ReadyPatternsResponse,
 } from "@/lib/patterns/ensure-patterns-generated";
 import {
   listVisiblePatterns,
   resolvePatternsPagePhase,
   type PatternsPagePhase,
 } from "@/lib/patterns/pattern-list-phase";
+import {
+  logPatternsCheckpoint,
+  logPatternsPhase,
+  snapshotFromReady,
+} from "@/lib/patterns/patterns-debug";
 import { PATTERN_DISPLAY_UPDATED_EVENT } from "@/lib/patterns/pattern-display-store";
 import { PATTERN_PASSAGE_UPDATED_EVENT } from "@/lib/patterns/passage-store";
 import { listServerReadyPatterns } from "@/lib/patterns/server-ready-patterns";
@@ -36,9 +42,7 @@ export type PatternListState = {
 const POLL_MS = 5_000;
 const MAX_POLLS = 72; // ~6 minutes — voice generation can be slow
 
-const applyReadyPayload = (
-  payload: NonNullable<Awaited<ReturnType<typeof fetchReadyPatterns>>>,
-): SurfacedPattern[] => {
+const applyReadyPayload = (payload: ReadyPatternsResponse): SurfacedPattern[] => {
   if (payload.snapshot) {
     hydratePatternArtifactsFromSnapshot(payload.snapshot);
   }
@@ -56,6 +60,8 @@ export function usePatternList(): PatternListState {
     null,
   );
   const [serverGenerating, setServerGenerating] = useState(false);
+  const lastReadyRef = useRef<ReadyPatternsResponse | null>(null);
+  const lastPhaseLogRef = useRef<string>("");
 
   useEffect(() => {
     const bump = () => setTick((t) => t + 1);
@@ -91,14 +97,21 @@ export function usePatternList(): PatternListState {
 
     const load = async () => {
       await ensurePatternsHydrated();
+      logPatternsCheckpoint("hydrate:done");
 
       let payload = await fetchReadyPatterns();
       if (cancelled || !payload) return;
+      lastReadyRef.current = payload;
 
       let patterns = applyReadyPayload(payload);
       setRemotePatterns(patterns);
 
       const eligible = isEligibleForPatternGeneration(payload);
+      logPatternsCheckpoint(eligible ? "eligible" : "not_eligible", {
+        ...snapshotFromReady(payload),
+        eligible,
+      });
+
       if (patterns.length > 0) {
         setServerGenerating(false);
         setTick((t) => t + 1);
@@ -117,6 +130,7 @@ export function usePatternList(): PatternListState {
       try {
         payload = (await ensurePatternsOnServer()) ?? payload;
         if (cancelled) return;
+        lastReadyRef.current = payload;
         patterns = applyReadyPayload(payload);
         setRemotePatterns(patterns);
         setTick((t) => t + 1);
@@ -132,8 +146,14 @@ export function usePatternList(): PatternListState {
           if (cancelled) return;
           payload = await fetchReadyPatterns();
           if (cancelled || !payload) return;
+          lastReadyRef.current = payload;
           patterns = applyReadyPayload(payload);
           setRemotePatterns(patterns);
+          logPatternsCheckpoint("poll", {
+            ...snapshotFromReady(payload),
+            attempt: poll + 1,
+            maxPolls: MAX_POLLS,
+          });
           setTick((t) => t + 1);
           if (patterns.length > 0) {
             await fullSync();
@@ -141,8 +161,8 @@ export function usePatternList(): PatternListState {
             return;
           }
         }
-      } catch {
-        /* fall through to empty/syncing resolution */
+      } catch (error) {
+        logPatternsCheckpoint("error", { error: String(error) });
       }
 
       if (!cancelled) setServerGenerating(false);
@@ -169,6 +189,26 @@ export function usePatternList(): PatternListState {
       phase = "ready";
     } else if (serverGenerating) {
       phase = "syncing";
+    }
+
+    const phaseKey = JSON.stringify({
+      phase,
+      localCount: local.length,
+      remoteCount: remotePatterns?.length ?? 0,
+      serverGenerating,
+      sealed: lastReadyRef.current?.debug?.sealedEntryCount,
+      analyses: lastReadyRef.current?.debug?.analysisCount,
+      meta: lastReadyRef.current?.meta,
+    });
+    if (phaseKey !== lastPhaseLogRef.current) {
+      lastPhaseLogRef.current = phaseKey;
+      logPatternsPhase({
+        phase,
+        localCount: local.length,
+        remoteCount: remotePatterns?.length ?? 0,
+        serverGenerating,
+        payload: lastReadyRef.current,
+      });
     }
 
     return { phase, patterns };
