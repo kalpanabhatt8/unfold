@@ -161,6 +161,7 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
   const showSkeleton = phase === "loading" || phase === "syncing";
   const showEmpty = phase === "empty";
   const showList = phase === "ready" && sortedPatterns.length > 0;
+  const showHeader = showList || showEmpty;
 
   const [expanded, setExpanded] = useState<PatternName | null>(
     initialPattern ?? null,
@@ -282,14 +283,16 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
               />
             </button>
           ) : null}
-          {showList ? (
+          {showHeader ? (
             <>
               <div className="flex h-9 shrink-0 items-center">
                 <h1 className="header-md tracking-tight">Patterns</h1>
               </div>
-              <p className=" text-sm leading-relaxed text-(--sidebar-ink-soft) sm:text-sm">
-                Here&apos;s what your writing keeps circling back to
-              </p>
+              {showList ? (
+                <p className=" text-sm leading-relaxed text-(--sidebar-ink-soft) sm:text-sm">
+                  Here&apos;s what your writing keeps circling back to
+                </p>
+              ) : null}
             </>
           ) : null}
         </header>

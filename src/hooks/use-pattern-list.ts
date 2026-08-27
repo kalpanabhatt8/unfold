@@ -210,6 +210,9 @@ export function usePatternList(): PatternListState {
       phase = "ready";
     } else if (serverGenerating) {
       phase = "syncing";
+    } else if (lastReadyRef.current) {
+      // Server snapshot loaded — don't stay on loading skeleton forever.
+      phase = "empty";
     }
 
     const phaseKey = JSON.stringify({
