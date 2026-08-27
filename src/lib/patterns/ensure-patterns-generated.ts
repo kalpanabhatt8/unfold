@@ -65,7 +65,7 @@ export const requestPatternRebuild = (): Promise<boolean> => {
  * Safe to call from sync or the Patterns page.
  */
 export const ensurePatternsOnServer = async (): Promise<ReadyPatternsResponse | null> => {
-  let payload = await fetchReadyPatterns();
+  const payload = await fetchReadyPatterns();
   if (!payload || !isEligibleForPatternGeneration(payload)) return payload;
   await requestPatternRebuild();
   return fetchReadyPatterns();
