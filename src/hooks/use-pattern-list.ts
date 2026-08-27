@@ -4,6 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { ENTRIES_UPDATED_EVENT } from "@/lib/journal-entries";
 import { ANALYSES_UPDATED_EVENT } from "@/lib/patterns/analysis-store";
 import {
+  ensurePatternsOnServer,
+  fetchReadyPatterns,
+  isEligibleForPatternGeneration,
+} from "@/lib/patterns/ensure-patterns-generated";
+import {
   listVisiblePatterns,
   resolvePatternsPagePhase,
   type PatternsPagePhase,
@@ -28,37 +33,21 @@ export type PatternListState = {
   patterns: SurfacedPattern[];
 };
 
-type ReadyApiPayload = {
-  patterns?: SurfacedPattern[];
-  snapshot?: {
-    states: Parameters<typeof hydratePatternArtifactsFromSnapshot>[0]["states"];
-    passages: Parameters<typeof hydratePatternArtifactsFromSnapshot>[0]["passages"];
-    displays: Parameters<typeof hydratePatternArtifactsFromSnapshot>[0]["displays"];
-  };
-  meta?: { states: number; passages: number; displays: number };
-  debug?: { userId: string; sealedEntryCount: number; analysisCount: number };
-  generating?: boolean;
-};
-
 const POLL_MS = 5_000;
-const MAX_POLLS = 60; // ~5 minutes
+const MAX_POLLS = 72; // ~6 minutes — voice generation can be slow
 
-const applyReadyPayload = (payload: ReadyApiPayload): SurfacedPattern[] => {
+const applyReadyPayload = (
+  payload: NonNullable<Awaited<ReturnType<typeof fetchReadyPatterns>>>,
+): SurfacedPattern[] => {
   if (payload.snapshot) {
     hydratePatternArtifactsFromSnapshot(payload.snapshot);
   }
   return Array.isArray(payload.patterns) ? payload.patterns : [];
 };
 
-const fetchReady = async (): Promise<ReadyApiPayload | null> => {
-  const response = await fetch("/api/patterns/ready");
-  if (!response.ok) return null;
-  return (await response.json()) as ReadyApiPayload;
-};
-
 /**
- * Unified Patterns list driver — phase + rows from synced artifacts,
- * with automatic server generation when patterns are due but missing.
+ * Patterns list driver — automatically runs server rebuild when due,
+ * shows syncing while generation runs, polls until patterns appear.
  */
 export function usePatternList(): PatternListState {
   const aggregate = usePatternsAggregate();
@@ -102,46 +91,61 @@ export function usePatternList(): PatternListState {
 
     const load = async () => {
       await ensurePatternsHydrated();
+
+      let payload = await fetchReadyPatterns();
+      if (cancelled || !payload) return;
+
+      let patterns = applyReadyPayload(payload);
+      setRemotePatterns(patterns);
+
+      const eligible = isEligibleForPatternGeneration(payload);
+      if (patterns.length > 0) {
+        setServerGenerating(false);
+        setTick((t) => t + 1);
+        return;
+      }
+
+      if (!eligible) {
+        setServerGenerating(false);
+        setTick((t) => t + 1);
+        return;
+      }
+
+      setServerGenerating(true);
+      setTick((t) => t + 1);
+
       try {
-        let payload = await fetchReady();
-        if (cancelled || !payload) return;
-
-        let patterns = applyReadyPayload(payload);
+        payload = (await ensurePatternsOnServer()) ?? payload;
+        if (cancelled) return;
+        patterns = applyReadyPayload(payload);
         setRemotePatterns(patterns);
-
-        const sealedCount = payload.debug?.sealedEntryCount ?? 0;
-        const eligibleForGeneration = sealedCount >= 5;
-
-        setServerGenerating(
-          Boolean(payload.generating) ||
-            (patterns.length === 0 && eligibleForGeneration),
-        );
         setTick((t) => t + 1);
 
-        if (patterns.length > 0 || (!payload.generating && !eligibleForGeneration)) {
+        if (patterns.length > 0) {
+          await fullSync();
+          setServerGenerating(false);
           return;
         }
 
         for (let poll = 0; poll < MAX_POLLS; poll += 1) {
           await new Promise((resolve) => setTimeout(resolve, POLL_MS));
           if (cancelled) return;
-          payload = await fetchReady();
+          payload = await fetchReadyPatterns();
           if (cancelled || !payload) return;
           patterns = applyReadyPayload(payload);
           setRemotePatterns(patterns);
-          setServerGenerating(
-            Boolean(payload.generating) && patterns.length === 0,
-          );
           setTick((t) => t + 1);
           if (patterns.length > 0) {
             await fullSync();
+            setServerGenerating(false);
             return;
           }
-          if (!payload.generating) return;
         }
       } catch {
-        /* network blip — skeleton/empty phase handles it */
+        /* fall through to empty/syncing resolution */
       }
+
+      if (!cancelled) setServerGenerating(false);
     };
 
     void load();

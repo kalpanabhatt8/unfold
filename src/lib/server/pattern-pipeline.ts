@@ -181,7 +181,7 @@ export function scheduleSealedEntryPipeline(
   userId: string,
   _entryIds: string[],
 ): void {
-  void runFullPatternGeneration(userId).catch((error) => {
+  void runFullPatternGeneration(userId, { bypassGate: true }).catch((error) => {
     console.error("[pattern-pipeline] seal event failed", { userId, error });
   });
 }

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { after } from "next/server";
 import { requireUser } from "@/lib/server/auth";
 import { pullEntries, pushEntries } from "@/lib/server/entries";
-import { scheduleSealedEntryPipeline } from "@/lib/server/pattern-pipeline";
+import { runFullPatternGeneration } from "@/lib/server/pattern-pipeline";
 import type { WireEntry } from "@/lib/sync/wire-types";
 
 export const runtime = "nodejs";
@@ -46,8 +46,8 @@ export async function POST(request: Request) {
       .map((entry) => entry.id);
 
     if (acceptedSealedIds.length > 0) {
-      after(() => {
-        scheduleSealedEntryPipeline(userId, acceptedSealedIds);
+      after(async () => {
+        await runFullPatternGeneration(userId, { bypassGate: true });
       });
     }
 

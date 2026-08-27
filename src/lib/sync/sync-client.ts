@@ -35,6 +35,7 @@ import {
   putCachedPassage,
 } from "@/lib/patterns/passage-store";
 import { listServerReadyPatterns } from "@/lib/patterns/server-ready-patterns";
+import { kickPatternGenerationInBackground } from "@/lib/patterns/ensure-patterns-generated";
 import {
   listVotes,
   putVoteQuiet,
@@ -367,11 +368,11 @@ const pullAndApplyPatterns = async (): Promise<boolean> => {
   return patternsPullSucceeded;
 };
 
-/** Ask the server to generate patterns when sync shows none yet. */
+/** Start server rebuild when sync shows no pattern artifacts yet. */
 const kickPatternGenerationIfNeeded = (): void => {
   const meta = lastPatternsPullMeta;
   if (!meta || meta.passages > 0 || meta.displays > 0) return;
-  void fetch("/api/patterns/ready").catch(() => {});
+  kickPatternGenerationInBackground();
 };
 
 const toTombstoneWire = (tombstone: EntryTombstone): WireEntry => ({

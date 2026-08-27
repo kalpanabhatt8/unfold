@@ -27,6 +27,8 @@ require.cache[serverOnlyPath] = {
 } as NodeModule;
 
 const email = process.env.PATTERN_CHECK_EMAIL ?? "kalpanabhatt818@gmail.com";
+const userIdArg = process.argv.find((arg) => arg.startsWith("--user-id="));
+const userIdOverride = userIdArg?.slice("--user-id=".length) ?? process.env.PATTERN_CHECK_USER_ID;
 const force = process.argv.includes("--force");
 const regenQuestions = process.argv.includes("--regen-questions");
 const regenLoops = process.argv.includes("--regen-loops");
@@ -131,41 +133,44 @@ async function regenVoiceForUser(
 }
 
 async function main() {
-  const clerk = createClerkClient({
-    secretKey: process.env.CLERK_SECRET_KEY!,
-  });
-  const { data } = await clerk.users.getUserList({
-    emailAddress: [email],
-    limit: 1,
-  });
-  const user = data[0];
-  if (!user) {
-    console.error("No Clerk user for", email);
-    process.exit(1);
+  let userId = userIdOverride?.trim() ?? "";
+  if (!userId) {
+    const clerk = createClerkClient({
+      secretKey: process.env.CLERK_SECRET_KEY!,
+    });
+    const { data } = await clerk.users.getUserList({
+      emailAddress: [email],
+      limit: 1,
+    });
+    const user = data[0];
+    if (!user) {
+      console.error("No Clerk user for", email);
+      process.exit(1);
+    }
+    userId = user.id;
   }
 
   if (regenQuestions) {
-    console.log("Regenerating reflection questions for", email, user.id);
-    await regenVoiceForUser(user.id, "questions");
+    console.log("Regenerating reflection questions for", userId);
+    await regenVoiceForUser(userId, "questions");
     return;
   }
 
   if (regenLoops) {
-    console.log("Regenerating Loops for", email, user.id);
-    await regenVoiceForUser(user.id, "loops");
+    console.log("Regenerating Loops for", userId);
+    await regenVoiceForUser(userId, "loops");
     return;
   }
 
   console.log(
     "Running pattern pipeline for",
-    email,
-    user.id,
+    userId,
     force ? "(force)" : "",
   );
   const { runFullPatternGeneration } = await import(
     "../src/lib/server/pattern-pipeline"
   );
-  const ok = await runFullPatternGeneration(user.id, {
+  const ok = await runFullPatternGeneration(userId, {
     bypassGate: force,
   });
   console.log(ok ? "Pipeline finished." : "Pipeline skipped (gate not met).");

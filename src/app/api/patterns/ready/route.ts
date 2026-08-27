@@ -1,35 +1,15 @@
-import { after, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/server/auth";
-import {
-  listReadyPatternsForUser,
-  shouldSchedulePatternGeneration,
-} from "@/lib/server/list-ready-patterns";
-import {
-  isPatternGenerationInflight,
-  runFullPatternGeneration,
-} from "@/lib/server/pattern-pipeline";
+import { listReadyPatternsForUser } from "@/lib/server/list-ready-patterns";
 
 export const runtime = "nodejs";
-/** Pattern generation can take a few minutes when kicked off from this route. */
-export const maxDuration = 300;
 
-/** Direct read of server-ready patterns — starts generation automatically when due. */
+/** Read server-ready patterns — generation is triggered by POST /api/patterns/rebuild. */
 export async function GET() {
   try {
     const userId = await requireUser();
     const payload = await listReadyPatternsForUser(userId);
-    const needsGeneration = shouldSchedulePatternGeneration(payload);
-
-    if (needsGeneration) {
-      after(async () => {
-        await runFullPatternGeneration(userId, { bypassGate: true });
-      });
-    }
-
-    return NextResponse.json({
-      ...payload,
-      generating: needsGeneration || isPatternGenerationInflight(userId),
-    });
+    return NextResponse.json(payload);
   } catch (error) {
     if (error instanceof Response) return error;
     console.error("[patterns/ready] failed", error);
