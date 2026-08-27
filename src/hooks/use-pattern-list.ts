@@ -15,6 +15,7 @@ import {
   type PatternsPagePhase,
 } from "@/lib/patterns/pattern-list-phase";
 import {
+  inferEmptyReason,
   logPatternsCheckpoint,
   logPatternsPhase,
   snapshotFromReady,
@@ -37,10 +38,11 @@ import { usePatternsAggregate } from "@/hooks/use-patterns-aggregate";
 export type PatternListState = {
   phase: PatternsPagePhase;
   patterns: SurfacedPattern[];
+  emptyReason: string | null;
 };
 
 const POLL_MS = 5_000;
-const MAX_POLLS = 72; // ~6 minutes — voice generation can be slow
+const MAX_POLLS = 12; // ~1 minute — only when rebuild succeeded but sync lagging
 
 const applyReadyPayload = (payload: ReadyPatternsResponse): SurfacedPattern[] => {
   if (payload.snapshot) {
@@ -49,10 +51,6 @@ const applyReadyPayload = (payload: ReadyPatternsResponse): SurfacedPattern[] =>
   return Array.isArray(payload.patterns) ? payload.patterns : [];
 };
 
-/**
- * Patterns list driver — automatically runs server rebuild when due,
- * shows syncing while generation runs, polls until patterns appear.
- */
 export function usePatternList(): PatternListState {
   const aggregate = usePatternsAggregate();
   const [tick, setTick] = useState(0);
@@ -60,6 +58,7 @@ export function usePatternList(): PatternListState {
     null,
   );
   const [serverGenerating, setServerGenerating] = useState(false);
+  const [emptyReason, setEmptyReason] = useState<string | null>(null);
   const lastReadyRef = useRef<ReadyPatternsResponse | null>(null);
   const lastPhaseLogRef = useRef<string>("");
 
@@ -107,9 +106,13 @@ export function usePatternList(): PatternListState {
       setRemotePatterns(patterns);
 
       const eligible = isEligibleForPatternGeneration(payload);
+      const reason = inferEmptyReason(payload);
+      setEmptyReason(patterns.length > 0 ? null : reason);
+
       logPatternsCheckpoint(eligible ? "eligible" : "not_eligible", {
         ...snapshotFromReady(payload),
         eligible,
+        emptyReason: reason,
       });
 
       if (patterns.length > 0) {
@@ -128,15 +131,32 @@ export function usePatternList(): PatternListState {
       setTick((t) => t + 1);
 
       try {
-        payload = (await ensurePatternsOnServer()) ?? payload;
+        const { payload: after, rebuild } = await ensurePatternsOnServer();
         if (cancelled) return;
+        payload = after ?? payload;
         lastReadyRef.current = payload;
         patterns = applyReadyPayload(payload);
         setRemotePatterns(patterns);
+        setEmptyReason(patterns.length > 0 ? null : inferEmptyReason(payload));
         setTick((t) => t + 1);
 
         if (patterns.length > 0) {
           await fullSync();
+          setServerGenerating(false);
+          return;
+        }
+
+        if (rebuild?.reason === "no_surface" || !isEligibleForPatternGeneration(payload)) {
+          logPatternsCheckpoint("not_eligible", {
+            ...snapshotFromReady(payload),
+            rebuildReason: rebuild?.reason,
+            emptyReason: inferEmptyReason(payload),
+          });
+          setServerGenerating(false);
+          return;
+        }
+
+        if (!rebuild?.ok) {
           setServerGenerating(false);
           return;
         }
@@ -158,6 +178,7 @@ export function usePatternList(): PatternListState {
           if (patterns.length > 0) {
             await fullSync();
             setServerGenerating(false);
+            setEmptyReason(null);
             return;
           }
         }
@@ -196,6 +217,7 @@ export function usePatternList(): PatternListState {
       localCount: local.length,
       remoteCount: remotePatterns?.length ?? 0,
       serverGenerating,
+      emptyReason,
       sealed: lastReadyRef.current?.debug?.sealedEntryCount,
       analyses: lastReadyRef.current?.debug?.analysisCount,
       meta: lastReadyRef.current?.meta,
@@ -211,6 +233,6 @@ export function usePatternList(): PatternListState {
       });
     }
 
-    return { phase, patterns };
-  }, [aggregate, remotePatterns, serverGenerating, tick]);
+    return { phase, patterns, emptyReason };
+  }, [aggregate, emptyReason, remotePatterns, serverGenerating, tick]);
 }

@@ -1,13 +1,13 @@
 "use client";
 
 /**
- * Client-side pattern generation — mirrors what worked from the console:
- * POST /api/patterns/rebuild (awaits server completion), then read /ready.
+ * Client-side pattern generation — POST /api/patterns/rebuild then read /ready.
  * Dedupes concurrent rebuild requests per tab.
  */
 
 import { PATTERN_GENERATION_MIN_SEALED_ENTRIES } from "@/lib/patterns/generation-gate-public";
 import {
+  inferEmptyReason,
   logPatternsCheckpoint,
   snapshotFromReady,
 } from "@/lib/patterns/patterns-debug";
@@ -23,6 +23,12 @@ export type ReadyPatternsResponse = {
   };
   meta?: { states: number; passages: number; displays: number };
   debug?: { userId: string; sealedEntryCount: number; analysisCount: number };
+};
+
+export type PatternRebuildResult = {
+  ok: boolean;
+  reason?: string;
+  message?: string;
 };
 
 export const fetchReadyPatterns = async (): Promise<ReadyPatternsResponse | null> => {
@@ -41,21 +47,33 @@ export const fetchReadyPatterns = async (): Promise<ReadyPatternsResponse | null
   }
 };
 
+/** True when a rebuild might still produce patterns (not yet analyzed, or not tried). */
 export const isEligibleForPatternGeneration = (
   payload: ReadyPatternsResponse,
 ): boolean => {
   const sealedCount = payload.debug?.sealedEntryCount ?? 0;
+  const analysisCount = payload.debug?.analysisCount ?? 0;
   const patternCount = payload.patterns?.length ?? 0;
-  return (
-    patternCount === 0 &&
-    sealedCount >= PATTERN_GENERATION_MIN_SEALED_ENTRIES
-  );
+  const displays = payload.meta?.displays ?? 0;
+
+  if (patternCount > 0 || displays > 0) return false;
+  if (sealedCount < PATTERN_GENERATION_MIN_SEALED_ENTRIES) return false;
+
+  // All sealed entries analyzed — further rebuilds won't help until new seals.
+  if (
+    analysisCount >= sealedCount &&
+    inferEmptyReason(payload) === "aggregation_no_surface"
+  ) {
+    return false;
+  }
+
+  return true;
 };
 
-let inflightRebuild: Promise<boolean> | null = null;
+let inflightRebuild: Promise<PatternRebuildResult> | null = null;
 
 /** Runs analysis + artifact generation on the server; one in-flight call per tab. */
-export const requestPatternRebuild = (): Promise<boolean> => {
+export const requestPatternRebuild = (): Promise<PatternRebuildResult> => {
   if (inflightRebuild) {
     logPatternsCheckpoint("rebuild:join_inflight");
     return inflightRebuild;
@@ -68,17 +86,18 @@ export const requestPatternRebuild = (): Promise<boolean> => {
       const response = await fetch("/api/patterns/rebuild", { method: "POST" });
       if (!response.ok) {
         logPatternsCheckpoint("rebuild:failed", { status: response.status });
-        return false;
+        return { ok: false, reason: "http_error" };
       }
-      const body = (await response.json()) as { ok?: boolean; message?: string };
+      const body = (await response.json()) as PatternRebuildResult;
       logPatternsCheckpoint("rebuild:done", {
         ok: body.ok === true,
+        reason: body.reason,
         message: body.message,
       });
-      return body.ok === true;
+      return body;
     } catch (error) {
       logPatternsCheckpoint("rebuild:failed", { error: String(error) });
-      return false;
+      return { ok: false, reason: "network_error" };
     }
   })().finally(() => {
     inflightRebuild = null;
@@ -89,13 +108,18 @@ export const requestPatternRebuild = (): Promise<boolean> => {
 
 /**
  * If the account qualifies but has no ready patterns, run rebuild then re-fetch.
- * Safe to call from sync or the Patterns page.
  */
-export const ensurePatternsOnServer = async (): Promise<ReadyPatternsResponse | null> => {
+export const ensurePatternsOnServer = async (): Promise<{
+  payload: ReadyPatternsResponse | null;
+  rebuild: PatternRebuildResult | null;
+}> => {
   const payload = await fetchReadyPatterns();
-  if (!payload || !isEligibleForPatternGeneration(payload)) return payload;
-  await requestPatternRebuild();
-  return fetchReadyPatterns();
+  if (!payload || !isEligibleForPatternGeneration(payload)) {
+    return { payload, rebuild: null };
+  }
+  const rebuild = await requestPatternRebuild();
+  const after = await fetchReadyPatterns();
+  return { payload: after, rebuild };
 };
 
 /** Background kick during sync — never blocks the sync pass. */
@@ -104,7 +128,10 @@ export const kickPatternGenerationInBackground = (): void => {
     const payload = await fetchReadyPatterns();
     if (!payload) return;
     if (!isEligibleForPatternGeneration(payload)) {
-      logPatternsCheckpoint("sync:kick_skip", snapshotFromReady(payload));
+      logPatternsCheckpoint("sync:kick_skip", {
+        ...snapshotFromReady(payload),
+        emptyReason: inferEmptyReason(payload),
+      });
       return;
     }
     logPatternsCheckpoint("sync:kick", snapshotFromReady(payload));

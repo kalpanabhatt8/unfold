@@ -173,7 +173,7 @@ async function main() {
   const ok = await runFullPatternGeneration(userId, {
     bypassGate: force,
   });
-  console.log(ok ? "Pipeline finished." : "Pipeline skipped (gate not met).");
+  console.log(ok.ok ? "Pipeline finished." : `Pipeline finished: ${ok.reason}`);
 }
 
 main()

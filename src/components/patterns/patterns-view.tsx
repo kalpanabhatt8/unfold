@@ -123,7 +123,7 @@ export type PatternsViewProps = {
 export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
   const router = useRouter();
   const viewport = useViewportLayout();
-  const { phase, patterns: listPatterns } = usePatternList();
+  const { phase, patterns: listPatterns, emptyReason } = usePatternList();
   const itemRefs = useRef<Map<PatternName, HTMLLIElement>>(new Map());
   const scrollerRef = useRef<HTMLElement | null>(null);
   const [viewsTick, setViewsTick] = useState(0);
@@ -301,7 +301,11 @@ export function PatternsView({ initialPattern }: PatternsViewProps = {}) {
             <SidebarEmptyState
               icon={Sprout}
               title="No patterns yet"
-              body={`Patterns appear after ${PATTERN_GENERATION_MIN_SEALED_ENTRIES} sealed entries and ${PATTERN_GENERATION_MIN_TOTAL_WORDS}+ words. Keep writing — the server generates them automatically.`}
+              body={
+                emptyReason === "aggregation_no_surface"
+                  ? "Your entries are analyzed, but no strong recurring theme has emerged yet. Keep writing — patterns appear when the same thread shows up across several entries."
+                  : `Patterns appear after ${PATTERN_GENERATION_MIN_SEALED_ENTRIES} sealed entries and ${PATTERN_GENERATION_MIN_TOTAL_WORDS}+ words. Keep writing — the server generates them automatically.`
+              }
               action={
                 <button
                   type="button"

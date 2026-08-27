@@ -5,11 +5,12 @@ import {
   dbAnalysisToEntryAnalysis,
   entryNeedsAnalysis,
 } from "@/lib/server/analyze-entry";
-import { generateUserPatternArtifacts, userNeedsArtifactGeneration } from "@/lib/server/generate-user-patterns";
+import { generateUserPatternArtifacts } from "@/lib/server/generate-user-patterns";
 import {
   evaluatePatternGenerationGate,
   markPatternsGenerated,
 } from "@/lib/server/pattern-generation-gate";
+import { PATTERN_GENERATION_MIN_SEALED_ENTRIES } from "@/lib/patterns/generation-gate-public";
 import { resolveEntryText } from "@/lib/server/entry-text";
 import { db } from "@/lib/server/db";
 
@@ -18,6 +19,12 @@ const BATCH_SIZE = 5;
 const MAX_ENTRIES_PER_GENERATION = 50;
 
 export type PipelineMode = "event" | "backfill" | "manual";
+
+export type PatternGenerationOutcome = {
+  ok: boolean;
+  reason: "ready" | "no_surface" | "incomplete" | "skipped" | "no_api_key";
+  displayCount?: number;
+};
 
 const findAllPendingEntryIds = async (
   userId: string,
@@ -61,21 +68,17 @@ const analyzeEntryBatch = async (
   return analyzed;
 };
 
-/**
- * Full server-side pattern generation: analyze all pending sealed entries,
- * build pattern artifacts, persist to Postgres. No-op when gate not met.
- */
 /** One pipeline run per user — overlapping rebuilds corrupt in-memory stores. */
-const inflightByUser = new Map<string, Promise<boolean>>();
+const inflightByUser = new Map<string, Promise<PatternGenerationOutcome>>();
 
 const runFullPatternGenerationInner = async (
   userId: string,
   options?: { bypassGate?: boolean },
-): Promise<boolean> => {
+): Promise<PatternGenerationOutcome> => {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     console.warn("[pattern-pipeline] missing ANTHROPIC_API_KEY");
-    return false;
+    return { ok: false, reason: "no_api_key" };
   }
 
   const gate = await evaluatePatternGenerationGate(userId, {
@@ -89,7 +92,7 @@ const runFullPatternGenerationInner = async (
       sealedCount: gate.sealedCount,
       totalWords: gate.totalWords,
     });
-    return false;
+    return { ok: false, reason: "skipped" };
   }
 
   const pending = await findAllPendingEntryIds(
@@ -108,26 +111,49 @@ const runFullPatternGenerationInner = async (
 
   await generateUserPatternArtifacts(userId, apiKey);
 
-  const artifactsReady = !(await userNeedsArtifactGeneration(userId));
-  if (gate.latestSealAt && artifactsReady) {
-    await markPatternsGenerated(userId, gate.latestSealAt);
+  const displayCount = await db.patternDisplay.count({ where: { userId } });
+  const analysisCount = await db.entryAnalysis.count({ where: { userId } });
+
+  if (displayCount > 0) {
+    if (gate.latestSealAt) {
+      await markPatternsGenerated(userId, gate.latestSealAt);
+    }
+    console.info("[pattern-pipeline] complete", {
+      userId,
+      analyzed,
+      displayCount,
+      sealedCount: gate.sealedCount,
+      totalWords: gate.totalWords,
+    });
+    return { ok: true, reason: "ready", displayCount };
   }
 
-  console.info("[pattern-pipeline] complete", {
+  if (
+    analysisCount >= gate.sealedCount &&
+    gate.sealedCount >= PATTERN_GENERATION_MIN_SEALED_ENTRIES
+  ) {
+    console.info("[pattern-pipeline] no_surface", {
+      userId,
+      analyzed,
+      analysisCount,
+      sealedCount: gate.sealedCount,
+    });
+    return { ok: false, reason: "no_surface", displayCount: 0 };
+  }
+
+  console.info("[pattern-pipeline] incomplete", {
     userId,
     analyzed,
-    artifactsReady,
+    analysisCount,
     sealedCount: gate.sealedCount,
-    totalWords: gate.totalWords,
   });
-
-  return artifactsReady;
+  return { ok: false, reason: "incomplete", displayCount: 0 };
 };
 
 export async function runFullPatternGeneration(
   userId: string,
   options?: { bypassGate?: boolean },
-): Promise<boolean> {
+): Promise<PatternGenerationOutcome> {
   const inflight = inflightByUser.get(userId);
   if (inflight) {
     console.info("[pattern-pipeline] join inflight run", { userId });
