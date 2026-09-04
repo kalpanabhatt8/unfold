@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import {
   btnIconChrome,
-  btnIconChromeType,
   iconFixed,
   iconPx,
   iconStroke,
@@ -53,6 +52,8 @@ const SIDEBAR_COLLAPSED_KEY = "unfold-sidebar-collapsed";
 const SIDEBAR_WIDTH_CLASS = "w-(--sidebar-width)";
 const SIDEBAR_TOGGLE_SIZE = "xs" as const;
 const SIDEBAR_ACTION_SIZE = "xs" as const;
+/** Glyph size — matches Patterns `Waypoints` (16px). Chrome stays `xs` so the h-7 brand row does not overflow. */
+const SIDEBAR_ICON_SIZE = "sm" as const;
 /**
  * Horizontal rhythm: shell `px-2.5` + row `px-2.5` share one content column
  * with entry rows — avatar, section labels, entry text, chevron, +, and days
@@ -60,8 +61,8 @@ const SIDEBAR_ACTION_SIZE = "xs" as const;
  * Brand row: mt-4 + h-7 + mb-2 = 52 — matches SHELL_BRAND_ROW_HEIGHT_PX.
  */
 const SIDEBAR_BRAND_ROW =
-  "relative z-20 flex h-7 shrink-0 items-center justify-between gap-2 mt-4 mb-3 px-2.5";
-const SIDEBAR_SECTION_HEAD = "flex h-9 shrink-0 items-center px-2.5";
+  "relative z-20 flex h-7 shrink-0 items-center justify-between gap-2 mt-4 mb-3 pl-2.5";
+const SIDEBAR_SECTION_HEAD = "flex h-9 shrink-0 items-center pl-2.5";
 const SIDEBAR_ENTRY_ROW =
   "pointer-events-none relative flex flex-col gap-0.5 px-2.5 py-2.5";
 const SIDEBAR_BRAND_TITLE =
@@ -396,8 +397,8 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
       }
     >
       <Menu
-        size={iconPx(SIDEBAR_TOGGLE_SIZE)}
-        strokeWidth={iconStroke(SIDEBAR_TOGGLE_SIZE)}
+        size={iconPx(SIDEBAR_ICON_SIZE)}
+        strokeWidth={iconStroke(SIDEBAR_ICON_SIZE)}
         aria-hidden
         className={iconFixed}
       />
@@ -421,8 +422,8 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
             className={`shrink-0 ${btnIconChrome(SIDEBAR_TOGGLE_SIZE)}`}
           >
             <ChevronsLeft
-              size={iconPx(SIDEBAR_TOGGLE_SIZE)}
-              strokeWidth={iconStroke(SIDEBAR_TOGGLE_SIZE)}
+              size={iconPx(SIDEBAR_ICON_SIZE)}
+              strokeWidth={iconStroke(SIDEBAR_ICON_SIZE)}
               aria-hidden
               className={iconFixed}
             />
@@ -462,8 +463,8 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
             className={`shrink-0 ${btnIconChrome(SIDEBAR_TOGGLE_SIZE)}`}
           >
             <ChevronsLeft
-              size={iconPx(SIDEBAR_TOGGLE_SIZE)}
-              strokeWidth={iconStroke(SIDEBAR_TOGGLE_SIZE)}
+              size={iconPx(SIDEBAR_ICON_SIZE)}
+              strokeWidth={iconStroke(SIDEBAR_ICON_SIZE)}
               aria-hidden
               className={iconFixed}
             />
@@ -496,15 +497,15 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
           <div
             className={clsx(
               "flex h-9 shrink-0 items-center",
-              !searchOpen && "px-2.5",
+              !searchOpen && "pl-2.5",
             )}
           >
             {searchOpen ? (
               <div className="app-search app-search--flush">
-                <div className="flex h-full min-w-0 w-full items-center gap-2 px-2.5">
+                <div className="flex h-full min-w-0 w-full items-center gap-2 px-2.5 pr-1!">
                   <Search
-                    size={14}
-                    strokeWidth={1.8}
+                    size={iconPx(SIDEBAR_ICON_SIZE)}
+                    strokeWidth={iconStroke(SIDEBAR_ICON_SIZE)}
                     className="app-search__icon"
                     aria-hidden
                   />
@@ -525,11 +526,11 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
                     type="button"
                     onClick={closeSearch}
                     aria-label="Close search"
-                    className={`flex size-3.5 shrink-0 items-center justify-center rounded-[4px] ${btnIconChromeType} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20`}
+                    className={`shrink-0 ${btnIconChrome(SIDEBAR_ACTION_SIZE)}`}
                   >
                     <X
-                      size={14}
-                      strokeWidth={iconStroke(SIDEBAR_ACTION_SIZE)}
+                      size={iconPx(SIDEBAR_ICON_SIZE)}
+                      strokeWidth={iconStroke(SIDEBAR_ICON_SIZE)}
                       aria-hidden
                       className={iconFixed}
                     />
@@ -549,8 +550,8 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
                     className={`shrink-0 ${btnIconChrome(SIDEBAR_ACTION_SIZE)}`}
                   >
                     <Search
-                      size={iconPx(SIDEBAR_ACTION_SIZE)}
-                      strokeWidth={iconStroke(SIDEBAR_ACTION_SIZE)}
+                      size={iconPx(SIDEBAR_ICON_SIZE)}
+                      strokeWidth={iconStroke(SIDEBAR_ICON_SIZE)}
                       aria-hidden
                       className={iconFixed}
                     />
@@ -562,8 +563,8 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
                     className={`shrink-0 ${btnIconChrome(SIDEBAR_ACTION_SIZE)}`}
                   >
                     <Plus
-                      size={iconPx(SIDEBAR_ACTION_SIZE)}
-                      strokeWidth={iconStroke(SIDEBAR_ACTION_SIZE)}
+                      size={iconPx(SIDEBAR_ICON_SIZE)}
+                      strokeWidth={iconStroke(SIDEBAR_ICON_SIZE)}
                       aria-hidden
                       className={iconFixed}
                     />
@@ -655,11 +656,11 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
                                 event.stopPropagation();
                                 handleDeleteEntry(entry.id);
                               }}
-                              className="pointer-events-auto hidden h-3 w-3 shrink-0 items-center justify-center border-0 bg-transparent p-0 text-(--sidebar-icon) transition-[color] duration-150 hover:text-(--sidebar-ink) focus-visible:inline-flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20 group-hover:inline-flex"
+                              className="pointer-events-auto hidden h-4 w-4 shrink-0 items-center justify-center border-0 bg-transparent p-0 text-(--sidebar-icon) transition-[color] duration-150 hover:text-(--sidebar-ink) focus-visible:inline-flex focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-black/20 group-hover:inline-flex"
                             >
                               <Trash2
-                                size={12}
-                                strokeWidth={1.8}
+                                size={iconPx(SIDEBAR_ICON_SIZE)}
+                                strokeWidth={iconStroke(SIDEBAR_ICON_SIZE)}
                                 aria-hidden
                                 className={iconFixed}
                               />

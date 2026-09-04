@@ -31,9 +31,12 @@ import {
   iconPx,
   iconStroke,
 } from "@/components/ui/button-system";
-
-const SIDEBAR_ACTION_SIZE = "xs" as const;
 import "./landing-concepts.css";
+
+const SIDEBAR_TOGGLE_SIZE = "xs" as const;
+const SIDEBAR_ACTION_SIZE = "xs" as const;
+/** Glyph size — matches Patterns `Waypoints` (16px). Chrome stays `xs` so the h-7 brand row does not overflow. */
+const SIDEBAR_ICON_SIZE = "sm" as const;
 
 function clamp(n: number, min = 0, max = 1) {
   return Math.min(max, Math.max(min, n));
@@ -476,13 +479,13 @@ export function LivingCanvas() {
                   </div>
                   <button
                     type="button"
-                    className={`shrink-0 ${btnIconChrome(SIDEBAR_ACTION_SIZE)}`}
+                    className={`shrink-0 ${btnIconChrome(SIDEBAR_TOGGLE_SIZE)}`}
                     aria-label="Collapse sidebar"
                     tabIndex={interactive ? 0 : -1}
                   >
                     <ChevronsLeft
-                      size={iconPx(SIDEBAR_ACTION_SIZE)}
-                      strokeWidth={iconStroke(SIDEBAR_ACTION_SIZE)}
+                      size={iconPx(SIDEBAR_ICON_SIZE)}
+                      strokeWidth={iconStroke(SIDEBAR_ICON_SIZE)}
                       aria-hidden
                       className={iconFixed}
                     />
@@ -495,44 +498,46 @@ export function LivingCanvas() {
                     data-search={searchOpen}
                   >
                     {searchOpen ? (
-                      <div className="lp-live__search">
-                        <Search
-                          size={14}
-                          strokeWidth={1.8}
-                          aria-hidden
-                          className="lp-live__search-icon"
-                        />
-                        <input
-                          ref={searchInputRef}
-                          type="text"
-                          value={query}
-                          onChange={(e) => setQuery(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Escape") {
+                      <div className="app-search app-search--flush">
+                        <div className="flex h-full min-w-0 w-full items-center gap-2 px-2.5 pr-1!">
+                          <Search
+                            size={iconPx(SIDEBAR_ICON_SIZE)}
+                            strokeWidth={iconStroke(SIDEBAR_ICON_SIZE)}
+                            aria-hidden
+                            className="app-search__icon"
+                          />
+                          <input
+                            ref={searchInputRef}
+                            type="text"
+                            value={query}
+                            onChange={(e) => setQuery(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Escape") {
+                                setSearchOpen(false);
+                                setQuery("");
+                              }
+                            }}
+                            placeholder="Search"
+                            aria-label="Search entries"
+                            disabled={!interactive}
+                          />
+                          <button
+                            type="button"
+                            aria-label="Close search"
+                            className={`shrink-0 ${btnIconChrome(SIDEBAR_ACTION_SIZE)}`}
+                            onClick={() => {
                               setSearchOpen(false);
                               setQuery("");
-                            }
-                          }}
-                          placeholder="Search"
-                          aria-label="Search entries"
-                          disabled={!interactive}
-                        />
-                        <button
-                          type="button"
-                          aria-label="Close search"
-                          className={`shrink-0 ${btnIconChrome(SIDEBAR_ACTION_SIZE)}`}
-                          onClick={() => {
-                            setSearchOpen(false);
-                            setQuery("");
-                          }}
-                        >
-                          <X
-                            size={iconPx(SIDEBAR_ACTION_SIZE)}
-                            strokeWidth={iconStroke(SIDEBAR_ACTION_SIZE)}
-                            aria-hidden
-                            className={iconFixed}
-                          />
-                        </button>
+                            }}
+                          >
+                            <X
+                              size={iconPx(SIDEBAR_ICON_SIZE)}
+                              strokeWidth={iconStroke(SIDEBAR_ICON_SIZE)}
+                              aria-hidden
+                              className={iconFixed}
+                            />
+                          </button>
+                        </div>
                       </div>
                     ) : (
                       <>
@@ -548,8 +553,8 @@ export function LivingCanvas() {
                             onClick={() => interactive && setSearchOpen(true)}
                           >
                             <Search
-                              size={iconPx(SIDEBAR_ACTION_SIZE)}
-                              strokeWidth={iconStroke(SIDEBAR_ACTION_SIZE)}
+                              size={iconPx(SIDEBAR_ICON_SIZE)}
+                              strokeWidth={iconStroke(SIDEBAR_ICON_SIZE)}
                               aria-hidden
                               className={iconFixed}
                             />
@@ -562,8 +567,8 @@ export function LivingCanvas() {
                             onClick={() => openNewEntry()}
                           >
                             <Plus
-                              size={iconPx(SIDEBAR_ACTION_SIZE)}
-                              strokeWidth={iconStroke(SIDEBAR_ACTION_SIZE)}
+                              size={iconPx(SIDEBAR_ICON_SIZE)}
+                              strokeWidth={iconStroke(SIDEBAR_ICON_SIZE)}
                               aria-hidden
                               className={iconFixed}
                             />
