@@ -876,7 +876,7 @@ export function AuthForm() {
         {mode === "sign-up" ? (
           <>
             <header className="auth-header">
-              <h1 className="auth-title">Start unfolding</h1>
+              <h1 className="auth-title">Create your account</h1>
               <p className="auth-subtitle">
                 Create your space to write and reflect.
               </p>
