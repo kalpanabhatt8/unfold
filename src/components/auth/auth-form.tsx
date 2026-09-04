@@ -878,7 +878,7 @@ export function AuthForm() {
             <header className="auth-header">
               <h1 className="auth-title">Create your account</h1>
               <p className="auth-subtitle">
-                Create your space to write and reflect.
+                Your space to write and reflect
               </p>
             </header>
 
