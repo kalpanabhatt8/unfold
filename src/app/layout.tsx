@@ -3,20 +3,13 @@ import { ClerkProvider } from "@clerk/nextjs";
 import "./global.css";
 
 import { StorageNamespaceMigration } from "@/components/storage-namespace-migration";
-import { Bonheur_Royale, Bricolage_Grotesque, Figtree, Lora } from "next/font/google";
+import { Bonheur_Royale, Lora, Plus_Jakarta_Sans } from "next/font/google";
 
-const bricolageGrotesque = Bricolage_Grotesque({
+const plusJakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
   display: "swap",
-  variable: "--font-bricolage",
-});
-
-const figtree = Figtree({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600"],
-  display: "swap",
-  variable: "--font-figtree",
+  variable: "--font-plus-jakarta",
 });
 
 const lora = Lora({
@@ -58,12 +51,12 @@ export default function RootLayout({
     >
       <html
         lang="en"
-        className={`${bricolageGrotesque.variable} ${figtree.variable} ${lora.variable} ${bonheurRoyale.variable}`}
+        className={`${plusJakarta.variable} ${lora.variable} ${bonheurRoyale.variable}`}
         suppressHydrationWarning
       >
         <body
           suppressHydrationWarning
-          className={`${figtree.className} font-sans`}
+          className={`${plusJakarta.className} font-sans`}
         >
           <StorageNamespaceMigration />
           {children}

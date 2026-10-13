@@ -66,7 +66,7 @@ const SIDEBAR_SECTION_HEAD = "flex h-9 shrink-0 items-center pl-2.5";
 const SIDEBAR_ENTRY_ROW =
   "pointer-events-none relative flex flex-col gap-0.5 px-2.5 py-2.5";
 const SIDEBAR_BRAND_TITLE =
-  "min-w-0 flex-1 truncate text-md font-semibold leading-none tracking-tight text-primary [font-family:var(--font-heading)]";
+  "min-w-0 flex-1 truncate text-md font-bold leading-none tracking-tight text-primary [font-family:var(--font-heading)]";
 const OVERLAY_OPACITY_TRANSITION =
   "transition-opacity duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none";
 const OVERLAY_TRANSFORM_TRANSITION =

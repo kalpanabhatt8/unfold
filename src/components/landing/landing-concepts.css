@@ -220,7 +220,7 @@ html:has(.lp-live)::-webkit-scrollbar-button {
   font-family: var(--font-heading);
   /* Scale to keep the full sentence on one line within the canvas width */
   font-size: clamp(1.25rem, 4.85vw, 4.75rem);
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1;
   letter-spacing: -0.03em;
   color: #ead4de;
@@ -795,7 +795,7 @@ html:has(.lp-live)::-webkit-scrollbar-button {
   margin: 0;
   min-width: 0;
   font-family: var(--font-heading);
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: -0.01em;
   color: var(--text-primary);
   white-space: nowrap;
@@ -1045,7 +1045,7 @@ html:has(.lp-live)::-webkit-scrollbar-button {
 .lp-live__pattern-title {
   margin: 0;
   font-family: var(--font-heading);
-  font-weight: 600;
+  font-weight: 700;
   font-size: var(--text-lg);
   line-height: var(--text-lg--line-height);
   letter-spacing: -0.01em;
