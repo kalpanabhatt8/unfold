@@ -115,7 +115,7 @@ export function usePatternList(): PatternListState {
         emptyReason: reason,
       });
 
-      if (patterns.length > 0) {
+      if (patterns.length > 0 && !payload.needsVoiceUpgrade) {
         setServerGenerating(false);
         setTick((t) => t + 1);
         return;

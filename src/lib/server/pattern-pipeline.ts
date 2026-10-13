@@ -5,6 +5,8 @@ import {
   dbAnalysisToEntryAnalysis,
   entryNeedsAnalysis,
 } from "@/lib/server/analyze-entry";
+import { passageNeedsLoopAndQuestion } from "@/lib/patterns/passage-fill";
+import type { PatternPassage } from "@/lib/patterns/passage-types";
 import { generateUserPatternArtifacts } from "@/lib/server/generate-user-patterns";
 import {
   evaluatePatternGenerationGate,
@@ -86,13 +88,25 @@ const runFullPatternGenerationInner = async (
   });
 
   if (!gate.needsGeneration) {
-    console.info("[pattern-pipeline] skipped", {
-      userId,
-      reason: gate.skipReason,
-      sealedCount: gate.sealedCount,
-      totalWords: gate.totalWords,
+    const stored = await db.patternPassage.findMany({
+      where: { userId },
+      select: { passage: true },
     });
-    return { ok: false, reason: "skipped" };
+    const missingLoop = stored.some((row) =>
+      passageNeedsLoopAndQuestion(row.passage as PatternPassage),
+    );
+    if (!missingLoop) {
+      console.info("[pattern-pipeline] skipped", {
+        userId,
+        reason: gate.skipReason,
+        sealedCount: gate.sealedCount,
+        totalWords: gate.totalWords,
+      });
+      return { ok: false, reason: "skipped" };
+    }
+    console.info("[pattern-pipeline] upgrading quotes-only passages", {
+      userId,
+    });
   }
 
   const pending = await findAllPendingEntryIds(

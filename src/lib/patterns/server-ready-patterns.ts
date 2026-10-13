@@ -112,8 +112,7 @@ export const isServerReadyPatternVisible = (
 
   const lifecycle = getState(name)?.lifecycle ?? passage.lifecycle;
   const quoteCount = countPassageQuotes(passage);
-  const discoveryEligible =
-    quoteCount >= 3 && lifecycle !== "resting" && lifecycle !== "emerging";
+  const discoveryEligible = quoteCount >= 3 && lifecycle !== "emerging";
   return !discoveryEligible;
 };
 
@@ -193,8 +192,7 @@ const isVisibleFromMaps = (
 
   const lifecycle = statesByName.get(name)?.lifecycle ?? passage.lifecycle;
   const quoteCount = countPassageQuotes(passage);
-  const discoveryEligible =
-    quoteCount >= 3 && lifecycle !== "resting" && lifecycle !== "emerging";
+  const discoveryEligible = quoteCount >= 3 && lifecycle !== "emerging";
   return !discoveryEligible;
 };
 

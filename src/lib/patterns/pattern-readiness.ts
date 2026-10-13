@@ -58,7 +58,7 @@ const discoveryEligibleForPattern = (pattern: SurfacedPatternTarget): boolean =>
   if (quoteCount < 3) return false;
   const lifecycle =
     getState(pattern.name as PatternName)?.lifecycle ?? "emerging";
-  return lifecycle !== "resting" && lifecycle !== "emerging";
+  return lifecycle !== "emerging";
 };
 
 /**

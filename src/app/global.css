@@ -1767,7 +1767,10 @@ input[type='number'] {
 }
 
 .pattern-accordion__item[data-expanded="true"] {
-  max-height: var(--pattern-item-max);
+  /* Don't cap the open card at 90dvh — that clipped the loop and question
+     under the quotes with no way to scroll to them. */
+  max-height: none;
+  overflow: visible;
   min-height: 0;
   border-radius: var(--pattern-card-radius-expanded);
   background: var(--surface-canvas);
@@ -1915,7 +1918,8 @@ input[type='number'] {
 }
 
 .pattern-accordion__collapse[data-open="true"] {
-  max-height: var(--pattern-panel-max);
+  /* Ceiling for the open animation only. Real passages stay shorter than this. */
+  max-height: 200rem;
   opacity: 1;
   visibility: visible;
   display: flex;

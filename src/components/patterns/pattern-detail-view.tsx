@@ -170,9 +170,13 @@ export function PatternDetailView({
     }
     if (initializedKeyRef.current === cacheKey) return;
     initializedKeyRef.current = cacheKey;
-    setPhaseIndex(getInitialRevealIndex(arc));
+    // The accordion open is the reveal. Show the loop and question with the
+    // quotes; don't leave them behind a second click inside the card.
+    setPhaseIndex(
+      embedded ? Math.max(0, arc.phases.length - 1) : getInitialRevealIndex(arc),
+    );
     setReaderReady(true);
-  }, [arc, cacheKey]);
+  }, [arc, cacheKey, embedded]);
 
   useEffect(() => {
     if (!arc) return;

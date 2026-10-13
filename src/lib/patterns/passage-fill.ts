@@ -112,6 +112,42 @@ export const isCompleteVoicePassage = (passage: PatternPassage): boolean =>
   passageStructureValid(passage) &&
   !passageVoiceEchoes(passage);
 
+const countPassageQuotes = (passage: PatternPassage): number => {
+  let count = 0;
+  for (const slot of passage.slots) {
+    if (slot.kind === "moments" || slot.kind === "echo" || slot.kind === "pair") {
+      count += slot.quotes.length;
+    }
+  }
+  return count;
+};
+
+const hasFilledLoopAndQuestion = (passage: PatternPassage): boolean => {
+  const loop = passage.slots.some(
+    (slot) => slot.kind === "line" && Boolean(slot.text?.trim()),
+  );
+  const question = passage.slots.some(
+    (slot) =>
+      slot.kind === "close" &&
+      slot.endingKind === "question" &&
+      Boolean(slot.text?.trim()),
+  );
+  return loop && question;
+};
+
+/**
+ * A surfaced pattern with 3+ moments must keep its loop and question, including
+ * while the journal is resting. Quotes-only caches are unfinished.
+ */
+export const passageNeedsLoopAndQuestion = (passage: PatternPassage): boolean => {
+  if (passage.lifecycle === "emerging") return false;
+  if (countPassageQuotes(passage) < 3) return false;
+  if (passage.shapeId === "discovery" && isCompleteVoicePassage(passage)) {
+    return !hasFilledLoopAndQuestion(passage);
+  }
+  return true;
+};
+
 export const passageStructureValid = (passage: PatternPassage): boolean => {
   const required = SHAPES_REQUIRING_VOICE[passage.shapeId];
   if (!required) return true;

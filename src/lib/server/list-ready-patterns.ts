@@ -8,6 +8,7 @@ import { db } from "@/lib/server/db";
 import type { PatternDisplay, SurfacedPattern } from "@/lib/patterns/types";
 import type { PatternPassage } from "@/lib/patterns/passage-types";
 import type { PatternState } from "@/lib/patterns/pattern-state";
+import { passageNeedsLoopAndQuestion } from "@/lib/patterns/passage-fill";
 import { isPatternName } from "@/lib/patterns/vocabulary-public";
 
 export type ReadyPatternsPayload = {
@@ -24,6 +25,8 @@ export type ReadyPatternsPayload = {
     }>;
   };
   meta: { states: number; passages: number; displays: number };
+  /** Stored passages still have quotes only — client should rebuild. */
+  needsVoiceUpgrade: boolean;
   /** Helps diagnose prod/dev Clerk userId mismatches — same email, different ids. */
   debug: {
     userId: string;
@@ -85,5 +88,8 @@ export const listReadyPatternsForUser = async (
       displays: displays.length,
     },
     debug: { userId, sealedEntryCount, analysisCount },
+    needsVoiceUpgrade: passages.some((passage) =>
+      passageNeedsLoopAndQuestion(passage),
+    ),
   };
 };

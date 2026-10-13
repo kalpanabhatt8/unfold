@@ -102,10 +102,7 @@ const EVIDENCE_ONLY_SHAPES = new Set([
 const isDiscoveryEligible = (
   lifecycle: Lifecycle,
   quoteCount: number,
-): boolean =>
-  quoteCount >= 3 &&
-  lifecycle !== "resting" &&
-  lifecycle !== "emerging";
+): boolean => quoteCount >= 3 && lifecycle !== "emerging";
 
 const countPassageQuotes = (passage: PatternPassage): number => {
   let n = 0;

@@ -22,6 +22,9 @@ import {
 } from "../src/lib/patterns/passage-types";
 import { discoveryContinueLabel } from "../src/lib/patterns/discovery-arc";
 import type { DiscoveryArc } from "../src/lib/patterns/discovery-arc";
+import { emptyState } from "../src/lib/patterns/pattern-state";
+import { advancePatternState, createPlan } from "../src/lib/patterns/planner";
+import type { PatternEvidenceItem } from "../src/lib/patterns/types";
 
 let passed = 0;
 let failed = 0;
@@ -676,6 +679,52 @@ console.log("reflection question grounding");
       length: overlong.length,
       rejected: overlongResult.rejected,
     }),
+  );
+}
+
+console.log("resting patterns still get a loop and question");
+{
+  const now = Date.now();
+  const day = 86_400_000;
+  const quotes = [
+    "I cleaned the kitchen instead of starting.",
+    "I answered email and left the real task.",
+    "I told myself the call could wait until tomorrow.",
+  ];
+  const evidence: PatternEvidenceItem[] = [60, 55, 50].map((daysAgo, index) => ({
+    entryId: `rest-${index}`,
+    entryTitle: `Entry ${index}`,
+    createdAt: now - daysAgo * day,
+    sealedAt: now - daysAgo * day,
+    quotes: [quotes[index]!],
+    confidence: 0.85,
+  }));
+  const ctx = {
+    name: "avoidance" as const,
+    evidence,
+    globalActivityAt: now - 40 * day,
+    prevState: null,
+    neighbors: [],
+    now,
+  };
+  const advanced = advancePatternState(ctx);
+  const { plan } = createPlan(
+    { ...ctx, prevState: emptyState(ctx.name, now) },
+    advanced,
+  );
+  const hasLoop = plan.slots.some((slot) => slot.kind === "line");
+  const hasQuestion = plan.slots.some(
+    (slot) => slot.kind === "close" && slot.endingKind === "question",
+  );
+  assert(
+    "quiet journal with 3 moments is resting",
+    advanced.lifecycle === "resting",
+    advanced.lifecycle,
+  );
+  assert(
+    "resting plan is discovery with a loop and question",
+    plan.shapeId === "discovery" && hasLoop && hasQuestion,
+    `${plan.shapeId} slots=${plan.slots.map((slot) => slot.kind).join(",")}`,
   );
 }
 

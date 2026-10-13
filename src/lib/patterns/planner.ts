@@ -180,7 +180,6 @@ const SHAPES: ShapeDef[] = [
     endingKind: "question",
     eligible: ({ lifecycle, evidenceSignals }) =>
       evidenceSignals.selectedQuotes.length >= 3 &&
-      lifecycle !== "resting" &&
       lifecycle !== "emerging",
   },
   {
@@ -365,7 +364,6 @@ const relaxAndPick = (
   const guidedDiscoveryPool = (): ShapeDef[] => {
     if (
       !hasRecognitionDepth(ctx.evidenceSignals) ||
-      ctx.lifecycle === "resting" ||
       ctx.lifecycle === "emerging"
     ) {
       return [];

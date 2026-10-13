@@ -129,7 +129,8 @@ export const SHAPE_FIXTURES: ShapeFixture[] = [
       item("c", 50, ["Their progress makes mine look small."]),
     ],
     globalActivityAt: now - 40 * DAY,
-    notes: "No global activity - resting",
+    expectShape: "discovery",
+    notes: "Quiet journal still gets a loop and question when 3+ moments exist",
   },
   {
     id: "weakening",

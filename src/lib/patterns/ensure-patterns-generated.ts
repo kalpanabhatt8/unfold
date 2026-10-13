@@ -23,6 +23,7 @@ export type ReadyPatternsResponse = {
   };
   meta?: { states: number; passages: number; displays: number };
   debug?: { userId: string; sealedEntryCount: number; analysisCount: number };
+  needsVoiceUpgrade?: boolean;
 };
 
 export type PatternRebuildResult = {
@@ -56,6 +57,7 @@ export const isEligibleForPatternGeneration = (
   const patternCount = payload.patterns?.length ?? 0;
   const displays = payload.meta?.displays ?? 0;
 
+  if (payload.needsVoiceUpgrade) return true;
   if (patternCount > 0 || displays > 0) return false;
   if (sealedCount < PATTERN_GENERATION_MIN_SEALED_ENTRIES) return false;
 
