@@ -603,7 +603,7 @@ export function Sidebar({ initialPatternsActive = false }: SidebarProps) {
                     <li
                       key={entry.id}
                       className={clsx(
-                        "group relative rounded-md transition-colors duration-150",
+                        "group relative rounded-xl transition-colors duration-150",
                         isActive
                           ? "bg-(--sidebar-entry-pressed-bg)"
                           : "hover:bg-(--sidebar-entry-hover-bg) active:bg-(--sidebar-entry-pressed-bg)",

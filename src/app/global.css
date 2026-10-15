@@ -107,9 +107,11 @@
   --value-100: 6.25rem;
 
   /* Radii */
-  --radius-sm: var(--value-8);
-  --radius-md: var(--value-12);
-  --radius-lg: var(--value-16);
+  --radius-sm: var(--value-10);
+  --radius-md: var(--value-14);
+  --radius-lg: var(--value-20);
+  --radius-xl: 1.5rem;
+  --radius-shell: 1.75rem;
   --radius-pill: 999rem;
 
   /*
@@ -123,41 +125,42 @@
   --accent-active: color-mix(in srgb, var(--accent) 72%, black);
   --accent-foreground: #fff8f2;
 
-  /* 2. SURFACE-CANVAS - main content / page, fully neutral */
-  --surface-canvas: #fcfcfc;
+  /* 2. SURFACE-CANVAS - white panels on the gray page */
+  --surface-canvas: #ffffff;
 
-  /* 3. SURFACE-CHROME - sidebar (warm pink), 3 steps only.
-   * Hover/active stepped darker within pink (not cool lavender). */
-  --surface-chrome: #fbf9fa;
-  --surface-chrome-hover: #f0e6eb;
-  --surface-chrome-active: #E4DDE0;
+  /* 3. SURFACE-CHROME - neutral gray steps (page wash lives on --app-bg) */
+  --surface-chrome: #ffffff;
+  --surface-chrome-hover: #f3f3f5;
+  --surface-chrome-active: #e8e8ec;
 
   /* 4. SURFACE-RAISED - cards, accordion, writing paper */
-  --surface-raised: #fafafa;
+  --surface-raised: #ffffff;
 
   /* 5. TEXT - primary / secondary / muted (+ disabled for UI state) */
-  --text-primary: #141314;
-  --text-secondary: #544e52;
-  --text-muted: #928a90;
-  --text-color-disabled: #c2bbbf;
+  --text-primary: #1a1a1c;
+  --text-secondary: #6e6e74;
+  --text-muted: #9b9ba3;
+  --text-color-disabled: #c4c4ca;
 
   /* Chrome accents that are intentionally distinct (not near-white fills) */
-  --border: #dcd5d8;
-  --sidebar-edge-border: #e8e5e6;
-  --popover-border: #ede4e9;
-  --sidebar-tab-track: #ede4e9;
-  --sidebar-tab-selected-bg: #e7dde2;
+  --border: #ececef;
+  --sidebar-edge-border: #eeeef1;
+  --popover-border: #e6e6ea;
+  --sidebar-tab-track: #f0f0f3;
+  --sidebar-tab-selected-bg: #e7e7eb;
   --journal-quote-highlight: #f2e4eb;
   /* Same dusty wash as the pink highlight — sage stays gray-green, not lemon. */
   --journal-highlight-pink: var(--journal-quote-highlight);
   --journal-highlight-green: #e7f1ec;
   --journal-highlight-sage: #e6ebe8;
-  --canvas-recess: #f2efeb;
-  --canvas-brown: #7e675f;
+  --canvas-recess: #f4f4f6;
+  --canvas-brown: #6e6e74;
 
   /* ---- Legacy aliases → roles above (do not invent new hex here) ---- */
 
-  --app-bg: var(--surface-canvas);
+  --app-bg: #e6e6ea;
+  --shell-shadow: 0 1px 2px rgba(16, 16, 20, 0.04),
+    0 18px 44px -16px rgba(16, 16, 20, 0.16);
   --bg: var(--surface-canvas);
   --canvas-bg-gradient: var(--surface-canvas);
   --surface-0: var(--surface-canvas);

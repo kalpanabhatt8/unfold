@@ -138,7 +138,7 @@ export const btnIconChromeType =
   "active:bg-[color-mix(in_srgb,var(--text-primary)_9%,transparent)]";
 
 export const btnIconChrome = (size: ButtonSize = "sm", radius?: BtnRadius) => {
-  const radiusClass = radius ? btnRadius[radius] : "rounded-[8px]";
+  const radiusClass = radius ? btnRadius[radius] : "rounded-full";
   return `${btnBase} ${buttonSize[size].iconButton} ${radiusClass} ${btnIconChromeType}`;
 };
 
